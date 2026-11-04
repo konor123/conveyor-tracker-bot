@@ -1,0 +1,242 @@
+# Progress — Moving Frame 기반 이동 단추 적층 진행 계획
+
+- 확정: 2026-11-04 / 구조·인터페이스·판정·중단 규칙: `PLAN.md`
+- M0을 먼저 통과한 뒤, 각 절 끝의 **게이트(G0~G7)**를 통과해야 다음 게이트로 넘어간다. 게이트 통과 조건은 `PLAN.md` 11.2절(합격 기준 + REQ 테스트 + 게이트 보고서)을 따른다.
+- 트랙 A(로봇·제어), B(비전·보정), C(계획·오케스트레이션), D(시뮬레이션)는 interface·계약 테스트·mock 2종·fixture·rosbag으로 연결해 병렬로 진행한다(`PLAN.md` 7, 11절). Isaac Sim(3절)은 실기 게이트를 막지 않는다.
+- 아래 합격 기준 수치는 모두 **제안값(초기 가설)**이다. 0절의 실측값이 나오면 조정하고 `records/param_changes.csv`에 남긴다.
+- 상태 표기: `[x]` 완료(재현 기록 보관 필요), `[ ]` 미착수.
+
+## 게이트 개요
+
+| 게이트 | 목표 | 절 | 트랙 | 우선 구현 패키지 | 통합 단계(`PLAN.md` 7.5절) | 보고서 |
+|---|---|---|---|---|---|---|
+| M0 | spec·계약·오케스트레이터 골격·최소 대역 | 1 | 전원 | `button_stacking_interfaces`, `button_orchestrator`, `button_stacking_mocks`(mock 2종), `button_stacking_bringup` | I0 | `deliverables/gate-M0-report-<date>.md` |
+| G0 | 제어 계약·그리퍼·안전·현장 치수 | 0, 2 | A | `button_robot_control`(adapter, skill 서버) | I3 | `gate-G0-report` |
+| G1 | D455 검출·보정 | 4, 5 | B | `button_vision`, `button_calibration` | I1 | `gate-G1-report` |
+| G2 | 정적 파지·정지 벨트 적층 | 5, 6 | A+B | `button_robot_control`, `button_orchestrator`(MODE_STATIC), `verifier.py` | I5 | `gate-G2-report` |
+| G3 | 추적·속도 추정·관측 TF·지연 | 7, 8 | B | `button_tracking` | I1, I4 | `gate-G3-report` |
+| G4 | 예측 타이밍 적층(MODE_PREDICTED) | 9, 11A | C+A | `button_stacking_planner`, `dynamic_place` | I2 → I5 | `gate-G4-report` |
+| G5 | 비접촉 동기 추종 | 10 | A | `tracking_controller` | I3 → I5 | `gate-G5-report` |
+| G6 | 동적 적층(MODE_SYNCHRONIZED) | 11B | 전원 | 전체 | I5 | `gate-G6-report` |
+| G7 | 통합·복구·비교 평가 | 12, 13 | 전원 | `button_orchestrator`, `tools/eval` | I5, S | `gate-G7-report` |
+| 병행 | 가상 환경 | 3 | D | `button_stacking_sim` | S | — |
+
+## 0. 사전 확정 사항 (G0 전에 측정·기록)
+
+| 항목 | 측정 방법 | 영향 |
+|---|---|---|
+| 단추 실측: 직경, 두께 h, 구멍 수·위치, 질량, 윗면 형상 | 캘리퍼, 저울 | 해제 높이, 판정 센서 분해능(h vs 2h), 그리퍼 설계, 그리퍼 폭 판정(`PLAN.md` 4.3절) |
+| 그리퍼 모델·최소 폐쇄 폭·핑거 두께·개폐 지연 | 사양서 + 실측(명령→완전 개방 p95) | 파지 가능성, 해제 시간, RELEASE 제한시간 |
+| 벨트 속도 범위(다이얼 최소·최대·안정 최저 속도), 맥동 | 벨트에 표식 + 고정 길이 구간 통과 시간(스톱워치/고속 촬영) | 운전 속도 범위, 시간 예산 |
+| 관측 구간 ∩ 로봇 안전 도달 구간 길이 | 배치도 작성, 카메라 FOV 투영 | `T_available`, `x_exit` |
+| 카메라 설치 높이·각도 | 실측 | 픽셀 분해능(0.6 m 수직 시 약 0.94 mm/px, 단추 ≈ 11 px) |
+| doosan-robot2 설치 커밋 SHA, 제어기·DRFL 버전 | `git rev-parse`, 티치펜던트 | 사용할 수 있는 스트림 인터페이스 |
+| 프로젝트 기간·시연 일자, 팀 인원 | 사용자 확인 | 게이트별 timebox(`PLAN.md` 11.3절), 트랙 배정 |
+| 비상정지 담당자·관찰자 | 사용자 확인 | 실기 안전 절차, 관찰자 판독 |
+
+측정 결과는 `records/bench/site-survey-<date>.csv`에 남긴다.
+
+## 1. Spec·계약·골격 → M0
+
+- [ ] `specs/` 구성, spec 템플릿·REQ ID 체계(`PLAN.md` 8절)
+- [ ] SPEC-000(system), 010(interfaces), 100(orchestrator), 110(abort-timeout), 700(mocks), 800(records) v0.1 작성·리뷰
+- [ ] `button_stacking_interfaces` 1차: 데이터 msg, `TaskStatus`, `Heartbeat`, `StepRecord`, skill action/srv, `StackingTask`
+- [ ] 공통 요청 필드(`cycle_id`·`step_id`·`deadline`), QoS, revision·epoch 처리, lifecycle 비활성 시 응답을 SPEC-010에 고정
+- [ ] 타이머별 시계 정책(ROS 시각 / steady)을 SPEC-110에 고정(`PLAN.md` 6.2절)
+- [ ] `button_orchestrator` 골격: `state_machine.py`, `step_judges.py`, `abort_policy.py`, `deadlines.py` 순수 모듈 + `test/fakes/`(skill port·fake clock) 단위 테스트
+- [ ] 장애 9종을 `abort_policy`·`deadlines` 단위 테스트의 이벤트 열로 작성(`PLAN.md` 7.3절)
+- [ ] `orchestrator_node`, `safety_supervisor_node`, `record_logger_node`
+- [ ] `button_stacking_mocks`: `scenario_engine`, `mock_world_node`(`role:=vision|tracking|all`), `mock_robot_controller_node`(소요시간·결과 지정형). 정상 경로 우선, 지연·지터 값은 가정값으로 표기
+- [ ] 계약 테스트 틀(`test/contract/`, 대상을 인자로 받음), `mock_world_node`의 vision·tracker 계약 통과
+- [ ] `mock.launch.py`, `launch_testing` 기반 I0 통합 테스트(ROS I0 시나리오 5종)를 CI에 등록
+- [ ] `records/` 디렉터리, trial·step JSONL 기록, `devlog.csv`, `param_changes.csv`
+- [ ] `tools/spec/trace.py` 추적 행렬 생성
+
+**M0 합격 기준(제안):** SPEC 6종 v0.1 리뷰 완료 / interface 빌드 / 단위 테스트에서 장애 9종 이벤트 열마다 기대 중단 등급 / I0 정상 시나리오 20/20, ROS I0 장애 시나리오 4종(`robot_hang`, `protective_stop`, `heartbeat_loss`, `time_insufficient`)마다 정의된 중단 등급 동작 / 오케스트레이터 REQ 연결률 100% / `records/`에 StepRecord·trial 기록 생성 확인.
+
+단위·replay 시나리오의 실제 데이터 버전, TCP 지연 모델 등 나머지 대역 기능은 M0 합격 조건이 아니며 해당 게이트에서 추가한다.
+
+## 2. E0509 컨트롤러와 ROS 2 연결 → G0 (트랙 A)
+
+- [x] Ubuntu PC와 E0509 제어기 TCP 통신
+- [x] doosan-robot2 Jazzy 빌드 (설치 SHA 기록 필요)
+- [x] `model:=e0509 mode:=real` 연결, Joint State 수신, RViz2 동기화
+- [x] 저속 단일 관절 이동
+- [x] 2지 그리퍼 개폐
+- [ ] **연속 제어 인터페이스 계약 확정** (SPEC-500)
+  - 후보: `servol_stream` / `speedl_stream`(일반), `servol_rt_stream` / `speedl_rt_stream`(RT, `realtime/connect_rt_control` 등 초기화 필요)
+  - 한 종류를 선정하고 단위(mm, deg)·자세 규약·`time` 인수 의미·timeout 동작을 문서화
+  - 안전 높이에서 작은 진폭 사인 궤적으로 지령 주기·지연 p50/p95/p99·지터·추종 오차 측정(비전·rosbag 부하 포함) → `records/bench/stream-<date>.csv`
+  - 통신 단절·stale 지령·cancel 시 실제 정지 동작 확인
+  - 목표 주기를 못 맞추면 MODE_SYNCHRONIZED를 범위에서 빼고 MODE_PREDICTED까지로 제한(`PLAN.md` 11.3절)
+- [ ] `motion_adapter` 구현: SI/quaternion ↔ mm/deg/ZYZ 변환 + 단위 테스트, 단일 지령 권한, freshness 감시(L0)
+- [ ] `robot_controller_node` skill 서버: `PickButton`, `PlaceButton`(move_line 기반), `SafeRetreat`, `Stop`, Heartbeat 발행, goal deadline 자체 중단
+- [ ] `test/fakes/`의 fake transport·fake gripper로 단위 변환·stale·cancel 단위 테스트
+- [ ] Doosan `mode:=virtual`에서 E0509 모델·선정한 stream·`move_line` 형식이 동작하는지 확인. 지원하지 않으면 형식 확인용 최소 ROS stub을 두고 선택 근거를 기록
+- [ ] `robot_controller` 계약 테스트를 `mock_robot_controller_node`와 실제 노드에 모두 통과
+- [ ] I3: `mock_world_node` + 실제 로봇으로 오케스트레이터 연동(안전 높이). deadline 자체 중단, stale 지령(L0), `Stop` 확인
+- [ ] skill별 소요시간 분포 측정 → `PLAN.md` 6절 제한시간 1차 확정, `mock_robot_controller_node` 소요시간·지연값 갱신
+- [ ] 안전 절차: 속도·가속 제한, 작업영역 제한, 비상정지 위치, 관찰자 역할, 보호 정지 후 재개 절차
+
+**G0 합격 기준(제안):** 0절 항목 기록 완료 / 단위 변환 테스트 통과 / 통신·추적 손실·cancel 모사 20회에서 정의된 정지·대기 전환 20/20, 예기치 않은 재개 0회 / I3에서 L0·L4 모사 20/20 / 스트림 주기·지연 분포 보고서.
+
+## 3. Isaac Sim 시뮬레이션 환경 구축 (병행, 트랙 D)
+
+- E0509 Import, Articulation Root·Joint Control, 2지 그리퍼 개폐
+- 단추 Rigid Body: 실측 두께·질량 반영, convex collider, contact/rest offset을 단추 크기에 맞춤, 필요 시 CCD
+- 매트·미니 컨베이어: **표면 속도(마찰 운반)** 방식. 단추 위치를 직접 덮어쓰는 방식은 "kinematic 모드"로 따로 표기하고 물리 성공률과 섞지 않음
+- 고정 RGB-D 가상 카메라(실기와 같은 설치 자세·해상도), ROS 2 Bridge, `use_sim_time` 일괄 적용
+- ROS 2에서 가상 로봇 관절 제어
+- 접촉 안정성 수렴 시험: physics 120 / 240 Hz 비교, step 절반에서 정적 적층 유지·최대 관통(두께의 10% 미만 목표)·미끄러짐이 수렴하는지 확인
+- sim GT는 평가에만 사용하고 제어 입력으로 쓰지 않음
+- 우선순위: 1차는 기하·TF·시각·추적·상태 전이 검증용 단순 장면(통합 단계 S), 2차에 접촉 물리
+- 수렴하지 않으면 sim은 기하·전이 검증용으로만 쓰고 물리 성공률은 보고하지 않음(`PLAN.md` 11.3절)
+
+## 4. RealSense D455 연결 및 캘리브레이션 → G1 (트랙 B)
+
+- D455 ROS 2 연결, RGB 1280×800/30 fps, CameraInfo 확인(FOV는 실제 프로파일 값 사용)
+- 자동 노출·화이트밸런스 고정, 노출 시간 ≤ 10 ms 목표(50 mm/s에서 흐림 0.5 mm)
+- RealSense 헤더 시각의 clock domain 확인(global time), 호스트 시계와의 offset·drift 기록
+- 왜곡 보정
+- Calibration Target 배치, 카메라-로봇 대응점 취득(로봇 TCP로 표식 접촉)
+- eye-to-hand Extrinsic 계산, 결과에 calibration_id·날짜·잔차·카메라 프로파일 저장
+- 매트·벨트 평면 높이 및 **벨트 진행 방향 벡터** 측정(표식을 벨트로 이동시키며 추적)
+- 보정에 쓰지 않은 20개 이상 위치에서 좌표 변환 오차 평가
+- Depth는 평면 확인·이상 감시에만 사용(0.6/0.8 m에서 평면 ROI의 편향·표준편차 기록)
+
+## 5. 단추 인식 및 파지 → G1(검출), G2(파지)
+
+- 매트(검정)·벨트(녹색) ROI별 흰 단추 검출(명도/HSV 마스크 + 원·타원 적합)
+- 중심 좌표 + 공분산 계산, 구멍·하이라이트·그림자 사례를 테스트 영상으로 수집
+- 광선-평면 교차(단추 윗면 높이 = 평면 + h)로 robot_base 좌표 계산
+- `vision_node`의 `DetectButtons` 서비스(안정 창·최소 개수·deadline), Heartbeat, 계약 테스트
+- I1: rosbag replay로 실데이터 검출 회귀 시험
+- Grasp Pose 계산(위에서 수직 접근, yaw는 그리퍼 접근 방향으로 결정)
+- **핑거 어댑터 초기 검증(필수 선행):** 실제 단추를 끼워 보는 시험으로 측면 접촉 높이·매트 여유·해제 시 아래 단추와의 간섭 확인. 측면 파지가 불가능하면 흡착(구멍 회피 소형 컵·환형 씰) 비교
+- 파지한 단추 중심 ↔ TCP 오프셋 측정(`tcp_offset.py`)
+- PICK 단계 판정값 확정: 그리퍼 폭 범위, 매트 ROI 소멸 확인(`PLAN.md` 4.3절)
+- Isaac Sim 파지 검증, 실제 E0509 파지
+- 파지 성공률·위치 오차 측정
+
+**G1 합격 기준(제안):** 검증 점 XY p95 ≤ 1 mm, 최대 ≤ 2 mm / 검출 recall ≥ 99%, 오선택 ≤ 1% / `DetectButtons` 계약 테스트 통과.
+
+## 6. 정적 Pick & Place 및 적층 → G2 (트랙 A+B 합류)
+
+- 정지 벨트 위 첫 번째 단추 배치
+- 두 번째 단추 인식·파지(처음에 두 단추를 함께 검출)
+- 적층 목표 = 첫 단추 중심 XY, 해제 높이 = 벨트 + 2h + 해제 간격(초기 1 mm)
+- 하강·그리퍼 해제·수직 후퇴
+- 오케스트레이터 MODE_STATIC 전체 시퀀스(I5), 단계마다 성공 판정·제한시간 적용
+- **적층 판정:** 관찰자 판독을 기준 정답으로 기록하고, `verifier.py`(`VerifyStack`) 자동 판정을 보조로 쓴다(`PLAN.md` 4.5절). 결과는 SUCCESS/FAILURE/UNKNOWN
+- 자동 판정 vs 관찰자 판독 혼동행렬 기록, Depth 높이 판정의 사용 가능 여부 확인
+- 단계 판정 결과와 관찰자 기록 대조
+- 단계 소요시간 p95 → 시간 예산 성분값·단계 제한시간 갱신
+- Isaac Sim 정적 적층, 실제 E0509 정적 2단 적층
+- 반복 성공률 측정
+
+**G2 합격 기준(제안):** 50회에서 단일 파지 ≥ 95%, 정적 적층 ≥ 90%(관찰자 판독 기준), 중심 오차(배치 후 정지 측정값 대비) p95 ≤ 2 mm, UNKNOWN 건수 별도 공개 / 단계 판정과 관찰자 기록 불일치 ≤ 5% / 실패한 단계 뒤에 다음 단계가 실행된 사례 0회.
+
+## 7. 컨베이어 위 이동 단추 추적 → G3 (트랙 B)
+
+- 벨트 위 첫 단추 검출, 프레임별 중심 측정(노출 시각 기준)
+- 벨트 좌표계 등속 칼만 필터 `[x, y, vx, vy]`(진행 방향 성분이 주, 횡방향은 작음)
+- 상태 `OBSERVED / COASTING / LOST`, 가림 중 공분산 증가, 재획득 시 게이팅
+- 다이얼 조작에 따른 속도 변화 검출(혁신값 누적) → `BeltMotion.steady = false`
+- 배치 직후 미끄러짐 구간 식별(안정화 대기 시간 측정 → WAIT_TRACK_STABLE 판정값)
+- `ResetTracking`, `SelectTarget` 서비스, Heartbeat, 계약 테스트
+- 독립 GT로 오차 측정: sim GT / 실기는 벨트 표식 + 고정 길이 통과 시간 또는 별도 영상(같은 카메라 결과끼리 비교하지 않음)
+- 영상 처리 지연, 프레임 누락, 추적 손실 조건 확인
+- rosbag 회귀 자료(정상·가림·프레임 누락·속도 변화) 보관 → I1 CI 자료. 프레임을 뺀 편집 bag으로 `frame_drop_10pct` 시험
+- `occlusion_long`·`speed_change`·`frame_drop_10pct`·`clock_jump` 단위 테스트(`PLAN.md` 7.3절)
+
+## 8. Moving Reference Frame 구현 → G3
+
+- `world → robot_base → {conveyor_frame, mat_frame, camera_link}` static TF, 로봇 링크는 robot_state_publisher
+- tracker가 `conveyor_frame → button_<track_id>` 동적 TF 발행(stamp = 상태 시각, orientation identity)
+- **미래 시각 TF 조회 금지**: tf2는 외삽하지 않으므로 예측은 9절 planner가 `TrackedButton`으로 계산
+- TF Timestamp 동기화: 관측 시각 기준 변환, `TimePointZero`(최신값) 남용 금지, `/clock` 역행·재시작 시 track·계획 무효화(`PLAN.md` 5.3절)
+- RViz2: 관측 TF + 예측 Marker 별도 표시
+- Isaac Sim GT 및 실제 단추 위치와 TF 위치 비교
+- I4: 실영상 → 계획까지 전체 인식 경로(로봇 지령 없음)
+
+**G3 합격 기준(제안):** 속도 조건별 60 s 관측에서 독립 GT 대비 XY p95 ≤ 1 mm, 속도 오차 p95 ≤ 2 mm/s / timestamp 역행 0회 / 관측 가능 구간 유효 추적 ≥ 99%(가림 구간 별도 집계).
+
+## 9. 이동 목표 위치 예측 → G4 (트랙 C)
+
+- 지연 구성 측정: 노출→수신→검출 완료→상태→계획→지령 송신→TCP 응답→해제 요청→물체 이탈
+- 이미 `t_now − t_obs`에 포함된 지연은 중복 보상하지 않음
+- `p(t_contact) = p(t_state) + v·(t_contact − t_state)`와 공분산 전파
+- 가림 허용 시간 τ_max 산출: `e_pred ≤ e_pos + |δv|·τ + ½·a·τ² + |v|·δt` → 해제 게이트 값(`PLAN.md` 4.4절)
+- 시간 예산 판정(`PLAN.md` 9절) `time_budget.py` 구현, `deadlines.py` 연동
+- 벨트 속도 변화 시 예측 갱신(revision 증가), 계획 만료 처리
+- `ComputeIntercept` 서비스, 계약 테스트, I2(합성 tracked fixture 또는 replay → 실제 tracker 입력으로 예측·시간 예산 CI: 정상, `time_insufficient`, `UNCERTAIN`, 만료·epoch 불일치·clock reset)
+- 실제 planner가 계약 테스트를 통과하면 `mock_world_node`의 임시 plan 발행(`publish_plan`)을 쓰지 않음
+- Isaac Sim 검증, 실기에서 50/100/200 ms horizon별 예측 오차를 이후 실제 관측과 대조
+
+## 10. Moving Frame 기반 로봇 추종 제어 → G5 (트랙 A)
+
+- 2절에서 확정한 스트림으로 추종 루프 구현(비전 30 Hz와 분리된 고정 주기)
+- `v_cmd = v_ff(단추 속도) + Kp·(p_target(t) − p_tcp)`, 속도·가속 제한, freshness 초과 시 정지(L0)
+- 초기 실험은 고정 자세, XY 동기 + Z 독립
+- `DynamicPlace` 액션의 접근·동기 구간 먼저 구현, `intercept_plan` revision·epoch 확인
+- `mock_robot_controller_node`에 TCP 1차 지연 모델 추가(G0 측정값 사용)
+- **비접촉 동기 추종**: 안전 높이(예: 단추 위 30 mm)에서 추종만 시험(I3: 합성 tracked → 실제 planner → 실제 controller, 실제 planner가 낸 `plan_id`·`revision`·`epoch`을 controller가 따르는지 확인 → I5: 실제 단추)
+- plan 갱신 중단·epoch 변경·역순 revision 시 `DynamicPlace`가 `PLAN_INVALID`로 끝나는지 확인
+- Isaac Sim 추종 검증 → 실제 E0509 추종
+- 벨트 속도 변화에 대한 추종 성능, TCP 위치·속도 오차 측정 → `records/bench/tracking-<date>.csv`
+- Python executor 지터가 기준을 못 맞추면 adapter·서보 루프만 C++로 이전
+
+**G5 합격 기준(제안):** 조건별 60 s, TCP-목표 상대 XY p95 ≤ 1 mm, 상대 속도 p95 ≤ 2 mm/s / 지령 간격 p99 ≤ 1.5 × 주기. timebox 안에 통과하지 못하면 G6을 생략한다(`PLAN.md` 11.3절).
+
+## 11. 이동 중 단추 적층 → G4(11A), G6(11B)
+
+공통 시퀀스(`PLAN.md` 4.2절): 첫 단추를 상류 끝에 배치 → 추적 안정화 대기 → 시간 예산 확인 → 두 번째 파지 → 접근 → (동기) → 하강 → 해제 게이트 → 개방 지연 동안 동기 유지 → 수직 후퇴 → 판정. 단계마다 `PLAN.md` 4.3절 판정을 통과해야 다음 단계로 넘어가고, 실패하면 5절 중단 등급으로 처리한다.
+
+### 11A. 예측 타이밍 적층 (MODE_PREDICTED, 중간 단계)
+
+- 예측 접촉점·시각으로 접근하고, 마지막 하강·해제 구간만 미리 계획한 속도로 벨트와 일치시킴(지속 피드백 없음)
+- 저속(초기 10~30 mm/s 중 실제 안정 범위)에서 시험
+
+**G4 합격 기준(제안):** 접촉 horizon 예측 오차 p95 ≤ 1.5 mm / 저속 30회 성공 ≥ 80% / 시간 예산 부족 시 시도하지 않은 횟수(NOT_ATTEMPTED) 공개.
+
+### 11B. 속도 동기 추종 적층 (MODE_SYNCHRONIZED)
+
+- 지속 갱신 목표 + 10절 추종 루프로 하강·해제
+- 해제 게이트 미통과 시 SAFE_ABORT(동기 유지하며 상승)
+- 적층 후 두 단추 동반 이동·1 s 유지 확인
+- Isaac Sim 동적 적층 → 실제 E0509 동적 적층
+- 적층 중심 오차·성공률 측정
+
+**G6 합격 기준(제안):** 저·중·고 3속도 각 50회, 초기 ≥ 80%(개선 목표 ≥ 90%), 추정 중심 오차 p95 ≤ 2 mm, 1 s 이상 유지(관찰자 판독 기준). 게이트 미통과로 시도하지 않은 횟수도 공개.
+
+## 12. 전체 시스템 통합 → G7
+
+- ROS 2 노드·Launch 통합(real / sim / replay / mock 분리, replay는 로봇 지령 경로 미연결)
+- 상태 머신·단계 판정·중단 등급(`PLAN.md` 4, 5절): PRECHECK, WAIT_TRACK_STABLE, SAFE_ABORT, PROTECTIVE_STOP, WAIT_OPERATOR 포함
+- 첫 단추 배치부터 두 번째 적층까지 자동화
+- 검출·파지 실패: 재검출·재파지 최대 N회(L1)
+- 추적 손실·속도 급변: 해제 전이면 SAFE_ABORT(L3)
+- 작업 가능 시간 초과·도달 불가: 시도하지 않음(L2 → WAIT_OPERATOR)
+- 보호 정지·통신 끊김: 자동 리셋·무조건 원점 복귀 금지, 작업자 확인 후 재개(L4)
+- 중단 경로 제한시간(L2 10 s, L3 15 s) 초과 시 승격 확인
+- 고장 주입 시험: 영상 누락, 가림 연장, 다이얼 변경, 지령 지연, 노드 heartbeat 중단(실기에서 안전하게 재현 가능한 시나리오만)
+- Isaac Sim 전체 자동화 검증(S), 실제 장비 반복 작업(I5)
+
+**G7 합격 기준(제안):** 100 사이클에서 성공·실패·안전 중단·UNKNOWN·NOT_ATTEMPTED·cycle time 분포 공개 / 주입한 고장마다 정의된 중단 등급 동작 / 중단 경로 제한시간 초과 0회.
+
+## 13. 성능 평가 및 시연
+
+- 정지 벨트 적층 성공률(G2)
+- 벨트 속도별 적층 성공률(G6), 성공률에 표본 수와 Wilson 95% 신뢰구간 표기
+- Vision 위치·속도 추정 오차(독립 GT 기준)
+- Moving Frame TF 정확도
+- TCP 추종 위치·속도 오차
+- **제어 방식 비교(같은 속도·조명·그리퍼·실패 정의):**
+  - Static Target: 마지막 관측 위치를 목표로 함(지연·이동 보상 없음, 기준선)
+  - Predicted Target: 예측 접촉점 + 계획된 속도 일치(11A)
+  - Moving Frame: 지속 갱신 목표 + 속도 동기 추종(11B)
+- end-to-end 적층 오차 예산(보정·예측·추종·해제 성분) 분석
+- 단계별 소요시간·실패 사유(reason_code) 분포, 중단 등급별 발생 빈도
+- Cycle Time 및 안정성
+- 최적화 전·후 비교(`PLAN.md` 12절)
+- 시연 영상(D455 상단 녹화 + 관찰자 판독 기록 동기화)
