@@ -1,13 +1,13 @@
-# ROS 2 패키지 구조 v2 — Button Stacking Project
+# ROS 2 패키지 구조 — Button Stacking Project
 
-- 개정: 2026-11-04 (초안을 검토해 구체화. 검토 근거는 `deliverables/plan-review-2026-11-04.md`)
+- 확정: 2026-11-04 / 진행 계획: `progress_plan.md`
 - 개발 환경: Ubuntu 24.04 Native / ROS 2 Jazzy / Isaac Sim 5.1
 - 로봇: Doosan E0509 + 2지 그리퍼(모델 미기재 → G0에서 확정)
 - 비전: Intel RealSense D455 (작업대 고정, eye-to-hand)
 - 작업: 검은 매트 위 직경 10 mm 흰 단추 파지 → 녹색 컨베이어 위 배치 → 영상으로 이동 속도 추정 → 두 번째 단추를 이동 중인 첫 번째 단추 위에 적층
-- 컨베이어: 수동 다이얼, 엔코더 없음 → ROS 제어 패키지·속도 명령 토픽 없음(원안 유지)
+- 컨베이어: 수동 다이얼, 엔코더 없음 → ROS 제어 패키지·속도 명령 토픽 없음
 
-## 0. 설계 원칙 (v2에서 추가)
+## 0. 설계 원칙
 
 1. **단위·좌표 규약:** 프로젝트 내부는 SI(m, s, rad)와 quaternion만 쓴다. Doosan의 mm/deg·Euler(ZYZ) 변환은 `button_robot_control/motion_adapter.py` 한 곳에서만 하고 단위 테스트로 고정한다.
 2. **시각 규약:** 모든 관측 메시지의 `header.stamp`는 *영상 노출 시각*이다. 수신 시각으로 덮어쓰지 않는다. 상태(`t_state`)·마지막 관측(`t_last_obs`)·계획 생성·접촉 예정(`t_contact`)·유효기간(`valid_until`)을 별도 필드로 둔다.
@@ -140,7 +140,7 @@ button_stacking_ws/
 └── README.md
 ```
 
-변경점: 원안의 워크스페이스 루트 `tests/`는 `colcon test`에 자동 등록되지 않으므로 각 패키지 `test/`로 옮겼다. ament_python 패키지마다 `resource/<패키지명>`, `setup.cfg`, entry point, config·launch 설치 규칙을 둔다. `detector_node`와 `localizer_node`는 한 노드(`vision_node`)로 합치고 모듈만 나눈다. `hand_eye_calibration`은 고정 카메라에 맞춰 `eye_to_hand_calibration`으로 바꿨다. 패키지 수는 9개를 유지한다. 인원이 적으면 planner를 task_manager 안의 모듈로 시작해도 된다.
+구성 규칙: 테스트는 `colcon test`에 자동 등록되도록 각 패키지 `test/`에 둔다. ament_python 패키지마다 `resource/<패키지명>`, `setup.cfg`, entry point, config·launch 설치 규칙을 둔다. 검출과 좌표 변환은 한 노드(`vision_node`)에서 처리하고 모듈만 나눈다. 카메라가 작업대에 고정되어 있으므로 보정은 eye-to-hand 방식이다. 패키지는 9개이며, 인원이 적으면 planner를 task_manager 안의 모듈로 시작해도 된다.
 
 RealSense ROS 2 Wrapper와 doosan-robot2(Jazzy)는 외부 의존성이며 **설치 커밋 SHA·제어기/DRFL 버전을 README에 고정 기록**한다.
 
@@ -158,7 +158,7 @@ RealSense ROS 2 Wrapper와 doosan-robot2(Jazzy)는 외부 의존성이며 **설�
 | `button_stacking_bringup` | launch·공통 설정·통합 테스트 | namespace, `use_sim_time` | launch |
 | `button_stacking_sim` | Isaac Sim 장면·컨베이어·가상 카메라 | sim GT(평가 전용) | 시뮬레이션 스크립트 |
 
-필터는 tracker에서 한 번만 적용한다. planner는 tracker 상태를 받아 예측만 하고, 다시 필터링하지 않는다(원안의 `motion_predictor.py`와 planner 예측의 중복 제거).
+필터는 tracker에서 한 번만 적용한다. planner는 tracker 상태를 받아 예측만 하고, 다시 필터링하지 않는다.
 
 ## 3. TF 트리
 
@@ -177,7 +177,7 @@ world
 - 미래 위치는 TF로 발행하지 않고 RViz `Marker`(`/stacking/predicted_marker`)로만 표시한다.
 - 같은 TF를 두 노드가 발행하지 않는다.
 
-## 4. 인터페이스 정의 (초안)
+## 4. 인터페이스 정의
 
 ```text
 # ButtonDetection.msg
@@ -296,19 +296,19 @@ float64 tracking_std
 | 토픽(상대명, launch namespace 적용) | 형식 | 발행 | 주기 | 비고 |
 |---|---|---|---|---|
 | `camera/color/image_raw`, `camera_info` | sensor_msgs | RealSense | 30 Hz(1280×800) | 자동 노출·화이트밸런스 고정 |
-| `buttons/detections` | `ButtonDetectionArray` | vision | 영상 주기 | `/buttons/positions`는 폐지(검출에 포함) |
+| `buttons/detections` | `ButtonDetectionArray` | vision | 영상 주기 | 위치·공분산 포함 |
 | `buttons/tracked` | `TrackedButtonArray` | tracker | 영상 주기 | |
 | `belt/measured_motion` | `BeltMotion` | tracker | 영상 주기 | |
 | `stacking/intercept_plan` | `InterceptPlan` | planner | 상태 갱신마다 | revision 증가 |
 | `stacking/predicted_marker` | `visualization_msgs/Marker` | planner | 10 Hz | 시각화 전용 |
-| `task/status` | `TaskStatus` | task_manager | 10 Hz + 상태 변경 시 | 원안 `std_msgs/String` 대체 |
+| `task/status` | `TaskStatus` | task_manager | 10 Hz + 상태 변경 시 | |
 | `stacking_task` (action) | `StackingTask` | task_manager | — | |
 | `<dsr_ns>/servol_stream` 또는 `speedl_stream` (RT 계열 후보: `servol_rt_stream`, `speedl_rt_stream`) | `dsr_msgs2` | robot_control | G0에서 측정 후 확정(50~100 Hz 후보) | 메시지에 Header 없음 → 어댑터가 freshness 검사 |
 | `<dsr_ns>/motion/move_line` (service) | `dsr_msgs2/srv/MoveLine` | robot_control | — | 정적 pick/place와 접근 이동 |
 
 이 표의 doosan-robot2 인터페이스는 공개 Jazzy 브랜치 커밋 `dade65d`에서 확인한 것이다. **현장 설치 버전과 E0509 제어기가 실제로 받아들이는지는 G0에서 확인한다.**
 
-## 6. 작업 상태 머신 (v2)
+## 6. 작업 상태 머신
 
 ```
 IDLE
@@ -341,7 +341,7 @@ IDLE
 - 추적 상태 `OBSERVED`, 또는 `COASTING`이면서 `t_now − t_last_obs ≤ τ_max`(측정으로 결정, 초기 0.2 s 제안)
 - 위치 예측 표준편차 ≤ 기준, `valid_until` 미경과, `epoch` 일치
 
-### 6.1 적층 판정 (보조 카메라 없음, 2026-11-04 사용자 확인)
+### 6.1 적층 판정 (보조 카메라 없음)
 
 측면 카메라가 없으므로 고정 D455 상단 영상과 관찰자 판독을 조합한다. 위에서 보이는 흰 원 하나만으로는 성공으로 판정하지 않는다.
 
@@ -367,7 +367,7 @@ T_available = (x_exit − x_now) / v_button
 - PRECHECK, PICK_SECOND 직전, PLAN_INTERCEPT에서 매번 판정하고 부족하면 시도하지 않는다.
 - 예: 교집합 길이 300 mm, 20 mm/s → 15 s. 두 번째 파지·이동에 10 s가 걸리면 5 s가 남는다(예시 수치, G0 측정으로 대체).
 
-## 8. 개발 단계별 패키지 적용 (진행 계획 v2의 게이트와 공통 ID)
+## 8. 개발 단계별 패키지 적용 (`progress_plan.md`의 게이트와 공통 ID)
 
 | 게이트 | 개발 목표 | 진행 계획 절 | 우선 구현 패키지 |
 |---|---|---|---|
