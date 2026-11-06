@@ -197,7 +197,7 @@ def solve_eye_to_hand(cam_pts: np.ndarray, base_pts: np.ndarray) -> tuple[np.nda
 | TC-ORC-003-05 | PICK_STONE 전류·매트 확인 | U | `[ON]` | 전류 < 하한 / 매트 ROI에 공깃돌 남음 | FAILED(`GRIP_CURRENT_LOW`) / FAILED(`STONE_ON_MAT`) |
 | TC-ORC-003-06 | MOVE_STANDBY 자세 오차 | U | `[ON]` | 2.0 / 2.1 mm, holding false | OK / FAILED, FAILED(`DROPPED`) |
 | TC-ORC-003-07 | WAIT_CAP 추적 안정 경계 | U | `[ON]` | observation_count 29 / 30, speed_std 1.00 / 1.01 mm/s, `steady=false` | 통과 대기 / OK, OK / 대기, 대기 |
-| TC-ORC-003-08 | WAIT_CAP 빈 뚜껑·시간 예산 | U | `[ON]` | `stone_inside=true` / margin −0.01 s / margin 0 | FAILED(`CAP_NOT_EMPTY`) / reason `PASS_SKIP` / OK |
+| TC-ORC-003-08 | WAIT_CAP 빈 뚜껑·시간 예산 | U | `[ON]` | `stone_inside=true` / `stone_inside_valid=false` / margin −0.01 s / margin 0 | FAILED(`CAP_NOT_EMPTY`) / reason `PASS_SKIP`(`CAP_STATE_UNKNOWN`) / reason `PASS_SKIP` / OK |
 | TC-ORC-003-09 | PLAN_INTERCEPT 판정 | U | `[ON]` | time_margin 0.99 / 1.00 s, position_std 0.5 / 0.51 mm, `valid_until = now + T_approach` | FAILED / OK, OK / FAILED, FAILED(경계는 `>`) |
 | TC-ORC-003-10 | SYNCHRONIZE 연속 0.3 s | U | `[ON]` | 100 Hz 표본, 0.25 s 시점에 e_xy 1회 초과 | 초과 시점부터 다시 셈, 초과 후 0.3 s 연속 만족한 시점에 OK, 2 s 안에 못 채우면 TIMEOUT |
 | TC-ORC-003-11 | DESCEND 핑거 끝 여유 | U | `[ON]` | 핑거 끝 − 테두리 = 1.9 / 2.0 mm | FAILED(`RIM_CLEARANCE`) / OK |
@@ -282,7 +282,7 @@ def solve_eye_to_hand(cam_pts: np.ndarray, base_pts: np.ndarray) -> tuple[np.nda
 
 | TC | 검증 내용(REQ 초안) | 수준 | 장소 | 조건 | 기대 결과 |
 |---|---|---|---|---|---|
-| TC-PLN-001-01 | 시간 예산 식 | U | `[ON]` | `x_exit = 0.30`, `x_cap = 0.0`, `v = 0.02`, 성분 합 4.0, margin 1.0 | `t_available = 15.0`, `t_required = 5.0`, ok |
+| TC-PLN-001-01 | 시간 예산 식 | U | `[ON]` | `x_exit = 0.30`, `x_cap = 0.0`, `v = 0.02`, 성분 합 4.0, margin 1.0 | `t_available = 15.0`, `t_required = 4.0`(margin 미포함), ok |
 | TC-PLN-001-02 | 예산 경계 | U | `[ON]` | `t_available − t_required = margin` / `margin − 1e-6` | ok / not ok |
 | TC-PLN-001-03 | 벨트 정지·역방향 | U | `[ON]` | 동적 모드에서 `v ≤ v_min` 또는 진행 방향 반대 | not ok, reason `BELT_STOPPED` / `BELT_REVERSED` |
 | TC-PLN-002-01 | 예측은 t_state 기준이다(지연 중복 보상 없음) | U | `[ON]` | t_state = now − 0.1 s, v = 20 mm/s, t_release = now + 2 s | 예측 위치 = p + v·2.1 s(±1e-9) |
@@ -324,7 +324,7 @@ def solve_eye_to_hand(cam_pts: np.ndarray, base_pts: np.ndarray) -> tuple[np.nda
 | TC-GRP-001-01 | pulse ↔ 간격 변환 | U | `[ON]` | 표 안 임의 점 1000개 왕복 | 간격 오차 ≤ 0.05 mm |
 | TC-GRP-001-02 | 표 검증 | U | `[ON]` | 비단조 표 / 범위 밖 요청 | 로드 실패 / 예외(`OUT_OF_RANGE`), 클램프하지 않음 |
 | TC-GRP-002-01 | 시작 확인 | U | `[ON]` | Model Number 35074 / 다른 값 / Hardware Error ≠ 0 | 통과 / 예외(구형 펌웨어 표 사용 방지) / 예외 |
-| TC-GRP-003-01 | 레지스터 주소(프로토콜별) | U | `[ON]` | config 주소표, protocol = dynamixel2 / modbus | dynamixel2: Torque Enable 512, Hardware Error Status 518, Goal Current 550, Profile Velocity 560, Goal Position 564, Present Current 574, Present Position 580 / modbus: Torque Enable 256, Goal Current 275, Goal Position 282, Present Current 287(나머지는 ROBOTIS Modbus 주소표 확인 후 추가). 두 표를 섞어 쓰면 로드 실패 |
+| TC-GRP-003-01 | 레지스터 주소(프로토콜별) | U | `[ON]` | config 주소표, protocol = dynamixel2 / modbus | dynamixel2: Torque Enable 512, Hardware Error Status 518, Goal Current 550, Profile Velocity 560, Goal Position 564, Present Current 574, Present Position 580 / modbus: Torque Enable 256, Hardware Error Status 259(하위 바이트), Goal Current 275, Goal Position 282, Present Current 287, Present Position 290. 두 표를 섞어 쓰면 로드 실패 |
 | TC-GRP-003-02 | EEPROM 쓰기는 토크 꺼진 상태에서만 | U | `[ON]` | 토크 켜진 상태에서 Operating Mode 쓰기 요청 | 쓰기 0건, 예외 |
 | TC-GRP-004-01 | 닫기 순서 | U | `[ON]` | `close(current_limit_ma)` | 쓰기 순서: (필요 시) 모드 5 확인 → Goal Current → Goal Position. 한도(config 최대) 초과 전류는 거부 |
 | TC-GRP-005-01 | 부분 개방 | U | `[ON]` | `open(0.019)` | Goal Position = `width_to_pulse(0.019)`, Present Position이 허용오차 안에 들면 OK |
@@ -404,7 +404,7 @@ def solve_eye_to_hand(cam_pts: np.ndarray, base_pts: np.ndarray) -> tuple[np.nda
 |---|---|---|---|---|---|
 | TC-BEN-001-01 | 현장 실측 | OFF-1 | `Progress.md` 0절 항목, 항목마다 3회 측정 | `site-survey-<date>.csv` | 모든 항목 기록, 3회 범위 공개 |
 | TC-BEN-002-01 | 벨트 기준 속도 | OFF-1, OFF-5 | 다이얼 설정마다 병뚜껑 한 바퀴 시간 10회 | `belt-speed-<date>.csv` | 설정별 평균·표준편차, 맥동 공개 |
-| TC-BEN-003-01 | pulse ↔ 간격 실측표 | OFF-1 | 0~1150 pulse를 50 pulse 간격, 열기·닫기 방향 각 3회 캘리퍼 측정 | `gripper-table-<date>.csv` | 단조, 히스테리시스 공개 |
+| TC-BEN-003-01 | pulse ↔ 간격 실측표 | OFF-1 | 하드웨어 Goal Position 0~1150 pulse(참고 구현 서비스의 0~750 반전 규약이 아닌 하드웨어 값)를 100 pulse 간격 + 공깃돌 지름 ±10 mm 구간은 25 pulse 간격, 닫는 방향 3회·여는 방향 1회 캘리퍼 측정(`tools/bench/gripper_pulse_table.py`) | `gripper-table-<date>.csv` | 단조, 히스테리시스 공개, 0 pulse가 개방인지 확인 |
 | TC-BEN-004-01 | 스트림 성능 | OFF-2 | 안전 높이, 진폭 10 mm·0.5 Hz 사인 60 s, 후보 인터페이스 × 주기(50/100 Hz), 비전·rosbag 부하 포함 | `stream-<date>.csv` | 지령 간격 p99 ≤ 1.5 × 주기, 지연 p50/p95/p99 보고 |
 | TC-BEN-005-01 | 정지 동작 | OFF-2 | 통신 단절·stale·cancel 모사 각 20회 | `stop-<date>.csv` | 20/20 정지, 예기치 않은 재개 0회 |
 | TC-BEN-006-01 | 그리퍼 지연(정지 상태) | OFF-2 | 개방(`Δ_open`)·닫기 각 100회 | `gripper-<date>.csv` | `t_cmd → t_motion_start`, `→ t_done` p50/p95/p99 보고 |

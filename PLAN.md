@@ -49,10 +49,11 @@
 - **부분 개방:** 해제할 때는 완전히 열지 않고 핑거 간격 `d_stone + Δ_open`(초기 4 mm)까지만 연다. 이동 거리가 짧아 해제 시간이 줄고, 핑거가 병뚜껑 테두리에 닿지 않는다.
 - **파지·개방 판정:** Present Position을 실측표로 핑거 간격으로 바꾸고, Present Current와 함께 판정한다(4.3절).
 - **주요 주소(RH-P12-RN(A) control table, DYNAMIXEL 바이트 주소):** Torque Enable 512, Hardware Error Status 518, Goal Current 550, Profile Velocity 560, Goal Position 564, Present Current 574, Present Position 580. 구형 RH-P12-RN 펌웨어와 주소가 다르므로 펌웨어를 바꾸면 이 표를 다시 확인한다.
-- **Modbus 주소:** 플랜지 경로는 Modbus-RTU(FC03 읽기, FC06·FC16 쓰기)를 쓴다. 참고 구현의 쓰기 주소는 바이트 주소의 절반과 일치한다(Torque Enable 256, Goal Current 275, Goal Position 282, Present Current 287, Operating Mode는 워드 5의 상위 바이트). Present Position·Hardware Error Status 등 나머지는 ROBOTIS Modbus 주소표로 확인한 뒤 `robot_control.yaml`에 둔다. 주소표는 프로토콜별로 따로 두고 섞지 않는다.
+- **Modbus 주소:** 플랜지 경로는 Modbus-RTU(FC03 읽기, FC06·FC16 쓰기)를 쓴다. 참고 구현의 쓰기 주소는 바이트 주소의 절반과 일치한다(Torque Enable 256, Goal Current 275, Goal Position 282, Present Current 287, Operating Mode는 워드 5의 상위 바이트). ROBOTIS RH-P12-RN(A) 제어표의 Modbus 주소(40001 = 0)로는 Present Position 290(2워드), Hardware Error Status 259(하위 바이트), Model Number 0, Firmware Version 3(하위 바이트), Protocol Type 6(상위 바이트)이다. 주소는 제어표의 Modbus 열에서 옮겨 `robot_control.yaml`에 두고, 바이트 주소의 절반과 다른 항목(제어표의 Position P·I Gain 행)은 실기 읽기로 확인한 뒤 쓴다. RH-P12-RN(A)의 Modbus-RTU는 펌웨어 V12 이상에서 쓸 수 있다. 주소표는 프로토콜별로 따로 두고 섞지 않는다.
 - **공구 설정:** 그리퍼(500 g)와 핑거 어댑터의 무게·무게중심을 Doosan 공구 설정에 등록해 충돌 감지 오작동을 막는다.
 - **명령 경로:** 그리퍼 명령은 `gripper_adapter.py`만 보내고, 제어기 호출 방식은 그 안에 감춘다. 다른 모듈은 `open(width)`, `close(current_limit)`, `read_state()`만 쓴다.
 - **상주 루프 방식:** bringup 때 로봇이 auto 모드·STANDBY일 때 `<dsr_ns>/dsr_controller2/drl/drl_start`로 상주 루프 DRL을 한 번 띄운다(시리얼을 열어 두고 그리퍼 init 1회). 이후 ROS는 `<dsr_ns>/dsr_controller2/plc/set_output_register_int`로 명령 레지스터에 쓰고, 루프가 20 ms 주기로 읽어 실행한다. 호출마다 DRL을 새로 띄우는 방식은 시리얼 open/close와 정착 대기 때문에 호출당 1 s 이상 걸리므로 해제에 쓰지 않는다.
+- **위치 값 규약:** 프로젝트 코드와 pulse 실측표는 그리퍼 하드웨어 Goal Position 값(0~1150 pulse)을 그대로 쓴다. 참고 구현 서비스(`/dsr01/gripper/cmd`)는 요청 값을 0~750으로 제한하고 `750 − 값`으로 반전해 보내므로 하드웨어 751~1150 pulse(좁은 핑거 간격)를 지령할 수 없다. pulse 실측표 측정과 공깃돌 파지는 이 서비스를 거치지 않고 상주 루프의 명령 레지스터에 하드웨어 값을 직접 쓴다(`tools/bench/gripper_pulse_table.py`).
 - **해제 트리거:** 참고 구현은 명령 하나에 레지스터 서비스 호출 5회(값 4개 + seq)를 쓴다. 해제 지연을 줄이려 개방 목표값을 RELEASE 전에 미리 써 두고, 해제 순간에는 트리거 레지스터 하나만 쓴다.
 - **상태 읽기·생존 확인:** 참고 구현에는 상태 읽기가 없다. 루프가 FC03으로 Present Position·Present Current·Hardware Error Status를 읽어 ROS가 읽을 수 있는 레지스터에 쓰고, 생존 카운터를 매 주기 올리도록 추가한다(정확한 레지스터 방향·서비스는 G0에서 확정).
 
@@ -265,6 +266,7 @@ float64[9] position_cov           # 3x3 [m^2]
 bool position_valid
 bool occluded_partial             # 로봇 마스크와 겹침
 bool stone_inside                 # CLASS_CAP 전용: 뚜껑 원 안에 공깃돌이 보임
+bool stone_inside_valid           # CLASS_CAP 전용: false = 가림 등으로 판정 불가(stone_inside 무시)
 
 # ObjectDetectionArray.msg
 std_msgs/Header header            # stamp = 영상 노출 시각, frame_id = robot_base
@@ -551,7 +553,7 @@ IDLE
 | DETECT_STONE | PRECHECK OK | 매트 ROI 공깃돌 ≥ 1, confidence ≥ 0.9, `position_valid`, 0.5 s 창 위치 표준편차 ≤ 0.5 mm, 주변 물체와 핑거 간섭 거리 이상 떨어짐 | 3 s | L1 재검출 | 2 |
 | PICK_STONE | 검출 시각이 1 s 이내 | 핑거 간격이 `[d_stone − 1, d_stone + 1] mm` 안(pulse 실측표 변환) / Present Current ≥ 파지 전류 하한 / 매트 ROI에서 해당 공깃돌 사라짐 / 로봇·그리퍼 오류 없음 | 15 s | 매트에 남아 있으면 L1, 그 외 L2 | 2 |
 | MOVE_STANDBY | holding | 대기 자세 오차 ≤ 2 mm / holding 유지(핑거 간격·전류) | 10 s | L3 | 0 |
-| WAIT_CAP | 대기 자세, holding | `SelectTarget` 병뚜껑 track `OBSERVED`, `observation_count ≥ 30`, `speed_std ≤ 1 mm/s`, `steady` / 뚜껑 안에 공깃돌 없음(`stone_inside == false`) / `T_available − T_required ≥ margin` | `T_lap × (max_passes + 1)`(`T_lap` = 한 바퀴 주기, G0 측정) | 판정 실패한 통과는 보내고 다음 통과 대기. `max_passes`를 넘으면 L3(결과 `NOT_ATTEMPTED`) | `max_passes` |
+| WAIT_CAP | 대기 자세, holding | `SelectTarget` 병뚜껑 track `OBSERVED`, `observation_count ≥ 30`, `speed_std ≤ 1 mm/s`, `steady` / 뚜껑 안에 공깃돌 없음(`stone_inside_valid == true`이고 `stone_inside == false`, 판정 불가는 통과 보내기) / `T_available − T_required ≥ margin` | `T_lap × (max_passes + 1)`(`T_lap` = 한 바퀴 주기, G0 측정) | 판정 실패한 통과는 보내고 다음 통과 대기. `max_passes`를 넘으면 L3(결과 `NOT_ATTEMPTED`) | `max_passes` |
 | PLAN_INTERCEPT | holding, track `OBSERVED`, epoch 일치 | `status == OK`, `time_margin ≥ 1.0 s`, `position_std ≤ 0.5 mm`, `valid_until > now + T_approach` | 0.5 s | 동적 deadline 안에서 재계획, 넘으면 이번 통과를 보내고 WAIT_CAP(남은 통과가 없으면 L3) | deadline까지 |
 | APPROACH | plan 유효 | 해제점 위 30 mm 도달, 오차 ≤ 2 mm / plan 유효 상태 유지 | 1.5 × T_transit(p99) | L3 | 0 |
 | SYNCHRONIZE | 접근 완료 | `e_xy ≤ e_xy_max`, `v_rel ≤ v_rel_max`가 연속 0.3 s 유지 | 2 s | L3 | 0 |
@@ -787,9 +789,12 @@ spec 작성 → 시험 명세(TC) 작성 → 리뷰(멘토 또는 다른 담당�
 
 ```
 T_available = (x_exit − x_cap_now) / v_cap
-T_required  = T_transit + T_sync + T_descend + T_release(p95) + T_clear + margin
+T_required  = T_transit + T_sync + T_descend + T_release(p95) + T_clear
 T_release   = T_cmd(레지스터 트리거 → 루프 DRL → Modbus 송신) + Δ_open / v_open + T_fall
+time_margin = T_available − T_required        # 시도 조건: time_margin ≥ margin
 ```
+
+- `margin`은 `T_required`에 넣지 않고 판정에서 한 번만 쓴다. `InterceptPlan.time_margin`, WAIT_CAP 판정(4.3절), `evaluate_budget()`(`TEST_SPEC.md` 2절)이 모두 이 정의를 따른다. 초기 `margin`은 1.0 s다(PLAN_INTERCEPT의 `time_margin ≥ 1.0 s`와 같은 값).
 
 - `x_exit`: 카메라 관측 구간과 로봇 안전 도달 구간(후퇴 경로 포함)의 교집합 하류 끝.
 - `T_transit`: 대기 자세에서 예측 해제점 위까지 이동 시간. 대기 자세를 도달 구간 상류 끝 위에 두어 줄인다.
@@ -798,7 +803,7 @@ T_release   = T_cmd(레지스터 트리거 → 루프 DRL → Modbus 송신) + �
 - 식은 `intercept_planner/time_budget.py` 한 곳에 구현하고, `deadlines.py`가 이를 사용해 동적 deadline을 계산한다.
 - WAIT_CAP(통과마다)과 PLAN_INTERCEPT 두 곳에서 판정한다. 부족하면 그 통과를 보내고 다음 통과를 기다린다(`max_passes`). 판정할 때마다 `T_available`, `T_required`, 각 성분값을 `StepRecord.metric_*`에 남긴다.
 - 성분값은 제안값으로 시작하고, `records/`에 쌓인 단계 소요시간 p95로 갱신한다(10.4절 기록).
-- 예: 교집합 길이 300 mm, 20 mm/s → 15 s. `T_required`가 5 s이면 10 s가 남고, 같은 조건에서 이론상 약 60 mm/s까지 시도할 수 있다(예시 수치).
+- 예: 교집합 길이 300 mm, 20 mm/s → 15 s. `T_required`가 4 s이고 `margin`이 1 s이면 `time_margin` 11 s로 시도하며, 같은 조건에서 이론상 60 mm/s(`T_available` 5 s)까지 시도할 수 있다(예시 수치).
 
 ## 10. 정량 기록
 
@@ -906,7 +911,7 @@ O   최적화 (12절, M2 이후 측정 기반으로)
 | G5가 timebox 안에 통과하지 못함 | G6 생략, G4 결과로 G7 진행 |
 | 핑거 어댑터 검증 실패(공깃돌 파지 불안정, 개방 시 테두리 간섭) | 핑거 패드 형상(V홈·오목) 변경을 1회 timebox 안에서 진행, 그래도 실패하면 공깃돌·병뚜껑 크기 조합을 바꾸고 바꾼 실측값을 기록 |
 | G2 정지 벨트에서도 튕겨 나감이 10%를 넘음 | 해제 높이 축소, 더 깊은 병뚜껑으로 교체를 검토하고 대상물 변경을 기록 |
-| 병뚜껑이 롤러·벨트 하부를 통과하지 못함 | `max_passes = 0`으로 두고 시도마다 작업자가 병뚜껑을 상류 위치에 다시 붙임 |
+| 병뚜껑이 롤러·벨트 하부를 통과하지 못함 | 단일 통과 운용: `max_passes = 0`, WAIT_CAP 제한시간은 `T_lap` 대신 `wait_target_timeout`(작업자 재부착 후 병뚜껑이 도달 구간에 오는 시간 + 여유)을 쓴다. 재부착은 사이클 밖(WAIT_OPERATOR, 벨트 정지)에서 하고 작업자 준비 확인 뒤 사이클을 시작한다 |
 | Isaac Sim 접촉 물리 수렴 실패 | sim은 기하·전이 검증용으로만 쓰고 물리 성공률은 보고하지 않음 |
 
 ### 11.4 온라인·오프라인 작업 구분

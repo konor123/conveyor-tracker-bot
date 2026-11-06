@@ -29,7 +29,7 @@
 
 | 세션 | 시작 조건(먼저 끝낼 `[ON]`) | 할 일 | 수집할 자료 | 종료 조건 |
 |---|---|---|---|---|
-| OFF-1 현장 실측·자료 수집 | 측정 양식(`site-survey` CSV 틀), `record_trial.sh`, D455 launch 확인 스크립트 | 0절 실측 전부, 병뚜껑 부착·롤러 통과·한 바퀴 주기, 수동 낙하 예비 시험, 카메라 설치·프로파일 확인, 그리퍼 pulse ↔ 간격 실측표, 그리퍼 Protocol Type·현재 제어 방식 확인(설정 변경 없이 조회만) | 정지·이동 병뚜껑과 매트 위 공깃돌 rosbag(속도 3종 × 조명 2종, 손으로 가린 구간 포함), 정지 영상 세트(뚜껑 빈 것·든 것·밖으로 나간 것), 사진 | `records/bench/site-survey-<date>.csv`와 bag 세트 저장 |
+| OFF-1 현장 실측·자료 수집 | 측정 양식(`records/templates/*.csv`), `tools/eval/record_trial.sh`, D455 확인 스크립트(`tools/bench/check_d455.sh`), 버전 수집 스크립트(`tools/bench/collect_versions.sh`), pulse 실측 스크립트(`tools/bench/gripper_pulse_table.py`, 단위 테스트 통과) | 0절 실측 전부, 벨트 테이프 표식으로 다이얼 설정별 한 바퀴 시간, 병뚜껑 부착·롤러 통과, 수동 낙하 예비 시험, 카메라 최종 설치·프로파일 확인, 그리퍼 pulse ↔ 간격 실측표, 그리퍼 Protocol Type·현재 제어 방식 확인(설정 변경 없이 조회만) | 정지·이동 병뚜껑과 매트 위 공깃돌 rosbag(속도 3종 × 조명 2종, 손으로 가린 구간 포함), 한 bag 안에서 다이얼을 바꾼 속도 변화 bag(조작 시각 기록), 손으로 공깃돌을 넣어 1 s 이상 유지·1 s 안에 꺼냄·가림 후 재출현을 담은 연속 bag, 각 조명에서 벨트면·매트면 여러 위치에 놓은 평면 기준판(크기를 아는 체커보드) bag, 정지 영상 세트(뚜껑 빈 것·든 것·밖으로 나간 것), 작업 구간 기준선 두 개를 지나는 벨트 표식의 휴대폰 고속 영상(국소 속도·맥동 기준), RealSense 파라미터·펌웨어·버전 기록, 카메라 거치 위치 사진·표시 | `records/bench/site-survey-<date>.csv`와 bag 세트 저장, 첫 10 s 시험 bag을 카메라 없이 재생해 영상·CameraInfo·stamp 복원 확인, 퇴장 전 bag별 메시지 수·기간·SHA-256 확인과 별도 매체 복사, 카메라 거치 위치 표시 |
 | OFF-2 G0 제어 계약 | `motion_adapter`·`gripper_adapter`·skill 서버 U·C 통과, I0 통과, 스트림·그리퍼 측정 스크립트 | 스트림 주기·지연 측정, 그리퍼 명령 지연, 스트림 동작 중 그리퍼 개방, stale·cancel·통신 단절 정지, I3, skill 소요시간, 공구 무게 등록, Goal Current 결정 | `records/bench/stream-*.csv`, `gripper-*.csv`, I3 로그 | G0 합격 기준 측정 완료 |
 | OFF-3 G1 보정·검출 | 보정 도구 U, OFF-1 bag으로 `vision` 검출 `[ON*]` 통과 | eye-to-hand 대응점, 평면·진행 방향, 검증 점 20개 이상, 실시간 검출 확인 | 보정 결과, 검증 점 CSV, 추가 bag | G1 합격 기준 측정 완료 |
 | OFF-4 G2 정지 투입 | G0·G1 통과, MODE_STATIC I0 통과, `verifier` U(OFF-1 정지 영상) 통과 | 핑거 어댑터 검증, 파지 50회, 낙하 튕김 시험(해제 높이 × 의도 오차), 정적 투입 50회, 관찰자 판독 | 시도 기록, 관찰자 판독, bag | G2 합격 기준 측정 완료 |
@@ -43,8 +43,9 @@
 |---|---|---|---|
 | 공깃돌 실측: 지름(최대·최소), 높이, 질량, 형상, 색 | `[OFF]` OFF-1 | 캘리퍼, 저울 | 파지 폭 판정, 핑거 패드, 해제 높이, 검출 색 |
 | 병뚜껑 실측: 안쪽 지름 `D_in`, 테두리 높이 `h_rim`, 바닥 두께, 색, 접착 방법 | `[OFF]` OFF-1 | 캘리퍼 | 해제 게이트 `e_xy_max`, 해제 높이, 검출 |
-| 병뚜껑 벨트 통과: 롤러·하부·가드 간섭, 한 바퀴 주기 `T_lap`, 벨트 전체 길이 | `[OFF]` OFF-1 | 최저 속도에서 한 바퀴 관찰, 줄자 | `max_passes`, 기준 속도, WAIT_CAP 제한시간 |
+| 병뚜껑 벨트 통과: 롤러·하부·가드 간섭, 한 바퀴 주기 `T_lap`, 벨트 전체 길이 | `[OFF]` OFF-1 | 최저 속도에서 한 바퀴 관찰, 줄자. 한 바퀴 시간은 벨트에 붙인 테이프 표식으로 재서 병뚜껑 통과 여부와 무관하게 기준 속도를 얻는다 | `max_passes`, 기준 속도, WAIT_CAP 제한시간 |
 | 낙하 예비 시험: 정지 뚜껑에 손으로 해제 높이 5/10/20 mm 각 10회 | `[OFF]` OFF-1 | 수동 | 해제 높이 초기값, 대상물 조합 재검토 여부 |
+| 카메라 거치 고정: OFF-1에서 정한 거치 위치·각도를 OFF-3 보정까지 유지 | `[OFF]` OFF-1 | 거치대 테이프 표시, 사진, 평면 기준판 bag | OFF-1 bag을 mm 단위 검출·추적 회귀에 쓸 수 있는지. 거치가 바뀌면 OFF-1 bag은 픽셀 단위 시험에만 쓴다 |
 | 그리퍼 RH-P12-RN(A): 하드웨어 Rev, 펌웨어 버전, pulse ↔ 핑거 간격 실측표, 핑거 어댑터 두께·길이 | `[OFF]` OFF-1 | 사양서 + 캘리퍼·게이지 블록 | 파지·개방 판정, 핑거 간섭, `Δ_open` |
 | 그리퍼 통신 경로: 그리퍼 Protocol Type(Modbus-RTU 여부), 통신 속도·ID, 현재 쓰는 DRL 코드 | `[OFF]` OFF-1 조회, OFF-2 측정 | 제어기 설정·DRL 코드 확인 | `gripper_adapter` 구현, 해제 지연 |
 | 벨트 속도 범위(다이얼 최소·최대·안정 최저 속도), 맥동 | `[OFF]` OFF-1 | 벨트 길이 ÷ 병뚜껑 한 바퀴 시간(스톱워치/고속 촬영) | 운전 속도 범위, 시간 예산 |
@@ -90,9 +91,10 @@
   - [ ] `[ON]` 측정 스크립트(사인 궤적 지령, 주기·지연·지터·추종 오차 기록)를 `mode:=virtual`에서 동작 확인
   - [ ] `[OFF]` OFF-2: 안전 높이에서 작은 진폭 사인 궤적으로 지령 주기·지연 p50/p95/p99·지터·추종 오차 측정(비전·rosbag 부하 포함) → `records/bench/stream-<date>.csv`
   - [ ] `[OFF]` OFF-2: 통신 단절·stale 지령·cancel 시 실제 정지 동작 확인
+  - [ ] `[OFF]` OFF-2: `robot_controller_node` 프로세스 종료·executor 정지 시 드라이버·제어기 쪽에서 스트림 동작이 멈추는지, 정지까지 시간·이동 거리 확인. 멈추지 않으면 L0가 controller 밖에서도 성립하도록 정지 경로를 SPEC-500에 정한 뒤 G0를 판정한다
   - [ ] 목표 주기를 못 맞추면 MODE_SYNCHRONIZED를 범위에서 빼고 MODE_PREDICTED까지로 제한(`PLAN.md` 11.3절)
 - [ ] **그리퍼 제어 계약 확정** (SPEC-500)
-  - [ ] `[OFF]` OFF-1: 그리퍼 Protocol Type(Modbus-RTU = 10, 펌웨어 V11 이상 필요)·통신 속도·ID와 현재 쓰는 DRL 코드 확인
+  - [ ] `[OFF]` OFF-1: 그리퍼 Protocol Type(Modbus-RTU = 10, RH-P12-RN(A)는 펌웨어 V12 이상 필요)·통신 속도·ID와 현재 쓰는 DRL 코드 확인
   - [ ] `[ON]` 상주 루프 DRL 작성(`PLAN.md` 1.1절): 참고 구현 `dsr_study`의 `gripper_service`(상주 루프) 구조에 트리거 레지스터 1개, FC03 상태 읽기, 생존 카운터 추가. Modbus 프레임·레지스터 인코딩은 단위 테스트(TC-GRP-011~013)
   - [ ] `[ON]` `gripper_adapter` transport 구현(`drl_start`, `set_output_register_int`), fake gripper로 지연·무응답·오류·생존 카운터 정지 단위 테스트(TC-GRP-*)
   - [ ] `[ON]` `mode:=virtual`에서 `drl_start`·레지스터 서비스 형식 확인(시리얼·그리퍼 동작은 확인하지 않음)
@@ -222,7 +224,7 @@
 - [ ] `[ON]` 초기 실험 조건 정의: 고정 자세, XY 동기 + Z 독립
 - [ ] `[ON]` `DynamicPlace` 액션의 접근·동기 구간 먼저 구현, `intercept_plan` revision·epoch 확인
 - [ ] `[ON*]` `mock_robot_controller_node`에 TCP 1차 지연 모델 추가(G0 측정값 사용)
-- [ ] `[ON]` plan 갱신 중단·epoch 변경·역순 revision 시 `DynamicPlace`가 `PLAN_INVALID`로 끝나는지 확인(fake transport)
+- [ ] `[ON]` plan 갱신 중단·epoch 변경·만료 시 `DynamicPlace`가 `PLAN_INVALID`로 끝나고, 이미 받은 것 이하의 revision은 무시하는지 확인(fake transport, TC-ROB-008-01)
 - [ ] `[ON]` Isaac Sim 추종 검증
 - [ ] `[OFF]` OFF-5: **비접촉 동기 추종**. 안전 높이(병뚜껑 테두리 위 30 mm)에서 추종만 시험(I3: 합성 tracked → 실제 planner → 실제 controller, 실제 planner가 낸 `plan_id`·`revision`·`epoch`을 controller가 따르는지 확인 → I5: 실제 병뚜껑)
 - [ ] `[OFF]` OFF-5: 추종 중 그리퍼 개방 명령(공깃돌 없이) 시 추종 오차 변화 측정
