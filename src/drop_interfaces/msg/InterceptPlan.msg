@@ -1,0 +1,19 @@
+uint8 OK=0
+uint8 TIME_INSUFFICIENT=1
+uint8 UNREACHABLE=2
+uint8 UNCERTAIN=3
+uint8 EXPIRED=4
+std_msgs/Header header            # stamp = 계획 생성 시각, frame_id = robot_base
+uint32 plan_id
+uint32 revision
+uint32 target_track_id            # 병뚜껑 track
+uint32 target_epoch
+builtin_interfaces/Time source_state_stamp
+builtin_interfaces/Time release_time
+builtin_interfaces/Time valid_until
+geometry_msgs/Pose target_tcp_pose        # release_time의 해제 직전 TCP 목표(파지 오프셋 반영)
+geometry_msgs/Vector3 target_velocity     # 동기화할 선속도 [m/s]
+float64 position_std              # release_time 예측 표준편차 [m]
+float64 time_margin               # T_available − T_required [s] (PLAN.md 9절)
+uint8 status
+string reason

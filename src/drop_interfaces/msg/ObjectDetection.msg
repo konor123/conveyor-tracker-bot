@@ -1,0 +1,21 @@
+uint8 REGION_UNKNOWN=0
+uint8 REGION_MAT=1
+uint8 REGION_BELT=2
+uint8 CLASS_UNKNOWN=0
+uint8 CLASS_STONE=1               # 공깃돌
+uint8 CLASS_CAP=2                 # 병뚜껑
+uint8 CLASS_BELT_MARKER=3         # 벨트 표식(선택 실험)
+uint32 detection_id              # 프레임 내 관측 번호(추적 ID 아님)
+uint8 region
+uint8 object_class
+float64 u                         # 왜곡 보정 전 픽셀 중심
+float64 v
+float64 diameter_px
+float32 confidence
+float64[4] center_cov_px          # 2x2 row-major [px^2]
+geometry_msgs/Point position      # 보정 평면 교차 결과(평면 높이는 class별), ObjectDetectionArray.header.frame_id 기준 [m]
+float64[9] position_cov           # 3x3 [m^2]
+bool position_valid
+bool occluded_partial             # 로봇 마스크와 겹침
+bool stone_inside                 # CLASS_CAP 전용: 뚜껑 원 안에 공깃돌이 보임
+bool stone_inside_valid           # CLASS_CAP 전용: false = 가림 등으로 판정 불가(stone_inside 무시)

@@ -471,15 +471,17 @@ string reason_code
 uint8 result
 bool stopped            # 정지 확인 후 응답
 
-# action goal은 모두 공통 요청 필드를 포함한다.
+# 오케스트레이터가 보내는 action goal은 모두 공통 요청 필드를 포함한다(외부 진입점 DropTask 제외).
 # PickStone.action       goal: target position, approach height, grip current limit
 #                        result: 공통 코드, grip_width, grip_current, holding / feedback: phase
 # MoveToPose.action      goal: target pose 또는 named pose(standby 등)
 #                        result: 공통 코드, pose_error
 # PlaceStone.action      goal: target pose(정지 목표), release height, open width
-# DynamicPlace.action    goal: plan_id, target_epoch, mode, release gate 임계값, open width
+# DynamicPlace.action    goal: plan_id, target_epoch, mode, release gate 임계값(e_xy_max, v_rel_max, tau_max,
+#                              position_std_max, rim_clearance), open width
 #                        feedback: phase, e_xy, v_rel, plan_revision / result: 공통 코드, released, gate 값
-# SafeRetreat.action     goal: keep_sync(bool), place_back_pose(선택)
+# SafeRetreat.action     goal: keep_sync(bool), place_back(bool), place_back_pose
+# 필드 정의 원본은 src/drop_interfaces/(SPEC-010 스냅샷 대상)다.
 ```
 
 ### 3.3 토픽·서비스·주기

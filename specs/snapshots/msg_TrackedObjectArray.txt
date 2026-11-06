@@ -1,0 +1,34 @@
+std_msgs/Header header
+	builtin_interfaces/Time stamp
+		int32 sec
+		uint32 nanosec
+	string frame_id
+TrackedObject[] tracks
+	uint8 OBSERVED=0
+	uint8 COASTING=1                  #
+	uint8 LOST=2
+	std_msgs/Header header            #
+		builtin_interfaces/Time stamp
+			int32 sec
+			uint32 nanosec
+		string frame_id
+	uint32 track_id
+	uint32 epoch                      #
+	uint8 object_class                #
+	uint8 status
+	builtin_interfaces/Time last_observed_stamp
+		int32 sec
+		uint32 nanosec
+	uint32 observation_count
+	geometry_msgs/Point position      # [m]
+		float64 x
+		float64 y
+		float64 z
+	geometry_msgs/Vector3 velocity    # [m/s]
+		float64 x
+		float64 y
+		float64 z
+	float64[16] state_cov             #
+	builtin_interfaces/Time valid_until
+		int32 sec
+		uint32 nanosec

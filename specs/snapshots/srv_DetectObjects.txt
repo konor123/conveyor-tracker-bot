@@ -1,0 +1,46 @@
+# 공통 요청 필드(PLAN.md 3.2절, SPEC-010)
+string cycle_id
+uint32 step_id
+builtin_interfaces/Time deadline   # ROS 시각. 지나면 서버가 스스로 중단하고 TIMEOUT
+	int32 sec
+	uint32 nanosec
+uint8 region            # ObjectDetection.REGION_MAT / REGION_BELT
+uint8 object_class      # ObjectDetection.CLASS_STONE / CLASS_CAP
+uint8 min_count
+float64 stable_window   # [s] 이 시간 동안 안정적으로 보인 것만
+---
+# 공통 결과 코드
+uint8 OK=0
+uint8 FAILED=1          # 시도했으나 판정 실패
+uint8 TIMEOUT=2         # deadline 경과
+uint8 PRECONDITION=3    # 선행조건 불충족, 시도하지 않음
+uint8 CANCELED=4
+uint8 FAULT=5           # 하드웨어·통신 이상
+uint8 result
+string reason_code
+ObjectDetection[] detections
+	uint8 REGION_UNKNOWN=0
+	uint8 REGION_MAT=1
+	uint8 REGION_BELT=2
+	uint8 CLASS_UNKNOWN=0
+	uint8 CLASS_STONE=1               #
+	uint8 CLASS_CAP=2                 #
+	uint8 CLASS_BELT_MARKER=3         #
+	uint32 detection_id              #
+	uint8 region
+	uint8 object_class
+	float64 u                         #
+	float64 v
+	float64 diameter_px
+	float32 confidence
+	float64[4] center_cov_px          #
+	geometry_msgs/Point position      #
+		float64 x
+		float64 y
+		float64 z
+	float64[9] position_cov           #
+	bool position_valid
+	bool occluded_partial             #
+	bool stone_inside                 #
+	bool stone_inside_valid           #
+float64[] position_std  # 창 안 위치 표준편차 [m]

@@ -1,0 +1,21 @@
+# 공통 요청 필드(PLAN.md 3.2절, SPEC-010)
+string cycle_id
+uint32 step_id
+builtin_interfaces/Time deadline   # ROS 시각. 지나면 서버가 스스로 중단하고 TIMEOUT
+	int32 sec
+	uint32 nanosec
+uint8 ORCHESTRATOR=0
+uint8 SUPERVISOR=1
+uint8 requester
+string reason_code
+---
+# 공통 결과 코드
+uint8 OK=0
+uint8 FAILED=1          # 시도했으나 판정 실패
+uint8 TIMEOUT=2         # deadline 경과
+uint8 PRECONDITION=3    # 선행조건 불충족, 시도하지 않음
+uint8 CANCELED=4
+uint8 FAULT=5           # 하드웨어·통신 이상
+uint8 result
+string reason_code
+bool stopped            # 정지 확인 후 응답

@@ -1,0 +1,348 @@
+# TRACE — REQ ↔ TC ↔ 테스트
+
+`tools/spec/trace.py`가 생성한다. 손으로 고치지 않는다.
+
+- REQ 0개 중 TC 연결 0개
+- pytest 대상 TC 154개 중 테스트 연결 1개
+
+| TC | 수준 | REQ | 테스트 |
+|---|---|---|---|
+| TC-ABT-001-01 | U | REQ-ABT-001(SPEC 없음) | — |
+| TC-ABT-002-01 | U | REQ-ABT-002(SPEC 없음) | — |
+| TC-ABT-003-01 | U | REQ-ABT-003(SPEC 없음) | — |
+| TC-ABT-003-02 | U | REQ-ABT-003(SPEC 없음) | — |
+| TC-ABT-004-01 | U | REQ-ABT-004(SPEC 없음) | — |
+| TC-ABT-005-01 | U | REQ-ABT-005(SPEC 없음) | — |
+| TC-ABT-006-01 | U | REQ-ABT-006(SPEC 없음) | — |
+| TC-ABT-007-01 | U | REQ-ABT-007(SPEC 없음) | — |
+| TC-ABT-008-01 | U | REQ-ABT-008(SPEC 없음) | — |
+| TC-ABT-009-01 | U | REQ-ABT-009(SPEC 없음) | — |
+| TC-ABT-010-01 | U | REQ-ABT-010(SPEC 없음) | — |
+| TC-ABT-011-01 | U | REQ-ABT-011(SPEC 없음) | — |
+| TC-ABT-012-01 | U | REQ-ABT-012(SPEC 없음) | — |
+| TC-ABT-013-01 | U | REQ-ABT-013(SPEC 없음) | — |
+| TC-ABT-014-01 | U | REQ-ABT-014(SPEC 없음) | — |
+| TC-ABT-015-01 | U | REQ-ABT-015(SPEC 없음) | — |
+| TC-ABT-016-01 | U | REQ-ABT-016(SPEC 없음) | — |
+| TC-BEN-001-01 | B | REQ-BEN-001(SPEC 없음) | 절차 시험 |
+| TC-BEN-002-01 | B | REQ-BEN-002(SPEC 없음) | 절차 시험 |
+| TC-BEN-003-01 | B | REQ-BEN-003(SPEC 없음) | 절차 시험 |
+| TC-BEN-004-01 | B | REQ-BEN-004(SPEC 없음) | 절차 시험 |
+| TC-BEN-005-01 | B | REQ-BEN-005(SPEC 없음) | 절차 시험 |
+| TC-BEN-006-01 | B | REQ-BEN-006(SPEC 없음) | 절차 시험 |
+| TC-BEN-007-01 | B | REQ-BEN-007(SPEC 없음) | 절차 시험 |
+| TC-BEN-008-01 | B | REQ-BEN-008(SPEC 없음) | 절차 시험 |
+| TC-BEN-009-01 | B | REQ-BEN-009(SPEC 없음) | 절차 시험 |
+| TC-BEN-010-01 | B | REQ-BEN-010(SPEC 없음) | 절차 시험 |
+| TC-BEN-011-01 | B | REQ-BEN-011(SPEC 없음) | 절차 시험 |
+| TC-BEN-012-01 | B | REQ-BEN-012(SPEC 없음) | 절차 시험 |
+| TC-CAL-001-01 | U | REQ-CAL-001(SPEC 없음) | — |
+| TC-CAL-002-01 | U | REQ-CAL-002(SPEC 없음) | — |
+| TC-CAL-003-01 | U | REQ-CAL-003(SPEC 없음) | — |
+| TC-CAL-003-02 | U | REQ-CAL-003(SPEC 없음) | — |
+| TC-CAL-004-01 | U | REQ-CAL-004(SPEC 없음) | — |
+| TC-CAL-005-01 | U | REQ-CAL-005(SPEC 없음) | — |
+| TC-CAL-005-02 | C | REQ-CAL-005(SPEC 없음) | — |
+| TC-EXP-CMP-01 | E | — | 절차 시험 |
+| TC-EXP-G2-01 | E | — | 절차 시험 |
+| TC-EXP-G3-01 | E | — | 절차 시험 |
+| TC-EXP-G4-01 | E | — | 절차 시험 |
+| TC-EXP-G5-01 | E | — | 절차 시험 |
+| TC-EXP-G6-01 | E | — | 절차 시험 |
+| TC-EXP-G7-01 | E | — | 절차 시험 |
+| TC-GRP-001-01 | U | REQ-GRP-001(SPEC 없음) | — |
+| TC-GRP-001-02 | U | REQ-GRP-001(SPEC 없음) | — |
+| TC-GRP-002-01 | U | REQ-GRP-002(SPEC 없음) | — |
+| TC-GRP-003-01 | U | REQ-GRP-003(SPEC 없음) | — |
+| TC-GRP-003-02 | U | REQ-GRP-003(SPEC 없음) | — |
+| TC-GRP-004-01 | U | REQ-GRP-004(SPEC 없음) | — |
+| TC-GRP-005-01 | U | REQ-GRP-005(SPEC 없음) | — |
+| TC-GRP-006-01 | U | REQ-GRP-006(SPEC 없음) | — |
+| TC-GRP-007-01 | U | REQ-GRP-007(SPEC 없음) | — |
+| TC-GRP-008-01 | U | REQ-GRP-008(SPEC 없음) | — |
+| TC-GRP-009-01 | U | REQ-GRP-009(SPEC 없음) | — |
+| TC-GRP-010-01 | U | REQ-GRP-010(SPEC 없음) | — |
+| TC-GRP-011-01 | U | REQ-GRP-011(SPEC 없음) | — |
+| TC-GRP-012-01 | U | REQ-GRP-012(SPEC 없음) | — |
+| TC-GRP-012-02 | U | REQ-GRP-012(SPEC 없음) | — |
+| TC-GRP-013-01 | U | REQ-GRP-013(SPEC 없음) | — |
+| TC-GRP-013-02 | U | REQ-GRP-013(SPEC 없음) | — |
+| TC-IF-001-01 | U | REQ-IF-001(SPEC 없음) | — |
+| TC-IF-002-01 | U | REQ-IF-002(SPEC 없음) | — |
+| TC-IF-003-01 | U | REQ-IF-003(SPEC 없음) | — |
+| TC-IF-004-01 | C | REQ-IF-004(SPEC 없음) | — |
+| TC-IF-004-02 | C | REQ-IF-004(SPEC 없음) | — |
+| TC-INT-001-01 | I0 | REQ-INT-001(SPEC 없음) | — |
+| TC-INT-002-01 | I0 | REQ-INT-002(SPEC 없음) | — |
+| TC-INT-003-01 | I0 | REQ-INT-003(SPEC 없음) | — |
+| TC-INT-004-01 | I0 | REQ-INT-004(SPEC 없음) | — |
+| TC-INT-005-01 | I0 | REQ-INT-005(SPEC 없음) | — |
+| TC-INT-006-01 | I0 | REQ-INT-006(SPEC 없음) | — |
+| TC-INT-007-01 | I1 | REQ-INT-007(SPEC 없음) | — |
+| TC-INT-020-01 | I3 | REQ-INT-020(SPEC 없음) | 절차 시험 |
+| TC-INT-021-01 | I4 | REQ-INT-021(SPEC 없음) | 절차 시험 |
+| TC-MCK-001-01 | U | REQ-MCK-001(SPEC 없음) | — |
+| TC-MCK-002-01 | C | REQ-MCK-002(SPEC 없음) | — |
+| TC-MCK-003-01 | C | REQ-MCK-003(SPEC 없음) | — |
+| TC-MCK-004-01 | C | REQ-MCK-004(SPEC 없음) | — |
+| TC-MCK-005-01 | C | REQ-MCK-005(SPEC 없음) | — |
+| TC-MCK-006-01 | U | REQ-MCK-006(SPEC 없음) | — |
+| TC-MCK-007-01 | I0 | REQ-MCK-007(SPEC 없음) | — |
+| TC-ORC-001-01 | U | REQ-ORC-001(SPEC 없음) | — |
+| TC-ORC-001-02 | U | REQ-ORC-001(SPEC 없음) | — |
+| TC-ORC-001-03 | U | REQ-ORC-001(SPEC 없음) | — |
+| TC-ORC-002-01 | U | REQ-ORC-002(SPEC 없음) | — |
+| TC-ORC-003-01 | U | REQ-ORC-003(SPEC 없음) | — |
+| TC-ORC-003-02 | U | REQ-ORC-003(SPEC 없음) | — |
+| TC-ORC-003-03 | U | REQ-ORC-003(SPEC 없음) | — |
+| TC-ORC-003-04 | U | REQ-ORC-003(SPEC 없음) | — |
+| TC-ORC-003-05 | U | REQ-ORC-003(SPEC 없음) | — |
+| TC-ORC-003-06 | U | REQ-ORC-003(SPEC 없음) | — |
+| TC-ORC-003-07 | U | REQ-ORC-003(SPEC 없음) | — |
+| TC-ORC-003-08 | U | REQ-ORC-003(SPEC 없음) | — |
+| TC-ORC-003-09 | U | REQ-ORC-003(SPEC 없음) | — |
+| TC-ORC-003-10 | U | REQ-ORC-003(SPEC 없음) | — |
+| TC-ORC-003-11 | U | REQ-ORC-003(SPEC 없음) | — |
+| TC-ORC-003-12 | U | REQ-ORC-003(SPEC 없음) | — |
+| TC-ORC-003-13 | U | REQ-ORC-003(SPEC 없음) | — |
+| TC-ORC-003-14 | U | REQ-ORC-003(SPEC 없음) | — |
+| TC-ORC-004-01 | U | REQ-ORC-004(SPEC 없음) | — |
+| TC-ORC-005-01 | U | REQ-ORC-005(SPEC 없음) | — |
+| TC-ORC-006-01 | U | REQ-ORC-006(SPEC 없음) | — |
+| TC-ORC-006-02 | U | REQ-ORC-006(SPEC 없음) | — |
+| TC-ORC-007-01 | U | REQ-ORC-007(SPEC 없음) | — |
+| TC-ORC-007-02 | U | REQ-ORC-007(SPEC 없음) | — |
+| TC-ORC-008-01 | U | REQ-ORC-008(SPEC 없음) | — |
+| TC-ORC-009-01 | U | REQ-ORC-009(SPEC 없음) | — |
+| TC-PLN-001-01 | U | REQ-PLN-001(SPEC 없음) | — |
+| TC-PLN-001-02 | U | REQ-PLN-001(SPEC 없음) | — |
+| TC-PLN-001-03 | U | REQ-PLN-001(SPEC 없음) | — |
+| TC-PLN-002-01 | U | REQ-PLN-002(SPEC 없음) | — |
+| TC-PLN-003-01 | U | REQ-PLN-003(SPEC 없음) | — |
+| TC-PLN-004-01 | U | REQ-PLN-004(SPEC 없음) | — |
+| TC-PLN-005-01 | U | REQ-PLN-005(SPEC 없음) | — |
+| TC-PLN-006-01 | C | REQ-PLN-006(SPEC 없음) | — |
+| TC-PLN-007-01 | C | REQ-PLN-007(SPEC 없음) | — |
+| TC-PLN-008-01 | U | REQ-PLN-008(SPEC 없음) | — |
+| TC-PLN-009-01 | U | REQ-PLN-009(SPEC 없음) | — |
+| TC-PLN-010-01 | U | REQ-PLN-010(SPEC 없음) | — |
+| TC-PLN-011-01 | I2 | REQ-PLN-011(SPEC 없음) | — |
+| TC-REC-001-01 | U | REQ-REC-001(SPEC 없음) | — |
+| TC-REC-002-01 | I0 | REQ-REC-002(SPEC 없음) | — |
+| TC-REC-003-01 | I0 | REQ-REC-003(SPEC 없음) | — |
+| TC-REC-004-01 | U | REQ-REC-004(SPEC 없음) | — |
+| TC-REC-004-02 | U | REQ-REC-004(SPEC 없음) | — |
+| TC-REC-005-01 | U | REQ-REC-005(SPEC 없음) | — |
+| TC-REC-006-01 | U | REQ-REC-006(SPEC 없음) | `tools/spec/test_trace.py::test_reports_missing_and_nonzero_exit` |
+| TC-ROB-001-01 | U | REQ-ROB-001(SPEC 없음) | — |
+| TC-ROB-001-02 | U | REQ-ROB-001(SPEC 없음) | — |
+| TC-ROB-002-01 | U | REQ-ROB-002(SPEC 없음) | — |
+| TC-ROB-003-01 | U | REQ-ROB-003(SPEC 없음) | — |
+| TC-ROB-004-01 | U | REQ-ROB-004(SPEC 없음) | — |
+| TC-ROB-005-01 | C | REQ-ROB-005(SPEC 없음) | — |
+| TC-ROB-006-01 | U | REQ-ROB-006(SPEC 없음) | — |
+| TC-ROB-007-01 | C | REQ-ROB-007(SPEC 없음) | — |
+| TC-ROB-007-02 | C | REQ-ROB-007(SPEC 없음) | — |
+| TC-ROB-008-01 | U | REQ-ROB-008(SPEC 없음) | — |
+| TC-ROB-009-01 | U | REQ-ROB-009(SPEC 없음) | — |
+| TC-ROB-010-01 | U | REQ-ROB-010(SPEC 없음) | — |
+| TC-ROB-011-01 | C | REQ-ROB-011(SPEC 없음) | — |
+| TC-ROB-012-01 | C | REQ-ROB-012(SPEC 없음) | — |
+| TC-SIM-001-01 | S | REQ-SIM-001(SPEC 없음) | 절차 시험 |
+| TC-SIM-002-01 | S | REQ-SIM-002(SPEC 없음) | 절차 시험 |
+| TC-SIM-003-01 | S | REQ-SIM-003(SPEC 없음) | 절차 시험 |
+| TC-SIM-004-01 | S | REQ-SIM-004(SPEC 없음) | 절차 시험 |
+| TC-SYS-001-01 | U | REQ-SYS-001(SPEC 없음) | — |
+| TC-SYS-002-01 | U | REQ-SYS-002(SPEC 없음) | — |
+| TC-SYS-003-01 | C | REQ-SYS-003(SPEC 없음) | — |
+| TC-SYS-003-02 | C | REQ-SYS-003(SPEC 없음) | — |
+| TC-SYS-004-01 | U | REQ-SYS-004(SPEC 없음) | — |
+| TC-TRK-001-01 | U | REQ-TRK-001(SPEC 없음) | — |
+| TC-TRK-001-02 | U | REQ-TRK-001(SPEC 없음) | — |
+| TC-TRK-002-01 | U | REQ-TRK-002(SPEC 없음) | — |
+| TC-TRK-003-01 | U | REQ-TRK-003(SPEC 없음) | — |
+| TC-TRK-003-02 | U | REQ-TRK-003(SPEC 없음) | — |
+| TC-TRK-004-01 | U | REQ-TRK-004(SPEC 없음) | — |
+| TC-TRK-005-01 | U | REQ-TRK-005(SPEC 없음) | — |
+| TC-TRK-006-01 | U | REQ-TRK-006(SPEC 없음) | — |
+| TC-TRK-006-02 | U | REQ-TRK-006(SPEC 없음) | — |
+| TC-TRK-007-01 | U | REQ-TRK-007(SPEC 없음) | — |
+| TC-TRK-008-01 | U | REQ-TRK-008(SPEC 없음) | — |
+| TC-TRK-009-01 | C | REQ-TRK-009(SPEC 없음) | — |
+| TC-TRK-010-01 | C | REQ-TRK-010(SPEC 없음) | — |
+| TC-TRK-011-01 | C | REQ-TRK-011(SPEC 없음) | — |
+| TC-TRK-012-01 | C | REQ-TRK-012(SPEC 없음) | — |
+| TC-TRK-013-01 | I1 | REQ-TRK-013(SPEC 없음) | — |
+| TC-VIS-001-01 | U | REQ-VIS-001(SPEC 없음) | — |
+| TC-VIS-001-02 | U | REQ-VIS-001(SPEC 없음) | — |
+| TC-VIS-002-01 | U | REQ-VIS-002(SPEC 없음) | — |
+| TC-VIS-003-01 | U | REQ-VIS-003(SPEC 없음) | — |
+| TC-VIS-004-01 | U | REQ-VIS-004(SPEC 없음) | — |
+| TC-VIS-005-01 | U | REQ-VIS-005(SPEC 없음) | — |
+| TC-VIS-006-01 | U | REQ-VIS-006(SPEC 없음) | — |
+| TC-VIS-007-01 | U | REQ-VIS-007(SPEC 없음) | — |
+| TC-VIS-008-01 | C | REQ-VIS-008(SPEC 없음) | — |
+| TC-VIS-008-02 | C | REQ-VIS-008(SPEC 없음) | — |
+| TC-VIS-009-01 | U | REQ-VIS-009(SPEC 없음) | — |
+| TC-VIS-009-02 | U | REQ-VIS-009(SPEC 없음) | — |
+| TC-VIS-010-01 | I1 | REQ-VIS-010(SPEC 없음) | — |
+
+## TC가 없는 REQ
+
+- 없음
+
+## 테스트가 없는 TC(pytest 대상)
+
+- TC-ABT-001-01
+- TC-ABT-002-01
+- TC-ABT-003-01
+- TC-ABT-003-02
+- TC-ABT-004-01
+- TC-ABT-005-01
+- TC-ABT-006-01
+- TC-ABT-007-01
+- TC-ABT-008-01
+- TC-ABT-009-01
+- TC-ABT-010-01
+- TC-ABT-011-01
+- TC-ABT-012-01
+- TC-ABT-013-01
+- TC-ABT-014-01
+- TC-ABT-015-01
+- TC-ABT-016-01
+- TC-CAL-001-01
+- TC-CAL-002-01
+- TC-CAL-003-01
+- TC-CAL-003-02
+- TC-CAL-004-01
+- TC-CAL-005-01
+- TC-CAL-005-02
+- TC-GRP-001-01
+- TC-GRP-001-02
+- TC-GRP-002-01
+- TC-GRP-003-01
+- TC-GRP-003-02
+- TC-GRP-004-01
+- TC-GRP-005-01
+- TC-GRP-006-01
+- TC-GRP-007-01
+- TC-GRP-008-01
+- TC-GRP-009-01
+- TC-GRP-010-01
+- TC-GRP-011-01
+- TC-GRP-012-01
+- TC-GRP-012-02
+- TC-GRP-013-01
+- TC-GRP-013-02
+- TC-IF-001-01
+- TC-IF-002-01
+- TC-IF-003-01
+- TC-IF-004-01
+- TC-IF-004-02
+- TC-INT-001-01
+- TC-INT-002-01
+- TC-INT-003-01
+- TC-INT-004-01
+- TC-INT-005-01
+- TC-INT-006-01
+- TC-INT-007-01
+- TC-MCK-001-01
+- TC-MCK-002-01
+- TC-MCK-003-01
+- TC-MCK-004-01
+- TC-MCK-005-01
+- TC-MCK-006-01
+- TC-MCK-007-01
+- TC-ORC-001-01
+- TC-ORC-001-02
+- TC-ORC-001-03
+- TC-ORC-002-01
+- TC-ORC-003-01
+- TC-ORC-003-02
+- TC-ORC-003-03
+- TC-ORC-003-04
+- TC-ORC-003-05
+- TC-ORC-003-06
+- TC-ORC-003-07
+- TC-ORC-003-08
+- TC-ORC-003-09
+- TC-ORC-003-10
+- TC-ORC-003-11
+- TC-ORC-003-12
+- TC-ORC-003-13
+- TC-ORC-003-14
+- TC-ORC-004-01
+- TC-ORC-005-01
+- TC-ORC-006-01
+- TC-ORC-006-02
+- TC-ORC-007-01
+- TC-ORC-007-02
+- TC-ORC-008-01
+- TC-ORC-009-01
+- TC-PLN-001-01
+- TC-PLN-001-02
+- TC-PLN-001-03
+- TC-PLN-002-01
+- TC-PLN-003-01
+- TC-PLN-004-01
+- TC-PLN-005-01
+- TC-PLN-006-01
+- TC-PLN-007-01
+- TC-PLN-008-01
+- TC-PLN-009-01
+- TC-PLN-010-01
+- TC-PLN-011-01
+- TC-REC-001-01
+- TC-REC-002-01
+- TC-REC-003-01
+- TC-REC-004-01
+- TC-REC-004-02
+- TC-REC-005-01
+- TC-ROB-001-01
+- TC-ROB-001-02
+- TC-ROB-002-01
+- TC-ROB-003-01
+- TC-ROB-004-01
+- TC-ROB-005-01
+- TC-ROB-006-01
+- TC-ROB-007-01
+- TC-ROB-007-02
+- TC-ROB-008-01
+- TC-ROB-009-01
+- TC-ROB-010-01
+- TC-ROB-011-01
+- TC-ROB-012-01
+- TC-SYS-001-01
+- TC-SYS-002-01
+- TC-SYS-003-01
+- TC-SYS-003-02
+- TC-SYS-004-01
+- TC-TRK-001-01
+- TC-TRK-001-02
+- TC-TRK-002-01
+- TC-TRK-003-01
+- TC-TRK-003-02
+- TC-TRK-004-01
+- TC-TRK-005-01
+- TC-TRK-006-01
+- TC-TRK-006-02
+- TC-TRK-007-01
+- TC-TRK-008-01
+- TC-TRK-009-01
+- TC-TRK-010-01
+- TC-TRK-011-01
+- TC-TRK-012-01
+- TC-TRK-013-01
+- TC-VIS-001-01
+- TC-VIS-001-02
+- TC-VIS-002-01
+- TC-VIS-003-01
+- TC-VIS-004-01
+- TC-VIS-005-01
+- TC-VIS-006-01
+- TC-VIS-007-01
+- TC-VIS-008-01
+- TC-VIS-008-02
+- TC-VIS-009-01
+- TC-VIS-009-02
+- TC-VIS-010-01

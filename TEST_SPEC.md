@@ -175,7 +175,7 @@ def solve_eye_to_hand(cam_pts: np.ndarray, base_pts: np.ndarray) -> tuple[np.nda
 | TC | 검증 내용(REQ 초안) | 수준 | 장소 | 조건 | 기대 결과 |
 |---|---|---|---|---|---|
 | TC-IF-001-01 | 모든 msg·srv·action 정의가 SPEC-010 스냅샷과 같다 | U | `[ON]` | `ros2 interface show` 출력과 `specs/snapshots/*.txt` 비교 | 차이 0. 차이가 있으면 SPEC-010 버전을 올려야 통과 |
-| TC-IF-002-01 | 모든 srv 요청·action goal은 공통 요청 필드로 시작한다 | U | `[ON]` | 생성된 Python 클래스의 필드 순서 조사 | 처음 세 필드가 `cycle_id`, `step_id`, `deadline` |
+| TC-IF-002-01 | 모든 srv 요청·action goal은 공통 요청 필드로 시작한다(외부 진입점 `DropTask` 제외) | U | `[ON]` | 생성된 Python 클래스의 필드 순서 조사 | 처음 세 필드가 `cycle_id`, `step_id`, `deadline` |
 | TC-IF-003-01 | 상수 값이 명세와 같다 | U | `[ON]` | `ObjectDetection`, `TrackedObject`, `BeltMotion`, `InterceptPlan`, `DropTask` 상수 | `CLASS_STONE=1`, `CLASS_CAP=2`, `CLASS_BELT_MARKER=3`, `OBSERVED=0`, `COASTING=1`, `LOST=2`, `NOT_ATTEMPTED=6` 등 3장 값과 일치 |
 | TC-IF-004-01 | 발행 QoS가 3.3절 표와 같다 | C | `[ON]` | 노드별 실행 후 `get_publishers_info_by_topic` | reliability·durability·depth 일치 |
 | TC-IF-004-02 | QoS가 맞지 않는 구독은 계약 시험에서 실패로 잡힌다 | C | `[ON]` | best effort 발행자 + reliable 구독자 구성 | 계약 시험이 `QOS_MISMATCH`로 실패(오류 없는 무수신을 놓치지 않음) |

@@ -1,0 +1,5 @@
+# [ON*] 시험 자료 세트 위치(저장소 밖). 경로가 없으면 needs_data 시험은 skip된다(TEST_SPEC.md 0.3, 1절).
+# 이름: 절대 경로
+off1_bags: ""
+off1_static_images: ""
+off5_bags: ""

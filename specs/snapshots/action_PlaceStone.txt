@@ -1,0 +1,32 @@
+# 공통 요청 필드(PLAN.md 3.2절, SPEC-010)
+string cycle_id
+uint32 step_id
+builtin_interfaces/Time deadline   # ROS 시각. 지나면 서버가 스스로 중단하고 TIMEOUT
+	int32 sec
+	uint32 nanosec
+geometry_msgs/Pose target_pose    # 정지 목표(해제 직전 TCP), robot_base [m]
+	Point position
+		float64 x
+		float64 y
+		float64 z
+	Quaternion orientation
+		float64 x 0
+		float64 y 0
+		float64 z 0
+		float64 w 1
+float64 release_height            # 핑거 끝 − 테두리 [m]
+float64 open_width                # 해제 시 핑거 간격 [m]
+---
+# 공통 결과 코드
+uint8 OK=0
+uint8 FAILED=1          # 시도했으나 판정 실패
+uint8 TIMEOUT=2         # deadline 경과
+uint8 PRECONDITION=3    # 선행조건 불충족, 시도하지 않음
+uint8 CANCELED=4
+uint8 FAULT=5           # 하드웨어·통신 이상
+uint8 result
+string reason_code
+bool released
+float64 release_error             # 정지 목표 기준 XY 오차 [m]
+---
+string phase
