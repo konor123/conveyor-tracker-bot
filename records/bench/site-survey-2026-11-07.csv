@@ -17,7 +17,7 @@ B03,belt,cap_passes_rollers,bool,,,,observe,"최저 속도 1바퀴, 롤러·하�
 B04,belt,dial_min_stable_speed,mm/s,,,,stopwatch,belt-speed CSV에서 계산,,
 B05,belt,dial_max_speed,mm/s,,,,stopwatch,,,
 B06,belt,surface_color,text,,,,photo,,,
-L01,layout,camera_height,mm,,,,tape_measure,렌즈 중심 → 벨트면 수직 거리,,
+L01,layout,camera_height,mm,350,,,tape_measure,렌즈 중심 → 벨트면 수직 거리,,"사용자 보고 값, 기준점(렌즈 중심·벨트면) 확인 필요, 3회 측정 아님"
 L02,layout,camera_tilt,deg,,,,inclinometer,수직 기준 기울기,,
 L03,layout,robot_base_to_belt_edge,mm,,,,tape_measure,로봇 베이스 중심 → 벨트 가까운 가장자리,,
 L04,layout,robot_base_to_mat_center,mm,,,,tape_measure,,,
