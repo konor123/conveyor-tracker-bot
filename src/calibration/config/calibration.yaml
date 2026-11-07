@@ -1,2 +1,7 @@
 # calibration 파라미터. 수치 키는 단위 접미사(_m, _s, _mps, _mps2, _rad, _hz, _ma, _pulse, _count, _ratio)를 붙인다.
-{}
+# SPEC-600 3절. 값은 제안값이며 OFF-3 결과로 확정한다.
+plane_ransac_thresh_m: 0.001
+touch_rms_max_m: 0.001
+verify_min_points_count: 20
+verify_xy_p95_max_m: 0.001
+verify_xy_max_m: 0.002

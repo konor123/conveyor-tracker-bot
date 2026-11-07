@@ -48,5 +48,5 @@ G10,gripper,gap_at_hw_1150,mm,,,,caliper,하드웨어 1150 pulse에서 핑거 �
 V01,software,doosan_robot2_sha,text,,,,collect_versions.sh,,,
 V02,software,controller_version,text,,,,teach_pendant,티치펜던트 시스템 정보,,
 V03,software,drfl_version,text,,,,collect_versions.sh,,,
-V04,software,realsense_ros_version,text,,,,collect_versions.sh,,,
-V05,software,d455_firmware,text,,,,check_d455.sh,,,
+V04,software,realsense_ros_version,text,4.58.4,,,dpkg,"ros-jazzy-realsense2-camera 4.58.4-1noble.20260920, librealsense2 2.58.4 (apt, 2026-11-07 설치)",,records/bench/d455-check-2026-11-07-161256.txt
+V05,software,d455_firmware,text,5.17.0.9,,,pyrealsense2,"rs.camera_info.firmware_version (check_d455.sh 대신, realsense-ros 미설치)",,"D455F S/N 313522301601, USB 3.2. records/bench/d455-intrinsics-2026-11-07.txt"

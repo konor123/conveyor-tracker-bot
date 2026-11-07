@@ -1,0 +1,113 @@
+
+===== 환경 =====
+2026-11-07T16:12:56+09:00
+umm-Legion-Pro-5-16IAX10H
+ROS_DISTRO=jazzy CAMERA_NS=/camera/camera
+/opt/ros/jazzy
+ros-jazzy-librealsense2 2.58.4-1noble.20260831.015923
+ros-jazzy-realsense2-camera 4.58.4-1noble.20260920.235447
+ros-jazzy-realsense2-camera-msgs 4.58.4-1noble.20260911.141016
+ros-jazzy-realsense2-description 4.58.4-1noble.20260921.000124
+
+===== 장치 =====
+Device Name                   Serial Number       Firmware Version
+RealSense D455F               313522301601        5.17.0.9
+--- 컬러 1280x800 프로파일
+    Color       1280x800       RGB8        @ 30/15/10/5 Hz
+
+===== 토픽 =====
+/camera/camera/color/camera_info
+/camera/camera/color/image_raw
+/camera/camera/color/metadata
+/camera/camera/depth/camera_info
+/camera/camera/depth/image_rect_raw
+/camera/camera/depth/metadata
+/camera/camera/extrinsics/depth_to_color
+
+===== CameraInfo =====
+height: 800
+width: 1280
+distortion_model: plumb_bob
+d:
+- -0.05499815568327904
+- 0.06443826854228973
+- -0.0008744244114495814
+- 0.0007429665420204401
+- -0.021013302728533745
+k:
+- 646.3335571289062
+- 0.0
+- 640.61962890625
+- 0.0
+- 645.4054565429688
+- 405.6260681152344
+- 0.0
+- 0.0
+- 1.0
+r:
+
+===== 수신 주기(12 s) =====
+	min: 0.030s max: 0.068s std dev: 0.00315s window: 273
+average rate: 29.768
+	min: 0.030s max: 0.068s std dev: 0.00304s window: 303
+failed to initialize wait set: the given context is not valid, either rcl_init() was not called or rcl_shutdown() was called., at ./src/rcl/wait.c:130
+average rate: 29.966
+	min: 0.032s max: 0.034s std dev: 0.00037s window: 181
+
+===== 파라미터(노출·화이트밸런스·시간·프로파일) =====
+      frames_queue_size: 16
+          enable_pub_plugins:
+          enable_pub_plugins:
+      frames_queue_size: 16
+      frames_queue_size: 16
+      auto_exposure_limit: 200000
+      auto_exposure_limit_toggle: false
+      auto_exposure_mode: false
+      auto_exposure_roi:
+      auto_gain_limit: 248
+      auto_gain_limit_toggle: false
+      depth_profile: 1280,720,30
+      enable_auto_exposure: true
+      exposure: 8500
+      frames_queue_size: 16
+      gain: 16
+      global_time_enabled: true
+      infra_profile: 848x480x30
+    enable_accel: false
+    enable_color: true
+    enable_depth: true
+    enable_gyro: false
+    enable_infra: false
+    enable_infra1: false
+    enable_infra2: false
+    enable_rgbd: false
+    enable_sync: false
+      frames_queue_size: 16
+      frames_queue_size: 16
+      frames_queue_size: 16
+      enable_motion_correction: true
+      frames_queue_size: 16
+      global_time_enabled: true
+      frames_queue_size: 16
+      auto_exposure_priority: false
+      auto_exposure_roi:
+      color_profile: 1280,800,30
+      enable_auto_exposure: true
+      enable_auto_white_balance: true
+      exposure: 166
+      frames_queue_size: 16
+      gain: 64
+      global_time_enabled: true
+      white_balance: 4600.0
+      frames_queue_size: 16
+      frames_queue_size: 16
+      frames_queue_size: 16
+전체 파라미터: /home/umm/conveyor-tracker-bot/records/bench/d455-check-2026-11-07-161256-params.yaml
+
+===== header.stamp − 수신 시각(100 프레임) =====
+N=100  (수신−stamp) p50=22.2 ms  p95=25.3 ms  min=20.9 ms  max=26.9 ms
+stamp 간격 p50=33.37 ms  max=33.38 ms  역행=0회
+판정 참고: 값이 수 ms~수십 ms면 같은 시계 영역(global time 또는 시스템 시각). 음수이거나 초 단위로 크면 시계 영역이 다르다.
+
+===== 끝 =====
+결과 파일: /home/umm/conveyor-tracker-bot/records/bench/d455-check-2026-11-07-161256.txt

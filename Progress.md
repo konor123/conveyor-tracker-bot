@@ -132,12 +132,12 @@
 
 ## 4. RealSense D455 연결 및 캘리브레이션 → G1 (트랙 B)
 
-- [ ] `[OFF]` OFF-1: D455 ROS 2 연결, RGB 1280×800/30 fps, CameraInfo 확인(FOV는 실제 프로파일 값 사용)
+- [x] `[OFF]` OFF-1: D455 ROS 2 연결, RGB 1280×800/30 fps, CameraInfo 확인(FOV는 실제 프로파일 값 사용). 2026-11-07: realsense-ros 4.58.4, 29.97 Hz(FastDDS SHM 확대 프로파일 필수), fx 보고값 변동 → 고정 K(`records/bench/d455-check-2026-11-07-161256.txt`, SPEC-600 4.8절)
 - [ ] `[OFF]` OFF-1: 자동 노출·화이트밸런스 고정, 노출 시간 ≤ 10 ms 목표(50 mm/s에서 흐림 0.5 mm)
-- [ ] `[OFF]` OFF-1: RealSense 헤더 시각의 clock domain 확인(global time), 호스트 시계와의 offset·drift 기록
+- [ ] `[OFF]` OFF-1: RealSense 헤더 시각의 clock domain 확인(global time), 호스트 시계와의 offset·drift 기록. 2026-11-07: clock_domain global_time, 수신−stamp p50 22 ms(100프레임). 장시간 drift는 미측정
 - [ ] `[ON]` 왜곡 보정·광선-평면 교차 모듈(`localizer.py`) 합성 카메라로 단위 테스트(TC-VIS-*)
-- [ ] `[ON]` 보정 도구(`plane_calibration`, `eye_to_hand_calibration`) 합성 대응점으로 단위 테스트(TC-CAL-*)
-- [ ] `[OFF]` OFF-3: Calibration Target 배치, 카메라-로봇 대응점 취득(로봇 TCP로 표식 접촉)
+- [x] `[ON]` 보정 도구(`plane_calibration`, `eye_to_hand_calibration`, `tcp_offset`, `charuco`, 보정 파일, `calibrate_camera`·`charuco_view`) 합성 대응점·합성 영상으로 단위 테스트(TC-CAL-001~007, 2026-11-07, SPEC-600 v0.1). 내부 파라미터는 D455 공장값(`records/bench/d455-intrinsics-2026-11-07.txt`), 현장 촬영은 `tools/bench/capture_d455.py`
+- [ ] `[OFF]` OFF-3: Calibration Target(ChArUco 5x7) 배치, 카메라-로봇 대응점 취득(로봇 TCP 포인터로 보드 코너 접촉, 면마다 4장면 + verify 5장면, 기록 양식 `records/templates/calib-session.yaml`, SPEC-600 4.4절). 2026-11-07 보드 검출 예비 확인 완료(로봇 접촉 전)
 - [ ] `[ON*]` eye-to-hand Extrinsic 계산, 결과에 calibration_id·날짜·잔차·카메라 프로파일 저장
 - [ ] `[OFF]` OFF-3: 매트·벨트 평면 높이 및 **벨트 진행 방향 벡터** 측정(벨트에 붙인 병뚜껑을 이동시키며 추적)
 - [ ] `[OFF]` OFF-3: 보정에 쓰지 않은 20개 이상 위치에서 좌표 변환 오차 평가

@@ -1,0 +1,29 @@
+# OFF-3 보정 세션 기록(SPEC-600 4.4절). 복사해서 영상 폴더에 두고 채운다.
+#   python3 tools/bench/capture_d455.py <폴더> belt-fit-1            # 장면 영상(로봇이 시야를 가리지 않게)
+#   ros2 run calibration charuco_view <폴더>/belt-fit-1.png           # 코너 검출 확인, 접촉할 코너 id 확인
+#   ros2 run calibration calibrate_camera <폴더>/session.yaml --out <폴더>/result
+#
+# 좌표는 robot_base 기준 m(티치펜던트 mm 값 ÷ 1000). TCP는 포인터 끝으로 등록한 상태여야 한다.
+# 배치: 면(belt, mat, spacer = 벨트 위 50 mm 받침)마다 fit 4장면을 시야 전체에 고르게, belt verify 5장면.
+# 접촉 코너 기본: 0, 3, 20, 23(안쪽 코너 네 귀퉁이). charuco_view 표시 영상에서 위치를 확인한다.
+calibration_id: cal-YYYY-MM-DD-01
+date: YYYY-MM-DD
+parent_frame: base_link
+child_frame: camera_color_optical_frame
+# board: 생략하면 패키지 config/charuco_board.yaml
+# camera_profile: 생략하면 패키지 config/d455_color_1280x800.yaml
+board_thickness_m: 0.0001        # 종이만. 받침판을 대면 캘리퍼로 잰 값
+tcp_pointer: ""                  # 포인터 종류·길이, 펜던트 TCP 이름
+operator: ""
+views:
+  - name: belt-fit-1
+    image: belt-fit-1.png
+    role: fit                    # fit | verify
+    surface: belt                # belt | mat | spacer
+    touches_m:
+      0: [0.0, 0.0, 0.0]
+      3: [0.0, 0.0, 0.0]
+      20: [0.0, 0.0, 0.0]
+      23: [0.0, 0.0, 0.0]
+# 벨트 진행 방향: 보드를 벨트에 올리고 벨트를 돌리며 연속 촬영(capture_d455.py track --burst 8)
+belt_track: []

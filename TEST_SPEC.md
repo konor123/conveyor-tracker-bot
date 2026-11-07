@@ -176,10 +176,19 @@ class PulseTable:
     def width_to_pulse(self, w: float) -> int
     def pulse_to_width(self, p: int) -> float
 
-# ---------- calibration ----------
-def fit_plane(points: np.ndarray, ransac_thresh: float) -> Plane
-def fit_direction(points: np.ndarray) -> np.ndarray
-def solve_eye_to_hand(cam_pts: np.ndarray, base_pts: np.ndarray) -> tuple[np.ndarray, float]  # (T, rms)
+# ---------- calibration (SPEC-600) ----------
+def fit_plane(points: np.ndarray, ransac_thresh: float, up=(0, 0, 1), rng=None) -> Plane   # Plane.height_at(x, y)
+def fit_direction(points: np.ndarray, plane: Plane | None = None) -> np.ndarray
+def solve_eye_to_hand(cam_pts: np.ndarray, base_pts: np.ndarray) -> tuple[np.ndarray, float]  # (T, rms [m])
+def solve_eye_to_hand_pnp(base_pts, uv, K, dist) -> tuple[np.ndarray, float]                  # (T, rms [px])
+def solve_from_board_views(views: list[BoardView], spec: BoardSpec, K, dist) -> tuple[np.ndarray, dict]
+def board_track_direction(frames, spec, K, dist, T, plane=None) -> np.ndarray
+def pixel_to_plane(uv, K, dist, T, plane: Plane) -> np.ndarray
+def verify_xy(true_pts, est_pts) -> dict                     # n, xy_p50_m, xy_p95_m, xy_max_m, pass
+def fit_tcp_offset(R, t, p, fixed: dict | None = None) -> tuple[np.ndarray, float]
+def detect_charuco(image, spec, K, dist) -> tuple[np.ndarray, np.ndarray]   # (코너 id, uv)
+def board_pose(ids, uv, spec, K, dist) -> tuple[np.ndarray, float]          # (camera ← board, rms [px])
+def load_extrinsics(path) -> Extrinsics                     # 누락 시 CalibrationFileError
 ```
 
 ## 3. 시험 케이스
@@ -369,12 +378,15 @@ def solve_eye_to_hand(cam_pts: np.ndarray, base_pts: np.ndarray) -> tuple[np.nda
 
 | TC | 검증 내용(REQ 초안) | 수준 | 장소 | 조건 | 기대 결과 |
 |---|---|---|---|---|---|
-| TC-CAL-001-01 | 평면 맞춤 | U | `[ON]` | 잡음 0.2 mm 점 200개 + 이상점 10% | 법선 오차 ≤ 0.1°, 높이 오차 ≤ 0.1 mm |
-| TC-CAL-002-01 | 벨트 진행 방향 | U | `[ON]` | 직선 이동 점, 잡음 0.3 mm | 방향 오차 ≤ 0.1° |
-| TC-CAL-003-01 | eye-to-hand | U | `[ON]` | 알려진 변환 + 잡음 0.3 mm, 대응점 20개 | 이동 오차 ≤ 0.5 mm, 회전 오차 ≤ 0.1°, rms 반환 |
-| TC-CAL-003-02 | 퇴화 배치 거부 | U | `[ON]` | 한 직선 위 대응점 | 예외(`DEGENERATE`) |
-| TC-CAL-004-01 | TCP 오프셋 추정 | U | `[ON]` | 알려진 오프셋 + 잡음 | 오차 ≤ 0.2 mm |
-| TC-CAL-005-01 | 보정 파일 필수 항목 | U | `[ON]` | 항목 누락 파일 | 로드 실패(calibration_id·날짜·잔차·카메라 프로파일) |
+| TC-CAL-001-01 | 평면 맞춤 | U | `[ON]` | 잡음 0.2 mm 점 200개 + 이상점 10%, 시드 20개 / 한 직선 위 점 | 법선 오차 ≤ 0.1°, 높이(offset) 오차 ≤ 0.1 mm, 법선 z > 0 / 예외(`DEGENERATE`) |
+| TC-CAL-002-01 | 벨트 진행 방향 | U | `[ON]` | 직선 이동 점 90개(0.3 m), 잡음 0.3 mm, 임의 yaw. 높이가 변하는 궤적 + 평면 | 부호 포함 방향 오차 ≤ 0.1° / 평면 위 방향만 냄 |
+| TC-CAL-002-02 | 보드 이동 영상으로 진행 방향 | U | `[ON]` | 벨트 위 보드 16 cm 이동 6장면, 픽셀 잡음 0.2 px | 방향 오차 ≤ 0.2° |
+| TC-CAL-003-01 | eye-to-hand(3D-3D) | U | `[ON]` | 알려진 변환 + 잡음 축별 σ 0.3 mm, 대응점 20개(벨트·매트·받침 세 높이) | 작업면 점 30개 오차 최대 ≤ 0.5 mm, 회전 오차 ≤ 0.1°, 카메라 원점 이동 오차 ≤ 1 mm(참고), rms 반환 |
+| TC-CAL-003-02 | 퇴화 배치 거부 | U | `[ON]` | 한 직선 위 대응점(3D-3D·PnP), PnP 점 5개 | 예외(`DEGENERATE`) |
+| TC-CAL-003-03 | eye-to-hand(PnP, 접촉점 + 픽셀) | U | `[ON]` | D455 공장 내부 파라미터, 24점(세 높이), 픽셀 잡음 0.3 px | 재투영 rms < 0.5 px, 벨트면 검증 30점 XY 최대 ≤ 0.5 mm |
+| TC-CAL-003-04 | ChArUco + TCP 접촉 세션 | U | `[ON]` | SPEC-600 4.4절 배치(면마다 fit 4장면, 접촉 4점 σ 0.2 mm, verify 5장면 20점), 픽셀 잡음 0.2 px / 한 접촉점 4 mm 오류 / 합성 영상 17장으로 `calibrate_camera` 실행 | 검증 게이트 합격, 회전 ≤ 0.2°(참고), 벨트·매트 높이 오차 ≤ 0.3 mm / 그 장면 `bad_touch_views`에 표시 / 결과 파일 5종 생성, 종료 코드 0 |
+| TC-CAL-004-01 | TCP 오프셋 추정 | U | `[ON]` | 알려진 오프셋 + 잡음 0.2 mm, 30자세: 기울기 ±30° 3축 / 수직 접근 yaw만 + XY 관측 + z 고정 | 오차 ≤ 0.2 mm / XY 오차 ≤ 0.2 mm, z 미고정 시 `DEGENERATE` |
+| TC-CAL-005-01 | 보정 파일 필수 항목 | U | `[ON]` | 항목 누락 파일, 빈 값, 프로파일 내부 항목 누락, 단위가 아닌 quaternion | 로드 실패(calibration_id·날짜·잔차·카메라 프로파일·transform), 정상 파일 왕복 일치 |
 | TC-CAL-005-02 | calibration_id 불일치 | C | `[ON]` | vision과 orchestrator의 id 다름 | PRECHECK FAILED(`CALIBRATION_MISMATCH`) |
 
 ### 3.11 MCK — 대역
@@ -393,6 +405,10 @@ def solve_eye_to_hand(cam_pts: np.ndarray, base_pts: np.ndarray) -> tuple[np.nda
 
 | TC | 검증 내용(REQ 초안) | 수준 | 장소 | 조건 | 기대 결과 |
 |---|---|---|---|---|---|
+| TC-CAL-006-01 | 광선-평면 교차·검증 통계 | U | `[ON]` | 오차 없는 투영 50점(시야 가장자리 5 px까지) / XY 오차 0~1.9 mm 20점, z 차이 10 mm / 10점 | 왕복 오차 ≤ 1 µm / p95·최대 일치, 불합격(p95 > 1 mm), 절반 크기면 합격, z 무시 / 불합격(n < 20) |
+| TC-CAL-007-01 | ChArUco 검출·자세 | U | `[ON]` | 원근 렌더(4배 초표본) 보드 5자세, 거리 0.37 m, 기울기 ≤ 20° | 코너 24개, 코너 오차 ≤ 0.2 px, 자세 이동 ≤ 1 mm·회전 ≤ 0.2°, 보드 좌표가 인쇄 원본 배치와 일치 |
+| TC-CAL-008-01 | camera_link static TF 합성 | U | `[ON]` | 보정 결과 + RealSense형 camera_link ← 광학 TF | 다시 합성한 base ← 광학이 보정 결과와 1e-12 이내, det = 1 |
+| TC-CAL-009-01 | CameraInfo ↔ 프로파일 비교 | U | `[ON]` | 같은 값, fx +0.4 px / 높이 720, 왜곡 모델 다름, cx +0.6 px, k3 +0.01, 왜곡 0 / fx·fy +2.2 px | 불일치 없음 / 해당 항목 불일치 / fx·fy만 불일치, `check_focal=False`면 없음 |
 | TC-REC-001-01 | 시도 기록 스키마 | U | `[ON]` | `PLAN.md` 10.2절 JSON Schema로 검증 | 필수 필드 누락 시 실패 |
 | TC-REC-002-01 | 시도하지 않은 경우도 기록 | I0 | `[ON]` | `time_insufficient` 소진 | `result = NOT_ATTEMPTED`, reason, `passes_skipped` 기록 |
 | TC-REC-003-01 | 단계 기록 | I0 | `[ON]` | 정상 1사이클 | 단계 수만큼 StepRecord JSONL, metric 키 포함 |

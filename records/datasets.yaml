@@ -3,3 +3,4 @@
 off1_bags: ""
 off1_static_images: ""
 off5_bags: ""
+off3_calib: ""            # 보정 장면 영상·세션 YAML. 2026-11-07 예비 확인 영상: /home/umm/drop_data/calib/2026-11-07

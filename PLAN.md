@@ -490,7 +490,7 @@ bool stopped            # 정지 확인 후 응답
 
 | 이름 | 형식 | 제공/발행 | 주기 | QoS(제안) | 비고 |
 |---|---|---|---|---|---|
-| `camera/color/image_raw`, `camera_info` | sensor_msgs | RealSense | 30 Hz(1280×800) | sensor data(best effort, depth 1) | 자동 노출·화이트밸런스 고정 |
+| `camera/color/image_raw`, `camera_info` | sensor_msgs | RealSense | 30 Hz(1280×800) | sensor data(best effort, depth 1) | 자동 노출·화이트밸런스 고정. FastDDS SHM 세그먼트 확대 프로파일 필수(SPEC-600 4.8절) |
 | `objects/detections` | `ObjectDetectionArray` | vision | 영상 주기 | reliable, volatile, depth 5 | 위치·공분산 포함 |
 | `objects/tracked` | `TrackedObjectArray` | tracker | 영상 주기 | reliable, volatile, depth 5 | |
 | `belt/measured_motion` | `BeltMotion` | tracker | 영상 주기 | reliable, volatile, depth 5 | |

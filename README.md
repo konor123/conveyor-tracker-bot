@@ -33,5 +33,5 @@ python3 tools/spec/trace.py          # REQ ↔ TC ↔ 테스트 추적 행렬
 | ROS 2 | Jazzy |
 | doosan-robot2 | Jazzy 브랜치, 설치 커밋 SHA는 `records/bench/versions-*.txt`(OFF-1)에서 옮겨 적는다 |
 | E0509 제어기·DRFL | `records/bench/versions-*.txt`, 티치펜던트 |
-| realsense-ros | `records/bench/d455-check-*.txt` |
+| realsense-ros | 4.58.4(librealsense2 2.58.4, apt), `records/bench/d455-check-*.txt`. 영상 수신 노드는 `FASTRTPS_DEFAULT_PROFILES_FILE=src/drop_bringup/config/fastdds_large_shm.xml` |
 | RH-P12-RN(A) 펌웨어 | Modbus-RTU 사용 시 V12 이상 |

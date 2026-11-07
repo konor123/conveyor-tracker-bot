@@ -12,6 +12,8 @@
   <exec_depend>launch_ros</exec_depend>
   <exec_depend>drop_interfaces</exec_depend>
   <exec_depend>dsr_bringup2</exec_depend>
+  <exec_depend>realsense2_camera</exec_depend>
+  <exec_depend>calibration</exec_depend>
 
   <export>
     <build_type>ament_cmake</build_type>
