@@ -1,1 +1,4 @@
 date,parameter,old_value,new_value,unit,evidence_file,evidence_n,evidence_stat,changed_by,affected_req
+2026-11-07,orchestrator.judge.pick_stone.d_stone_m → d_stone_min_m,0.015,0.017,m,records/bench/site-survey-2026-11-07.csv S01·S02,1(보고 범위),17~18 mm 범위 하한(팔각기둥 면-면),claude,REQ-ORC-003
+2026-11-07,orchestrator.judge.pick_stone.d_stone_max_m,0.015,0.018,m,records/bench/site-survey-2026-11-07.csv S01·S02,1(보고 범위),17~18 mm 범위 상한(팔각기둥 꼭짓점-꼭짓점),claude,REQ-ORC-003
+2026-11-07,orchestrator.judge.release.d_stone_m → d_stone_max_m,0.015,0.018,m,records/bench/site-survey-2026-11-07.csv S01·S02,1(보고 범위),17~18 mm 범위 상한,claude,REQ-ORC-003

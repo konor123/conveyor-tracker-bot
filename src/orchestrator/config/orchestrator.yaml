@@ -1,2 +1,83 @@
-# orchestrator 파라미터. 수치 키는 단위 접미사(_m, _s, _mps, _mps2, _rad, _hz, _ma, _pulse, _count, _ratio)를 붙인다.
-{}
+# orchestrator 파라미터(SPEC-100 3절, SPEC-110 3절). 수치 키는 단위 접미사(_m, _s, _mps, _mps2, _rad, _hz, _ma, _pulse, _count, _ratio)를 붙인다.
+# 제안값이다. 실측으로 바꾸면 records/param_changes.csv에 근거를 남기고 TEST_SPEC.md 기대값을 같은 커밋에서 고친다.
+judge:
+  precheck:
+    heartbeat_age_max_s: 0.3
+    gripper_response_max_s: 0.5        # TBD(측정 G0)
+  detect_stone:
+    confidence_min_ratio: 0.9
+    window_std_max_m: 0.0005
+    clearance_min_m: 0.02              # TBD(핑거 어댑터 치수, OFF-1)
+  pick_stone:
+    d_stone_min_m: 0.017               # 팔각기둥 면-면, OFF-1 2026-11-07
+    d_stone_max_m: 0.018               # 팔각기둥 꼭짓점-꼭짓점, OFF-1 2026-11-07
+    width_tol_m: 0.001
+    grip_current_min_ma: 100           # TBD(측정 G0)
+    detection_age_max_s: 1.0
+  standby:
+    pose_error_max_m: 0.002
+  wait_cap:
+    observation_count_min_count: 30
+    speed_std_max_mps: 0.001
+    margin_s: 1.0
+  plan:
+    time_margin_min_s: 1.0
+    position_std_max_m: 0.0005
+    t_approach_s: 1.0                  # TBD(측정 G0)
+  approach:
+    pose_error_max_m: 0.002
+  sync:
+    e_xy_max_m: 0.00275                # 0.5 × (D_in − d_stone) / 2, TBD(G2 낙하 시험)
+    v_rel_max_mps: 0.005
+    hold_s: 0.3
+    timeout_s: 2.0
+  predicted:
+    entry_time_tol_s: 0.05             # TBD(측정 G4)
+    v_rel_max_mps: 0.005
+  descend:
+    height_tol_m: 0.0005
+    h_clear_m: 0.002
+  static_place:
+    target_error_max_m: 0.001
+    height_tol_m: 0.0005
+    h_clear_m: 0.002
+  release:
+    d_stone_max_m: 0.018               # OFF-1 2026-11-07
+    delta_open_m: 0.004
+    open_tol_m: 0.001
+  retreat:
+    safe_z_m: 0.10                     # TBD(현장 배치 OFF-1)
+  verify:
+    timeout_s: 3.0
+
+step_timeout:
+  precheck_s: 5.0
+  detect_stone_s: 3.0
+  pick_stone_s: 15.0
+  move_standby_s: 10.0
+  plan_intercept_s: 0.5
+  approach_s: 3.0                      # 1.5 × T_transit(p99), TBD(측정 G0)
+  synchronize_s: 2.0
+  descend_s: 1.5
+  release_s: 1.0                       # 1.5 × T_release(p99), TBD(측정 G0)
+  retreat_s: 3.0
+  verify_s: 3.0
+  lap_s: 30.0                          # T_lap, WAIT_CAP 제한시간 = lap_s × (max_passes + 1), TBD(실측 OFF-1)
+
+retry:
+  detect_stone_count: 2
+  pick_stone_count: 2
+
+abort:
+  abort_path_l2_s: 10.0                # TBD(측정 G0·G2)
+  abort_path_l3_s: 15.0                # TBD(측정 G0·G2)
+  cancel_response_s: 0.5
+  call_timeout_s: 1.0
+
+watchdog:
+  heartbeat_timeout_s: 0.3
+  obs_freshness_s: 0.3                 # τ_max, TBD(측정 G3·G4)
+  gripper_response_max_s: 0.5          # TBD(측정 G0)
+  gripper_alive_stall_s: 0.1           # TBD(측정 G0)
+  cycle_timeout_s: 90.0
+  cycle_steady_factor_ratio: 2.0

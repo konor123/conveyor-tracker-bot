@@ -41,12 +41,12 @@
 | 그리퍼 연결 | E0509 플랜지 RS-485 배선 유지. ROS 2 → doosan-robot2 → 제어기 DRL(`flange_serial_*`) → Modbus-RTU → 그리퍼. 공개 참고 구현: E0509 + RH-P12-RN(A)용 `dsr_study`(`dsr_gripper` 패키지, 서비스 `/dsr01/gripper/cmd`) | 그리퍼 Protocol Type이 Modbus-RTU인지, 상주 루프 DRL이 도는 동안 `move_line`·스트림 지령이 받아들여지는지, 명령 지연, 상태 읽기 경로 |
 | 카메라 | Intel RealSense D455, 작업대 고정 | 설치 높이·각도 |
 | 병뚜껑 | 납작한 병뚜껑, 벨트에 접착 | 안쪽 지름 `D_in`, 테두리 높이 `h_rim`, 바닥 두께, 색, 롤러·벨트 하부 통과 여부, 한 바퀴 주기 |
-| 공깃돌 | 검은 매트 위에 놓음 | 지름 `d_stone`(최대·최소), 높이, 질량, 형상, 색, 낙하 시 튕김 |
+| 공깃돌 | 검은 매트 위에 놓음. 팔각기둥, 지름 `d_stone_min` 17 mm(면-면)·`d_stone_max` 18 mm(꼭짓점-꼭짓점) | 높이, 질량, 색, 놓인 자세, 낙하 시 튕김 |
 
 그리퍼 운용 규칙:
 
 - **운전 모드:** 전류 기반 위치 제어(Operating Mode 5)를 쓴다. 최대 파지력 170 N은 공깃돌에 과하므로 Goal Current로 파지력을 제한한다. 값은 G0에서 공깃돌이 미끄러지지 않는 최소 전류에 여유를 곱해 정한다.
-- **부분 개방:** 해제할 때는 완전히 열지 않고 핑거 간격 `d_stone + Δ_open`(초기 4 mm)까지만 연다. 이동 거리가 짧아 해제 시간이 줄고, 핑거가 병뚜껑 테두리에 닿지 않는다.
+- **부분 개방:** 해제할 때는 완전히 열지 않고 핑거 간격 `d_stone_max + Δ_open`(초기 4 mm)까지만 연다. 이동 거리가 짧아 해제 시간이 줄고, 핑거가 병뚜껑 테두리에 닿지 않는다.
 - **파지·개방 판정:** Present Position을 실측표로 핑거 간격으로 바꾸고, Present Current와 함께 판정한다(4.3절).
 - **주요 주소(RH-P12-RN(A) control table, DYNAMIXEL 바이트 주소):** Torque Enable 512, Hardware Error Status 518, Goal Current 550, Profile Velocity 560, Goal Position 564, Present Current 574, Present Position 580. 구형 RH-P12-RN 펌웨어와 주소가 다르므로 펌웨어를 바꾸면 이 표를 다시 확인한다.
 - **Modbus 주소:** 플랜지 경로는 Modbus-RTU(FC03 읽기, FC06·FC16 쓰기)를 쓴다. 참고 구현의 쓰기 주소는 바이트 주소의 절반과 일치한다(Torque Enable 256, Goal Current 275, Goal Position 282, Present Current 287, Operating Mode는 워드 5의 상위 바이트). ROBOTIS RH-P12-RN(A) 제어표의 Modbus 주소(40001 = 0)로는 Present Position 290(2워드), Hardware Error Status 259(하위 바이트), Model Number 0, Firmware Version 3(하위 바이트), Protocol Type 6(상위 바이트)이다. 주소는 제어표의 Modbus 열에서 옮겨 `robot_control.yaml`에 두고, 바이트 주소의 절반과 다른 항목(제어표의 Position P·I Gain 행)은 실기 읽기로 확인한 뒤 쓴다. RH-P12-RN(A)의 Modbus-RTU는 펌웨어 V12 이상에서 쓸 수 있다. 주소표는 프로토콜별로 따로 두고 섞지 않는다.
@@ -553,14 +553,14 @@ IDLE
 |---|---|---|---|---|---|
 | PRECHECK | — | 모든 기능 노드 `ACTIVE`이고 heartbeat가 300 ms 이내 / calibration_id 일치·유효 / `robot_ready`이고 보호정지 아님 / 그리퍼 상주 루프 생존 카운터 증가 중, 응답 ≤ 0.5 s(G0 측정 후 확정), Hardware Error 없음, 개방 상태 / 벨트 `steady`, 속도 ≤ `max_belt_speed` | 5 s | 시도하지 않고 IDLE 복귀(로봇 미동작) | 0 |
 | DETECT_STONE | PRECHECK OK | 매트 ROI 공깃돌 ≥ 1, confidence ≥ 0.9, `position_valid`, 0.5 s 창 위치 표준편차 ≤ 0.5 mm, 주변 물체와 핑거 간섭 거리 이상 떨어짐 | 3 s | L1 재검출 | 2 |
-| PICK_STONE | 검출 시각이 1 s 이내 | 핑거 간격이 `[d_stone − 1, d_stone + 1] mm` 안(pulse 실측표 변환) / Present Current ≥ 파지 전류 하한 / 매트 ROI에서 해당 공깃돌 사라짐 / 로봇·그리퍼 오류 없음 | 15 s | 매트에 남아 있으면 L1, 그 외 L2 | 2 |
+| PICK_STONE | 검출 시각이 1 s 이내 | 핑거 간격이 `[d_stone_min − 1, d_stone_max + 1] mm` 안(pulse 실측표 변환) / Present Current ≥ 파지 전류 하한 / 매트 ROI에서 해당 공깃돌 사라짐 / 로봇·그리퍼 오류 없음 | 15 s | 매트에 남아 있으면 L1, 그 외 L2 | 2 |
 | MOVE_STANDBY | holding | 대기 자세 오차 ≤ 2 mm / holding 유지(핑거 간격·전류) | 10 s | L3 | 0 |
 | WAIT_CAP | 대기 자세, holding | `SelectTarget` 병뚜껑 track `OBSERVED`, `observation_count ≥ 30`, `speed_std ≤ 1 mm/s`, `steady` / 뚜껑 안에 공깃돌 없음(`stone_inside_valid == true`이고 `stone_inside == false`, 판정 불가는 통과 보내기) / `T_available − T_required ≥ margin` | `T_lap × (max_passes + 1)`(`T_lap` = 한 바퀴 주기, G0 측정) | 판정 실패한 통과는 보내고 다음 통과 대기. `max_passes`를 넘으면 L3(결과 `NOT_ATTEMPTED`) | `max_passes` |
 | PLAN_INTERCEPT | holding, track `OBSERVED`, epoch 일치 | `status == OK`, `time_margin ≥ 1.0 s`, `position_std ≤ 0.5 mm`, `valid_until > now + T_approach` | 0.5 s | 동적 deadline 안에서 재계획, 넘으면 이번 통과를 보내고 WAIT_CAP(남은 통과가 없으면 L3) | deadline까지 |
 | APPROACH | plan 유효 | 해제점 위 30 mm 도달, 오차 ≤ 2 mm / plan 유효 상태 유지 | 1.5 × T_transit(p99) | L3 | 0 |
 | SYNCHRONIZE | 접근 완료 | `e_xy ≤ e_xy_max`, `v_rel ≤ v_rel_max`가 연속 0.3 s 유지 | 2 s | L3 | 0 |
 | DESCEND | 동기 게이트 유지 | 해제 높이 ±0.5 mm 도달 / 하강 중 동기 게이트 계속 만족 / 핑거 끝이 테두리 + h_clear 위 | 1.5 s | L3(동기 유지하며 상승) | 0 |
-| RELEASE | 해제 게이트(4.4절) 모두 만족 | 그리퍼 개방 확인(핑거 간격 ≥ `d_stone + Δ_open − 1 mm`) / 개방 지연(p95) + 여유 동안 동기 유지 | 1.5 × T_release(p99) | 해제 후에는 되돌릴 수 없으므로 RETREAT → VERIFY(FAILURE/UNKNOWN) | 0 |
+| RELEASE | 해제 게이트(4.4절) 모두 만족 | 그리퍼 개방 확인(핑거 간격 ≥ `d_stone_max + Δ_open − 1 mm`) / 개방 지연(p95) + 여유 동안 동기 유지 | 1.5 × T_release(p99) | 해제 후에는 되돌릴 수 없으므로 RETREAT → VERIFY(FAILURE/UNKNOWN) | 0 |
 | RETREAT | 해제 완료 또는 L3 | TCP z ≥ 안전 높이 / 작업영역 밖 / 그리퍼에 공깃돌 없음 | 3 s | L4(후퇴 실패는 기계 이상으로 본다) | 0 |
 | VERIFY | 후퇴 완료 | `VerifyDrop` 응답(SUCCESS/FAILURE/UNKNOWN), 1 s 유지 확인 | 3 s | UNKNOWN으로 기록 | 0 |
 
@@ -571,7 +571,7 @@ IDLE
 
 다음을 모두 만족해야 그리퍼를 연다. 하나라도 어긋나면 해제하지 않고 L3로 간다.
 
-- 공깃돌 중심(TCP + 파지 오프셋)과 뚜껑 중심 예측 사이 XY 오차 ≤ `e_xy_max`. 초기값은 `0.5 × (D_in − d_stone) / 2`로 계산하고, G2 낙하 시험에서 측정한 허용 오차로 바꾼다.
+- 공깃돌 중심(TCP + 파지 오프셋)과 뚜껑 중심 예측 사이 XY 오차 ≤ `e_xy_max`. 초기값은 `0.5 × (D_in − d_stone_max) / 2`로 계산하고, G2 낙하 시험에서 측정한 허용 오차로 바꾼다.
 - 상대 속도 ≤ `v_rel_max`(초기 5 mm/s, G2 낙하 시험과 G4 결과로 조정).
 - 추적 상태 `OBSERVED`, 또는 `COASTING`이면서 `t_now − t_last_obs ≤ τ_max`. 그리퍼가 위에서 뚜껑을 가리므로 COASTING 구간이 길 수 있다. 병뚜껑은 벨트에 붙어 미끄러지지 않으므로 가림 중 오차는 주로 벨트 속도 오차에서 생긴다. τ_max는 G3·G4 측정으로 정한다(초기 0.3 s).
 - 위치 예측 표준편차 ≤ 기준, `valid_until` 미경과, `epoch` 일치.

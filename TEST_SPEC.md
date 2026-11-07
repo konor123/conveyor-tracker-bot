@@ -79,7 +79,8 @@ def test_l2_path_timeout_escalates_to_l4(fake_clock): ...
 class Result(IntEnum): OK=0; FAILED=1; TIMEOUT=2; PRECONDITION=3; CANCELED=4; FAULT=5
 class AbortLevel(IntEnum): NONE=0; L1=1; L2=2; L3=3; L4=4; CONTINUE_TO_RETREAT_VERIFY=10
 @dataclass(frozen=True)
-class Judgement: result: Result; reason_code: str; metrics: dict[str, float]
+class Judgement: result: Result; reason_code: str; metrics: dict[str, float]; detail: str = ""
+# 위 세 타입은 common.py. reason "WAIT" = 판정 보류(같은 단계에서 관측 계속), detail = 세부 원인
 
 # step_judges.py — 단계마다 하나. m = 측정값 dataclass, p = 판정 파라미터 dataclass
 def judge_precheck(m: PrecheckMeas, p: PrecheckParams) -> Judgement
@@ -92,6 +93,11 @@ def judge_synchronize(samples: Sequence[SyncSample], p: SyncParams) -> Judgement
 def judge_descend(m: DescendMeas, p: DescendParams) -> Judgement
 def judge_release(m: ReleaseMeas, p: ReleaseParams) -> Judgement
 def judge_retreat(m: RetreatMeas, p: RetreatParams) -> Judgement
+def judge_approach(m: ApproachMeas, p: ApproachParams) -> Judgement
+def judge_predicted_entry(m: EntryMeas, p: EntryParams) -> Judgement   # MODE_PREDICTED의 SYNCHRONIZE
+def judge_static_place(m: StaticPlaceMeas, p: StaticPlaceParams) -> Judgement   # MODE_STATIC의 DESCEND
+def judge_verify(m: VerifyMeas, p: VerifyParams) -> Judgement
+METRIC_KEYS: dict[str, frozenset[str]]                                  # 단계별 기록 키(SPEC-100 4.4절)
 
 # state_machine.py
 def next_state(state: State, mode: Mode, j: Judgement, abort: AbortLevel, ctx: CycleCtx) -> State
@@ -99,10 +105,30 @@ def next_state(state: State, mode: Mode, j: Judgement, abort: AbortLevel, ctx: C
 # abort_policy.py
 def decide(event: Event, ctx: AbortCtx) -> AbortLevel
 def escalate(current: AbortLevel, new: AbortLevel) -> AbortLevel
+class AbortTracker:                        # 진행 중 등급 + 중단 경로·cancel 제한시간(steady)
+    def __init__(self, p: AbortParams, clock: SteadyClock): ...
+    def on_event(self, event: Event, ctx: AbortCtx) -> AbortLevel
+    def on_cancel_sent(self) -> None
+    def on_cancel_ack(self) -> None
+    def on_path_done(self) -> None         # 중단 경로 완료 → WAIT_OPERATOR
+    def tick(self) -> AbortLevel           # 제한시간 초과 시 승격
+
+# watchdogs.py — 감시(SPEC-110 4.3절). 시계는 생성자에서 받는다
+class HeartbeatMonitor:   beat(node), lost(node) -> bool                  # steady
+class FreshnessMonitor:   stale(t_now, t_last_obs) -> bool                # ROS
+class ClockMonitor:       update(t_ros) -> bool                           # True = 역행
+class GripperMonitor:     update(error_bits, response_s, alive_counter), fault() -> bool   # steady
+class CycleTimer:         expired() -> bool                               # ROS deadline 또는 steady 상한
 
 # deadlines.py
 def effective_deadline(now: float, step_limit: float, dynamic: float | None, cycle: float) -> float
 def derive_step_timeout(p95: float, p99: float) -> float          # max(ceil(1.5*p99), p95+0.5)
+
+# cycle_runner.py — 한 사이클 실행(SPEC-100 4.2절). skill은 SkillPort, 시계는 FakeClock 인터페이스
+class CycleRunner:
+    def __init__(self, port: SkillPort, clock: Clock, cfg: OrchestratorCfg): ...
+    def run(self, goal: DropGoal) -> CycleOutcome   # 상태 열, StepRecord 열, 결과, passes_skipped
+    def resume(self, reason: str) -> bool          # WAIT_OPERATOR 재개, 빈 사유는 거부
 
 # ---------- intercept_planner ----------
 @dataclass(frozen=True)
@@ -182,18 +208,18 @@ def solve_eye_to_hand(cam_pts: np.ndarray, base_pts: np.ndarray) -> tuple[np.nda
 
 ### 3.3 ORC — 상태 머신·단계 판정
 
-경계 시험 공통 파라미터: `d_stone = 0.015 m`, `Δ_open = 0.004 m`, `e_xy_max = 0.00275 m`, `v_rel_max = 0.005 m/s`, `h_clear = 0.002 m`.
+경계 시험 공통 파라미터: `d_stone_min = 0.017 m`, `d_stone_max = 0.018 m`, `Δ_open = 0.004 m`, `e_xy_max = 0.00275 m`, `v_rel_max = 0.005 m/s`, `h_clear = 0.002 m`.
 
 | TC | 검증 내용(REQ 초안) | 수준 | 장소 | 조건 | 기대 결과 |
 |---|---|---|---|---|---|
 | TC-ORC-001-01 | MODE_SYNCHRONIZED 정상 상태 열 | U | `[ON]` | 모든 판정 OK | `IDLE→PRECHECK→DETECT_STONE→PICK_STONE→MOVE_STANDBY→WAIT_CAP→PLAN_INTERCEPT→APPROACH→SYNCHRONIZE→DESCEND→RELEASE→RETREAT→VERIFY→DONE` |
-| TC-ORC-001-02 | MODE_STATIC은 SYNCHRONIZE를 건너뛰고 WAIT_CAP을 정지 뚜껑 검출로 바꾼다 | U | `[ON]` | mode = STATIC, 모든 판정 OK | SYNCHRONIZE 없음, WAIT_CAP 단계에서 `DetectObjects(REGION_BELT, CLASS_CAP)` 호출 |
+| TC-ORC-001-02 | MODE_STATIC은 PLAN_INTERCEPT·SYNCHRONIZE를 건너뛰고 WAIT_CAP을 정지 뚜껑 검출로 바꾼다 | U | `[ON]` | mode = STATIC, 모든 판정 OK | PLAN_INTERCEPT·SYNCHRONIZE 없음, WAIT_CAP 단계에서 `DetectObjects(REGION_BELT, CLASS_CAP)` 호출, `PlaceStone` 사용 |
 | TC-ORC-001-03 | MODE_PREDICTED는 SYNCHRONIZE를 계획 속도 일치 구간 진입 판정으로 바꾼다 | U | `[ON]` | mode = PREDICTED | SYNCHRONIZE 판정 입력이 계획 구간 진입 시각·속도 오차 |
 | TC-ORC-002-01 | 판정 실패 뒤 다음 단계 skill을 부르지 않는다 | U | `[ON]` | 각 단계를 하나씩 FAILED로 대본 작성(단계 수만큼 parametrize) | `FakeSkillPort.calls`에 다음 단계 skill 없음 |
 | TC-ORC-003-01 | PRECHECK heartbeat 나이 경계 | U | `[ON]` | 나이 0.299 / 0.300 / 0.301 s | OK / OK / FAILED(`HEARTBEAT_STALE`) |
 | TC-ORC-003-02 | PRECHECK 그리퍼 응답·상태 | U | `[ON]` | 응답 0.5 s / 0.501 s, error_bits ≠ 0, 개방 아님 | OK / FAILED(`GRIPPER_SLOW`) / FAILED(`GRIPPER_ERROR`) / FAILED(`GRIPPER_NOT_OPEN`) |
 | TC-ORC-003-03 | DETECT_STONE 판정 | U | `[ON]` | confidence 0.89 / 0.90, 창 표준편차 0.5 / 0.51 mm, 개수 0 | FAILED / OK, OK / FAILED, FAILED(`NO_STONE`) |
-| TC-ORC-003-04 | PICK_STONE 핑거 간격 경계 | U | `[ON]` | 간격 13.9 / 14.0 / 16.0 / 16.1 mm | FAILED / OK / OK / FAILED(`GRIP_WIDTH`) |
+| TC-ORC-003-04 | PICK_STONE 핑거 간격 경계 | U | `[ON]` | 간격 15.9 / 16.0 / 19.0 / 19.1 mm(`[d_stone_min − 1, d_stone_max + 1] mm`) | FAILED / OK / OK / FAILED(`GRIP_WIDTH`) |
 | TC-ORC-003-05 | PICK_STONE 전류·매트 확인 | U | `[ON]` | 전류 < 하한 / 매트 ROI에 공깃돌 남음 | FAILED(`GRIP_CURRENT_LOW`) / FAILED(`STONE_ON_MAT`) |
 | TC-ORC-003-06 | MOVE_STANDBY 자세 오차 | U | `[ON]` | 2.0 / 2.1 mm, holding false | OK / FAILED, FAILED(`DROPPED`) |
 | TC-ORC-003-07 | WAIT_CAP 추적 안정 경계 | U | `[ON]` | observation_count 29 / 30, speed_std 1.00 / 1.01 mm/s, `steady=false` | 통과 대기 / OK, OK / 대기, 대기 |
@@ -201,7 +227,7 @@ def solve_eye_to_hand(cam_pts: np.ndarray, base_pts: np.ndarray) -> tuple[np.nda
 | TC-ORC-003-09 | PLAN_INTERCEPT 판정 | U | `[ON]` | time_margin 0.99 / 1.00 s, position_std 0.5 / 0.51 mm, `valid_until = now + T_approach` | FAILED / OK, OK / FAILED, FAILED(경계는 `>`) |
 | TC-ORC-003-10 | SYNCHRONIZE 연속 0.3 s | U | `[ON]` | 100 Hz 표본, 0.25 s 시점에 e_xy 1회 초과 | 초과 시점부터 다시 셈, 초과 후 0.3 s 연속 만족한 시점에 OK, 2 s 안에 못 채우면 TIMEOUT |
 | TC-ORC-003-11 | DESCEND 핑거 끝 여유 | U | `[ON]` | 핑거 끝 − 테두리 = 1.9 / 2.0 mm | FAILED(`RIM_CLEARANCE`) / OK |
-| TC-ORC-003-12 | RELEASE 개방 확인 | U | `[ON]` | 간격 17.9 / 18.0 mm(`d_stone+Δ_open−1 mm` = 18 mm) | FAILED / OK |
+| TC-ORC-003-12 | RELEASE 개방 확인 | U | `[ON]` | 간격 20.9 / 21.0 mm(`d_stone_max+Δ_open−1 mm` = 21 mm) | FAILED / OK |
 | TC-ORC-003-13 | RETREAT 판정 | U | `[ON]` | z < 안전 높이 / 그리퍼에 공깃돌 보임 | FAILED → L4 / FAILED → L4 |
 | TC-ORC-003-14 | VERIFY 제한시간 | U | `[ON]` | `VerifyDrop` 3 s 무응답 | 결과 UNKNOWN, reason `VERIFY_TIMEOUT` |
 | TC-ORC-004-01 | 판정에 쓴 값이 모두 StepRecord에 남는다 | U | `[ON]` | 각 judge 호출 | `Judgement.metrics` 키가 단계별 명세 키 집합과 같고, StepRecord `metric_keys`에 그대로 복사 |
@@ -237,7 +263,7 @@ def solve_eye_to_hand(cam_pts: np.ndarray, base_pts: np.ndarray) -> tuple[np.nda
 
 ### 3.5 VIS — 비전
 
-합성 조건 기본값: 0.94 mm/px, 공깃돌 지름 15 mm(약 16 px), 병뚜껑 바깥 지름 30 mm, 회색 잡음 σ = 2.
+합성 조건 기본값: 0.94 mm/px, 공깃돌 팔각형(면-면 17 mm, 꼭짓점-꼭짓점 18 mm, 약 19 px), 병뚜껑 바깥 지름 30 mm, 회색 잡음 σ = 2.
 
 | TC | 검증 내용(REQ 초안) | 수준 | 장소 | 조건 | 기대 결과 |
 |---|---|---|---|---|---|

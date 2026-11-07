@@ -12,7 +12,7 @@
 매 점마다 정착 대기 후 간격을 입력받아 CSV에 바로 쓴다(중단해도 그때까지 저장).
 
 사용 예:
-  python3 tools/bench/gripper_pulse_table.py --stone-mm 15 --start-loop-via-service
+  python3 tools/bench/gripper_pulse_table.py --stone-mm 18 --start-loop-via-service
   python3 tools/bench/gripper_pulse_table.py --dry-run          # ROS 없이 순서만 확인
 
 입력: 숫자(mm) / Enter = 측정 안 함 / r = 같은 점 재전송 / q = 종료
