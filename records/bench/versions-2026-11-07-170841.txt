@@ -1,0 +1,195 @@
+
+===== 시스템 =====
+2026-11-07T17:08:41+09:00
+umm-Legion-Pro-5-16IAX10H
+7.0.0-38-generic
+Ubuntu 24.04.5 LTS
+ROS_DISTRO=jazzy  RMW=기본  ROS_DOMAIN_ID=0
+Python 3.12.3
+
+===== doosan-robot2 워크스페이스: /home/umm/doosan_ws =====
+src/doosan-robot2  dade65d3a99dd8b29d8eca3689a4ead74f228d77  jazzy  dirty=0
+origin	https://github.com/DoosanRobotics/doosan-robot2.git (fetch)
+--- DRFL 라이브러리
+/home/umm/doosan_ws/install/dsr_common2/include/DRFL.h
+/home/umm/doosan_ws/install/dsr_common2/include/DRFLEx.h
+/home/umm/doosan_ws/install/dsr_common2/lib/libDRFL.a
+/home/umm/doosan_ws/src/doosan-robot2/dsr_common2/include/DRFL.h
+/home/umm/doosan_ws/src/doosan-robot2/dsr_common2/include/DRFLEx.h
+/home/umm/doosan_ws/src/doosan-robot2/dsr_common2/lib/jazzy/x86_64/libDRFL.a
+/home/umm/doosan_ws/src/doosan-robot2/dsr_common2/lib/jazzy/arm64/libDRFL.a
+DRCF_VERSION
+DRCF_VERSION : ${DRCF_VER})
+DRCF_VERSION=${DRCF_VER})
+DRCF_VERSION == 2
+DRCF_VERSION == 3
+
+===== ROS 패키지 =====
+dsr_bringup2               /home/umm/doosan_ws/install/dsr_bringup2
+dsr_controller2            /home/umm/doosan_ws/install/dsr_controller2
+dsr_msgs2                  /home/umm/doosan_ws/install/dsr_msgs2
+dsr_hardware2              /home/umm/doosan_ws/install/dsr_hardware2
+realsense2_camera          /opt/ros/jazzy
+realsense2_camera_msgs     /opt/ros/jazzy
+dsr_gripper                not found
+dsr_gripper_interfaces     not found
+ros-jazzy-librealsense2 2.58.4-1noble.20260831.015923
+ros-jazzy-rclpy 7.1.12-1noble.20260912.162354
+ros-jazzy-realsense2-camera 4.58.4-1noble.20260920.235447
+ros-jazzy-realsense2-camera-msgs 4.58.4-1noble.20260911.141016
+ros-jazzy-realsense2-description 4.58.4-1noble.20260921.000124
+ros-jazzy-rosbag2 0.26.11-1noble.20261006.034645
+
+===== 프로젝트 패키지 이름 충돌(TC-SYS-001-01, underlay만) =====
+drop_interfaces    not found
+vision             not found
+tracking           not found
+intercept_planner  not found
+robot_control      not found
+orchestrator       not found
+calibration        not found
+drop_mocks         not found
+drop_bringup       not found
+drop_sim           not found
+
+===== 스트림·이동·그리퍼 인터페이스 정의 =====
+--- dsr_msgs2/msg/ServolStream
+float64[6] pos               # position
+float64[2] vel               # velocity
+float64[2] acc               # acceleration
+float64    time              # time
+--- dsr_msgs2/msg/SpeedlStream
+float64[6] vel               # velocity
+float64[2] acc               # acceleration
+float64    time              # time
+--- dsr_msgs2/msg/ServolRtStream
+float64[6] pos               # position
+float64[6] vel               # velocity
+float64[6] acc               # acceleration
+float64    time              # target time [s]; 0 means bound by vel/acc, whose first element must then be positive
+--- dsr_msgs2/msg/SpeedlRtStream
+float64[6] vel               # velocity
+float64[6] acc               # acceleration
+float64    time              # target time [s]; 0 means bound by vel/acc, whose first element must then be positive
+--- dsr_msgs2/srv/MoveLine
+float64[6] pos               # target
+float64[2] vel               # set velocity: [mm/sec], [deg/sec]
+float64[2] acc               # set acceleration: [mm/sec2], [deg/sec2]
+float64    time #= 0.0       # Time [sec]
+float64    radius #=0.0      # Radius under blending mode [mm]
+int8       ref               # DR_BASE(0), DR_TOOL(1), DR_WORLD(2)
+int8       mode #= 0         # DR_MV_MOD_ABS(0), DR_MV_MOD_REL(1)
+int8       blend_type #= 0    # BLENDING_SPEED_TYPE_DUPLICATE=0, BLENDING_SPEED_TYPE_OVERRIDE=1
+int8       sync_type #=0      # SYNC = 0, ASYNC = 1
+---
+bool success
+--- dsr_msgs2/srv/DrlStart
+int8 robot_system    # Robot System Mode 0 : Real, 1 : virtual
+string  code        # drl code
+---
+bool success
+--- dsr_msgs2/srv/SetOutputRegisterInt
+uint16 address
+int32 value
+---
+bool success
+--- dsr_msgs2/srv/GetOutputRegisterInt
+uint16 address
+uint32 timeout_ms
+---
+bool success
+int32 value
+--- dsr_gripper_interfaces/srv/GripperCmd
+Unknown package 'dsr_gripper_interfaces'
+
+===== 실행 중 그래프(드라이버가 떠 있을 때만 의미 있음) =====
+/dsr01/controller_manager
+/dsr01/dsr_controller2
+/dsr01/e0509
+/dsr01/joint_state_broadcaster
+/dsr01/robot_state_publisher
+--- 서비스(/dsr01)
+/dsr01/aux_control/get_control_mode [dsr_msgs2/srv/GetControlMode]
+/dsr01/aux_control/get_control_space [dsr_msgs2/srv/GetControlSpace]
+/dsr01/aux_control/get_current_posj [dsr_msgs2/srv/GetCurrentPosj]
+/dsr01/aux_control/get_current_posx [dsr_msgs2/srv/GetCurrentPosx]
+/dsr01/aux_control/get_current_rotm [dsr_msgs2/srv/GetCurrentRotm]
+/dsr01/aux_control/get_current_solution_space [dsr_msgs2/srv/GetCurrentSolutionSpace]
+/dsr01/aux_control/get_current_tool_flange_posx [dsr_msgs2/srv/GetCurrentToolFlangePosx]
+/dsr01/aux_control/get_current_velj [dsr_msgs2/srv/GetCurrentVelj]
+/dsr01/aux_control/get_current_velx [dsr_msgs2/srv/GetCurrentVelx]
+/dsr01/aux_control/get_desired_posj [dsr_msgs2/srv/GetDesiredPosj]
+/dsr01/aux_control/get_desired_posx [dsr_msgs2/srv/GetDesiredPosx]
+/dsr01/aux_control/get_desired_velj [dsr_msgs2/srv/GetDesiredVelj]
+/dsr01/aux_control/get_desired_velx [dsr_msgs2/srv/GetDesiredVelx]
+/dsr01/aux_control/get_external_torque [dsr_msgs2/srv/GetExternalTorque]
+/dsr01/aux_control/get_joint_torque [dsr_msgs2/srv/GetJointTorque]
+/dsr01/aux_control/get_orientation_error [dsr_msgs2/srv/GetOrientationError]
+/dsr01/aux_control/get_robot_link_info [dsr_msgs2/srv/GetRobotLinkInfo]
+/dsr01/aux_control/get_solution_space [dsr_msgs2/srv/GetSolutionSpace]
+/dsr01/aux_control/get_tool_force [dsr_msgs2/srv/GetToolForce]
+/dsr01/drl/drl_pause [dsr_msgs2/srv/DrlPause]
+/dsr01/drl/drl_resume [dsr_msgs2/srv/DrlResume]
+/dsr01/drl/drl_start [dsr_msgs2/srv/DrlStart]
+/dsr01/drl/drl_stop [dsr_msgs2/srv/DrlStop]
+/dsr01/drl/get_drl_state [dsr_msgs2/srv/GetDrlState]
+/dsr01/motion/move_line [dsr_msgs2/srv/MoveLine]
+/dsr01/plc/get_input_register_bit [dsr_msgs2/srv/GetInputRegisterBit]
+/dsr01/plc/get_input_register_float [dsr_msgs2/srv/GetInputRegisterFloat]
+/dsr01/plc/get_input_register_int [dsr_msgs2/srv/GetInputRegisterInt]
+/dsr01/plc/get_output_register_bit [dsr_msgs2/srv/GetOutputRegisterBit]
+/dsr01/plc/get_output_register_float [dsr_msgs2/srv/GetOutputRegisterFloat]
+/dsr01/plc/get_output_register_int [dsr_msgs2/srv/GetOutputRegisterInt]
+/dsr01/plc/set_output_register_bit [dsr_msgs2/srv/SetOutputRegisterBit]
+/dsr01/plc/set_output_register_float [dsr_msgs2/srv/SetOutputRegisterFloat]
+/dsr01/plc/set_output_register_int [dsr_msgs2/srv/SetOutputRegisterInt]
+/dsr01/realtime/connect_rt_control [dsr_msgs2/srv/ConnectRtControl]
+/dsr01/realtime/disconnect_rt_control [dsr_msgs2/srv/DisconnectRtControl]
+/dsr01/realtime/get_rt_control_input_data_list [dsr_msgs2/srv/GetRtControlInputDataList]
+/dsr01/realtime/get_rt_control_input_version_list [dsr_msgs2/srv/GetRtControlInputVersionList]
+/dsr01/realtime/get_rt_control_output_data_list [dsr_msgs2/srv/GetRtControlOutputDataList]
+/dsr01/realtime/get_rt_control_output_version_list [dsr_msgs2/srv/GetRtControlOutputVersionList]
+/dsr01/realtime/read_data_rt [dsr_msgs2/srv/ReadDataRt]
+/dsr01/realtime/set_accj_rt [dsr_msgs2/srv/SetAccjRt]
+/dsr01/realtime/set_accx_rt [dsr_msgs2/srv/SetAccxRt]
+/dsr01/realtime/set_rt_control_input [dsr_msgs2/srv/SetRtControlInput]
+/dsr01/realtime/set_rt_control_output [dsr_msgs2/srv/SetRtControlOutput]
+/dsr01/realtime/set_velj_rt [dsr_msgs2/srv/SetVeljRt]
+/dsr01/realtime/set_velx_rt [dsr_msgs2/srv/SetVelxRt]
+/dsr01/realtime/start_rt_control [dsr_msgs2/srv/StartRtControl]
+/dsr01/realtime/stop_rt_control [dsr_msgs2/srv/StopRtControl]
+/dsr01/realtime/write_data_rt [dsr_msgs2/srv/WriteDataRt]
+/dsr01/system/get_current_pose [dsr_msgs2/srv/GetCurrentPose]
+/dsr01/system/get_last_alarm [dsr_msgs2/srv/GetLastAlarm]
+/dsr01/system/get_robot_mode [dsr_msgs2/srv/GetRobotMode]
+/dsr01/system/get_robot_speed_mode [dsr_msgs2/srv/GetRobotSpeedMode]
+/dsr01/system/get_robot_state [dsr_msgs2/srv/GetRobotState]
+/dsr01/system/get_robot_system [dsr_msgs2/srv/GetRobotSystem]
+--- 스트림 토픽
+/dsr01/alter_motion_stream [dsr_msgs2/msg/AlterMotionStream]
+/dsr01/dynamic_joint_states [control_msgs/msg/DynamicJointState]
+/dsr01/error [dsr_msgs2/msg/RobotError]
+/dsr01/joint_states [sensor_msgs/msg/JointState]
+/dsr01/servoj_rt_stream [dsr_msgs2/msg/ServojRtStream]
+/dsr01/servoj_stream [dsr_msgs2/msg/ServojStream]
+/dsr01/servol_rt_stream [dsr_msgs2/msg/ServolRtStream]
+/dsr01/servol_stream [dsr_msgs2/msg/ServolStream]
+/dsr01/speedj_rt_stream [dsr_msgs2/msg/SpeedjRtStream]
+/dsr01/speedj_stream [dsr_msgs2/msg/SpeedjStream]
+/dsr01/speedl_rt_stream [dsr_msgs2/msg/SpeedlRtStream]
+/dsr01/speedl_stream [dsr_msgs2/msg/SpeedlStream]
+/dsr01/torque_rt_stream [dsr_msgs2/msg/TorqueRtStream]
+
+===== 로봇 상태 조회(서비스 있으면, 읽기 전용) =====
+--- system/get_robot_state (dsr_msgs2/srv/GetRobotState)
+response:
+dsr_msgs2.srv.GetRobotState_Response(robot_state=1, success=True)
+
+--- system/get_robot_mode (dsr_msgs2/srv/GetRobotMode)
+response:
+dsr_msgs2.srv.GetRobotMode_Response(robot_mode=1, success=True)
+
+
+===== 그리퍼 노드·DRL 코드 사본 =====
+
+결과 파일: /home/umm/conveyor-tracker-bot/records/bench/versions-2026-11-07-170841.txt

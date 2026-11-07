@@ -61,19 +61,20 @@
 
 - [ ] `[ON]` `specs/` 구성, spec 템플릿·REQ ID 체계(`PLAN.md` 8절)
 - [ ] `[ON]` SPEC-000(system), 010(interfaces), 100(orchestrator), 110(abort-timeout), 700(mocks), 800(records) v0.1 작성·리뷰
+  - 2026-11-07 작성 완료(000·010 v0.2·700 v0.2·800 v0.1). 다른 담당자 리뷰 남음
 - [ ] `[ON]` `TEST_SPEC.md`의 M0 대상 시험 케이스(SYS·IF·ORC·ABT·MCK·REC·INT-I0) 리뷰 후 확정
 - [ ] `[ON]` `drop_interfaces` 1차: 데이터 msg, `TaskStatus`, `Heartbeat`, `StepRecord`, skill action/srv, `DropTask` (TC-IF-*)
-- [ ] `[ON]` 공통 요청 필드(`cycle_id`·`step_id`·`deadline`), QoS, revision·epoch 처리, lifecycle 비활성 시 응답을 SPEC-010에 고정
+- [x] `[ON]` 공통 요청 필드(`cycle_id`·`step_id`·`deadline`), QoS, revision·epoch 처리, lifecycle 비활성 시 응답을 SPEC-010에 고정
 - [x] `[ON]` 타이머별 시계 정책(ROS 시각 / steady)을 SPEC-110에 고정(`PLAN.md` 6.2절)
-- [ ] `[ON]` 접두 없는 패키지 이름이 underlay와 겹치지 않는지 첫 빌드에서 확인(TC-SYS-*)
+- [x] `[ON]` 접두 없는 패키지 이름이 underlay와 겹치지 않는지 첫 빌드에서 확인(TC-SYS-*)
 - [x] `[ON]` `orchestrator` 골격: `state_machine.py`, `step_judges.py`, `abort_policy.py`, `deadlines.py` 순수 모듈 + `test/fakes/`(skill port·fake clock) 단위 테스트(TC-ORC-*, TC-ABT-*)
 - [x] `[ON]` 장애 10종을 `abort_policy`·`deadlines` 단위 테스트의 이벤트 열로 작성(`PLAN.md` 7.3절)
 - [ ] `[ON]` `orchestrator_node`, `safety_supervisor_node`, `record_logger_node`
-- [ ] `[ON]` `drop_mocks`: `scenario_engine`, `mock_world_node`(`role:=vision|tracking|all`), `mock_robot_controller_node`(소요시간·결과 지정형). 정상 경로 우선, 지연·지터 값은 가정값으로 표기(TC-MCK-*)
-- [ ] `[ON]` 계약 테스트 틀(`test/contract/`, 대상을 인자로 받음), `mock_world_node`의 vision·tracker 계약 통과
+- [x] `[ON]` `drop_mocks`: `scenario_engine`, `mock_world_node`(`role:=vision|tracking|all`), `mock_robot_controller_node`(소요시간·결과 지정형). 정상 경로 우선, 지연·지터 값은 가정값으로 표기(TC-MCK-*)
+- [x] `[ON]` 계약 테스트 틀(`test/contract/`, 대상을 인자로 받음), `mock_world_node`의 vision·tracker 계약 통과
 - [ ] `[ON]` `mock.launch.py`, `launch_testing` 기반 I0 통합 테스트(ROS I0 시나리오 5종)를 CI에 등록(TC-INT-*)
 - [ ] `[ON]` `records/` 디렉터리, trial·step JSONL 기록, `devlog.csv`, `param_changes.csv`(TC-REC-*)
-- [ ] `[ON]` `tools/spec/trace.py` 추적 행렬 생성(REQ·TC 연결 검사)
+- [x] `[ON]` `tools/spec/trace.py` 추적 행렬 생성(REQ·TC 연결 검사)
 
 **M0 합격 기준(제안):** SPEC 6종 v0.1과 M0 대상 시험 케이스 리뷰 완료 / interface 빌드 / 단위 테스트에서 장애 10종 이벤트 열마다 기대 중단 등급 / I0 정상 시나리오 20/20, ROS I0 장애 시나리오 4종(`robot_hang`, `protective_stop`, `heartbeat_loss`, `time_insufficient`)마다 정의된 중단 등급 동작 / 오케스트레이터 REQ 연결률 100% / `records/`에 StepRecord·trial 기록 생성 확인.
 
@@ -89,8 +90,11 @@
 - [ ] **연속 제어 인터페이스 계약 확정** (SPEC-500)
   - [ ] `[ON]` 후보 조사·문서화: `servol_stream` / `speedl_stream`(일반), `servol_rt_stream` / `speedl_rt_stream`(RT, `realtime/connect_rt_control` 등 초기화 필요). 단위(mm, deg)·자세 규약·`time` 인수 의미·timeout 동작
   - [ ] `[ON]` 측정 스크립트(사인 궤적 지령, 주기·지연·지터·추종 오차 기록)를 `mode:=virtual`에서 동작 확인
+    - 2026-11-07 `tools/bench/stream_bench.py`·`stop_bench.py` 작성, 단위 시험 6개. virtual 대신 dry-run + 실기(비상정지 대기)로 확인
   - [ ] `[OFF]` OFF-2: 안전 높이에서 작은 진폭 사인 궤적으로 지령 주기·지연 p50/p95/p99·지터·추종 오차 측정(비전·rosbag 부하 포함) → `records/bench/stream-<date>.csv`
+    - 2026-11-07 로봇 단독(부하 없음) 4조건 측정 완료: speedl 100 Hz 지연 32 ms·추종 p95 0.18 mm(지연 보정 후)가 최선. 부하 조건 남음(`records/sessions/OFF-2-2026-11-07.md`)
   - [ ] `[OFF]` OFF-2: 통신 단절·stale 지령·cancel 시 실제 정지 동작 확인
+    - 2026-11-07 stale만 완료: speedl 20/20 정지, p95 149 ms, 이동 ≤ 2.34 mm(`records/bench/stop-2026-11-07-172032.*`). 통신 단절·cancel 남음
   - [ ] `[OFF]` OFF-2: `robot_controller_node` 프로세스 종료·executor 정지 시 드라이버·제어기 쪽에서 스트림 동작이 멈추는지, 정지까지 시간·이동 거리 확인. 멈추지 않으면 L0가 controller 밖에서도 성립하도록 정지 경로를 SPEC-500에 정한 뒤 G0를 판정한다
   - [ ] 목표 주기를 못 맞추면 MODE_SYNCHRONIZED를 범위에서 빼고 MODE_PREDICTED까지로 제한(`PLAN.md` 11.3절)
 - [ ] **그리퍼 제어 계약 확정** (SPEC-500)
