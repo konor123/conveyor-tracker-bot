@@ -70,10 +70,13 @@
 - [x] `[ON]` `orchestrator` 골격: `state_machine.py`, `step_judges.py`, `abort_policy.py`, `deadlines.py` 순수 모듈 + `test/fakes/`(skill port·fake clock) 단위 테스트(TC-ORC-*, TC-ABT-*)
 - [x] `[ON]` 장애 10종을 `abort_policy`·`deadlines` 단위 테스트의 이벤트 열로 작성(`PLAN.md` 7.3절)
 - [ ] `[ON]` `orchestrator_node`, `safety_supervisor_node`, `record_logger_node`
+  - 2026-11-07 `record_logger_node` 완료(시험 8개). `orchestrator_node`는 초안(import만 확인, mock 연동 시험 전), `CycleRunner` 확장(`pending_fault`·`on_state`·`on_record`, SPEC-100 v0.2) 완료. `safety_supervisor_node` 미착수
 - [x] `[ON]` `drop_mocks`: `scenario_engine`, `mock_world_node`(`role:=vision|tracking|all`), `mock_robot_controller_node`(소요시간·결과 지정형). 정상 경로 우선, 지연·지터 값은 가정값으로 표기(TC-MCK-*)
 - [x] `[ON]` 계약 테스트 틀(`test/contract/`, 대상을 인자로 받음), `mock_world_node`의 vision·tracker 계약 통과
 - [ ] `[ON]` `mock.launch.py`, `launch_testing` 기반 I0 통합 테스트(ROS I0 시나리오 5종)를 CI에 등록(TC-INT-*)
+  - 2026-11-07 `drop.launch.py`(use_mock_<역할>)·`mock.launch.py`·동시 기동 거부(TC-MCK-007-01) 완료. I0 시나리오 5종 시험은 orchestrator_node 뒤
 - [ ] `[ON]` `records/` 디렉터리, trial·step JSONL 기록, `devlog.csv`, `param_changes.csv`(TC-REC-*)
+  - 2026-11-07 시도 기록 JSON Schema(TC-REC-001-01)·성공률·Wilson·분위수(TC-REC-004·005)·StepRecord JSONL 기록 노드 완료. trial 기록 작성·devlog 갱신 남음
 - [x] `[ON]` `tools/spec/trace.py` 추적 행렬 생성(REQ·TC 연결 검사)
 
 **M0 합격 기준(제안):** SPEC 6종 v0.1과 M0 대상 시험 케이스 리뷰 완료 / interface 빌드 / 단위 테스트에서 장애 10종 이벤트 열마다 기대 중단 등급 / I0 정상 시나리오 20/20, ROS I0 장애 시나리오 4종(`robot_hang`, `protective_stop`, `heartbeat_loss`, `time_insufficient`)마다 정의된 중단 등급 동작 / 오케스트레이터 REQ 연결률 100% / `records/`에 StepRecord·trial 기록 생성 확인.
@@ -99,9 +102,11 @@
   - [ ] 목표 주기를 못 맞추면 MODE_SYNCHRONIZED를 범위에서 빼고 MODE_PREDICTED까지로 제한(`PLAN.md` 11.3절)
 - [ ] **그리퍼 제어 계약 확정** (SPEC-500)
   - [ ] `[OFF]` OFF-1: 그리퍼 Protocol Type(Modbus-RTU = 10, RH-P12-RN(A)는 펌웨어 V12 이상 필요)·통신 속도·ID와 현재 쓰는 DRL 코드 확인
+    - 2026-11-07 OFF-2에서 확인: 플랜지 RS-485 57600 bps 8N1, Modbus ID 1에서 Modbus-RTU 응답(Model Number 35074 = RH-P12-RN(A)). 상주 DRL 없음. 펌웨어 버전·Protocol Type 값은 아직 읽지 않음(`records/sessions/OFF-2-2026-11-07.md`)
   - [ ] `[ON]` 상주 루프 DRL 작성(`PLAN.md` 1.1절): 참고 구현 `dsr_study`의 `gripper_service`(상주 루프) 구조에 트리거 레지스터 1개, FC03 상태 읽기, 생존 카운터 추가. Modbus 프레임·레지스터 인코딩은 단위 테스트(TC-GRP-011~013)
   - [ ] `[ON]` `gripper_adapter` transport 구현(`drl_start`, `set_output_register_int`), fake gripper로 지연·무응답·오류·생존 카운터 정지 단위 테스트(TC-GRP-*)
   - [ ] `[ON]` `mode:=virtual`에서 `drl_start`·레지스터 서비스 형식 확인(시리얼·그리퍼 동작은 확인하지 않음)
+    - 2026-11-07 실기에서 확인: `/dsr01/drl/drl_start`(일회성 DRL)로 그리퍼 읽기·개폐 1회 동작. 레지스터 서비스는 `/dsr01/plc/*`, `get_output_register_int`는 DRL이 쓴 값의 하위 1바이트만 돌려줌(`tools/bench/drl/`)
   - [ ] `[OFF]` OFF-2: 상주 루프 기동(STANDBY), 상태 읽기 레지스터 방향·서비스 확정, 상주 루프가 도는 동안 `move_line`이 받아들여지는지 확인
   - [ ] `[OFF]` OFF-2: 명령 지연(개방 명령 → 개방 시작·완료 p50/p95/p99), 상태(Present Position·Current) 읽기 주기 → `records/bench/gripper-<date>.csv`
   - [ ] `[OFF]` OFF-2: **상주 루프 + 스트림 동시 동작**. 상주 루프가 도는 상태에서 선정한 stream 지령이 받아들여지는지, 안전 높이 사인 추종 중 개방 트리거를 보내 추종이 끊기지 않는지, 개방 지연이 정지 상태와 같은지 확인. 가장 먼저 확인할 위험 항목이다. 안 되면 `PLAN.md` 11.3절 대안(한 DRL 프로그램 안에서 `amovel` + 그리퍼 명령) 적용
