@@ -1,0 +1,6 @@
+waiting for service to become available...
+requester: making request: dsr_msgs2.srv.GetCurrentRotm_Request(ref=0)
+
+response:
+dsr_msgs2.srv.GetCurrentRotm_Response(rot_matrix=[std_msgs.msg.Float64MultiArray(layout=std_msgs.msg.MultiArrayLayout(dim=[], data_offset=0), data=[0.15921053290367126, -0.9858614206314087, -0.05224264785647392]), std_msgs.msg.Float64MultiArray(layout=std_msgs.msg.MultiArrayLayout(dim=[], data_offset=0), data=[-0.8190008997917175, -0.10234484821557999, -0.564591109752655]), std_msgs.msg.Float64MultiArray(layout=std_msgs.msg.MultiArrayLayout(dim=[], data_offset=0), data=[0.5512617826461792, 0.1326756328344345, -0.8237157464027405])], success=True)
+

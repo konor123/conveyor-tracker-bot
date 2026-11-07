@@ -1,0 +1,6 @@
+waiting for service to become available...
+requester: making request: dsr_msgs2.srv.MoveJoint_Request(pos=array([ 0.,  0.,  0.,  0.,  0., 90.]), vel=5.0, acc=10.0, time=0.0, radius=0.0, mode=1, blend_type=0, sync_type=0)
+
+response:
+dsr_msgs2.srv.MoveJoint_Response(success=True)
+

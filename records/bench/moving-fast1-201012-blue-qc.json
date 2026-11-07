@@ -1,0 +1,12 @@
+{
+  "condition": "analog-fast-1",
+  "frames_received": 561,
+  "blue_region_observations": 503,
+  "u_range_px": [
+    373.49446494464945,
+    732.6546281433921
+  ],
+  "method": "same blue-HSV ROI as stable condition; qualitative pixel QC, not calibrated detection or metric speed",
+  "conveyor_band_pairs": 493,
+  "median_u_speed_px_s": 54.98152752784125
+}

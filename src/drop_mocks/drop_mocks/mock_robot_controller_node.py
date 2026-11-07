@@ -13,6 +13,7 @@ from rclpy.action import ActionServer, CancelResponse, GoalResponse
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.logging import get_logger
+from rclpy.parameter import Parameter
 
 from .ros_common import (ERROR_PROTECTIVE_STOP, HEARTBEAT_PERIOD_S, HEARTBEAT_QOS,
                          MockLifecycleNode, from_time)
@@ -35,6 +36,10 @@ SYNC_FEEDBACK_PERIOD_S = 0.04
 class MockRobotControllerNode(MockLifecycleNode):
     def __init__(self, **kwargs):
         super().__init__('mock_robot_controller_node', **kwargs)
+        self.declare_parameter('stop_count', 0)
+        self.declare_parameter('last_stop_requester', 0)
+        self.declare_parameter('last_stop_reason', '')
+        self._stop_count = 0
         self._lock = threading.Lock()
         self._busy = False
         self._active_skill: str | None = None
@@ -44,6 +49,7 @@ class MockRobotControllerNode(MockLifecycleNode):
         self._pstop_latched = False        # skill 대본으로 시작한 보호정지(노드 재시작까지 유지)
         self._calls = {name: 0 for name in ACTIONS}
         self._seq = 0
+        self._last_hb_mono = 0.0
         self.refuse_if_provided(['robot/stop'])
         group = ReentrantCallbackGroup()
         self._servers = [
@@ -54,8 +60,8 @@ class MockRobotControllerNode(MockLifecycleNode):
         self.create_service(Stop, 'robot/stop', self._on_stop, callback_group=group)
         self.status_pub = self.create_publisher(RobotStatus, 'robot/status', HEARTBEAT_QOS)
         self.hb_pub = self.create_publisher(Heartbeat, 'system/heartbeat', HEARTBEAT_QOS)
-        self.create_timer(HEARTBEAT_PERIOD_S, self._on_status, callback_group=group)
-        self.create_timer(HEARTBEAT_PERIOD_S, self._on_heartbeat, callback_group=group)
+        self.create_timer(HEARTBEAT_PERIOD_S, self._on_status)
+        self.create_timer(HEARTBEAT_PERIOD_S, self._on_heartbeat)
         self.autostart()
 
     def protective_stop(self) -> bool:
@@ -99,6 +105,9 @@ class MockRobotControllerNode(MockLifecycleNode):
             self._active_skill = name
             self._active_phase = phases[0]
         while True:
+            if time.monotonic() - self._last_hb_mono >= HEARTBEAT_PERIOD_S * 0.5:
+                self._on_heartbeat()
+                self._on_status()
             if self._stop_requested:
                 return self._finish(goal_handle, typ, name, goal, reply, RESULT['CANCELED'], 'STOPPED')
             if self.protective_stop():
@@ -113,6 +122,8 @@ class MockRobotControllerNode(MockLifecycleNode):
             elapsed = self.scenario_t() - t_start
             if reply.protective_stop_at_ratio is not None and elapsed >= reply.protective_stop_at_ratio * duration:
                 self._pstop_latched = True
+                self._on_status()
+                self._on_heartbeat()
                 continue
             if deadline > 0.0 and self.ros_now() >= deadline:
                 return self._finish(goal_handle, typ, name, goal, reply, RESULT['TIMEOUT'], 'DEADLINE')
@@ -188,6 +199,12 @@ class MockRobotControllerNode(MockLifecycleNode):
             if goal.place_back and ok:
                 with self._lock:
                     self._holding = False
+        with self._lock:
+            self._active_skill = None
+            self._active_phase = None
+            self._busy = False
+        self._on_status()
+        self._on_heartbeat()
         if result == RESULT['CANCELED'] and goal_handle.is_cancel_requested and reason == 'CANCELED':
             goal_handle.canceled()
         elif ok:
@@ -205,6 +222,13 @@ class MockRobotControllerNode(MockLifecycleNode):
                 time.sleep(POLL_S)
         finally:
             self._stop_requested = False
+        self._stop_count += 1
+        self.set_parameters([
+            Parameter('stop_count', value=self._stop_count),
+            Parameter('last_stop_requester', value=int(req.requester)),
+            Parameter('last_stop_reason', value=str(req.reason_code)),
+        ])
+        self.get_logger().info(f'STOP_CALLED requester={req.requester} reason={req.reason_code}')
         res.stopped = not self._busy
         res.result = RESULT['OK'] if res.stopped else RESULT['FAULT']
         res.reason_code = '' if res.stopped else 'STOP_TIMEOUT'
@@ -239,11 +263,14 @@ class MockRobotControllerNode(MockLifecycleNode):
         self.status_pub.publish(st)
 
     def _on_heartbeat(self):
-        if not self.engine.heartbeat_alive('robot_controller', self.scenario_t()):
-            return
-        self._seq += 1
+        with self._lock:
+            self._last_hb_mono = time.monotonic()
+            if not self.engine.heartbeat_alive('robot_controller', self.scenario_t()):
+                return
+            self._seq += 1
+            seq = self._seq
         pstop = self.protective_stop()
-        hb = Heartbeat(node_name='robot_controller_node', lifecycle_state=self.state_id, seq=self._seq,
+        hb = Heartbeat(node_name='robot_controller_node', lifecycle_state=self.state_id, seq=seq,
                        error_code=ERROR_PROTECTIVE_STOP if pstop else 0,
                        detail='PROTECTIVE_STOP' if pstop else '')
         hb.header.stamp = self.get_clock().now().to_msg()
@@ -258,7 +285,7 @@ def main(args=None):
         get_logger('mock_robot_controller_node').error(str(e))
         rclpy.try_shutdown()
         raise SystemExit(1)
-    executor = MultiThreadedExecutor()
+    executor = MultiThreadedExecutor(num_threads=3)
     executor.add_node(node)
     try:
         executor.spin()

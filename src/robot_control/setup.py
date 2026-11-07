@@ -20,5 +20,7 @@ setup(
     description='Doosan·그리퍼 어댑터, skill 서버, 추종 제어',
     license='Apache-2.0',
     tests_require=['pytest'],
-    entry_points={'console_scripts': []},
+    entry_points={'console_scripts': [
+        'robot_controller_node = robot_control.robot_controller_node:main',
+    ]},
 )

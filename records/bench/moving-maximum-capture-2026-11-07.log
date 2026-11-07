@@ -1,0 +1,45 @@
+녹화: /home/umm/drop_bags/2026-11-07/2026-11-07_202213_off1-moving-analog-maximum
+토픽: /camera/camera/color/image_raw /camera/camera/color/camera_info /camera/camera/depth/image_rect_raw /camera/camera/depth/camera_info /camera/camera/color/metadata /tf_static
+시간: 65 s
+[WARN] [ros2bag]: Positional "topics" argument deprecated. Please use optional "--topics" argument instead.
+stdin is not a terminal device. Keyboard handling disabled.[INFO] [1794050534.155861099] [rosbag2_recorder]: Press SPACE for pausing/resuming
+[INFO] [1794050534.155888653] [rosbag2_recorder]: Event publisher thread: Started
+[INFO] [1794050534.160569772] [rosbag2_recorder]: Starting recording to '/home/umm/drop_bags/2026-11-07/2026-11-07_202213_off1-moving-analog-maximum'
+[INFO] [1794050534.162068236] [rosbag2_recorder]: Listening for topics...
+[INFO] [1794050534.162086305] [rosbag2_recorder]: Recording...
+[INFO] [1794050534.162098916] [rosbag2_recorder]: Topics discovery started.
+[INFO] [1794050534.601256324] [rosbag2_recorder]: Subscribed to topic '/camera/camera/color/image_raw'
+[INFO] [1794050534.602965171] [rosbag2_recorder]: Subscribed to topic '/camera/camera/depth/camera_info'
+[INFO] [1794050534.603684725] [rosbag2_recorder]: Subscribed to topic '/camera/camera/depth/image_rect_raw'
+[INFO] [1794050534.604838586] [rosbag2_recorder]: Subscribed to topic '/camera/camera/color/camera_info'
+[INFO] [1794050534.607223996] [rosbag2_recorder]: Subscribed to topic '/camera/camera/color/metadata'
+[INFO] [1794050534.609165101] [rosbag2_recorder]: Subscribed to topic '/tf_static'
+[INFO] [1794050534.609180629] [rosbag2_recorder]: All requested topics are subscribed. Stopping discovery...
+[INFO] [1794050534.609183677] [rosbag2_recorder]: Topics discovery stopped.
+[INFO] [1794050598.752162910] [rosbag2_recorder]: Pausing recording.
+[INFO] [1794050598.753367774] [rosbag2_cpp]: Writing remaining messages from cache to the bag. It may take a while
+[INFO] [1794050598.757655190] [rosbag2_recorder]: Recording stopped
+[WARN] [1794050598.757699887] [rosbag2_recorder]: Number of messages lost on the transport layer: 8
+[INFO] [1794050598.762026603] [rosbag2_recorder]: Event publisher thread: Exited
+
+
+Files:             2026-11-07_202213_off1-moving-analog-maximum_0.mcap
+Bag size:          8.8 GiB
+Storage id:        mcap
+ROS Distro:        jazzy
+Duration:          64.130580929s
+Start:             Nov  7 2026 20:22:14.613421376 (1794050534.613421376)
+End:               Nov  7 2026 20:23:18.744002305 (1794050598.744002305)
+Messages:          9600
+Topic information: Topic: /camera/camera/color/camera_info | Type: sensor_msgs/msg/CameraInfo | Count: 1921 | Serialization Format: cdr
+                   Topic: /camera/camera/color/image_raw | Type: sensor_msgs/msg/Image | Count: 1918 | Serialization Format: cdr
+                   Topic: /camera/camera/color/metadata | Type: realsense2_camera_msgs/msg/Metadata | Count: 1921 | Serialization Format: cdr
+                   Topic: /camera/camera/depth/camera_info | Type: sensor_msgs/msg/CameraInfo | Count: 1921 | Serialization Format: cdr
+                   Topic: /camera/camera/depth/image_rect_raw | Type: sensor_msgs/msg/Image | Count: 1918 | Serialization Format: cdr
+                   Topic: /tf_static | Type: tf2_msgs/msg/TFMessage | Count: 1 | Serialization Format: cdr
+Service:           0
+Service information: 
+영상 프레임: 1918 / 64.130580929 s = 29.9 fps (기대 30)
+
+기록: /home/umm/conveyor-tracker-bot/records/bags.csv
+SHA-256(파일 목록 해시): 6f5d798fa8b05399286a9da763a7bd460d47f191d2b88e3082fbffe67daa14f1

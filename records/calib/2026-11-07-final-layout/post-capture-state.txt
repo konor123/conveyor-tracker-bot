@@ -1,0 +1,6 @@
+waiting for service to become available...
+requester: making request: dsr_msgs2.srv.GetRobotState_Request()
+
+response:
+dsr_msgs2.srv.GetRobotState_Response(robot_state=1, success=True)
+

@@ -1,0 +1,32 @@
+{
+  "condition": "analog-stable-current",
+  "user_reported": "Analog belt control has no numeric dial value. Belt currently stable; very low speed can intermittently stop. Lubrication might permit lower speed but is not a measured condition. Final operation should use fastest stable speed the robot can support.",
+  "bag_path": "/home/umm/drop_bags/2026-11-07/2026-11-07_200632_off1-moving-analog-stable-current",
+  "duration_s": 57.906422752,
+  "topics": {
+    "/camera/camera/depth/camera_info": 1736,
+    "/tf_static": 1,
+    "/camera/camera/depth/image_rect_raw": 1736,
+    "/camera/camera/color/metadata": 1735,
+    "/camera/camera/color/image_raw": 1735,
+    "/camera/camera/color/camera_info": 1735
+  },
+  "recorder_reported_transport_messages_lost": 2,
+  "numeric_speed_mps": null,
+  "lighting": "current",
+  "lux": null,
+  "visual_qc": {
+    "frames_received": 420,
+    "blue_region_observations": 238,
+    "u_range_px": [
+      379.18840579710144,
+      661.7469638014385
+    ],
+    "v_range_px": [
+      293.519890260631,
+      353.43621103117505
+    ],
+    "method": "qualitative blue-HSV QC in pixel ROI; not calibrated detection, identity tracking, or metric speed measurement"
+  },
+  "complete_off1_dataset": false
+}

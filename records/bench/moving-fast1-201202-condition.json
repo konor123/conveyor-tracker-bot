@@ -1,0 +1,20 @@
+{
+  "condition": "analog-fast-1",
+  "bag_path": "/home/umm/drop_bags/2026-11-07/2026-11-07_201202_off1-moving-analog-fast-1-long",
+  "duration_s": 64.487611146,
+  "topics": {
+    "/tf_static": 1,
+    "/camera/camera/color/metadata": 1929,
+    "/camera/camera/depth/image_rect_raw": 1933,
+    "/camera/camera/depth/camera_info": 1932,
+    "/camera/camera/color/image_raw": 1933,
+    "/camera/camera/color/camera_info": 1932
+  },
+  "numeric_speed_mps": null,
+  "lighting": "current",
+  "lux": null,
+  "paired_rgb_camera_info_count": 1932,
+  "paired_stamp_span_s": 64.482139404,
+  "quality": "first RGB frame stale/unpaired; preserve raw and distinguish paired current subset; one 66.75 ms gap",
+  "production_tracking_or_gate_pass": false
+}

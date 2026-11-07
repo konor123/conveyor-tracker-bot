@@ -1,0 +1,6 @@
+waiting for service to become available...
+requester: making request: dsr_msgs2.srv.GetCurrentPosx_Request(ref=0)
+
+response:
+dsr_msgs2.srv.GetCurrentPosx_Response(task_pos_info=[std_msgs.msg.Float64MultiArray(layout=std_msgs.msg.MultiArrayLayout(dim=[], data_offset=0), data=[627.8579711914062, 5.89422607421875, 295.3050231933594, 63.93426513671875, 152.1958770751953, -5.827378749847412, 2.0])], success=True)
+

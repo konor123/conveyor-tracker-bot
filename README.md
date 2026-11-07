@@ -26,6 +26,12 @@ colcon test && colcon test-result --verbose
 python3 tools/spec/trace.py          # REQ ↔ TC ↔ 테스트 추적 행렬
 ```
 
+## 현장 자료
+
+- [압축 RGB·깊이 미리보기, 원래 프레임 시각, 영상 해시](records/media/2026-11-07/README.md)
+- [보정 원시 영상·계산 자료](records/calib/2026-11-07-final-layout/ARCHIVE.md)
+- [원본 rosbag 경로·해시](records/bags.csv)와 [속도별 품질 기록](records/bench/moving-conditions-2026-11-07.csv)
+
 ## 외부 의존성
 
 | 항목 | 버전 |

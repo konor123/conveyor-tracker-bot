@@ -1,0 +1,578 @@
+1794048801.3080907 [INFO] [launch]: All log files can be found below /home/umm/.ros/log/2026-11-07-19-53-21-307584-umm-Legion-Pro-5-16IAX10H-279653
+1794048801.3081596 [INFO] [launch]: Default logging verbosity is set to INFO
+1794048801.5082765 [INFO] [robot_state_publisher-1]: process started with pid [279675]
+1794048801.5083671 [INFO] [spawner-2]: process started with pid [279676]
+1794048801.5084002 [INFO] [ros2_control_node-3]: process started with pid [279677]
+1794048801.5774884 [robot_state_publisher-1] [INFO] [1794048801.577250602] [dsr01.robot_state_publisher]: Robot initialized
+1794048801.5850785 [ros2_control_node-3] [INFO] [1794048801.584975094] [dsr01.controller_manager]: Using Steady (Monotonic) clock for triggering controller manager cycles.
+1794048801.5904114 [ros2_control_node-3] [INFO] [1794048801.590361021] [dsr01.controller_manager]: Subscribing to '/dsr01/robot_description' topic for robot description.
+1794048801.5905058 [ros2_control_node-3] [INFO] [1794048801.590397612] [dsr01.controller_manager]: update rate is 100 Hz
+1794048801.5905390 [ros2_control_node-3] [INFO] [1794048801.590400665] [dsr01.controller_manager]: Overruns handling is : enabled
+1794048801.5905626 [ros2_control_node-3] [INFO] [1794048801.590403078] [dsr01.controller_manager]: Spawning controller_manager RT thread with scheduler priority: 50
+1794048801.5906391 [ros2_control_node-3] [WARN] [1794048801.590461047] [dsr01.controller_manager]: Could not enable FIFO RT scheduling policy: with error number <1>(Operation not permitted). See [https://control.ros.org/master/doc/ros2_control/controller_manager/doc/userdoc.html] for details on how to enable realtime scheduling.
+1794048801.6013658 [ros2_control_node-3] [INFO] [1794048801.601288511] [dsr01.controller_manager]: Received robot description from topic.
+1794048801.6014721 [ros2_control_node-3] [INFO] [1794048801.601313964] [dsr01.controller_manager]: Enforcing command limits is disabled. Command limits from URDF will be ignored.
+1794048801.6015437 [ros2_control_node-3] text not specified in the rt_host tag
+1794048801.6033001 [ros2_control_node-3] [INFO] [1794048801.603229615] [dsr01.controller_manager]: Loading hardware 'e0509' 
+1794048801.6105673 [ros2_control_node-3] [INFO] [1794048801.610375403] [dsr01.controller_manager]: Loaded hardware 'e0509' from plugin 'dsr_hardware2/DRHWInterface'
+1794048801.6106207 [ros2_control_node-3] [INFO] [1794048801.610454344] [dsr01.controller_manager]: Initialize hardware 'e0509' 
+1794048801.6158109 [ros2_control_node-3] [INFO] [1794048801.615727374] [dsr_hw_interface2]: model : e0509
+1794048801.6159334 [ros2_control_node-3] [INFO] [1794048801.615749078] [dsr_hw_interface2]: mode : real
+1794048801.6159678 [ros2_control_node-3] [INFO] [1794048801.615751819] [dsr_hw_interface2]: update_rate : 100
+1794048801.6159899 [ros2_control_node-3] [INFO] [1794048801.615760668] [dsr_hw_interface2]: port : 12345
+1794048801.6160131 [ros2_control_node-3] [INFO] [1794048801.615762460] [dsr_hw_interface2]: rt_host : 
+1794048801.6160326 [ros2_control_node-3] [INFO] [1794048801.615763963] [dsr_hw_interface2]: host : 110.120.1.38
+1794048801.6160889 [ros2_control_node-3] [INFO] [1794048801.615805545] [dsr_hw_interface2]: [on_init] Hardware name : e0509, type : system, plugin name : dsr_hardware2/DRHWInterface
+1794048801.6161115 [ros2_control_node-3] [INFO] [1794048801.615864876] [dsr_hw_interface2]: _______________________________________________
+1794048801.6161311 [ros2_control_node-3] 
+1794048801.6161516 [ros2_control_node-3] [INFO] [1794048801.615867197] [dsr_hw_interface2]:     INITAILIZE
+1794048801.6161711 [ros2_control_node-3] [INFO] [1794048801.615868829] [dsr_hw_interface2]: _______________________________________________
+1794048801.6161895 [ros2_control_node-3] 
+1794048801.7388568 [ros2_control_node-3] [INFO] [1794048801.738559966] [dsr_hw_interface2]: Connected to DRCF
+1794048801.7398322 [ros2_control_node-3] [INFO] [1794048801.739710370] [dsr_hw_interface2]: INITIAL MANAGE_ACCESS_CONTROL_FORCE_REQUEST called
+1794048801.7448444 [ros2_control_node-3] [INFO] [1794048801.744721884] [dsr_hw_interface2]: AUTHORITY : MONITORING_ACCESS_CONTROL_GRANT
+1794048801.7450745 [ros2_control_node-3] [INFO] [1794048801.744755602] [dsr_hw_interface2]: INITIAL AUTHORITY GRANTED !!!
+1794048801.7451603 [ros2_control_node-3] [INFO] [1794048801.744764769] [dsr_hw_interface2]: ROBOT_STATE : STATE_SAFE_OFF
+1794048801.8540478 [spawner-2] [INFO] [1794048801.853772760] [dsr01.spawner_joint_state_broadcaster]: waiting for service /dsr01/controller_manager/list_controllers to become available...
+1794048803.1355412 [ros2_control_node-3] [INFO] [1794048803.135114623] [dsr_hw_interface2]: INITIAL CONTROL_SERVO_ON called
+1794048804.1577468 [ros2_control_node-3] [INFO] [1794048804.157431257] [dsr_hw_interface2]: INITIAL CONTROL_SERVO_ON called
+1794048805.1794171 [ros2_control_node-3] [INFO] [1794048805.179075081] [dsr_hw_interface2]: INITIAL CONTROL_SERVO_ON called
+1794048806.2011948 [ros2_control_node-3] [INFO] [1794048806.200819665] [dsr_hw_interface2]: INITIAL CONTROL_SERVO_ON called
+1794048807.2227938 [ros2_control_node-3] [INFO] [1794048807.222552648] [dsr_hw_interface2]: INITIAL CONTROL_SERVO_ON called
+1794048807.8163638 [ros2_control_node-3] [INFO] [1794048807.816036560] [dsr_hw_interface2]: ROBOT_STATE : STATE_STANDBY
+1794048807.8164999 [ros2_control_node-3] [INFO] [1794048807.816064258] [dsr_hw_interface2]: INITIAL STATE_STANDBY !!!
+1794048808.2230577 [ros2_control_node-3] [INFO] [1794048808.222652879] [dsr_hw_interface2]: _______________________________________________
+1794048808.2232239 [ros2_control_node-3] 
+1794048808.2232797 [ros2_control_node-3] [INFO] [1794048808.222683183] [dsr_hw_interface2]:     OPEN CONNECTION
+1794048808.2233248 [ros2_control_node-3] [INFO] [1794048808.222688345] [dsr_hw_interface2]: _______________________________________________
+1794048808.2233651 [ros2_control_node-3] 
+1794048808.2234042 [ros2_control_node-3] [INFO] [1794048808.222692989] [dsr_hw_interface2]:     Real Robot Mode
+1794048808.2262940 [ros2_control_node-3] [INFO] [1794048808.226046566] [dsr_hw_interface2]:     DRCF version = GF02100300
+1794048808.2264011 [ros2_control_node-3] [INFO] [1794048808.226070744] [dsr_hw_interface2]:     DRFL version = GL013304
+1794048808.2264612 [ros2_control_node-3] [INFO] [1794048808.226074266] [dsr_hw_interface2]:     m_nVersionDRCF = 2100300
+1794048808.2265053 [ros2_control_node-3] [INFO] [1794048808.226077074] [dsr_hw_interface2]:     robot model = E0509
+1794048808.2265463 [ros2_control_node-3] [INFO] [1794048808.226079580] [dsr_hw_interface2]: _______________________________________________
+1794048808.2265944 [ros2_control_node-3] 
+1794048808.2733529 [ros2_control_node-3] [INFO] [1794048808.273023612] [dsr_hw_interface2]: [RT] connecting to 110.120.1.38:12347
+1794048808.2735958 [ros2_control_node-3] usClientPort : 39320
+1794048808.3751125 [ros2_control_node-3] [INFO] [1794048808.374804590] [dsr_hw_interface2]: Connected RT control stream
+1794048808.3752623 [ros2_control_node-3] [INFO] [1794048808.374868138] [dsr_hw_interface2]: Setting velocity and acceleration limits
+1794048808.3974700 [ros2_control_node-3] [INFO] [1794048808.397173249] [dsr01.controller_manager]: Successful initialization of hardware 'e0509'
+1794048808.3982055 [ros2_control_node-3] [INFO] [1794048808.397972456] [dsr01.controller_manager]: Activating component 'e0509'.
+1794048808.3983200 [ros2_control_node-3] [INFO] [1794048808.397994824] [resource_manager]: 'configure' hardware 'e0509' 
+1794048808.3985262 [ros2_control_node-3] [INFO] [1794048808.398306180] [resource_manager]: Successful 'configure' of hardware 'e0509'
+1794048808.3985846 [ros2_control_node-3] [INFO] [1794048808.398328621] [resource_manager]: 'activate' hardware 'e0509' 
+1794048808.3986275 [ros2_control_node-3] [INFO] [1794048808.398341518] [resource_manager]: Successful 'activate' of hardware 'e0509'
+1794048808.3987653 [ros2_control_node-3] [INFO] [1794048808.398451270] [dsr01.controller_manager]: Registering statistics for : e0509
+1794048808.3988180 [ros2_control_node-3] [INFO] [1794048808.398537282] [dsr01.controller_manager]: Resource Manager has been successfully initialized. Starting Controller Manager services...
+1794048808.6109025 [ros2_control_node-3] [INFO] [1794048808.610541468] [dsr01.controller_manager]: Loading controller : 'joint_state_broadcaster' of type 'joint_state_broadcaster/JointStateBroadcaster'
+1794048808.6110599 [ros2_control_node-3] [INFO] [1794048808.610599384] [dsr01.controller_manager]: Loading controller 'joint_state_broadcaster'
+1794048808.6177824 [ros2_control_node-3] [INFO] [1794048808.617423091] [dsr01.controller_manager]: Controller 'joint_state_broadcaster' node arguments: --ros-args --params-file /tmp/launch_params_jb70lqqz --params-file /home/umm/conveyor-tracker-bot/install/dsr_controller2/share/dsr_controller2/config/dsr_controller2.yaml 
+1794048808.6319678 [spawner-2] [INFO] [1794048808.631823156] [dsr01.spawner_joint_state_broadcaster]: Loaded joint_state_broadcaster
+1794048808.6327579 [ros2_control_node-3] [INFO] [1794048808.632690007] [dsr01.controller_manager]: Configuring controller: 'joint_state_broadcaster'
+1794048808.6328707 [ros2_control_node-3] [INFO] [1794048808.632777903] [dsr01.joint_state_broadcaster]: 'joints' or 'interfaces' parameter is empty. All available state interfaces will be published
+1794048808.7231591 [ros2_control_node-3] [INFO] [1794048808.722793014] [dsr01.controller_manager]: Activating controllers: [ joint_state_broadcaster ]
+1794048808.7312734 [ros2_control_node-3] [INFO] [1794048808.731025941] [dsr01.controller_manager]: Successfully switched controllers!
+1794048808.7419436 [spawner-2] [INFO] [1794048808.741609805] [dsr01.spawner_joint_state_broadcaster]: Configured and activated joint_state_broadcaster
+1794048808.8750401 [INFO] [spawner-2]: process has finished cleanly [pid 279676]
+1794048808.8768630 [INFO] [spawner-4]: process started with pid [279783]
+1794048809.2952888 [spawner-4] [INFO] [1794048809.294967801] [dsr01.spawner_dsr_controller2]: waiting for service /dsr01/controller_manager/list_controllers to become available...
+1794048809.5470192 [ros2_control_node-3] [INFO] [1794048809.546822015] [dsr01.controller_manager]: Loading controller : 'dsr_controller2' of type 'dsr_controller2/RobotController'
+1794048809.5471253 [ros2_control_node-3] [INFO] [1794048809.546849358] [dsr01.controller_manager]: Loading controller 'dsr_controller2'
+1794048809.5735276 [ros2_control_node-3] [INFO] [1794048809.573227740] [dsr01.controller_manager]: Controller 'dsr_controller2' node arguments: --ros-args --params-file /tmp/launch_params_jb70lqqz --params-file /home/umm/conveyor-tracker-bot/install/dsr_controller2/share/dsr_controller2/config/dsr_controller2.yaml 
+1794048809.5817657 [spawner-4] [INFO] [1794048809.581654774] [dsr01.spawner_dsr_controller2]: Loaded dsr_controller2
+1794048809.5828753 [ros2_control_node-3] [INFO] [1794048809.582638912] [dsr01.controller_manager]: Configuring controller: 'dsr_controller2'
+1794048809.5831916 [ros2_control_node-3] Depreciated API.. deleted soon.
+1794048809.5832627 [ros2_control_node-3]  Please use 'set_on_monitoring_data_ex'
+1794048809.5833116 [ros2_control_node-3] Depreciated API.. deleted soon.
+1794048809.5833533 [ros2_control_node-3]  Please use 'set_on_monitoring_ctrl_io_ex'.
+1794048809.5923121 [ros2_control_node-3] [INFO] [1794048809.591998045] [dsr01.controller_manager]: Activating controllers: [ dsr_controller2 ]
+1794048809.7746081 [ros2_control_node-3] [WARN] [1794048809.774367176] [dsr01.controller_manager]: Overrun might occur, Total time : 173660.898 us (Expected < 10000.000 us) --> Read time : 5.112 us, Update time : 173638.401 us (Switch time : 173621.915 us (Switch chained mode time : 0.859 us, perform mode change time : 0.807 us, Activation time : 173617.383 us, Deactivation time : 0.505 us)), Write time : 17.385 us
+1794048809.7748244 [ros2_control_node-3] [WARN] [1794048809.774439351] [dsr01.controller_manager]: Overrun detected! The controller manager missed its desired rate of 100 Hz. The loop took 173.801704 ms (missed cycles : 18).
+1794048809.7748694 [ros2_control_node-3] [INFO] [1794048809.774493641] [dsr01.controller_manager]: Successfully switched controllers!
+1794048809.7808325 [ros2_control_node-3] [WARN] [1794048809.780748866] [dsr_hw_interface2]: [REAL] Skip dt=0.180007 (expected=0.010000, allowed=[0.003000, 0.015000])
+1794048809.7819939 [spawner-4] [INFO] [1794048809.781541875] [dsr01.spawner_dsr_controller2]: Configured and activated dsr_controller2
+1794048809.9177244 [INFO] [spawner-4]: process has finished cleanly [pid 279783]
+1794048817.0270617 [ros2_control_node-3] [INFO] [1794048817.026763032] [dsr_controller2]: get_robot_state_cb() called and calling Drfl->get_robot_state()
+1794048817.0289118 [ros2_control_node-3] [INFO] [1794048817.028680794] [dsr_controller2]: get_robot_mode_cb() called and calling Drfl->get_robot_mode()
+1794048817.0667999 [ros2_control_node-3] [INFO] [1794048817.066523471] [dsr_controller2]: get_last_alarm_cb() called and calling Drfl->get_last_alarm()
+1794048832.7995932 [ros2_control_node-3] [INFO] [1794048832.799235257] [dsr_controller2]: get_robot_state_cb() called and calling Drfl->get_robot_state()
+1794048832.8025699 [ros2_control_node-3] [INFO] [1794048832.802379183] [dsr_controller2]: get_last_alarm_cb() called and calling Drfl->get_last_alarm()
+1794048907.0051658 [ros2_control_node-3] [INFO] [1794048907.005013375] [dsr_controller2]: get_robot_state_cb() called and calling Drfl->get_robot_state()
+1794048907.0876443 [ros2_control_node-3] [INFO] [1794048907.087314322] [dsr_controller2]: get_last_alarm_cb() called and calling Drfl->get_last_alarm()
+1794048946.3424246 [ros2_control_node-3] [INFO] [1794048946.341958424] [dsr_controller2]: get_robot_state_cb() called and calling Drfl->get_robot_state()
+1794048946.3444841 [ros2_control_node-3] [INFO] [1794048946.343067604] [dsr_controller2]: get_last_alarm_cb() called and calling Drfl->get_last_alarm()
+1794049009.3448648 [ros2_control_node-3] [INFO] [1794049009.344706350] [dsr_controller2]: get_robot_state_cb() called and calling Drfl->get_robot_state()
+1794049009.3462615 [ros2_control_node-3] [INFO] [1794049009.346163289] [dsr_controller2]: get_last_alarm_cb() called and calling Drfl->get_last_alarm()
+1794049072.5540469 [ros2_control_node-3] [INFO] [1794049072.553800742] [dsr_controller2]: get_robot_state_cb() called and calling Drfl->get_robot_state()
+1794049072.6050711 [ros2_control_node-3] [INFO] [1794049072.604825518] [dsr_controller2]: get_last_alarm_cb() called and calling Drfl->get_last_alarm()
+1794049072.7232363 [ros2_control_node-3] [INFO] [1794049072.722884760] [dsr_controller2]: [callback OnLogAlarm]
+1794049072.7233582 [ros2_control_node-3] [INFO] [1794049072.722913261] [dsr_controller2]:  level : 1
+1794049072.7233894 [ros2_control_node-3] [INFO] [1794049072.722915566] [dsr_controller2]:  group : 2
+1794049072.7234116 [ros2_control_node-3] [INFO] [1794049072.722917722] [dsr_controller2]:  index : 1216
+1794049072.7234306 [ros2_control_node-3] [INFO] [1794049072.722919347] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049072.7234578 [ros2_control_node-3] [INFO] [1794049072.722921187] [dsr_controller2]:  param : 
+1794049072.7234755 [ros2_control_node-3] [INFO] [1794049072.722922786] [dsr_controller2]:  param : 
+1794049073.7322779 [ros2_control_node-3] [INFO] [1794049073.732121126] [dsr_controller2]: [callback OnLogAlarm]
+1794049073.7343974 [ros2_control_node-3] [INFO] [1794049073.732147376] [dsr_controller2]:  level : 1
+1794049073.7345097 [ros2_control_node-3] [INFO] [1794049073.732151017] [dsr_controller2]:  group : 2
+1794049073.7345541 [ros2_control_node-3] [INFO] [1794049073.732153475] [dsr_controller2]:  index : 1216
+1794049073.7345874 [ros2_control_node-3] [INFO] [1794049073.732155874] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049073.7346191 [ros2_control_node-3] [INFO] [1794049073.732158623] [dsr_controller2]:  param : 
+1794049073.7346501 [ros2_control_node-3] [INFO] [1794049073.732160978] [dsr_controller2]:  param : 
+1794049074.7321260 [ros2_control_node-3] [INFO] [1794049074.731813567] [dsr_controller2]: [callback OnLogAlarm]
+1794049074.7322469 [ros2_control_node-3] [INFO] [1794049074.731835263] [dsr_controller2]:  level : 1
+1794049074.7322912 [ros2_control_node-3] [INFO] [1794049074.731837234] [dsr_controller2]:  group : 2
+1794049074.7323134 [ros2_control_node-3] [INFO] [1794049074.731838454] [dsr_controller2]:  index : 1216
+1794049074.7323310 [ros2_control_node-3] [INFO] [1794049074.731839624] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049074.7323480 [ros2_control_node-3] [INFO] [1794049074.731840867] [dsr_controller2]:  param : 
+1794049074.7323637 [ros2_control_node-3] [INFO] [1794049074.731841962] [dsr_controller2]:  param : 
+1794049075.7277348 [ros2_control_node-3] [INFO] [1794049075.727510379] [dsr_controller2]: [callback OnLogAlarm]
+1794049075.7284641 [ros2_control_node-3] [INFO] [1794049075.727540681] [dsr_controller2]:  level : 1
+1794049075.7286968 [ros2_control_node-3] [INFO] [1794049075.727542672] [dsr_controller2]:  group : 2
+1794049075.7287960 [ros2_control_node-3] [INFO] [1794049075.727543861] [dsr_controller2]:  index : 1216
+1794049075.7288775 [ros2_control_node-3] [INFO] [1794049075.727545123] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049075.7289557 [ros2_control_node-3] [INFO] [1794049075.727546631] [dsr_controller2]:  param : 
+1794049075.7290046 [ros2_control_node-3] [INFO] [1794049075.727547710] [dsr_controller2]:  param : 
+1794049076.7279742 [ros2_control_node-3] [INFO] [1794049076.727795460] [dsr_controller2]: [callback OnLogAlarm]
+1794049076.7281034 [ros2_control_node-3] [INFO] [1794049076.727818030] [dsr_controller2]:  level : 1
+1794049076.7281332 [ros2_control_node-3] [INFO] [1794049076.727820079] [dsr_controller2]:  group : 2
+1794049076.7281556 [ros2_control_node-3] [INFO] [1794049076.727821395] [dsr_controller2]:  index : 1216
+1794049076.7281780 [ros2_control_node-3] [INFO] [1794049076.727822666] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049076.7281988 [ros2_control_node-3] [INFO] [1794049076.727824080] [dsr_controller2]:  param : 
+1794049076.7282178 [ros2_control_node-3] [INFO] [1794049076.727825354] [dsr_controller2]:  param : 
+1794049077.7270541 [ros2_control_node-3] [INFO] [1794049077.726710529] [dsr_controller2]: [callback OnLogAlarm]
+1794049077.7275958 [ros2_control_node-3] [INFO] [1794049077.726741995] [dsr_controller2]:  level : 1
+1794049077.7276859 [ros2_control_node-3] [INFO] [1794049077.726745976] [dsr_controller2]:  group : 2
+1794049077.7277281 [ros2_control_node-3] [INFO] [1794049077.726748410] [dsr_controller2]:  index : 1216
+1794049077.7277632 [ros2_control_node-3] [INFO] [1794049077.726750812] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049077.7277961 [ros2_control_node-3] [INFO] [1794049077.726753697] [dsr_controller2]:  param : 
+1794049077.7278273 [ros2_control_node-3] [INFO] [1794049077.726756154] [dsr_controller2]:  param : 
+1794049078.6927476 [ros2_control_node-3] [INFO] [1794049078.692562653] [dsr_controller2]: [callback OnLogAlarm]
+1794049078.6929321 [ros2_control_node-3] [INFO] [1794049078.692588640] [dsr_controller2]:  level : 1
+1794049078.6929569 [ros2_control_node-3] [INFO] [1794049078.692590366] [dsr_controller2]:  group : 2
+1794049078.6929817 [ros2_control_node-3] [INFO] [1794049078.692591466] [dsr_controller2]:  index : 1216
+1794049078.6930008 [ros2_control_node-3] [INFO] [1794049078.692592590] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049078.6930182 [ros2_control_node-3] [INFO] [1794049078.692594009] [dsr_controller2]:  param : 
+1794049078.6930351 [ros2_control_node-3] [INFO] [1794049078.692595081] [dsr_controller2]:  param : 
+1794049079.6822586 [ros2_control_node-3] [INFO] [1794049079.681975921] [dsr_controller2]: [callback OnLogAlarm]
+1794049079.6823797 [ros2_control_node-3] [INFO] [1794049079.682011590] [dsr_controller2]:  level : 1
+1794049079.6824055 [ros2_control_node-3] [INFO] [1794049079.682019467] [dsr_controller2]:  group : 2
+1794049079.6824393 [ros2_control_node-3] [INFO] [1794049079.682023769] [dsr_controller2]:  index : 1216
+1794049079.6824584 [ros2_control_node-3] [INFO] [1794049079.682025703] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049079.6824758 [ros2_control_node-3] [INFO] [1794049079.682027161] [dsr_controller2]:  param : 
+1794049079.6824915 [ros2_control_node-3] [INFO] [1794049079.682028357] [dsr_controller2]:  param : 
+1794049080.6816585 [ros2_control_node-3] [INFO] [1794049080.681476294] [dsr_controller2]: [callback OnLogAlarm]
+1794049080.6820703 [ros2_control_node-3] [INFO] [1794049080.681497887] [dsr_controller2]:  level : 1
+1794049080.6821041 [ros2_control_node-3] [INFO] [1794049080.681499821] [dsr_controller2]:  group : 2
+1794049080.6821265 [ros2_control_node-3] [INFO] [1794049080.681500948] [dsr_controller2]:  index : 1216
+1794049080.6821451 [ros2_control_node-3] [INFO] [1794049080.681502146] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049080.6821632 [ros2_control_node-3] [INFO] [1794049080.681503561] [dsr_controller2]:  param : 
+1794049080.6821792 [ros2_control_node-3] [INFO] [1794049080.681504687] [dsr_controller2]:  param : 
+1794049081.6769292 [ros2_control_node-3] [INFO] [1794049081.676637625] [dsr_controller2]: [callback OnLogAlarm]
+1794049081.6773582 [ros2_control_node-3] [INFO] [1794049081.676660985] [dsr_controller2]:  level : 1
+1794049081.6774139 [ros2_control_node-3] [INFO] [1794049081.676663118] [dsr_controller2]:  group : 2
+1794049081.6774457 [ros2_control_node-3] [INFO] [1794049081.676664733] [dsr_controller2]:  index : 1216
+1794049081.6774707 [ros2_control_node-3] [INFO] [1794049081.676666311] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049081.6774948 [ros2_control_node-3] [INFO] [1794049081.676668010] [dsr_controller2]:  param : 
+1794049081.6775177 [ros2_control_node-3] [INFO] [1794049081.676669529] [dsr_controller2]:  param : 
+1794049082.6765490 [ros2_control_node-3] [INFO] [1794049082.676277496] [dsr_controller2]: [callback OnLogAlarm]
+1794049082.6771202 [ros2_control_node-3] [INFO] [1794049082.676318914] [dsr_controller2]:  level : 1
+1794049082.6771672 [ros2_control_node-3] [INFO] [1794049082.676321517] [dsr_controller2]:  group : 2
+1794049082.6771913 [ros2_control_node-3] [INFO] [1794049082.676322664] [dsr_controller2]:  index : 1216
+1794049082.6772108 [ros2_control_node-3] [INFO] [1794049082.676323758] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049082.6772301 [ros2_control_node-3] [INFO] [1794049082.676325023] [dsr_controller2]:  param : 
+1794049082.6772478 [ros2_control_node-3] [INFO] [1794049082.676326160] [dsr_controller2]:  param : 
+1794049083.6796038 [ros2_control_node-3] [INFO] [1794049083.679379615] [dsr_controller2]: [callback OnLogAlarm]
+1794049083.6797566 [ros2_control_node-3] [INFO] [1794049083.679405535] [dsr_controller2]:  level : 1
+1794049083.6797988 [ros2_control_node-3] [INFO] [1794049083.679408553] [dsr_controller2]:  group : 2
+1794049083.6798306 [ros2_control_node-3] [INFO] [1794049083.679410387] [dsr_controller2]:  index : 1216
+1794049083.6798592 [ros2_control_node-3] [INFO] [1794049083.679412346] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049083.6798868 [ros2_control_node-3] [INFO] [1794049083.679414645] [dsr_controller2]:  param : 
+1794049083.6799135 [ros2_control_node-3] [INFO] [1794049083.679416634] [dsr_controller2]:  param : 
+1794049084.6784532 [ros2_control_node-3] [INFO] [1794049084.678170787] [dsr_controller2]: [callback OnLogAlarm]
+1794049084.6790526 [ros2_control_node-3] [INFO] [1794049084.678202090] [dsr_controller2]:  level : 1
+1794049084.6791494 [ros2_control_node-3] [INFO] [1794049084.678205849] [dsr_controller2]:  group : 2
+1794049084.6791966 [ros2_control_node-3] [INFO] [1794049084.678208185] [dsr_controller2]:  index : 1216
+1794049084.6792343 [ros2_control_node-3] [INFO] [1794049084.678210585] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049084.6792800 [ros2_control_node-3] [INFO] [1794049084.678213419] [dsr_controller2]:  param : 
+1794049084.6793146 [ros2_control_node-3] [INFO] [1794049084.678215743] [dsr_controller2]:  param : 
+1794049085.6765645 [ros2_control_node-3] [INFO] [1794049085.676345445] [dsr_controller2]: [callback OnLogAlarm]
+1794049085.6766686 [ros2_control_node-3] [INFO] [1794049085.676364884] [dsr_controller2]:  level : 1
+1794049085.6766884 [ros2_control_node-3] [INFO] [1794049085.676366640] [dsr_controller2]:  group : 2
+1794049085.6767023 [ros2_control_node-3] [INFO] [1794049085.676367762] [dsr_controller2]:  index : 1216
+1794049085.6767139 [ros2_control_node-3] [INFO] [1794049085.676368737] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049085.6767259 [ros2_control_node-3] [INFO] [1794049085.676369774] [dsr_controller2]:  param : 
+1794049085.6767364 [ros2_control_node-3] [INFO] [1794049085.676370756] [dsr_controller2]:  param : 
+1794049086.6573479 [ros2_control_node-3] [INFO] [1794049086.657006358] [dsr_controller2]: [callback OnLogAlarm]
+1794049086.6575742 [ros2_control_node-3] [INFO] [1794049086.657025059] [dsr_controller2]:  level : 1
+1794049086.6576023 [ros2_control_node-3] [INFO] [1794049086.657027002] [dsr_controller2]:  group : 2
+1794049086.6576221 [ros2_control_node-3] [INFO] [1794049086.657028162] [dsr_controller2]:  index : 1216
+1794049086.6576376 [ros2_control_node-3] [INFO] [1794049086.657029444] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049086.6576540 [ros2_control_node-3] [INFO] [1794049086.657030775] [dsr_controller2]:  param : 
+1794049086.6576703 [ros2_control_node-3] [INFO] [1794049086.657031937] [dsr_controller2]:  param : 
+1794049087.6425297 [ros2_control_node-3] [INFO] [1794049087.642099381] [dsr_controller2]: [callback OnLogAlarm]
+1794049087.6431251 [ros2_control_node-3] [INFO] [1794049087.642128244] [dsr_controller2]:  level : 1
+1794049087.6431787 [ros2_control_node-3] [INFO] [1794049087.642131838] [dsr_controller2]:  group : 2
+1794049087.6432035 [ros2_control_node-3] [INFO] [1794049087.642134275] [dsr_controller2]:  index : 1216
+1794049087.6432228 [ros2_control_node-3] [INFO] [1794049087.642136636] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049087.6432405 [ros2_control_node-3] [INFO] [1794049087.642139371] [dsr_controller2]:  param : 
+1794049087.6432567 [ros2_control_node-3] [INFO] [1794049087.642141666] [dsr_controller2]:  param : 
+1794049088.6428368 [ros2_control_node-3] [INFO] [1794049088.642472729] [dsr_controller2]: [callback OnLogAlarm]
+1794049088.6430387 [ros2_control_node-3] [INFO] [1794049088.642513257] [dsr_controller2]:  level : 1
+1794049088.6430650 [ros2_control_node-3] [INFO] [1794049088.642518771] [dsr_controller2]:  group : 2
+1794049088.6430862 [ros2_control_node-3] [INFO] [1794049088.642522447] [dsr_controller2]:  index : 1216
+1794049088.6431041 [ros2_control_node-3] [INFO] [1794049088.642526190] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049088.6431220 [ros2_control_node-3] [INFO] [1794049088.642530326] [dsr_controller2]:  param : 
+1794049088.6431389 [ros2_control_node-3] [INFO] [1794049088.642533866] [dsr_controller2]:  param : 
+1794049089.6330667 [ros2_control_node-3] [INFO] [1794049089.632821711] [dsr_controller2]: [callback OnLogAlarm]
+1794049089.6331887 [ros2_control_node-3] [INFO] [1794049089.632861263] [dsr_controller2]:  level : 1
+1794049089.6332202 [ros2_control_node-3] [INFO] [1794049089.632866021] [dsr_controller2]:  group : 2
+1794049089.6332438 [ros2_control_node-3] [INFO] [1794049089.632869148] [dsr_controller2]:  index : 1216
+1794049089.6332676 [ros2_control_node-3] [INFO] [1794049089.632872299] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049089.6332891 [ros2_control_node-3] [INFO] [1794049089.632875828] [dsr_controller2]:  param : 
+1794049089.6333179 [ros2_control_node-3] [INFO] [1794049089.632878750] [dsr_controller2]:  param : 
+1794049090.6317496 [ros2_control_node-3] [INFO] [1794049090.631531538] [dsr_controller2]: [callback OnLogAlarm]
+1794049090.6321347 [ros2_control_node-3] [INFO] [1794049090.631565390] [dsr_controller2]:  level : 1
+1794049090.6321633 [ros2_control_node-3] [INFO] [1794049090.631569786] [dsr_controller2]:  group : 2
+1794049090.6321826 [ros2_control_node-3] [INFO] [1794049090.631572584] [dsr_controller2]:  index : 1216
+1794049090.6322007 [ros2_control_node-3] [INFO] [1794049090.631575496] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049090.6322198 [ros2_control_node-3] [INFO] [1794049090.631578878] [dsr_controller2]:  param : 
+1794049090.6322377 [ros2_control_node-3] [INFO] [1794049090.631581670] [dsr_controller2]:  param : 
+1794049091.6282802 [ros2_control_node-3] [INFO] [1794049091.627933381] [dsr_controller2]: [callback OnLogAlarm]
+1794049091.6288326 [ros2_control_node-3] [INFO] [1794049091.627971254] [dsr_controller2]:  level : 1
+1794049091.6289389 [ros2_control_node-3] [INFO] [1794049091.627976828] [dsr_controller2]:  group : 2
+1794049091.6290169 [ros2_control_node-3] [INFO] [1794049091.627980222] [dsr_controller2]:  index : 1216
+1794049091.6290865 [ros2_control_node-3] [INFO] [1794049091.627983853] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049091.6291533 [ros2_control_node-3] [INFO] [1794049091.627988049] [dsr_controller2]:  param : 
+1794049091.6292198 [ros2_control_node-3] [INFO] [1794049091.627991520] [dsr_controller2]:  param : 
+1794049092.6278167 [ros2_control_node-3] [INFO] [1794049092.627624400] [dsr_controller2]: [callback OnLogAlarm]
+1794049092.6279383 [ros2_control_node-3] [INFO] [1794049092.627653421] [dsr_controller2]:  level : 1
+1794049092.6279640 [ros2_control_node-3] [INFO] [1794049092.627657116] [dsr_controller2]:  group : 2
+1794049092.6279833 [ros2_control_node-3] [INFO] [1794049092.627659558] [dsr_controller2]:  index : 1216
+1794049092.6280029 [ros2_control_node-3] [INFO] [1794049092.627662036] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049092.6280208 [ros2_control_node-3] [INFO] [1794049092.627664873] [dsr_controller2]:  param : 
+1794049092.6280370 [ros2_control_node-3] [INFO] [1794049092.627667287] [dsr_controller2]:  param : 
+1794049093.6304033 [ros2_control_node-3] [INFO] [1794049093.630243362] [dsr_controller2]: [callback OnLogAlarm]
+1794049093.6305137 [ros2_control_node-3] [INFO] [1794049093.630261481] [dsr_controller2]:  level : 1
+1794049093.6305392 [ros2_control_node-3] [INFO] [1794049093.630263356] [dsr_controller2]:  group : 2
+1794049093.6305583 [ros2_control_node-3] [INFO] [1794049093.630264469] [dsr_controller2]:  index : 1216
+1794049093.6305754 [ros2_control_node-3] [INFO] [1794049093.630265590] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049093.6305923 [ros2_control_node-3] [INFO] [1794049093.630266811] [dsr_controller2]:  param : 
+1794049093.6306088 [ros2_control_node-3] [INFO] [1794049093.630267905] [dsr_controller2]:  param : 
+1794049094.6015475 [ros2_control_node-3] [INFO] [1794049094.601336213] [dsr_controller2]: [callback OnLogAlarm]
+1794049094.6016557 [ros2_control_node-3] [INFO] [1794049094.601359901] [dsr_controller2]:  level : 1
+1794049094.6016834 [ros2_control_node-3] [INFO] [1794049094.601361729] [dsr_controller2]:  group : 2
+1794049094.6017029 [ros2_control_node-3] [INFO] [1794049094.601362828] [dsr_controller2]:  index : 1216
+1794049094.6017206 [ros2_control_node-3] [INFO] [1794049094.601364012] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049094.6017380 [ros2_control_node-3] [INFO] [1794049094.601365301] [dsr_controller2]:  param : 
+1794049094.6017547 [ros2_control_node-3] [INFO] [1794049094.601366503] [dsr_controller2]:  param : 
+1794049095.5950193 [ros2_control_node-3] [INFO] [1794049095.594822998] [dsr_controller2]: [callback OnLogAlarm]
+1794049095.5965033 [ros2_control_node-3] [INFO] [1794049095.594861525] [dsr_controller2]:  level : 1
+1794049095.5965483 [ros2_control_node-3] [INFO] [1794049095.594869559] [dsr_controller2]:  group : 2
+1794049095.5965717 [ros2_control_node-3] [INFO] [1794049095.594874748] [dsr_controller2]:  index : 1216
+1794049095.5965900 [ros2_control_node-3] [INFO] [1794049095.594879459] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049095.5966072 [ros2_control_node-3] [INFO] [1794049095.594882207] [dsr_controller2]:  param : 
+1794049095.5966229 [ros2_control_node-3] [INFO] [1794049095.594883631] [dsr_controller2]:  param : 
+1794049096.5919600 [ros2_control_node-3] [INFO] [1794049096.591770176] [dsr_controller2]: [callback OnLogAlarm]
+1794049096.5920861 [ros2_control_node-3] [INFO] [1794049096.591793375] [dsr_controller2]:  level : 1
+1794049096.5921111 [ros2_control_node-3] [INFO] [1794049096.591795293] [dsr_controller2]:  group : 2
+1794049096.5921304 [ros2_control_node-3] [INFO] [1794049096.591796547] [dsr_controller2]:  index : 1216
+1794049096.5921471 [ros2_control_node-3] [INFO] [1794049096.591797839] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049096.5921638 [ros2_control_node-3] [INFO] [1794049096.591799091] [dsr_controller2]:  param : 
+1794049096.5921800 [ros2_control_node-3] [INFO] [1794049096.591800152] [dsr_controller2]:  param : 
+1794049097.5856495 [ros2_control_node-3] [INFO] [1794049097.585447535] [dsr_controller2]: [callback OnLogAlarm]
+1794049097.5857837 [ros2_control_node-3] [INFO] [1794049097.585476268] [dsr_controller2]:  level : 1
+1794049097.5858171 [ros2_control_node-3] [INFO] [1794049097.585479961] [dsr_controller2]:  group : 2
+1794049097.5858419 [ros2_control_node-3] [INFO] [1794049097.585482509] [dsr_controller2]:  index : 1216
+1794049097.5858657 [ros2_control_node-3] [INFO] [1794049097.585485137] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049097.5858877 [ros2_control_node-3] [INFO] [1794049097.585487995] [dsr_controller2]:  param : 
+1794049097.5859084 [ros2_control_node-3] [INFO] [1794049097.585490284] [dsr_controller2]:  param : 
+1794049098.5848272 [ros2_control_node-3] [INFO] [1794049098.584602741] [dsr_controller2]: [callback OnLogAlarm]
+1794049098.5849562 [ros2_control_node-3] [INFO] [1794049098.584635058] [dsr_controller2]:  level : 1
+1794049098.5849862 [ros2_control_node-3] [INFO] [1794049098.584638657] [dsr_controller2]:  group : 2
+1794049098.5850093 [ros2_control_node-3] [INFO] [1794049098.584640949] [dsr_controller2]:  index : 1216
+1794049098.5850303 [ros2_control_node-3] [INFO] [1794049098.584643219] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049098.5850508 [ros2_control_node-3] [INFO] [1794049098.584645795] [dsr_controller2]:  param : 
+1794049098.5850706 [ros2_control_node-3] [INFO] [1794049098.584648053] [dsr_controller2]:  param : 
+1794049099.5837877 [ros2_control_node-3] [INFO] [1794049099.583494696] [dsr_controller2]: [callback OnLogAlarm]
+1794049099.5839858 [ros2_control_node-3] [INFO] [1794049099.583535693] [dsr_controller2]:  level : 1
+1794049099.5840333 [ros2_control_node-3] [INFO] [1794049099.583539084] [dsr_controller2]:  group : 2
+1794049099.5840640 [ros2_control_node-3] [INFO] [1794049099.583541057] [dsr_controller2]:  index : 1216
+1794049099.5840929 [ros2_control_node-3] [INFO] [1794049099.583542920] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049099.5841208 [ros2_control_node-3] [INFO] [1794049099.583545208] [dsr_controller2]:  param : 
+1794049099.5841472 [ros2_control_node-3] [INFO] [1794049099.583546985] [dsr_controller2]:  param : 
+1794049100.5794299 [ros2_control_node-3] [INFO] [1794049100.579049022] [dsr_controller2]: [callback OnLogAlarm]
+1794049100.5814044 [ros2_control_node-3] [INFO] [1794049100.579084992] [dsr_controller2]:  level : 1
+1794049100.5814555 [ros2_control_node-3] [INFO] [1794049100.579090654] [dsr_controller2]:  group : 2
+1794049100.5814776 [ros2_control_node-3] [INFO] [1794049100.579094176] [dsr_controller2]:  index : 1216
+1794049100.5814943 [ros2_control_node-3] [INFO] [1794049100.579097744] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049100.5815101 [ros2_control_node-3] [INFO] [1794049100.579101781] [dsr_controller2]:  param : 
+1794049100.5815251 [ros2_control_node-3] [INFO] [1794049100.579105354] [dsr_controller2]:  param : 
+1794049101.5799956 [ros2_control_node-3] [INFO] [1794049101.579776493] [dsr_controller2]: [callback OnLogAlarm]
+1794049101.5801017 [ros2_control_node-3] [INFO] [1794049101.579795478] [dsr_controller2]:  level : 1
+1794049101.5801263 [ros2_control_node-3] [INFO] [1794049101.579797231] [dsr_controller2]:  group : 2
+1794049101.5801449 [ros2_control_node-3] [INFO] [1794049101.579798329] [dsr_controller2]:  index : 1216
+1794049101.5801620 [ros2_control_node-3] [INFO] [1794049101.579799413] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049101.5801814 [ros2_control_node-3] [INFO] [1794049101.579800634] [dsr_controller2]:  param : 
+1794049101.5801983 [ros2_control_node-3] [INFO] [1794049101.579801736] [dsr_controller2]:  param : 
+1794049102.5542359 [ros2_control_node-3] [INFO] [1794049102.553683177] [dsr_controller2]: [callback OnLogAlarm]
+1794049102.5545914 [ros2_control_node-3] [INFO] [1794049102.553738804] [dsr_controller2]:  level : 1
+1794049102.5547197 [ros2_control_node-3] [INFO] [1794049102.553746418] [dsr_controller2]:  group : 2
+1794049102.5548139 [ros2_control_node-3] [INFO] [1794049102.553751530] [dsr_controller2]:  index : 1216
+1794049102.5549006 [ros2_control_node-3] [INFO] [1794049102.553756820] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049102.5549867 [ros2_control_node-3] [INFO] [1794049102.553763068] [dsr_controller2]:  param : 
+1794049102.5550666 [ros2_control_node-3] [INFO] [1794049102.553768028] [dsr_controller2]:  param : 
+1794049103.5447667 [ros2_control_node-3] [INFO] [1794049103.544534652] [dsr_controller2]: [callback OnLogAlarm]
+1794049103.5448723 [ros2_control_node-3] [INFO] [1794049103.544556454] [dsr_controller2]:  level : 1
+1794049103.5448964 [ros2_control_node-3] [INFO] [1794049103.544558192] [dsr_controller2]:  group : 2
+1794049103.5449147 [ros2_control_node-3] [INFO] [1794049103.544559284] [dsr_controller2]:  index : 1216
+1794049103.5449317 [ros2_control_node-3] [INFO] [1794049103.544560454] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049103.5449488 [ros2_control_node-3] [INFO] [1794049103.544561731] [dsr_controller2]:  param : 
+1794049103.5449653 [ros2_control_node-3] [INFO] [1794049103.544562854] [dsr_controller2]:  param : 
+1794049104.5357528 [ros2_control_node-3] [INFO] [1794049104.535489548] [dsr_controller2]: [callback OnLogAlarm]
+1794049104.5361898 [ros2_control_node-3] [INFO] [1794049104.535513006] [dsr_controller2]:  level : 1
+1794049104.5362377 [ros2_control_node-3] [INFO] [1794049104.535515086] [dsr_controller2]:  group : 2
+1794049104.5362642 [ros2_control_node-3] [INFO] [1794049104.535516368] [dsr_controller2]:  index : 1216
+1794049104.5362847 [ros2_control_node-3] [INFO] [1794049104.535517790] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049104.5363076 [ros2_control_node-3] [INFO] [1794049104.535519347] [dsr_controller2]:  param : 
+1794049104.5363255 [ros2_control_node-3] [INFO] [1794049104.535520663] [dsr_controller2]:  param : 
+1794049105.5350406 [ros2_control_node-3] [INFO] [1794049105.534804472] [dsr_controller2]: [callback OnLogAlarm]
+1794049105.5354598 [ros2_control_node-3] [INFO] [1794049105.534826934] [dsr_controller2]:  level : 1
+1794049105.5354967 [ros2_control_node-3] [INFO] [1794049105.534829224] [dsr_controller2]:  group : 2
+1794049105.5355225 [ros2_control_node-3] [INFO] [1794049105.534830736] [dsr_controller2]:  index : 1216
+1794049105.5355515 [ros2_control_node-3] [INFO] [1794049105.534832270] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049105.5355752 [ros2_control_node-3] [INFO] [1794049105.534833939] [dsr_controller2]:  param : 
+1794049105.5355971 [ros2_control_node-3] [INFO] [1794049105.534835454] [dsr_controller2]:  param : 
+1794049106.5307033 [ros2_control_node-3] [INFO] [1794049106.530460151] [dsr_controller2]: [callback OnLogAlarm]
+1794049106.5308440 [ros2_control_node-3] [INFO] [1794049106.530490373] [dsr_controller2]:  level : 1
+1794049106.5308878 [ros2_control_node-3] [INFO] [1794049106.530494354] [dsr_controller2]:  group : 2
+1794049106.5309224 [ros2_control_node-3] [INFO] [1794049106.530496572] [dsr_controller2]:  index : 1216
+1794049106.5309548 [ros2_control_node-3] [INFO] [1794049106.530498649] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049106.5309861 [ros2_control_node-3] [INFO] [1794049106.530500919] [dsr_controller2]:  param : 
+1794049106.5310163 [ros2_control_node-3] [INFO] [1794049106.530502912] [dsr_controller2]:  param : 
+1794049107.5324755 [ros2_control_node-3] [INFO] [1794049107.532178163] [dsr_controller2]: [callback OnLogAlarm]
+1794049107.5326667 [ros2_control_node-3] [INFO] [1794049107.532214375] [dsr_controller2]:  level : 1
+1794049107.5327265 [ros2_control_node-3] [INFO] [1794049107.532218524] [dsr_controller2]:  group : 2
+1794049107.5327780 [ros2_control_node-3] [INFO] [1794049107.532221206] [dsr_controller2]:  index : 1216
+1794049107.5328207 [ros2_control_node-3] [INFO] [1794049107.532223951] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049107.5328610 [ros2_control_node-3] [INFO] [1794049107.532226912] [dsr_controller2]:  param : 
+1794049107.5328996 [ros2_control_node-3] [INFO] [1794049107.532229543] [dsr_controller2]:  param : 
+1794049108.5314410 [ros2_control_node-3] [INFO] [1794049108.530880002] [dsr_controller2]: [callback OnLogAlarm]
+1794049108.5318940 [ros2_control_node-3] [INFO] [1794049108.530933158] [dsr_controller2]:  level : 1
+1794049108.5319288 [ros2_control_node-3] [INFO] [1794049108.530935077] [dsr_controller2]:  group : 2
+1794049108.5319490 [ros2_control_node-3] [INFO] [1794049108.530936275] [dsr_controller2]:  index : 1216
+1794049108.5319667 [ros2_control_node-3] [INFO] [1794049108.530937509] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049108.5319843 [ros2_control_node-3] [INFO] [1794049108.530938920] [dsr_controller2]:  param : 
+1794049108.5319998 [ros2_control_node-3] [INFO] [1794049108.530940068] [dsr_controller2]:  param : 
+1794049109.5053995 [ros2_control_node-3] [INFO] [1794049109.505108651] [dsr_controller2]: [callback OnLogAlarm]
+1794049109.5055480 [ros2_control_node-3] [INFO] [1794049109.505141179] [dsr_controller2]:  level : 1
+1794049109.5055816 [ros2_control_node-3] [INFO] [1794049109.505145448] [dsr_controller2]:  group : 2
+1794049109.5056064 [ros2_control_node-3] [INFO] [1794049109.505148333] [dsr_controller2]:  index : 1216
+1794049109.5056288 [ros2_control_node-3] [INFO] [1794049109.505151346] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049109.5056522 [ros2_control_node-3] [INFO] [1794049109.505154706] [dsr_controller2]:  param : 
+1794049109.5056739 [ros2_control_node-3] [INFO] [1794049109.505157476] [dsr_controller2]:  param : 
+1794049110.5050600 [ros2_control_node-3] [INFO] [1794049110.504787243] [dsr_controller2]: [callback OnLogAlarm]
+1794049110.5054286 [ros2_control_node-3] [INFO] [1794049110.504815615] [dsr_controller2]:  level : 1
+1794049110.5054758 [ros2_control_node-3] [INFO] [1794049110.504819634] [dsr_controller2]:  group : 2
+1794049110.5054986 [ros2_control_node-3] [INFO] [1794049110.504822222] [dsr_controller2]:  index : 1216
+1794049110.5055168 [ros2_control_node-3] [INFO] [1794049110.504824841] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049110.5055468 [ros2_control_node-3] [INFO] [1794049110.504827700] [dsr_controller2]:  param : 
+1794049110.5055640 [ros2_control_node-3] [INFO] [1794049110.504830310] [dsr_controller2]:  param : 
+1794049111.4949594 [ros2_control_node-3] [INFO] [1794049111.494785137] [dsr_controller2]: [callback OnLogAlarm]
+1794049111.4950683 [ros2_control_node-3] [INFO] [1794049111.494806660] [dsr_controller2]:  level : 1
+1794049111.4950933 [ros2_control_node-3] [INFO] [1794049111.494808409] [dsr_controller2]:  group : 2
+1794049111.4951119 [ros2_control_node-3] [INFO] [1794049111.494809509] [dsr_controller2]:  index : 1216
+1794049111.4951291 [ros2_control_node-3] [INFO] [1794049111.494810711] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049111.4951458 [ros2_control_node-3] [INFO] [1794049111.494812075] [dsr_controller2]:  param : 
+1794049111.4951620 [ros2_control_node-3] [INFO] [1794049111.494813372] [dsr_controller2]:  param : 
+1794049112.4830902 [ros2_control_node-3] [INFO] [1794049112.482883113] [dsr_controller2]: [callback OnLogAlarm]
+1794049112.4831989 [ros2_control_node-3] [INFO] [1794049112.482901127] [dsr_controller2]:  level : 1
+1794049112.4832227 [ros2_control_node-3] [INFO] [1794049112.482902988] [dsr_controller2]:  group : 2
+1794049112.4832423 [ros2_control_node-3] [INFO] [1794049112.482904098] [dsr_controller2]:  index : 1216
+1794049112.4832597 [ros2_control_node-3] [INFO] [1794049112.482905227] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049112.4832768 [ros2_control_node-3] [INFO] [1794049112.482906527] [dsr_controller2]:  param : 
+1794049112.4832933 [ros2_control_node-3] [INFO] [1794049112.482907620] [dsr_controller2]:  param : 
+1794049113.4862809 [ros2_control_node-3] [INFO] [1794049113.486024544] [dsr_controller2]: [callback OnLogAlarm]
+1794049113.4863985 [ros2_control_node-3] [INFO] [1794049113.486043814] [dsr_controller2]:  level : 1
+1794049113.4864237 [ros2_control_node-3] [INFO] [1794049113.486045567] [dsr_controller2]:  group : 2
+1794049113.4864495 [ros2_control_node-3] [INFO] [1794049113.486046717] [dsr_controller2]:  index : 1216
+1794049113.4864671 [ros2_control_node-3] [INFO] [1794049113.486047926] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049113.4864845 [ros2_control_node-3] [INFO] [1794049113.486049190] [dsr_controller2]:  param : 
+1794049113.4865010 [ros2_control_node-3] [INFO] [1794049113.486050360] [dsr_controller2]:  param : 
+1794049114.4829836 [ros2_control_node-3] [INFO] [1794049114.482645785] [dsr_controller2]: [callback OnLogAlarm]
+1794049114.4830854 [ros2_control_node-3] [INFO] [1794049114.482678958] [dsr_controller2]:  level : 1
+1794049114.4831088 [ros2_control_node-3] [INFO] [1794049114.482681180] [dsr_controller2]:  group : 2
+1794049114.4831274 [ros2_control_node-3] [INFO] [1794049114.482682288] [dsr_controller2]:  index : 1216
+1794049114.4831443 [ros2_control_node-3] [INFO] [1794049114.482683437] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049114.4831617 [ros2_control_node-3] [INFO] [1794049114.482684777] [dsr_controller2]:  param : 
+1794049114.4831781 [ros2_control_node-3] [INFO] [1794049114.482685836] [dsr_controller2]:  param : 
+1794049115.4812739 [ros2_control_node-3] [INFO] [1794049115.480993792] [dsr_controller2]: [callback OnLogAlarm]
+1794049115.4814613 [ros2_control_node-3] [INFO] [1794049115.481026485] [dsr_controller2]:  level : 1
+1794049115.4815142 [ros2_control_node-3] [INFO] [1794049115.481030696] [dsr_controller2]:  group : 2
+1794049115.4815562 [ros2_control_node-3] [INFO] [1794049115.481033478] [dsr_controller2]:  index : 1216
+1794049115.4815948 [ros2_control_node-3] [INFO] [1794049115.481036481] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049115.4816315 [ros2_control_node-3] [INFO] [1794049115.481039496] [dsr_controller2]:  param : 
+1794049115.4816973 [ros2_control_node-3] [INFO] [1794049115.481042166] [dsr_controller2]:  param : 
+1794049116.4822729 [ros2_control_node-3] [INFO] [1794049116.482030725] [dsr_controller2]: [callback OnLogAlarm]
+1794049116.4852808 [ros2_control_node-3] [INFO] [1794049116.482052469] [dsr_controller2]:  level : 1
+1794049116.4853361 [ros2_control_node-3] [INFO] [1794049116.482054531] [dsr_controller2]:  group : 2
+1794049116.4853630 [ros2_control_node-3] [INFO] [1794049116.482056084] [dsr_controller2]:  index : 1216
+1794049116.4853849 [ros2_control_node-3] [INFO] [1794049116.482057527] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049116.4854066 [ros2_control_node-3] [INFO] [1794049116.482059158] [dsr_controller2]:  param : 
+1794049116.4854276 [ros2_control_node-3] [INFO] [1794049116.482060556] [dsr_controller2]:  param : 
+1794049117.4831655 [ros2_control_node-3] [INFO] [1794049117.482843179] [dsr_controller2]: [callback OnLogAlarm]
+1794049117.4833589 [ros2_control_node-3] [INFO] [1794049117.482878339] [dsr_controller2]:  level : 1
+1794049117.4833851 [ros2_control_node-3] [INFO] [1794049117.482883015] [dsr_controller2]:  group : 2
+1794049117.4834051 [ros2_control_node-3] [INFO] [1794049117.482885934] [dsr_controller2]:  index : 1216
+1794049117.4834235 [ros2_control_node-3] [INFO] [1794049117.482888912] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049117.4834440 [ros2_control_node-3] [INFO] [1794049117.482892374] [dsr_controller2]:  param : 
+1794049117.4834607 [ros2_control_node-3] [INFO] [1794049117.482895278] [dsr_controller2]:  param : 
+1794049118.4809928 [ros2_control_node-3] [INFO] [1794049118.480747662] [dsr_controller2]: [callback OnLogAlarm]
+1794049118.4811115 [ros2_control_node-3] [INFO] [1794049118.480767968] [dsr_controller2]:  level : 1
+1794049118.4811385 [ros2_control_node-3] [INFO] [1794049118.480769921] [dsr_controller2]:  group : 2
+1794049118.4811583 [ros2_control_node-3] [INFO] [1794049118.480771027] [dsr_controller2]:  index : 1216
+1794049118.4811761 [ros2_control_node-3] [INFO] [1794049118.480772180] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049118.4811938 [ros2_control_node-3] [INFO] [1794049118.480773605] [dsr_controller2]:  param : 
+1794049118.4812105 [ros2_control_node-3] [INFO] [1794049118.480774668] [dsr_controller2]:  param : 
+1794049119.4512389 [ros2_control_node-3] [INFO] [1794049119.450890285] [dsr_controller2]: [callback OnLogAlarm]
+1794049119.4546821 [ros2_control_node-3] [INFO] [1794049119.450911482] [dsr_controller2]:  level : 1
+1794049119.4548004 [ros2_control_node-3] [INFO] [1794049119.450914155] [dsr_controller2]:  group : 2
+1794049119.4548273 [ros2_control_node-3] [INFO] [1794049119.450915644] [dsr_controller2]:  index : 1216
+1794049119.4548500 [ros2_control_node-3] [INFO] [1794049119.450917122] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049119.4548705 [ros2_control_node-3] [INFO] [1794049119.450918802] [dsr_controller2]:  param : 
+1794049119.4548903 [ros2_control_node-3] [INFO] [1794049119.450920226] [dsr_controller2]:  param : 
+1794049120.4562786 [ros2_control_node-3] [INFO] [1794049120.455809980] [dsr_controller2]: [callback OnLogAlarm]
+1794049120.4597051 [ros2_control_node-3] [INFO] [1794049120.455853916] [dsr_controller2]:  level : 1
+1794049120.4597471 [ros2_control_node-3] [INFO] [1794049120.455861696] [dsr_controller2]:  group : 2
+1794049120.4597681 [ros2_control_node-3] [INFO] [1794049120.455866355] [dsr_controller2]:  index : 1216
+1794049120.4597847 [ros2_control_node-3] [INFO] [1794049120.455871550] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049120.4598012 [ros2_control_node-3] [INFO] [1794049120.455877375] [dsr_controller2]:  param : 
+1794049120.4598165 [ros2_control_node-3] [INFO] [1794049120.455882320] [dsr_controller2]:  param : 
+1794049121.4528115 [ros2_control_node-3] [INFO] [1794049121.452623291] [dsr_controller2]: [callback OnLogAlarm]
+1794049121.4529517 [ros2_control_node-3] [INFO] [1794049121.452645999] [dsr_controller2]:  level : 1
+1794049121.4529889 [ros2_control_node-3] [INFO] [1794049121.452648614] [dsr_controller2]:  group : 2
+1794049121.4530165 [ros2_control_node-3] [INFO] [1794049121.452650171] [dsr_controller2]:  index : 1216
+1794049121.4530413 [ros2_control_node-3] [INFO] [1794049121.452651765] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049121.4530659 [ros2_control_node-3] [INFO] [1794049121.452653559] [dsr_controller2]:  param : 
+1794049121.4530895 [ros2_control_node-3] [INFO] [1794049121.452655169] [dsr_controller2]:  param : 
+1794049122.4421837 [ros2_control_node-3] [INFO] [1794049122.441915130] [dsr_controller2]: [callback OnLogAlarm]
+1794049122.4423139 [ros2_control_node-3] [INFO] [1794049122.441933967] [dsr_controller2]:  level : 1
+1794049122.4423392 [ros2_control_node-3] [INFO] [1794049122.441935692] [dsr_controller2]:  group : 2
+1794049122.4423580 [ros2_control_node-3] [INFO] [1794049122.441936914] [dsr_controller2]:  index : 1216
+1794049122.4423752 [ros2_control_node-3] [INFO] [1794049122.441938036] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049122.4423928 [ros2_control_node-3] [INFO] [1794049122.441939465] [dsr_controller2]:  param : 
+1794049122.4424090 [ros2_control_node-3] [INFO] [1794049122.441940672] [dsr_controller2]:  param : 
+1794049123.4320183 [ros2_control_node-3] [INFO] [1794049123.431821449] [dsr_controller2]: [callback OnLogAlarm]
+1794049123.4324117 [ros2_control_node-3] [INFO] [1794049123.431850198] [dsr_controller2]:  level : 1
+1794049123.4324515 [ros2_control_node-3] [INFO] [1794049123.431852221] [dsr_controller2]:  group : 2
+1794049123.4324722 [ros2_control_node-3] [INFO] [1794049123.431853354] [dsr_controller2]:  index : 1216
+1794049123.4324913 [ros2_control_node-3] [INFO] [1794049123.431854758] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049123.4325094 [ros2_control_node-3] [INFO] [1794049123.431856141] [dsr_controller2]:  param : 
+1794049123.4325259 [ros2_control_node-3] [INFO] [1794049123.431857305] [dsr_controller2]:  param : 
+1794049124.4363997 [ros2_control_node-3] [INFO] [1794049124.436138855] [dsr_controller2]: [callback OnLogAlarm]
+1794049124.4365642 [ros2_control_node-3] [INFO] [1794049124.436158596] [dsr_controller2]:  level : 1
+1794049124.4365976 [ros2_control_node-3] [INFO] [1794049124.436160312] [dsr_controller2]:  group : 2
+1794049124.4366174 [ros2_control_node-3] [INFO] [1794049124.436161428] [dsr_controller2]:  index : 1216
+1794049124.4366357 [ros2_control_node-3] [INFO] [1794049124.436162651] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049124.4366534 [ros2_control_node-3] [INFO] [1794049124.436163961] [dsr_controller2]:  param : 
+1794049124.4366710 [ros2_control_node-3] [INFO] [1794049124.436165151] [dsr_controller2]:  param : 
+1794049125.4323535 [ros2_control_node-3] [INFO] [1794049125.432013973] [dsr_controller2]: [callback OnLogAlarm]
+1794049125.4324963 [ros2_control_node-3] [INFO] [1794049125.432038539] [dsr_controller2]:  level : 1
+1794049125.4325366 [ros2_control_node-3] [INFO] [1794049125.432041184] [dsr_controller2]:  group : 2
+1794049125.4325686 [ros2_control_node-3] [INFO] [1794049125.432042910] [dsr_controller2]:  index : 1216
+1794049125.4325981 [ros2_control_node-3] [INFO] [1794049125.432044680] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049125.4326267 [ros2_control_node-3] [INFO] [1794049125.432046637] [dsr_controller2]:  param : 
+1794049125.4326539 [ros2_control_node-3] [INFO] [1794049125.432048430] [dsr_controller2]:  param : 
+1794049126.4327824 [ros2_control_node-3] [INFO] [1794049126.432460545] [dsr_controller2]: [callback OnLogAlarm]
+1794049126.4343805 [ros2_control_node-3] [INFO] [1794049126.432481144] [dsr_controller2]:  level : 1
+1794049126.4344275 [ros2_control_node-3] [INFO] [1794049126.432483223] [dsr_controller2]:  group : 2
+1794049126.4344637 [ros2_control_node-3] [INFO] [1794049126.432484515] [dsr_controller2]:  index : 1216
+1794049126.4344845 [ros2_control_node-3] [INFO] [1794049126.432485898] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049126.4345031 [ros2_control_node-3] [INFO] [1794049126.432487375] [dsr_controller2]:  param : 
+1794049126.4345202 [ros2_control_node-3] [INFO] [1794049126.432488644] [dsr_controller2]:  param : 
+1794049127.4064631 [ros2_control_node-3] [INFO] [1794049127.406288188] [dsr_controller2]: [callback OnLogAlarm]
+1794049127.4065876 [ros2_control_node-3] [INFO] [1794049127.406308124] [dsr_controller2]:  level : 1
+1794049127.4066129 [ros2_control_node-3] [INFO] [1794049127.406309994] [dsr_controller2]:  group : 2
+1794049127.4066331 [ros2_control_node-3] [INFO] [1794049127.406311120] [dsr_controller2]:  index : 1216
+1794049127.4066505 [ros2_control_node-3] [INFO] [1794049127.406312308] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049127.4066677 [ros2_control_node-3] [INFO] [1794049127.406313561] [dsr_controller2]:  param : 
+1794049127.4066839 [ros2_control_node-3] [INFO] [1794049127.406314770] [dsr_controller2]:  param : 
+1794049128.3920224 [ros2_control_node-3] [INFO] [1794049128.391653625] [dsr_controller2]: [callback OnLogAlarm]
+1794049128.3921940 [ros2_control_node-3] [INFO] [1794049128.391685417] [dsr_controller2]:  level : 1
+1794049128.3922312 [ros2_control_node-3] [INFO] [1794049128.391688854] [dsr_controller2]:  group : 2
+1794049128.3922625 [ros2_control_node-3] [INFO] [1794049128.391690431] [dsr_controller2]:  index : 1216
+1794049128.3922884 [ros2_control_node-3] [INFO] [1794049128.391692014] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049128.3923140 [ros2_control_node-3] [INFO] [1794049128.391693826] [dsr_controller2]:  param : 
+1794049128.3923376 [ros2_control_node-3] [INFO] [1794049128.391695328] [dsr_controller2]:  param : 
+1794049129.3938355 [ros2_control_node-3] [INFO] [1794049129.393345408] [dsr_controller2]: [callback OnLogAlarm]
+1794049129.3945451 [ros2_control_node-3] [INFO] [1794049129.393411503] [dsr_controller2]:  level : 1
+1794049129.3947244 [ros2_control_node-3] [INFO] [1794049129.393417164] [dsr_controller2]:  group : 2
+1794049129.3947959 [ros2_control_node-3] [INFO] [1794049129.393421215] [dsr_controller2]:  index : 1216
+1794049129.3948557 [ros2_control_node-3] [INFO] [1794049129.393425325] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049129.3949122 [ros2_control_node-3] [INFO] [1794049129.393430178] [dsr_controller2]:  param : 
+1794049129.3949614 [ros2_control_node-3] [INFO] [1794049129.393447149] [dsr_controller2]:  param : 
+1794049130.3921971 [ros2_control_node-3] [INFO] [1794049130.391829710] [dsr_controller2]: [callback OnLogAlarm]
+1794049130.3923624 [ros2_control_node-3] [INFO] [1794049130.391875153] [dsr_controller2]:  level : 1
+1794049130.3923981 [ros2_control_node-3] [INFO] [1794049130.391877077] [dsr_controller2]:  group : 2
+1794049130.3924224 [ros2_control_node-3] [INFO] [1794049130.391878276] [dsr_controller2]:  index : 1216
+1794049130.3924549 [ros2_control_node-3] [INFO] [1794049130.391879574] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049130.3924780 [ros2_control_node-3] [INFO] [1794049130.391881527] [dsr_controller2]:  param : 
+1794049130.3925009 [ros2_control_node-3] [INFO] [1794049130.391883196] [dsr_controller2]:  param : 
+1794049131.3866246 [ros2_control_node-3] [INFO] [1794049131.386373397] [dsr_controller2]: [callback OnLogAlarm]
+1794049131.3867214 [ros2_control_node-3] [INFO] [1794049131.386392265] [dsr_controller2]:  level : 1
+1794049131.3867447 [ros2_control_node-3] [INFO] [1794049131.386393952] [dsr_controller2]:  group : 2
+1794049131.3867633 [ros2_control_node-3] [INFO] [1794049131.386395031] [dsr_controller2]:  index : 1216
+1794049131.3867950 [ros2_control_node-3] [INFO] [1794049131.386396174] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049131.3868139 [ros2_control_node-3] [INFO] [1794049131.386397436] [dsr_controller2]:  param : 
+1794049131.3868310 [ros2_control_node-3] [INFO] [1794049131.386398565] [dsr_controller2]:  param : 
+1794049132.3858144 [ros2_control_node-3] [INFO] [1794049132.385545384] [dsr_controller2]: [callback OnLogAlarm]
+1794049132.3859332 [ros2_control_node-3] [INFO] [1794049132.385567954] [dsr_controller2]:  level : 1
+1794049132.3859570 [ros2_control_node-3] [INFO] [1794049132.385570095] [dsr_controller2]:  group : 2
+1794049132.3859768 [ros2_control_node-3] [INFO] [1794049132.385571224] [dsr_controller2]:  index : 1216
+1794049132.3859949 [ros2_control_node-3] [INFO] [1794049132.385572420] [dsr_controller2]:  param : [ServoL]Can't keep target time due to limit velocity or acceleration
+1794049132.3860130 [ros2_control_node-3] [INFO] [1794049132.385573772] [dsr_controller2]:  param : 
+1794049132.3860295 [ros2_control_node-3] [INFO] [1794049132.385574873] [dsr_controller2]:  param : 
+1794049135.5878024 [ros2_control_node-3] [INFO] [1794049135.587450235] [dsr_controller2]: get_robot_state_cb() called and calling Drfl->get_robot_state()
+1794049135.5891290 [ros2_control_node-3] [INFO] [1794049135.588928367] [dsr_controller2]: get_last_alarm_cb() called and calling Drfl->get_last_alarm()
+1794049218.4089742 [ros2_control_node-3] [INFO] [1794049218.408630342] [dsr_controller2]: get_robot_state_cb() called and calling Drfl->get_robot_state()
+1794049218.4144959 [ros2_control_node-3] [INFO] [1794049218.414329015] [dsr_controller2]: get_last_alarm_cb() called and calling Drfl->get_last_alarm()
+1794049257.4862638 [ros2_control_node-3] [INFO] [1794049257.486003082] [dsr_controller2]: get_robot_state_cb() called and calling Drfl->get_robot_state()
+1794049292.7399385 [ros2_control_node-3] [INFO] [1794049292.739707698] [dsr_controller2]: get_robot_state_cb() called and calling Drfl->get_robot_state()
+1794049292.8231885 [ros2_control_node-3] [INFO] [1794049292.822900564] [dsr_controller2]: get_robot_mode_cb() called and calling Drfl->get_robot_mode()
+1794049292.9960475 [ros2_control_node-3] [INFO] [1794049292.995754204] [dsr_controller2]: get_last_alarm_cb() called and calling Drfl->get_last_alarm()
+1794049350.1955132 [ros2_control_node-3] [INFO] [1794049350.194998189] [dsr_controller2]: get_robot_state_cb() called and calling Drfl->get_robot_state()
+1794049350.1982598 [ros2_control_node-3] [INFO] [1794049350.198040296] [dsr_controller2]: set_robot_mode_cb() called and calling Drfl->set_robot_mode(0)
+1794049350.2469618 [ros2_control_node-3] [INFO] [1794049350.246668484] [dsr_controller2]: get_robot_mode_cb() called and calling Drfl->get_robot_mode()
+1794049350.2564061 [WARNING] [launch]: user interrupted with ctrl-c (SIGINT)
+1794049350.2577100 [INFO] [ros2_control_node-3]: sending signal 'SIGINT' to process[ros2_control_node-3]
+1794049350.2580438 [INFO] [robot_state_publisher-1]: sending signal 'SIGINT' to process[robot_state_publisher-1]
+1794049350.2583315 [ros2_control_node-3] [INFO] [1794049350.257838063] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+1794049350.2584059 [ros2_control_node-3] [INFO] [1794049350.257985715] [dsr01.controller_manager]: Shutdown request received....
+1794049350.2584646 [ros2_control_node-3] [INFO] [1794049350.258088209] [dsr01.controller_manager]: Shutting down all controllers in the controller manager.
+1794049350.2585080 [ros2_control_node-3] [INFO] [1794049350.258142657] [dsr01.controller_manager]: Deactivating controller 'dsr_controller2'
+1794049350.2586915 [robot_state_publisher-1] [INFO] [1794049350.258168313] [rclcpp]: signal_handler(SIGINT/SIGTERM)
+1794049350.2588418 [ros2_control_node-3] [INFO] [1794049350.258215433] [dsr01.controller_manager]: Shutting down controller 'dsr_controller2'
+1794049350.2588959 [ros2_control_node-3] [INFO] [1794049350.258293300] [dsr_controller2]: on deactivate
+1794049350.2595429 [ros2_control_node-3] [INFO] [1794049350.259281555] [dsr01.controller_manager]: Deactivating controller 'joint_state_broadcaster'
+1794049350.2599421 [ros2_control_node-3] [INFO] [1794049350.259343535] [dsr01.controller_manager]: Shutting down controller 'joint_state_broadcaster'
+1794049350.2601869 [ros2_control_node-3] [INFO] [1794049350.259414937] [resource_manager]: 'deactivate' hardware 'e0509' 
+1794049350.2602694 [ros2_control_node-3] [INFO] [1794049350.259429105] [resource_manager]: Successful 'deactivate' of hardware 'e0509'
+1794049350.2603300 [ros2_control_node-3] [INFO] [1794049350.259464565] [resource_manager]: 'shutdown' hardware 'e0509' 
+1794049350.2603884 [ros2_control_node-3] [INFO] [1794049350.259470989] [resource_manager]: Successful 'shutdown' of hardware 'e0509'
+1794049350.2604542 [ros2_control_node-3] [INFO] [1794049350.259525329] [dsr01.controller_manager]: Shutting down the controller manager.
+1794049350.2606316 [ros2_control_node-3] [ERROR] [1794049350.259966224] [dsr01.controller_manager.pal_statistics]: Exception in publisher thread: context cannot be slept with because it's invalid!. Aborting!
+1794049350.2607946 [ros2_control_node-3] [ERROR] [1794049350.260060343] [dsr01.controller_manager.pal_statistics]: Exception in publisher thread: context cannot be slept with because it's invalid!. Aborting!
+1794049350.2663646 [ros2_control_node-3] [INFO] [1794049350.266135907] [dsr01.controller_manager.pal_statistics]: Async messages lost 0
+1794049350.2665226 [ros2_control_node-3] [INFO] [1794049350.266153605] [dsr01.controller_manager.pal_statistics]: publish_async_failures_ 0
+1794049350.2682858 [ros2_control_node-3] [INFO] [1794049350.268177361] [dsr01.controller_manager.pal_statistics]: Async messages lost 0
+1794049350.2683558 [ros2_control_node-3] [INFO] [1794049350.268185717] [dsr01.controller_manager.pal_statistics]: publish_async_failures_ 0
+1794049350.3773985 [INFO] [robot_state_publisher-1]: process has finished cleanly [pid 279675]
+1794049350.4261332 [ros2_control_node-3] RTControl is already stopped
+1794049350.4265485 [ros2_control_node-3] [ERROR] [1794049350.426446184] [dsr_controller2]: Disconnected.. Please check out Ethernet Cable.. 
+1794049350.4267116 [ros2_control_node-3] [INFO] [1794049350.426489204] [dsr_hw_interface2]: _______________________________________________
+1794049350.4267609 [ros2_control_node-3] 
+1794049350.4267988 [ros2_control_node-3] [INFO] [1794049350.426492203] [dsr_hw_interface2]:     CONNECTION IS CLOSED
+1794049350.4268329 [ros2_control_node-3] [INFO] [1794049350.426494142] [dsr_hw_interface2]: _______________________________________________
+1794049350.4268625 [ros2_control_node-3] 
+1794049350.5531807 [INFO] [ros2_control_node-3]: process has finished cleanly [pid 279677]

@@ -1,0 +1,19 @@
+{
+  "bag": "/home/umm/drop_bags/2026-11-07/2026-11-07_195156_off1-camera-replay-smoke",
+  "player_exit": 0,
+  "counts": {
+    "image": 286,
+    "camera_info": 286
+  },
+  "sizes": [
+    [
+      1280,
+      800
+    ]
+  ],
+  "stamp_increasing": {
+    "image": true,
+    "camera_info": true
+  },
+  "matching_stamp_pairs": 286
+}

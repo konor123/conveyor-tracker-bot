@@ -42,15 +42,15 @@ class Writer(unittest.TestCase):
     def test_payload_then_trigger(self):
         t = g.DryTransport()
         w = g.RegisterWriter(t.write)
-        seq = w.send(g.Command(1100, 200))
+        seq = w.send(g.Command(1100, 100))
         self.assertEqual([a for a, _ in t.log], [11, 12, 13, 14, 10])
         self.assertEqual(g.decode7(t.log[0][1], t.log[1][1]), 1100)   # 750 제한·반전 없음
-        self.assertEqual(g.decode7(t.log[2][1], t.log[3][1]), 200)
+        self.assertEqual(g.decode7(t.log[2][1], t.log[3][1]), 100)
         self.assertEqual(t.log[4][1], seq)
 
     def test_rejects_out_of_range(self):
         w = g.RegisterWriter(g.DryTransport().write)
-        for c in (g.Command(1151, 200), g.Command(-1, 200), g.Command(100, 0), g.Command(100, 401)):
+        for c in (g.Command(1151, 100), g.Command(-1, 100), g.Command(100, 0), g.Command(100, 101)):
             with self.assertRaises(ValueError):
                 w.send(c)
 
@@ -61,7 +61,7 @@ class Writer(unittest.TestCase):
             log.append(a)
             return a != 12
         with self.assertRaises(RuntimeError):
-            g.RegisterWriter(write).send(g.Command(500, 200))
+            g.RegisterWriter(write).send(g.Command(500, 100))
         self.assertNotIn(10, log)
 
 

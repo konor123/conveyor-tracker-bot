@@ -1,0 +1,131 @@
+calibration_id: cal-2026-11-07-handeye-01
+date: '2026-11-07'
+transform:
+  parent_frame: base_link
+  child_frame: camera_color_optical_frame
+  translation_m:
+  - 0.8465827425227948
+  - 0.05628050882349247
+  - 0.5924757616195993
+  rotation_xyzw:
+  - 0.7127058466891053
+  - 0.7013811080881884
+  - 0.00987463500833993
+  - 0.004172396865436465
+camera_profile:
+  serial: '313522301601'
+  width: 1280
+  height: 800
+  fx: 646.3336181640625
+  fy: 645.405517578125
+  cx: 640.61962890625
+  cy: 405.6260681152344
+  distortion_model: plumb_bob
+  distortion:
+  - -0.05499815568327904
+  - 0.06443826854228973
+  - -0.0008744244114495814
+  - 0.0007429665420204401
+  - -0.021013302728533745
+residuals:
+  status: CANDIDATE_UNVERIFIED_PHYSICAL_ACCURACY
+  method: hand_eye_aruco_id25_park_decoupled_ls_plus_lm_bundle_refinement
+  fit_poses_count: 30
+  fit_corners_count: 120
+  rms_px: 0.977437
+  fit_reprojection_px:
+    corner_euclid_rms_px: 0.977437
+    corner_euclid_p95_px: 1.694288
+    corner_euclid_max_px: 2.222539
+    pose_rms_median_px: 0.880752
+    pose_rms_max_px: 1.714956
+  holdout_reprojection_px:
+    poses_count: 20
+    corners_count: 80
+    corner_euclid_rms_px: 1.147313
+    corner_euclid_p95_px: 1.924749
+    corner_euclid_max_px: 2.32448
+    pose_rms_median_px: 0.976679
+    pose_rms_max_px: 1.885758
+  verify:
+    pass: false
+    n: 0
+    xy_p50_m: null
+    xy_p95_m: null
+    xy_max_m: null
+    G1_pass: false
+    reason: 'UNVERIFIED PHYSICAL ACCURACY: 0 independent physical TCP touch points
+      collected (TC-BEN-012-01 requires n>=20 independent touch points with XY p95<=0.001
+      m and max<=0.002 m). Held-out pixel reprojection (1.147 px RMS) cannot certify
+      1 mm physical robot_base accuracy due to X-Y translational/rotational loop compensation
+      and unverified 40 mm marker scale.'
+transform_inverse:
+  parent_frame: camera_color_optical_frame
+  child_frame: base_link
+  matrix_direction: camera_color_optical_frame <- base_link
+  translation_unit: m
+  matrix_4x4:
+  - - 0.015934065600874514
+    - 0.9998392347757826
+    - 0.008222539535002555
+    - -0.07463262120424675
+  - - 0.9996744311911582
+    - -0.016094264642764644
+    - 0.019799148169639482
+    - -0.8571318435757174
+  - - 0.019928300882456604
+    - 0.007904381606824024
+    - -0.9997701653756987
+    - 0.5750237719418632
+  - - 0.0
+    - 0.0
+    - 0.0
+    - 1.0
+  translation_m:
+  - -0.07463262120424675
+  - -0.8571318435757174
+  - 0.5750237719418632
+  translation_mm:
+  - -74.63262120424676
+  - -857.1318435757173
+  - 575.0237719418632
+  rotation_matrix_3x3:
+  - - 0.015934065600874514
+    - 0.9998392347757826
+    - 0.008222539535002555
+  - - 0.9996744311911582
+    - -0.016094264642764644
+    - 0.019799148169639482
+  - - 0.019928300882456604
+    - 0.007904381606824024
+    - -0.9997701653756987
+  rotation_xyzw:
+  - -0.7127058466891053
+  - -0.7013811080881884
+  - -0.00987463500833993
+  - 0.004172396865436465
+  rodrigues_rvec_rad:
+  - -2.233103489608565
+  - -2.197619968032175
+  - -0.03093994808404613
+  rotation_angle_deg: 179.5218771510411
+  det_R: 1.0000000000000002
+  orthogonality_error_fro: 6.771411825337273e-16
+  note: Inverse of candidate Y (camera_color_optical_frame <- base_link)
+transform_matrix_4x4:
+- - 0.015934065600874514
+  - 0.9996744311911582
+  - 0.019928300882456604
+  - 0.8465827425227948
+- - 0.9998392347757826
+  - -0.016094264642764644
+  - 0.007904381606824024
+  - 0.05628050882349247
+- - 0.008222539535002555
+  - 0.019799148169639482
+  - -0.9997701653756987
+  - 0.5924757616195993
+- - 0.0
+  - 0.0
+  - 0.0
+  - 1.0

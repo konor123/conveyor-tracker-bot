@@ -5,10 +5,10 @@ import math
 
 import rclpy
 from rclpy.logging import get_logger
-from drop_interfaces.msg import (BeltMotion, Heartbeat, ObjectDetection, ObjectDetectionArray,
-                                 TrackedObject, TrackedObjectArray)
-from drop_interfaces.srv import DetectObjects, ResetTracking, SelectTarget, VerifyDrop
-from geometry_msgs.msg import Point, Vector3
+from drop_interfaces.msg import (BeltMotion, Heartbeat, InterceptPlan, ObjectDetection,
+                                 ObjectDetectionArray, TrackedObject, TrackedObjectArray)
+from drop_interfaces.srv import ComputeIntercept, DetectObjects, ResetTracking, SelectTarget, VerifyDrop
+from geometry_msgs.msg import Point, Pose, Quaternion, Vector3
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 
@@ -33,12 +33,15 @@ class MockWorldNode(MockLifecycleNode):
     def __init__(self, **kwargs):
         super().__init__('mock_world_node', **kwargs)
         self.declare_parameter('role', 'all')
+        self.declare_parameter('publish_plan', True)
         role = self.get_parameter('role').value
         if role not in ('vision', 'tracking', 'all'):
             raise ValueError(f'role은 vision|tracking|all: {role}')
         self.roles = ('vision', 'tracking') if role == 'all' else (role,)
+        self.publish_plan = bool(self.get_parameter('publish_plan').value) and ('tracking' in self.roles)
         self.resets = 0
         self.verify_calls = 0
+        self.plan_id = 0
         self._last_k = None
         self._seq = {r: 0 for r in self.roles}
 
@@ -53,6 +56,9 @@ class MockWorldNode(MockLifecycleNode):
             self.belt_pub = self.create_publisher(BeltMotion, 'belt/measured_motion', DATA_QOS)
             self.create_service(ResetTracking, 'tracking/reset', self._reset)
             self.create_service(SelectTarget, 'tracking/select_target', self._select)
+        if self.publish_plan:
+            self.plan_pub = self.create_publisher(InterceptPlan, 'drop/intercept_plan', DATA_QOS)
+            self.create_service(ComputeIntercept, 'planner/compute_intercept', self._compute_intercept)
         self.create_timer(1.0 / self.engine.rate, self._on_frame)
         # heartbeat는 프레임·서비스 콜백과 다른 그룹에 둬서 그쪽이 늦어도 끊기지 않게 한다
         self.create_timer(HEARTBEAT_PERIOD_S, self._on_heartbeat, callback_group=MutuallyExclusiveCallbackGroup())
@@ -164,6 +170,31 @@ class MockWorldNode(MockLifecycleNode):
             res.t_enter_window = self._stamp(r.t_enter_window, offset)
         return res
 
+    def _compute_intercept(self, req, res):
+        if self._refuse(req, res):
+            return res
+        t = self.scenario_t()
+        r = self.engine.compute_intercept(t, req.target_track_id, req.target_epoch, self.resets)
+        k = max(0, self.engine.frame_index(t))
+        offset = self.engine.frame(k).stamp_offset
+        self.plan_id += 1
+        plan = InterceptPlan(
+            plan_id=self.plan_id, revision=1, target_track_id=r.track_id, target_epoch=r.epoch,
+            source_state_stamp=self._stamp(r.source_t, offset),
+            release_time=self._stamp(r.release_t, offset),
+            valid_until=self._stamp(r.valid_until_t, offset),
+            target_tcp_pose=Pose(position=Point(x=r.target_xyz[0], y=r.target_xyz[1], z=r.target_xyz[2]),
+                                 orientation=Quaternion(x=0.0, y=0.0, z=0.0, w=1.0)),
+            target_velocity=Vector3(x=r.target_vel[0], y=r.target_vel[1], z=r.target_vel[2]),
+            position_std=r.position_std, time_margin=r.time_margin_s,
+            status=r.status, reason=r.reason_code)
+        plan.header.stamp = self.get_clock().now().to_msg()
+        plan.header.frame_id = 'robot_base'
+        res.result, res.reason_code, res.plan = r.result, r.reason_code, plan
+        if r.result == RESULT['OK'] and self.publish_plan:
+            self.plan_pub.publish(plan)
+        return res
+
 
 def main(args=None):
     rclpy.init(args=args)
@@ -173,7 +204,7 @@ def main(args=None):
         get_logger('mock_world_node').error(str(e))
         rclpy.try_shutdown()
         raise SystemExit(1)
-    executor = MultiThreadedExecutor()
+    executor = MultiThreadedExecutor(num_threads=2)
     executor.add_node(node)
     try:
         executor.spin()

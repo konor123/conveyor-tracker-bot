@@ -1,0 +1,44 @@
+{
+  "bag": "/home/umm/drop_bags/2026-11-07/2026-11-07_201202_off1-moving-analog-fast-1-long",
+  "sizes": [
+    [
+      1280,
+      800
+    ]
+  ],
+  "streams": {
+    "/camera/camera/color/image_raw": {
+      "count": 1933,
+      "stamp_span_s": 114.979571533,
+      "non_increasing_stamps": 0,
+      "gaps_over_50ms": 2,
+      "stamp_interval_p50_s": 0.033375977,
+      "stamp_interval_max_s": 50.497432129
+    },
+    "/camera/camera/color/camera_info": {
+      "count": 1932,
+      "stamp_span_s": 64.482139404,
+      "non_increasing_stamps": 0,
+      "gaps_over_50ms": 1,
+      "stamp_interval_p50_s": 0.033375977,
+      "stamp_interval_max_s": 0.066748536
+    }
+  },
+  "matching_rgb_camera_info_stamps": 1932,
+  "pairing_audit": {
+    "unpaired_rgb": [
+      {
+        "index": 0,
+        "stamp_ns": 1794049872175338135,
+        "bag_time_ns": 1794049922685213620,
+        "bag_time_minus_stamp_s": 50.509875485
+      }
+    ],
+    "paired_count": 1932,
+    "paired_stamp_span_s": 64.482139404,
+    "paired_max_gap_s": 0.066748536,
+    "paired_gaps_over_50ms": 1,
+    "paired_non_increasing": 0,
+    "note": "Original bag preserved. Paired subset quality does not certify the unmatched RGB frame as fresh."
+  }
+}

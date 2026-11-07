@@ -1,0 +1,7 @@
+waiting for service to become available...
+requester: making request: dsr_msgs2.srv.MoveLine_Request(pos=array([ 640.79712294,    7.50449475,  295.90988628,   -1.2541417 ,
+        150.2403682 , -101.94361616]), vel=array([10.,  5.]), acc=array([20., 10.]), time=0.0, radius=0.0, ref=0, mode=0, blend_type=0, sync_type=0)
+
+response:
+dsr_msgs2.srv.MoveLine_Response(success=True)
+

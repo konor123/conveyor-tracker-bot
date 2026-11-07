@@ -109,6 +109,10 @@ TCP 자세 (R_i, t_i)와 관측한 공깃돌 중심 p_i로 p_i = R_i·o + t_i를
 | 검증 불합격 | 파일은 쓰되 `residuals.verify.pass: false`, 종료 코드 2. PRECHECK에서 쓰면 안 된다 |
 | 보정 파일 필수 항목 누락·값 오류 | `CalibrationFileError`, 노드는 기동하지 않는다 |
 | vision과 orchestrator의 calibration_id 불일치 | PRECHECK FAILED(`CALIBRATION_MISMATCH`), 로봇 미동작 |
+| 독립 검증 점 부족 / 중복 / fit 점 재사용 | `CalibrationError('INSUFFICIENT_POINTS' / 'DUPLICATE_POINTS' / 'FIT_POINT_REUSE')`, 검증 거부 |
+| 입력 비유한값 / 불량 변환 / 단위 오류 | `CalibrationError('NONFINITE_INPUT' / 'MALFORMED_TRANSFORM' / 'INVALID_UNITS')`, 검증 거부 |
+| 포인터 TCP 미정의 / 출처·프로파일 불일치 | `CalibrationError('UNKNOWN_POINTER_TCP' / 'MISSING_PROVENANCE' / 'CALIBRATION_MISMATCH' / 'PROFILE_MISMATCH')`, 검증 거부 |
+| 합성 데이터를 물리 검증에 제출 | `CalibrationError('SYNTHETIC_DATA_REJECTED')`, 물리 게이트 합격 불가 |
 
 ## 7. 성공 판정(측정 가능)
 
@@ -120,11 +124,12 @@ TCP 자세 (R_i, t_i)와 관측한 공깃돌 중심 p_i로 p_i = R_i·o + t_i를
 - REQ-CAL-006: `pixel_to_plane`은 오차 없는 투영을 1 µm 이내로 되돌린다. `verify_xy`는 p95(선형 보간 백분위)·최대를 내고 n < 20이면 불합격이다.
 - REQ-CAL-008: `base_link` ← `camera_link`에 드라이버 TF를 합성하면 보정 결과 `base_link` ← 광학 프레임과 1e-12 이내로 같다.
 - REQ-CAL-009: `compare_camera_info`는 프로파일과 같은 CameraInfo(fx 차이 0.4 px 포함)에서 빈 목록을 낸다. 크기·왜곡 모델 불일치, cx 0.6 px 차이, 왜곡 투영 차이 > 0.5 px는 해당 항목을 담은 불일치로 낸다. `check_focal=False`면 fx·fy 차이(2.2 px)를 불일치로 내지 않는다.
-- REQ-CAL-007: ChArUco 코너는 원근 렌더 영상에서 ≤ 0.2 px, 보드 자세는 이동 ≤ 1 mm, 회전 ≤ 0.2°다. 보드 좌표는 인쇄 원본(PDF)의 배치와 같다.
+- REQ-CAL-007: ChArUco 코너는 원근 렌더 영상에서 ≤ 0.2 px, 보드 자세는 이동 ≤ 1 mm·회전 ≤ 0.2°다. 보드 좌표는 인쇄 원본(PDF)의 배치와 같다.
+- REQ-CAL-010: 후보 카메라 외부 보정의 독립 접촉점 검증 도구(CLI/라이브러리)는 common frame(`base_link`) 상에서 카메라 추정 위치와 포인터 보정된 로봇 실제 접촉점 간의 점별 XY 잔차를 계산하고, n>=20점 검증 시 제안 기준(p95 <= 1 mm, max <= 2 mm, 구성 가능)으로 합격 여부를 판정한다. 20점 미만, 중복/재사용 fit 점 또는 ID, 비유한값/불량 변환, 잘못된 단위/미확인 포인터 TCP, 출처(provenance) 누락 또는 카메라 프로파일/배치 불일치, 그리고 물리 게이트 판정에 합성 데이터를 제출하는 경우 즉시 거부하며, 생산 파일 자동 덮어쓰기나 영상 재투영 rms 기반 G1_pass를 엄격히 금지한다.
 
 ## 8. 검증 방법(`TEST_SPEC.md` TC ID, 게이트)
 
-- U: TC-CAL-001-01, TC-CAL-002-01, TC-CAL-002-02, TC-CAL-003-01~04, TC-CAL-004-01, TC-CAL-005-01, TC-CAL-006-01, TC-CAL-007-01, TC-CAL-008-01, TC-CAL-009-01 (`src/calibration/test/`)
+- U: TC-CAL-001-01, TC-CAL-002-01, TC-CAL-002-02, TC-CAL-003-01~04, TC-CAL-004-01, TC-CAL-005-01, TC-CAL-006-01, TC-CAL-007-01, TC-CAL-008-01, TC-CAL-009-01, TC-CAL-010-01~03 (`src/calibration/test/`)
 - C: TC-CAL-005-02(vision_node 구현 후)
 - B: TC-BEN-012-01(OFF-3 검증 점)
 - 게이트: G1

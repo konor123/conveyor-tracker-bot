@@ -1,0 +1,13 @@
+{
+  "frames_received": 420,
+  "blue_region_observations": 238,
+  "u_range_px": [
+    379.18840579710144,
+    661.7469638014385
+  ],
+  "v_range_px": [
+    293.519890260631,
+    353.43621103117505
+  ],
+  "method": "qualitative blue-HSV QC in pixel ROI; not calibrated detection, identity tracking, or metric speed measurement"
+}

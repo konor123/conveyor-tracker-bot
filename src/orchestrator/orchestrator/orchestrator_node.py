@@ -4,6 +4,7 @@
 """
 from __future__ import annotations
 
+import json
 import math
 import os
 import threading
@@ -18,15 +19,17 @@ from drop_interfaces.msg import (BeltMotion, Heartbeat, ObjectDetection, ObjectD
 from drop_interfaces.srv import ComputeIntercept, DetectObjects, SelectTarget, Stop, VerifyDrop
 from geometry_msgs.msg import Point, Pose
 from lifecycle_msgs.msg import State as LcState
+from rcl_interfaces.msg import SetParametersResult
 from rclpy.action import ActionClient, ActionServer, CancelResponse, GoalResponse
-from rclpy.callback_groups import ReentrantCallbackGroup
+from rclpy.callback_groups import MutuallyExclusiveCallbackGroup, ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
+from rclpy.parameter import Parameter
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 
 from . import step_judges as sj
 from .abort_policy import Event
-from .common import Mode, State
+from .common import AbortLevel, Mode, State
 from .cycle_runner import CapObservation, CycleRunner, DetectResult, DropGoal, OrchestratorCfg
 from .watchdogs import HeartbeatMonitor
 
@@ -89,8 +92,10 @@ class RosSkillPort:
         self._feedback: list = []
         self._mode = Mode.STATIC
         self._fault: Event | None = None
+        self._triggered_faults: set[Event] = set()
         self.drop_goal_handle = None
         self.target = None             # (track_id, epoch)
+        self._skipped_tracks: set[int] = set()
         self.static_cap = None         # MODE_STATIC 목표(robot_base Point)
         self.plan_id = 0
 
@@ -99,16 +104,21 @@ class RosSkillPort:
         self._goal = self._result_future = None
         self._feedback = []
         self._fault = None
+        self._triggered_faults = set()
         self.drop_goal_handle = goal_handle
         self.target = self.static_cap = None
+        self._skipped_tracks = set()
 
     def raise_fault(self, event: Event) -> None:
-        if self._fault is None and self.drop_goal_handle is not None:
+        if self._fault is None and self.drop_goal_handle is not None and event not in self._triggered_faults:
+            self._triggered_faults.add(event)
             self._fault = event
             self.n.get_logger().warning(f'비동기 장애: {event.name}')
 
     def pending_fault(self) -> Event | None:
-        return self._fault
+        self.n._watch()
+        ev, self._fault = self._fault, None
+        return ev
 
     def _wait(self, pred, deadline: float | None) -> bool:
         while True:
@@ -121,7 +131,7 @@ class RosSkillPort:
             time.sleep(POLL_S)
 
     def _call(self, typ, name: str, deadline: float, **fields):
-        cli = self.n.clients[name]
+        cli = self.n.srv_clients[name]
         if not self._wait(cli.service_is_ready, deadline):
             return None
         fut = cli.call_async(typ.Request(cycle_id=self.n.cycle_id, step_id=self.n.step_id,
@@ -242,13 +252,15 @@ class RosSkillPort:
         return CapObservation(meas, dyn)
 
     def select_target(self, pass_index, deadline):
+        if pass_index > 1 and self.target is not None:
+            self._skipped_tracks.add(self.target[0])
         retry = float(self.n.node_cfg['select_retry_s'])
         while True:
             r = self._call(SelectTarget, 'tracking/select_target', deadline,
                            object_class=ObjectDetection.CLASS_CAP, min_observation_count=1)
             if r is None:
                 return None
-            if r.result == 0:
+            if r.result == 0 and r.track_id not in self._skipped_tracks:
                 self.target = (r.track_id, r.epoch)
                 return self._cap_obs()
             if not self._wait(lambda: False, min(deadline, self.clock.ros_now() + retry)) and \
@@ -326,7 +338,13 @@ class RosSkillPort:
         if not self._wait(done, deadline):
             return None
         fb = next((fb for _, fb in self._feedback if fb.phase == phase and fb.phase_done), None)
-        return metrics_of(fb) if fb is not None else {}
+        if fb is None:
+            if self._result_future is not None and self._result_future.done():
+                r = self._result_future.result().result
+                if getattr(r, 'reason_code', '') == 'PROTECTIVE_STOP':
+                    self.raise_fault(Event.PROTECTIVE_STOP)
+            return None
+        return metrics_of(fb)
 
     def place_feedback(self, phase, deadline):
         m = self._phase_done(phase, deadline)
@@ -367,7 +385,7 @@ class RosSkillPort:
 
     def _call_unguarded(self, typ, name, timeout_s, **fields):
         """장애 중에도 보내야 하는 호출(Stop). steady 제한시간."""
-        cli = self.n.clients[name]
+        cli = self.n.srv_clients[name]
         end = time.monotonic() + timeout_s
         while not cli.service_is_ready() and time.monotonic() < end:
             time.sleep(POLL_S)
@@ -399,6 +417,8 @@ class OrchestratorNode(Node):
         super().__init__('orchestrator_node', **kwargs)
         self.declare_parameter('config', '')
         self.declare_parameter('calibration_id', '')
+        self.declare_parameter('last_trial_json', '')
+        self.declare_parameter('resume_reason', '')
         path = self.get_parameter('config').value or self._default_config()
         with open(path, encoding='utf-8') as fh:
             self.cfg_dict = yaml.safe_load(fh)
@@ -407,23 +427,23 @@ class OrchestratorNode(Node):
         self.budget = self.cfg_dict['budget']
         self.clock = RosClock(self)
         self.group = ReentrantCallbackGroup()
-        g = self.group
+        self.hb_group = MutuallyExclusiveCallbackGroup()
         self.hb = HeartbeatMonitor(float(self.cfg_dict['watchdog']['heartbeat_timeout_s']), self.clock)
         self.lifecycle: dict[str, int] = {}
         self.robot_status = self.belt = self.tracked = self.detections = None
         self.tracked_seq = 0
-        self.create_subscription(Heartbeat, 'system/heartbeat', self._on_hb, HB_QOS, callback_group=g)
-        self.create_subscription(RobotStatus, 'robot/status', self._on_status, DATA_QOS, callback_group=g)
+        self.create_subscription(Heartbeat, 'system/heartbeat', self._on_hb, HB_QOS, callback_group=self.hb_group)
+        self.create_subscription(RobotStatus, 'robot/status', self._on_status, DATA_QOS, callback_group=self.hb_group)
         self.create_subscription(BeltMotion, 'belt/measured_motion', lambda m: setattr(self, 'belt', m),
-                                 DATA_QOS, callback_group=g)
-        self.create_subscription(TrackedObjectArray, 'objects/tracked', self._on_tracked, DATA_QOS, callback_group=g)
+                                 DATA_QOS)
+        self.create_subscription(TrackedObjectArray, 'objects/tracked', self._on_tracked, DATA_QOS)
         self.create_subscription(ObjectDetectionArray, 'objects/detections',
-                                 lambda m: setattr(self, 'detections', m), DATA_QOS, callback_group=g)
-        self.clients = {name: self.create_client(typ, name, callback_group=g) for name, typ in (
+                                 lambda m: setattr(self, 'detections', m), DATA_QOS)
+        self.srv_clients = {name: self.create_client(typ, name) for name, typ in (
             ('vision/detect_objects', DetectObjects), ('vision/verify_drop', VerifyDrop),
             ('tracking/select_target', SelectTarget), ('planner/compute_intercept', ComputeIntercept),
             ('robot/stop', Stop))}
-        self.actions = {name: ActionClient(self, typ, name, callback_group=g) for name, typ in (
+        self.actions = {name: ActionClient(self, typ, name) for name, typ in (
             ('robot/pick_stone', PickStone), ('robot/move_to_pose', MoveToPose), ('robot/place_stone', PlaceStone),
             ('robot/dynamic_place', DynamicPlace), ('robot/safe_retreat', SafeRetreat))}
         self.status_pub = self.create_publisher(TaskStatus, 'task/status', STATUS_QOS)
@@ -438,10 +458,20 @@ class OrchestratorNode(Node):
         self.abort_level = 0
         self._busy = threading.Lock()
         self._t_cycle_end = math.inf
+        self.add_on_set_parameters_callback(self._on_params)
         ActionServer(self, DropTask, 'drop_task', execute_callback=self._execute, goal_callback=self._on_goal,
-                     cancel_callback=lambda _: CancelResponse.ACCEPT, callback_group=g)
-        self.create_timer(float(self.node_cfg['status_period_s']), self._publish_status, callback_group=g)
-        self.create_timer(0.05, self._watch, callback_group=g)
+                     cancel_callback=lambda _: CancelResponse.ACCEPT, callback_group=self.group)
+        self.create_timer(float(self.node_cfg['status_period_s']), self._publish_status)
+        self.create_timer(0.05, self._watch, callback_group=self.hb_group)
+
+    def _on_params(self, params):
+        for p in params:
+            if p.name == 'resume_reason' and str(p.value).strip():
+                if self.runner.resume(str(p.value)):
+                    self.state = State.IDLE
+                    self.abort_level = 0
+                    self._publish_status()
+        return SetParametersResult(successful=True)
 
     @staticmethod
     def _default_config() -> str:
@@ -520,14 +550,32 @@ class OrchestratorNode(Node):
         end = time.monotonic() + float(self.node_cfg['startup_wait_s'])
         while time.monotonic() < end and not (
                 self.robot_status is not None
-                and all(n in self.lifecycle for n in self.node_cfg['required_nodes'])):
+                and self.belt is not None
+                and self.detections is not None
+                and all(self.lifecycle.get(n) == LcState.PRIMARY_STATE_ACTIVE
+                        for n in self.node_cfg['required_nodes'])):
             time.sleep(0.05)
         self._t_cycle_end = self.clock.ros_now() + g.timeout
         out = self.runner.run(DropGoal(mode=Mode(g.mode), max_belt_speed_mps=g.max_belt_speed, timeout_s=g.timeout,
                                        max_passes=g.max_passes))
         self._t_cycle_end = math.inf
+        if out.abort_level in (AbortLevel.L1, AbortLevel.L2, AbortLevel.L3, AbortLevel.L4):
+            self.abort_level = max(self.abort_level, int(out.abort_level))
         self.state = out.states[-1] if out.states else State.IDLE
+        step_durs = {r.step_name: round(max(0.0, r.t_end - r.t_start), 6) for r in out.records}
+        summary = {
+            'trial_id': self.cycle_id,
+            'mode': f'MODE_{Mode(g.mode).name}',
+            'result': out.result,
+            'abort_level': int(self.abort_level),
+            'reason_code': out.reason_code,
+            'passes_skipped': int(out.passes_skipped),
+            'cycle_time_s': round(max(0.0, out.cycle_time_s), 6),
+            'step_durations_s': step_durs,
+        }
+        self.set_parameters([Parameter('last_trial_json', value=json.dumps(summary, ensure_ascii=False))])
         self._publish_status()
+        time.sleep(0.03)
         res = DropTask.Result(result=RESULT_NAMES.index(out.result) if out.result in RESULT_NAMES else 2,
                               reason_code=out.reason_code, release_error_valid=False, stone_offset_valid=False,
                               cycle_time=out.cycle_time_s, passes_skipped=out.passes_skipped)
@@ -544,7 +592,7 @@ class OrchestratorNode(Node):
 def main(args=None):
     rclpy.init(args=args)
     node = OrchestratorNode()
-    executor = MultiThreadedExecutor(num_threads=8)
+    executor = MultiThreadedExecutor(num_threads=4)
     executor.add_node(node)
     try:
         executor.spin()

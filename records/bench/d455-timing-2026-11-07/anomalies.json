@@ -1,0 +1,1418 @@
+{
+  "color": {
+    "duplicate_stamp": 1,
+    "reverse_stamp": 0,
+    "anomalies": [
+      {
+        "elapsed_s": 18.689494186000957,
+        "delta_stamp_ms": 66.7470703125,
+        "delta_counter": 2,
+        "previous": {
+          "elapsed_s": "18.622721875002753",
+          "stream": "color",
+          "frame_number": "846",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051380124.7344",
+          "arrival_unix_s": "1794051380.1408305",
+          "arrival_monotonic_s": "27773.528399555",
+          "actual_exposure_raw": "",
+          "white_balance_raw": ""
+        },
+        "current": {
+          "elapsed_s": "18.689494186000957",
+          "stream": "color",
+          "frame_number": "848",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051380191.4814",
+          "arrival_unix_s": "1794051380.2076023",
+          "arrival_monotonic_s": "27773.595171866",
+          "actual_exposure_raw": "",
+          "white_balance_raw": ""
+        }
+      },
+      {
+        "elapsed_s": 37.84668113800217,
+        "delta_stamp_ms": 66.75244140625,
+        "delta_counter": 2,
+        "previous": {
+          "elapsed_s": "37.77980096000101",
+          "stream": "color",
+          "frame_number": "1420",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051399281.9119",
+          "arrival_unix_s": "1794051399.2979097",
+          "arrival_monotonic_s": "27792.68547864",
+          "actual_exposure_raw": "",
+          "white_balance_raw": ""
+        },
+        "current": {
+          "elapsed_s": "37.84668113800217",
+          "stream": "color",
+          "frame_number": "1422",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051399348.6643",
+          "arrival_unix_s": "1794051399.3647892",
+          "arrival_monotonic_s": "27792.752358818",
+          "actual_exposure_raw": "",
+          "white_balance_raw": ""
+        }
+      },
+      {
+        "elapsed_s": 65.08072625600107,
+        "delta_stamp_ms": 66.735107421875,
+        "delta_counter": 2,
+        "previous": {
+          "elapsed_s": "65.0139534230002",
+          "stream": "color",
+          "frame_number": "2236",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051426516.1047",
+          "arrival_unix_s": "1794051426.532062",
+          "arrival_monotonic_s": "27819.919631103",
+          "actual_exposure_raw": "",
+          "white_balance_raw": ""
+        },
+        "current": {
+          "elapsed_s": "65.08072625600107",
+          "stream": "color",
+          "frame_number": "2238",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051426582.8398",
+          "arrival_unix_s": "1794051426.598835",
+          "arrival_monotonic_s": "27819.986403936",
+          "actual_exposure_raw": "",
+          "white_balance_raw": ""
+        }
+      },
+      {
+        "elapsed_s": 103.99579192100282,
+        "delta_stamp_ms": 66.746337890625,
+        "delta_counter": 2,
+        "previous": {
+          "elapsed_s": "103.92893135200211",
+          "stream": "color",
+          "frame_number": "3402",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051465431.109",
+          "arrival_unix_s": "1794051465.4470396",
+          "arrival_monotonic_s": "27858.834609032",
+          "actual_exposure_raw": "",
+          "white_balance_raw": ""
+        },
+        "current": {
+          "elapsed_s": "103.99579192100282",
+          "stream": "color",
+          "frame_number": "3404",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051465497.8552",
+          "arrival_unix_s": "1794051465.5138998",
+          "arrival_monotonic_s": "27858.901469601",
+          "actual_exposure_raw": "",
+          "white_balance_raw": ""
+        }
+      },
+      {
+        "elapsed_s": 117.84638231099962,
+        "delta_stamp_ms": 66.75048828125,
+        "delta_counter": 2,
+        "previous": {
+          "elapsed_s": "117.7797142820018",
+          "stream": "color",
+          "frame_number": "3817",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051479281.6946",
+          "arrival_unix_s": "1794051479.2978227",
+          "arrival_monotonic_s": "27872.685391962",
+          "actual_exposure_raw": "",
+          "white_balance_raw": ""
+        },
+        "current": {
+          "elapsed_s": "117.84638231099962",
+          "stream": "color",
+          "frame_number": "3819",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051479348.445",
+          "arrival_unix_s": "1794051479.3644898",
+          "arrival_monotonic_s": "27872.752059991",
+          "actual_exposure_raw": "",
+          "white_balance_raw": ""
+        }
+      },
+      {
+        "elapsed_s": 118.78100731900122,
+        "delta_stamp_ms": 66.75048828125,
+        "delta_counter": 2,
+        "previous": {
+          "elapsed_s": "118.7141398590029",
+          "stream": "color",
+          "frame_number": "3845",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051480216.2034",
+          "arrival_unix_s": "1794051480.232248",
+          "arrival_monotonic_s": "27873.619817539",
+          "actual_exposure_raw": "",
+          "white_balance_raw": ""
+        },
+        "current": {
+          "elapsed_s": "118.78100731900122",
+          "stream": "color",
+          "frame_number": "3847",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051480282.9539",
+          "arrival_unix_s": "1794051480.2991161",
+          "arrival_monotonic_s": "27873.686684999",
+          "actual_exposure_raw": "",
+          "white_balance_raw": ""
+        }
+      },
+      {
+        "elapsed_s": 147.81737038700157,
+        "delta_stamp_ms": 66.75146484375,
+        "delta_counter": 2,
+        "previous": {
+          "elapsed_s": "147.7504735980001",
+          "stream": "color",
+          "frame_number": "4715",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051509252.3848",
+          "arrival_unix_s": "1794051509.2685819",
+          "arrival_monotonic_s": "27902.656151278",
+          "actual_exposure_raw": "",
+          "white_balance_raw": ""
+        },
+        "current": {
+          "elapsed_s": "147.81737038700157",
+          "stream": "color",
+          "frame_number": "4717",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051509319.1362",
+          "arrival_unix_s": "1794051509.3354769",
+          "arrival_monotonic_s": "27902.723048067",
+          "actual_exposure_raw": "",
+          "white_balance_raw": ""
+        }
+      },
+      {
+        "elapsed_s": 156.79507661699972,
+        "delta_stamp_ms": 66.7490234375,
+        "delta_counter": 2,
+        "previous": {
+          "elapsed_s": "156.72819296200032",
+          "stream": "color",
+          "frame_number": "4984",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051518230.2886",
+          "arrival_unix_s": "1794051518.2463005",
+          "arrival_monotonic_s": "27911.633870642",
+          "actual_exposure_raw": "",
+          "white_balance_raw": ""
+        },
+        "current": {
+          "elapsed_s": "156.79507661699972",
+          "stream": "color",
+          "frame_number": "4986",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051518297.0376",
+          "arrival_unix_s": "1794051518.3131824",
+          "arrival_monotonic_s": "27911.700754297",
+          "actual_exposure_raw": "",
+          "white_balance_raw": ""
+        }
+      },
+      {
+        "elapsed_s": 165.23919720100093,
+        "delta_stamp_ms": 66.748291015625,
+        "delta_counter": 2,
+        "previous": {
+          "elapsed_s": "165.17239078400235",
+          "stream": "color",
+          "frame_number": "5237",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051526674.1934",
+          "arrival_unix_s": "1794051526.6905",
+          "arrival_monotonic_s": "27920.078068464",
+          "actual_exposure_raw": "",
+          "white_balance_raw": ""
+        },
+        "current": {
+          "elapsed_s": "165.23919720100093",
+          "stream": "color",
+          "frame_number": "5239",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051526740.9417",
+          "arrival_unix_s": "1794051526.7573051",
+          "arrival_monotonic_s": "27920.144874881",
+          "actual_exposure_raw": "",
+          "white_balance_raw": ""
+        }
+      },
+      {
+        "elapsed_s": 165.73950801700266,
+        "delta_stamp_ms": 100.121826171875,
+        "delta_counter": 3,
+        "previous": {
+          "elapsed_s": "165.64060868900197",
+          "stream": "color",
+          "frame_number": "5251",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051527141.4307",
+          "arrival_unix_s": "1794051527.1587164",
+          "arrival_monotonic_s": "27920.546286369",
+          "actual_exposure_raw": "",
+          "white_balance_raw": ""
+        },
+        "current": {
+          "elapsed_s": "165.73950801700266",
+          "stream": "color",
+          "frame_number": "5254",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051527241.5525",
+          "arrival_unix_s": "1794051527.2576158",
+          "arrival_monotonic_s": "27920.645185697",
+          "actual_exposure_raw": "",
+          "white_balance_raw": ""
+        }
+      },
+      {
+        "elapsed_s": 166.03977243100235,
+        "delta_stamp_ms": 66.749755859375,
+        "delta_counter": 2,
+        "previous": {
+          "elapsed_s": "165.97433667199948",
+          "stream": "color",
+          "frame_number": "5261",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051527475.1726",
+          "arrival_unix_s": "1794051527.4924452",
+          "arrival_monotonic_s": "27920.880014352",
+          "actual_exposure_raw": "",
+          "white_balance_raw": ""
+        },
+        "current": {
+          "elapsed_s": "166.03977243100235",
+          "stream": "color",
+          "frame_number": "5263",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051527541.9224",
+          "arrival_unix_s": "1794051527.5578804",
+          "arrival_monotonic_s": "27920.945450111",
+          "actual_exposure_raw": "",
+          "white_balance_raw": ""
+        }
+      },
+      {
+        "elapsed_s": 166.37352732699947,
+        "delta_stamp_ms": 100.124755859375,
+        "delta_counter": 3,
+        "previous": {
+          "elapsed_s": "166.2756869980003",
+          "stream": "color",
+          "frame_number": "5270",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051527775.5476",
+          "arrival_unix_s": "1794051527.7937949",
+          "arrival_monotonic_s": "27921.181364678",
+          "actual_exposure_raw": "",
+          "white_balance_raw": ""
+        },
+        "current": {
+          "elapsed_s": "166.37352732699947",
+          "stream": "color",
+          "frame_number": "5273",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051527875.6724",
+          "arrival_unix_s": "1794051527.8916361",
+          "arrival_monotonic_s": "27921.279205007",
+          "actual_exposure_raw": "",
+          "white_balance_raw": ""
+        }
+      },
+      {
+        "elapsed_s": 166.60722261800038,
+        "delta_stamp_ms": 66.749755859375,
+        "delta_counter": 2,
+        "previous": {
+          "elapsed_s": "166.54048153500116",
+          "stream": "color",
+          "frame_number": "5278",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051528042.5469",
+          "arrival_unix_s": "1794051528.05859",
+          "arrival_monotonic_s": "27921.446159215",
+          "actual_exposure_raw": "",
+          "white_balance_raw": ""
+        },
+        "current": {
+          "elapsed_s": "166.60722261800038",
+          "stream": "color",
+          "frame_number": "5280",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051528109.2966",
+          "arrival_unix_s": "1794051528.1253307",
+          "arrival_monotonic_s": "27921.512900298",
+          "actual_exposure_raw": "",
+          "white_balance_raw": ""
+        }
+      },
+      {
+        "elapsed_s": 166.94097206600054,
+        "delta_stamp_ms": 100.11865234375,
+        "delta_counter": 3,
+        "previous": {
+          "elapsed_s": "166.84073858800184",
+          "stream": "color",
+          "frame_number": "5287",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051528342.9219",
+          "arrival_unix_s": "1794051528.3588467",
+          "arrival_monotonic_s": "27921.746416268",
+          "actual_exposure_raw": "",
+          "white_balance_raw": ""
+        },
+        "current": {
+          "elapsed_s": "166.94097206600054",
+          "stream": "color",
+          "frame_number": "5290",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051528443.0405",
+          "arrival_unix_s": "1794051528.4590805",
+          "arrival_monotonic_s": "27921.846649746",
+          "actual_exposure_raw": "",
+          "white_balance_raw": ""
+        }
+      },
+      {
+        "elapsed_s": 167.2418402200019,
+        "delta_stamp_ms": 66.745361328125,
+        "delta_counter": 2,
+        "previous": {
+          "elapsed_s": "167.17451286900177",
+          "stream": "color",
+          "frame_number": "5297",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051528676.6501",
+          "arrival_unix_s": "1794051528.6926205",
+          "arrival_monotonic_s": "27922.080190549",
+          "actual_exposure_raw": "",
+          "white_balance_raw": ""
+        },
+        "current": {
+          "elapsed_s": "167.2418402200019",
+          "stream": "color",
+          "frame_number": "5299",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051528743.3955",
+          "arrival_unix_s": "1794051528.7599485",
+          "arrival_monotonic_s": "27922.1475179",
+          "actual_exposure_raw": "",
+          "white_balance_raw": ""
+        }
+      },
+      {
+        "elapsed_s": 167.57507619800163,
+        "delta_stamp_ms": 66.74609375,
+        "delta_counter": 2,
+        "previous": {
+          "elapsed_s": "167.50847694299955",
+          "stream": "color",
+          "frame_number": "5307",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051529010.3762",
+          "arrival_unix_s": "1794051529.0265856",
+          "arrival_monotonic_s": "27922.414154623",
+          "actual_exposure_raw": "",
+          "white_balance_raw": ""
+        },
+        "current": {
+          "elapsed_s": "167.57507619800163",
+          "stream": "color",
+          "frame_number": "5309",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051529077.1223",
+          "arrival_unix_s": "1794051529.0931847",
+          "arrival_monotonic_s": "27922.480753878",
+          "actual_exposure_raw": "",
+          "white_balance_raw": ""
+        }
+      },
+      {
+        "elapsed_s": 168.9442693730016,
+        "delta_stamp_ms": 66.746337890625,
+        "delta_counter": 2,
+        "previous": {
+          "elapsed_s": "168.876812642",
+          "stream": "color",
+          "frame_number": "5348",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051530378.7446",
+          "arrival_unix_s": "1794051530.3949206",
+          "arrival_monotonic_s": "27923.782490322",
+          "actual_exposure_raw": "",
+          "white_balance_raw": ""
+        },
+        "current": {
+          "elapsed_s": "168.9442693730016",
+          "stream": "color",
+          "frame_number": "5350",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051530445.491",
+          "arrival_unix_s": "1794051530.4623773",
+          "arrival_monotonic_s": "27923.849947053",
+          "actual_exposure_raw": "",
+          "white_balance_raw": ""
+        }
+      },
+      {
+        "elapsed_s": 169.27723920800054,
+        "delta_stamp_ms": 133.489990234375,
+        "delta_counter": 4,
+        "previous": {
+          "elapsed_s": "169.1438247590013",
+          "stream": "color",
+          "frame_number": "5356",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051530645.7266",
+          "arrival_unix_s": "1794051530.6619334",
+          "arrival_monotonic_s": "27924.049502439",
+          "actual_exposure_raw": "",
+          "white_balance_raw": ""
+        },
+        "current": {
+          "elapsed_s": "169.27723920800054",
+          "stream": "color",
+          "frame_number": "5360",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051530779.2166",
+          "arrival_unix_s": "1794051530.7953467",
+          "arrival_monotonic_s": "27924.182916888",
+          "actual_exposure_raw": "",
+          "white_balance_raw": ""
+        }
+      },
+      {
+        "elapsed_s": 169.5107844970007,
+        "delta_stamp_ms": 66.74462890625,
+        "delta_counter": 2,
+        "previous": {
+          "elapsed_s": "169.44407176700042",
+          "stream": "color",
+          "frame_number": "5365",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051530946.0786",
+          "arrival_unix_s": "1794051530.9621806",
+          "arrival_monotonic_s": "27924.349749447",
+          "actual_exposure_raw": "",
+          "white_balance_raw": ""
+        },
+        "current": {
+          "elapsed_s": "169.5107844970007",
+          "stream": "color",
+          "frame_number": "5367",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051531012.8232",
+          "arrival_unix_s": "1794051531.0288932",
+          "arrival_monotonic_s": "27924.416462177",
+          "actual_exposure_raw": "",
+          "white_balance_raw": ""
+        }
+      },
+      {
+        "elapsed_s": 170.34537851300047,
+        "delta_stamp_ms": 66.755859375,
+        "delta_counter": 2,
+        "previous": {
+          "elapsed_s": "170.27852309599984",
+          "stream": "color",
+          "frame_number": "5390",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051531780.444",
+          "arrival_unix_s": "1794051531.7966313",
+          "arrival_monotonic_s": "27925.184200776",
+          "actual_exposure_raw": "",
+          "white_balance_raw": ""
+        },
+        "current": {
+          "elapsed_s": "170.34537851300047",
+          "stream": "color",
+          "frame_number": "5392",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051531847.2",
+          "arrival_unix_s": "1794051531.8634863",
+          "arrival_monotonic_s": "27925.251056193",
+          "actual_exposure_raw": "",
+          "white_balance_raw": ""
+        }
+      },
+      {
+        "elapsed_s": 171.94708817799983,
+        "delta_stamp_ms": 66.74267578125,
+        "delta_counter": 2,
+        "previous": {
+          "elapsed_s": "171.88071744800254",
+          "stream": "color",
+          "frame_number": "5438",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051533382.4692",
+          "arrival_unix_s": "1794051533.3988266",
+          "arrival_monotonic_s": "27926.786395128",
+          "actual_exposure_raw": "",
+          "white_balance_raw": ""
+        },
+        "current": {
+          "elapsed_s": "171.94708817799983",
+          "stream": "color",
+          "frame_number": "5440",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051533449.212",
+          "arrival_unix_s": "1794051533.465197",
+          "arrival_monotonic_s": "27926.852765858",
+          "actual_exposure_raw": "",
+          "white_balance_raw": ""
+        }
+      },
+      {
+        "elapsed_s": 175.11787883600118,
+        "delta_stamp_ms": 66.750732421875,
+        "delta_counter": 2,
+        "previous": {
+          "elapsed_s": "175.05108093300078",
+          "stream": "color",
+          "frame_number": "5533",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051536552.9988",
+          "arrival_unix_s": "1794051536.5691888",
+          "arrival_monotonic_s": "27929.956758613",
+          "actual_exposure_raw": "",
+          "white_balance_raw": ""
+        },
+        "current": {
+          "elapsed_s": "175.11787883600118",
+          "stream": "color",
+          "frame_number": "5535",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051536619.7495",
+          "arrival_unix_s": "1794051536.635987",
+          "arrival_monotonic_s": "27930.023556516",
+          "actual_exposure_raw": "",
+          "white_balance_raw": ""
+        }
+      },
+      {
+        "elapsed_s": 177.7545772600024,
+        "delta_stamp_ms": 66.748779296875,
+        "delta_counter": 2,
+        "previous": {
+          "elapsed_s": "177.68791358200178",
+          "stream": "color",
+          "frame_number": "5612",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051539189.7039",
+          "arrival_unix_s": "1794051539.2060218",
+          "arrival_monotonic_s": "27932.593591262",
+          "actual_exposure_raw": "",
+          "white_balance_raw": ""
+        },
+        "current": {
+          "elapsed_s": "177.7545772600024",
+          "stream": "color",
+          "frame_number": "5614",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051539256.4526",
+          "arrival_unix_s": "1794051539.2726839",
+          "arrival_monotonic_s": "27932.66025494",
+          "actual_exposure_raw": "",
+          "white_balance_raw": ""
+        }
+      },
+      {
+        "elapsed_s": 179.6898647199996,
+        "delta_stamp_ms": 300.400634765625,
+        "delta_counter": 9,
+        "previous": {
+          "elapsed_s": "179.38986748500247",
+          "stream": "color",
+          "frame_number": "5663",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051540891.8403",
+          "arrival_unix_s": "1794051540.9079754",
+          "arrival_monotonic_s": "27934.295545165",
+          "actual_exposure_raw": "",
+          "white_balance_raw": ""
+        },
+        "current": {
+          "elapsed_s": "179.6898647199996",
+          "stream": "color",
+          "frame_number": "5672",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051541192.241",
+          "arrival_unix_s": "1794051541.2079728",
+          "arrival_monotonic_s": "27934.5955424",
+          "actual_exposure_raw": "",
+          "white_balance_raw": ""
+        }
+      },
+      {
+        "elapsed_s": 179.6910326560028,
+        "delta_stamp_ms": 0.0,
+        "delta_counter": 0,
+        "previous": {
+          "elapsed_s": "179.6898647199996",
+          "stream": "color",
+          "frame_number": "5672",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051541192.241",
+          "arrival_unix_s": "1794051541.2079728",
+          "arrival_monotonic_s": "27934.5955424",
+          "actual_exposure_raw": "",
+          "white_balance_raw": ""
+        },
+        "current": {
+          "elapsed_s": "179.6910326560028",
+          "stream": "color",
+          "frame_number": "5672",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051541192.241",
+          "arrival_unix_s": "1794051541.2091413",
+          "arrival_monotonic_s": "27934.596710336",
+          "actual_exposure_raw": "",
+          "white_balance_raw": ""
+        }
+      }
+    ]
+  },
+  "depth": {
+    "duplicate_stamp": 2,
+    "reverse_stamp": 0,
+    "anomalies": [
+      {
+        "elapsed_s": 18.689494186000957,
+        "delta_stamp_ms": 66.7470703125,
+        "delta_counter": 2,
+        "previous": {
+          "elapsed_s": "18.622721875002753",
+          "stream": "depth",
+          "frame_number": "843",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051380124.6943",
+          "arrival_unix_s": "1794051380.1408305",
+          "arrival_monotonic_s": "27773.528399555",
+          "actual_exposure_raw": "31979",
+          "white_balance_raw": ""
+        },
+        "current": {
+          "elapsed_s": "18.689494186000957",
+          "stream": "depth",
+          "frame_number": "845",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051380191.4414",
+          "arrival_unix_s": "1794051380.2076023",
+          "arrival_monotonic_s": "27773.595171866",
+          "actual_exposure_raw": "31979",
+          "white_balance_raw": ""
+        }
+      },
+      {
+        "elapsed_s": 37.84668113800217,
+        "delta_stamp_ms": 66.752197265625,
+        "delta_counter": 2,
+        "previous": {
+          "elapsed_s": "37.77980096000101",
+          "stream": "depth",
+          "frame_number": "1417",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051399281.873",
+          "arrival_unix_s": "1794051399.2979097",
+          "arrival_monotonic_s": "27792.68547864",
+          "actual_exposure_raw": "31979",
+          "white_balance_raw": ""
+        },
+        "current": {
+          "elapsed_s": "37.84668113800217",
+          "stream": "depth",
+          "frame_number": "1419",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051399348.6252",
+          "arrival_unix_s": "1794051399.3647892",
+          "arrival_monotonic_s": "27792.752358818",
+          "actual_exposure_raw": "31979",
+          "white_balance_raw": ""
+        }
+      },
+      {
+        "elapsed_s": 65.08072625600107,
+        "delta_stamp_ms": 66.735107421875,
+        "delta_counter": 2,
+        "previous": {
+          "elapsed_s": "65.0139534230002",
+          "stream": "depth",
+          "frame_number": "2233",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051426516.0647",
+          "arrival_unix_s": "1794051426.532062",
+          "arrival_monotonic_s": "27819.919631103",
+          "actual_exposure_raw": "31979",
+          "white_balance_raw": ""
+        },
+        "current": {
+          "elapsed_s": "65.08072625600107",
+          "stream": "depth",
+          "frame_number": "2235",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051426582.7998",
+          "arrival_unix_s": "1794051426.598835",
+          "arrival_monotonic_s": "27819.986403936",
+          "actual_exposure_raw": "31979",
+          "white_balance_raw": ""
+        }
+      },
+      {
+        "elapsed_s": 103.99579192100282,
+        "delta_stamp_ms": 66.746337890625,
+        "delta_counter": 2,
+        "previous": {
+          "elapsed_s": "103.92893135200211",
+          "stream": "depth",
+          "frame_number": "3399",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051465431.0688",
+          "arrival_unix_s": "1794051465.4470396",
+          "arrival_monotonic_s": "27858.834609032",
+          "actual_exposure_raw": "31979",
+          "white_balance_raw": ""
+        },
+        "current": {
+          "elapsed_s": "103.99579192100282",
+          "stream": "depth",
+          "frame_number": "3401",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051465497.8152",
+          "arrival_unix_s": "1794051465.5138998",
+          "arrival_monotonic_s": "27858.901469601",
+          "actual_exposure_raw": "31979",
+          "white_balance_raw": ""
+        }
+      },
+      {
+        "elapsed_s": 117.84638231099962,
+        "delta_stamp_ms": 66.750244140625,
+        "delta_counter": 2,
+        "previous": {
+          "elapsed_s": "117.7797142820018",
+          "stream": "depth",
+          "frame_number": "3814",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051479281.6548",
+          "arrival_unix_s": "1794051479.2978227",
+          "arrival_monotonic_s": "27872.685391962",
+          "actual_exposure_raw": "31979",
+          "white_balance_raw": ""
+        },
+        "current": {
+          "elapsed_s": "117.84638231099962",
+          "stream": "depth",
+          "frame_number": "3816",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051479348.405",
+          "arrival_unix_s": "1794051479.3644898",
+          "arrival_monotonic_s": "27872.752059991",
+          "actual_exposure_raw": "31979",
+          "white_balance_raw": ""
+        }
+      },
+      {
+        "elapsed_s": 118.78100731900122,
+        "delta_stamp_ms": 66.75048828125,
+        "delta_counter": 2,
+        "previous": {
+          "elapsed_s": "118.7141398590029",
+          "stream": "depth",
+          "frame_number": "3842",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051480216.1633",
+          "arrival_unix_s": "1794051480.232248",
+          "arrival_monotonic_s": "27873.619817539",
+          "actual_exposure_raw": "31979",
+          "white_balance_raw": ""
+        },
+        "current": {
+          "elapsed_s": "118.78100731900122",
+          "stream": "depth",
+          "frame_number": "3844",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051480282.9138",
+          "arrival_unix_s": "1794051480.2991161",
+          "arrival_monotonic_s": "27873.686684999",
+          "actual_exposure_raw": "31979",
+          "white_balance_raw": ""
+        }
+      },
+      {
+        "elapsed_s": 147.81737038700157,
+        "delta_stamp_ms": 66.75244140625,
+        "delta_counter": 2,
+        "previous": {
+          "elapsed_s": "147.7504735980001",
+          "stream": "depth",
+          "frame_number": "4712",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051509252.3447",
+          "arrival_unix_s": "1794051509.2685819",
+          "arrival_monotonic_s": "27902.656151278",
+          "actual_exposure_raw": "31979",
+          "white_balance_raw": ""
+        },
+        "current": {
+          "elapsed_s": "147.81737038700157",
+          "stream": "depth",
+          "frame_number": "4714",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051509319.0972",
+          "arrival_unix_s": "1794051509.3354769",
+          "arrival_monotonic_s": "27902.723048067",
+          "actual_exposure_raw": "31979",
+          "white_balance_raw": ""
+        }
+      },
+      {
+        "elapsed_s": 156.79507661699972,
+        "delta_stamp_ms": 66.7490234375,
+        "delta_counter": 2,
+        "previous": {
+          "elapsed_s": "156.72819296200032",
+          "stream": "depth",
+          "frame_number": "4981",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051518230.2485",
+          "arrival_unix_s": "1794051518.2463005",
+          "arrival_monotonic_s": "27911.633870642",
+          "actual_exposure_raw": "31979",
+          "white_balance_raw": ""
+        },
+        "current": {
+          "elapsed_s": "156.79507661699972",
+          "stream": "depth",
+          "frame_number": "4983",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051518296.9976",
+          "arrival_unix_s": "1794051518.3131824",
+          "arrival_monotonic_s": "27911.700754297",
+          "actual_exposure_raw": "31979",
+          "white_balance_raw": ""
+        }
+      },
+      {
+        "elapsed_s": 165.17213630900005,
+        "delta_stamp_ms": 0.0,
+        "delta_counter": 0,
+        "previous": {
+          "elapsed_s": "165.10534696200193",
+          "stream": "depth",
+          "frame_number": "5232",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051526607.4053",
+          "arrival_unix_s": "1794051526.6234553",
+          "arrival_monotonic_s": "27920.011024642",
+          "actual_exposure_raw": "31979",
+          "white_balance_raw": ""
+        },
+        "current": {
+          "elapsed_s": "165.17213630900005",
+          "stream": "depth",
+          "frame_number": "5232",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051526607.4053",
+          "arrival_unix_s": "1794051526.6902444",
+          "arrival_monotonic_s": "27920.077813989",
+          "actual_exposure_raw": "31979",
+          "white_balance_raw": ""
+        }
+      },
+      {
+        "elapsed_s": 165.17239078400235,
+        "delta_stamp_ms": 66.748046875,
+        "delta_counter": 2,
+        "previous": {
+          "elapsed_s": "165.17213630900005",
+          "stream": "depth",
+          "frame_number": "5232",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051526607.4053",
+          "arrival_unix_s": "1794051526.6902444",
+          "arrival_monotonic_s": "27920.077813989",
+          "actual_exposure_raw": "31979",
+          "white_balance_raw": ""
+        },
+        "current": {
+          "elapsed_s": "165.17239078400235",
+          "stream": "depth",
+          "frame_number": "5234",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051526674.1533",
+          "arrival_unix_s": "1794051526.6905",
+          "arrival_monotonic_s": "27920.078068464",
+          "actual_exposure_raw": "31979",
+          "white_balance_raw": ""
+        }
+      },
+      {
+        "elapsed_s": 165.23919720100093,
+        "delta_stamp_ms": 66.748291015625,
+        "delta_counter": 2,
+        "previous": {
+          "elapsed_s": "165.17239078400235",
+          "stream": "depth",
+          "frame_number": "5234",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051526674.1533",
+          "arrival_unix_s": "1794051526.6905",
+          "arrival_monotonic_s": "27920.078068464",
+          "actual_exposure_raw": "31979",
+          "white_balance_raw": ""
+        },
+        "current": {
+          "elapsed_s": "165.23919720100093",
+          "stream": "depth",
+          "frame_number": "5236",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051526740.9016",
+          "arrival_unix_s": "1794051526.7573051",
+          "arrival_monotonic_s": "27920.144874881",
+          "actual_exposure_raw": "31979",
+          "white_balance_raw": ""
+        }
+      },
+      {
+        "elapsed_s": 165.73950801700266,
+        "delta_stamp_ms": 100.121826171875,
+        "delta_counter": 3,
+        "previous": {
+          "elapsed_s": "165.64060868900197",
+          "stream": "depth",
+          "frame_number": "5248",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051527141.3906",
+          "arrival_unix_s": "1794051527.1587164",
+          "arrival_monotonic_s": "27920.546286369",
+          "actual_exposure_raw": "31979",
+          "white_balance_raw": ""
+        },
+        "current": {
+          "elapsed_s": "165.73950801700266",
+          "stream": "depth",
+          "frame_number": "5251",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051527241.5125",
+          "arrival_unix_s": "1794051527.2576158",
+          "arrival_monotonic_s": "27920.645185697",
+          "actual_exposure_raw": "31979",
+          "white_balance_raw": ""
+        }
+      },
+      {
+        "elapsed_s": 166.03977243100235,
+        "delta_stamp_ms": 66.7509765625,
+        "delta_counter": 2,
+        "previous": {
+          "elapsed_s": "165.97433667199948",
+          "stream": "depth",
+          "frame_number": "5258",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051527475.1326",
+          "arrival_unix_s": "1794051527.4924452",
+          "arrival_monotonic_s": "27920.880014352",
+          "actual_exposure_raw": "31979",
+          "white_balance_raw": ""
+        },
+        "current": {
+          "elapsed_s": "166.03977243100235",
+          "stream": "depth",
+          "frame_number": "5260",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051527541.8835",
+          "arrival_unix_s": "1794051527.5578804",
+          "arrival_monotonic_s": "27920.945450111",
+          "actual_exposure_raw": "31979",
+          "white_balance_raw": ""
+        }
+      },
+      {
+        "elapsed_s": 166.37352732699947,
+        "delta_stamp_ms": 100.12451171875,
+        "delta_counter": 3,
+        "previous": {
+          "elapsed_s": "166.2756869980003",
+          "stream": "depth",
+          "frame_number": "5267",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051527775.5078",
+          "arrival_unix_s": "1794051527.7937949",
+          "arrival_monotonic_s": "27921.181364678",
+          "actual_exposure_raw": "31979",
+          "white_balance_raw": ""
+        },
+        "current": {
+          "elapsed_s": "166.37352732699947",
+          "stream": "depth",
+          "frame_number": "5270",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051527875.6323",
+          "arrival_unix_s": "1794051527.8916361",
+          "arrival_monotonic_s": "27921.279205007",
+          "actual_exposure_raw": "31979",
+          "white_balance_raw": ""
+        }
+      },
+      {
+        "elapsed_s": 166.60722261800038,
+        "delta_stamp_ms": 66.749755859375,
+        "delta_counter": 2,
+        "previous": {
+          "elapsed_s": "166.54048153500116",
+          "stream": "depth",
+          "frame_number": "5275",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051528042.5068",
+          "arrival_unix_s": "1794051528.05859",
+          "arrival_monotonic_s": "27921.446159215",
+          "actual_exposure_raw": "31979",
+          "white_balance_raw": ""
+        },
+        "current": {
+          "elapsed_s": "166.60722261800038",
+          "stream": "depth",
+          "frame_number": "5277",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051528109.2566",
+          "arrival_unix_s": "1794051528.1253307",
+          "arrival_monotonic_s": "27921.512900298",
+          "actual_exposure_raw": "31979",
+          "white_balance_raw": ""
+        }
+      },
+      {
+        "elapsed_s": 166.94097206600054,
+        "delta_stamp_ms": 100.11865234375,
+        "delta_counter": 3,
+        "previous": {
+          "elapsed_s": "166.84073858800184",
+          "stream": "depth",
+          "frame_number": "5284",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051528342.8818",
+          "arrival_unix_s": "1794051528.3588467",
+          "arrival_monotonic_s": "27921.746416268",
+          "actual_exposure_raw": "31979",
+          "white_balance_raw": ""
+        },
+        "current": {
+          "elapsed_s": "166.94097206600054",
+          "stream": "depth",
+          "frame_number": "5287",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051528443.0005",
+          "arrival_unix_s": "1794051528.4590805",
+          "arrival_monotonic_s": "27921.846649746",
+          "actual_exposure_raw": "31979",
+          "white_balance_raw": ""
+        }
+      },
+      {
+        "elapsed_s": 167.2418402200019,
+        "delta_stamp_ms": 66.745361328125,
+        "delta_counter": 2,
+        "previous": {
+          "elapsed_s": "167.17451286900177",
+          "stream": "depth",
+          "frame_number": "5294",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051528676.61",
+          "arrival_unix_s": "1794051528.6926205",
+          "arrival_monotonic_s": "27922.080190549",
+          "actual_exposure_raw": "31979",
+          "white_balance_raw": ""
+        },
+        "current": {
+          "elapsed_s": "167.2418402200019",
+          "stream": "depth",
+          "frame_number": "5296",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051528743.3555",
+          "arrival_unix_s": "1794051528.7599485",
+          "arrival_monotonic_s": "27922.1475179",
+          "actual_exposure_raw": "31979",
+          "white_balance_raw": ""
+        }
+      },
+      {
+        "elapsed_s": 167.57507619800163,
+        "delta_stamp_ms": 66.7451171875,
+        "delta_counter": 2,
+        "previous": {
+          "elapsed_s": "167.50847694299955",
+          "stream": "depth",
+          "frame_number": "5304",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051529010.3372",
+          "arrival_unix_s": "1794051529.0265856",
+          "arrival_monotonic_s": "27922.414154623",
+          "actual_exposure_raw": "31979",
+          "white_balance_raw": ""
+        },
+        "current": {
+          "elapsed_s": "167.57507619800163",
+          "stream": "depth",
+          "frame_number": "5306",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051529077.0823",
+          "arrival_unix_s": "1794051529.0931847",
+          "arrival_monotonic_s": "27922.480753878",
+          "actual_exposure_raw": "31979",
+          "white_balance_raw": ""
+        }
+      },
+      {
+        "elapsed_s": 168.9442693730016,
+        "delta_stamp_ms": 66.7451171875,
+        "delta_counter": 2,
+        "previous": {
+          "elapsed_s": "168.876812642",
+          "stream": "depth",
+          "frame_number": "5345",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051530378.7058",
+          "arrival_unix_s": "1794051530.3949206",
+          "arrival_monotonic_s": "27923.782490322",
+          "actual_exposure_raw": "31979",
+          "white_balance_raw": ""
+        },
+        "current": {
+          "elapsed_s": "168.9442693730016",
+          "stream": "depth",
+          "frame_number": "5347",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051530445.451",
+          "arrival_unix_s": "1794051530.4623773",
+          "arrival_monotonic_s": "27923.849947053",
+          "actual_exposure_raw": "31979",
+          "white_balance_raw": ""
+        }
+      },
+      {
+        "elapsed_s": 169.27723920800054,
+        "delta_stamp_ms": 133.489990234375,
+        "delta_counter": 4,
+        "previous": {
+          "elapsed_s": "169.1438247590013",
+          "stream": "depth",
+          "frame_number": "5353",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051530645.6865",
+          "arrival_unix_s": "1794051530.6619334",
+          "arrival_monotonic_s": "27924.049502439",
+          "actual_exposure_raw": "31979",
+          "white_balance_raw": ""
+        },
+        "current": {
+          "elapsed_s": "169.27723920800054",
+          "stream": "depth",
+          "frame_number": "5357",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051530779.1765",
+          "arrival_unix_s": "1794051530.7953467",
+          "arrival_monotonic_s": "27924.182916888",
+          "actual_exposure_raw": "31979",
+          "white_balance_raw": ""
+        }
+      },
+      {
+        "elapsed_s": 169.5107844970007,
+        "delta_stamp_ms": 66.74462890625,
+        "delta_counter": 2,
+        "previous": {
+          "elapsed_s": "169.44407176700042",
+          "stream": "depth",
+          "frame_number": "5362",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051530946.0386",
+          "arrival_unix_s": "1794051530.9621806",
+          "arrival_monotonic_s": "27924.349749447",
+          "actual_exposure_raw": "31979",
+          "white_balance_raw": ""
+        },
+        "current": {
+          "elapsed_s": "169.5107844970007",
+          "stream": "depth",
+          "frame_number": "5364",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051531012.7832",
+          "arrival_unix_s": "1794051531.0288932",
+          "arrival_monotonic_s": "27924.416462177",
+          "actual_exposure_raw": "31979",
+          "white_balance_raw": ""
+        }
+      },
+      {
+        "elapsed_s": 170.34537851300047,
+        "delta_stamp_ms": 66.7548828125,
+        "delta_counter": 2,
+        "previous": {
+          "elapsed_s": "170.27852309599984",
+          "stream": "depth",
+          "frame_number": "5387",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051531780.405",
+          "arrival_unix_s": "1794051531.7966313",
+          "arrival_monotonic_s": "27925.184200776",
+          "actual_exposure_raw": "31979",
+          "white_balance_raw": ""
+        },
+        "current": {
+          "elapsed_s": "170.34537851300047",
+          "stream": "depth",
+          "frame_number": "5389",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051531847.16",
+          "arrival_unix_s": "1794051531.8634863",
+          "arrival_monotonic_s": "27925.251056193",
+          "actual_exposure_raw": "31979",
+          "white_balance_raw": ""
+        }
+      },
+      {
+        "elapsed_s": 171.94708817799983,
+        "delta_stamp_ms": 66.74267578125,
+        "delta_counter": 2,
+        "previous": {
+          "elapsed_s": "171.88071744800254",
+          "stream": "depth",
+          "frame_number": "5435",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051533382.4292",
+          "arrival_unix_s": "1794051533.3988266",
+          "arrival_monotonic_s": "27926.786395128",
+          "actual_exposure_raw": "31979",
+          "white_balance_raw": ""
+        },
+        "current": {
+          "elapsed_s": "171.94708817799983",
+          "stream": "depth",
+          "frame_number": "5437",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051533449.1719",
+          "arrival_unix_s": "1794051533.465197",
+          "arrival_monotonic_s": "27926.852765858",
+          "actual_exposure_raw": "31979",
+          "white_balance_raw": ""
+        }
+      },
+      {
+        "elapsed_s": 175.11787883600118,
+        "delta_stamp_ms": 66.750732421875,
+        "delta_counter": 2,
+        "previous": {
+          "elapsed_s": "175.05108093300078",
+          "stream": "depth",
+          "frame_number": "5530",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051536552.9587",
+          "arrival_unix_s": "1794051536.5691888",
+          "arrival_monotonic_s": "27929.956758613",
+          "actual_exposure_raw": "31979",
+          "white_balance_raw": ""
+        },
+        "current": {
+          "elapsed_s": "175.11787883600118",
+          "stream": "depth",
+          "frame_number": "5532",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051536619.7095",
+          "arrival_unix_s": "1794051536.635987",
+          "arrival_monotonic_s": "27930.023556516",
+          "actual_exposure_raw": "31979",
+          "white_balance_raw": ""
+        }
+      },
+      {
+        "elapsed_s": 177.7545772600024,
+        "delta_stamp_ms": 66.748779296875,
+        "delta_counter": 2,
+        "previous": {
+          "elapsed_s": "177.68791358200178",
+          "stream": "depth",
+          "frame_number": "5609",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051539189.6638",
+          "arrival_unix_s": "1794051539.2060218",
+          "arrival_monotonic_s": "27932.593591262",
+          "actual_exposure_raw": "31979",
+          "white_balance_raw": ""
+        },
+        "current": {
+          "elapsed_s": "177.7545772600024",
+          "stream": "depth",
+          "frame_number": "5611",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051539256.4126",
+          "arrival_unix_s": "1794051539.2726839",
+          "arrival_monotonic_s": "27932.66025494",
+          "actual_exposure_raw": "31979",
+          "white_balance_raw": ""
+        }
+      },
+      {
+        "elapsed_s": 179.6898647199996,
+        "delta_stamp_ms": 0.0,
+        "delta_counter": 0,
+        "previous": {
+          "elapsed_s": "179.38986748500247",
+          "stream": "depth",
+          "frame_number": "5660",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051540891.8013",
+          "arrival_unix_s": "1794051540.9079754",
+          "arrival_monotonic_s": "27934.295545165",
+          "actual_exposure_raw": "31979",
+          "white_balance_raw": ""
+        },
+        "current": {
+          "elapsed_s": "179.6898647199996",
+          "stream": "depth",
+          "frame_number": "5660",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051540891.8013",
+          "arrival_unix_s": "1794051541.2079728",
+          "arrival_monotonic_s": "27934.5955424",
+          "actual_exposure_raw": "31979",
+          "white_balance_raw": ""
+        }
+      },
+      {
+        "elapsed_s": 179.6910326560028,
+        "delta_stamp_ms": 300.399658203125,
+        "delta_counter": 9,
+        "previous": {
+          "elapsed_s": "179.6898647199996",
+          "stream": "depth",
+          "frame_number": "5660",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051540891.8013",
+          "arrival_unix_s": "1794051541.2079728",
+          "arrival_monotonic_s": "27934.5955424",
+          "actual_exposure_raw": "31979",
+          "white_balance_raw": ""
+        },
+        "current": {
+          "elapsed_s": "179.6910326560028",
+          "stream": "depth",
+          "frame_number": "5669",
+          "timestamp_domain": "timestamp_domain.global_time",
+          "frame_timestamp_ms": "1794051541192.201",
+          "arrival_unix_s": "1794051541.2091413",
+          "arrival_monotonic_s": "27934.596710336",
+          "actual_exposure_raw": "31979",
+          "white_balance_raw": ""
+        }
+      }
+    ]
+  }
+}

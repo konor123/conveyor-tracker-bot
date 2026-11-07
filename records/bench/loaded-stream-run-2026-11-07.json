@@ -1,0 +1,98 @@
+[
+  {
+    "iface": "speedl",
+    "rate_hz": 100,
+    "started_unix_s": 1794048943.8647218,
+    "ended_unix_s": 1794049007.5751424,
+    "exit": 0,
+    "command": [
+      "python3",
+      "-u",
+      "tools/bench/stream_bench.py",
+      "--iface",
+      "speedl",
+      "--rate-hz",
+      "100",
+      "--amp-m",
+      "0.010",
+      "--freq-hz",
+      "0.5",
+      "--duration-s",
+      "60"
+    ],
+    "stdout": "robot_state=1(1=STANDBY) \ub9c8\uc9c0\ub9c9 \uc54c\ub78c(\uae30\ub85d)=(level 0, group 0, index 0)\nposx(mm,deg)=['624.02', '11.10', '290.21', '76.40', '-147.44', '-16.63']  FK\u2212posx \ucc28=0.00 mm\n\uacc4\ud68d: speedl_stream 100.0 Hz, x\ucd95 \u00b110.0 mm, 0.5 Hz, 60.0 s, \ucd5c\ub300 31.4 mm/s, ramp 2.0 s\n# TC-BEN-004-01 2026-11-07-195647\nargs: {'iface': 'speedl', 'rate_hz': 100.0, 'axis': 'x', 'amp_m': 0.01, 'freq_hz': 0.5, 'duration_s': 60.0, 'ramp_s': 2.0, 'vel_limit_mps': 0.05, 'acc_limit_mps2': 0.2, 'cmd_time_s': 0.02, 'ns': '/dsr01', 'dry_run': False}\ncenter_posx_mm_deg: [624.0210571289062, 11.098114013671875, 290.209716796875, 76.3956527709961, -147.44390869140625, -16.63128662109375]\naborted_by_guard: False\ncommands: 6000\nfeedback: 6002\nperiod_s: 0.01\ncmd_interval_s: {'p50': 0.009999631001846865, 'p95': 0.010080620900771465, 'p99': 0.010146178581780985, 'max': 0.01058055300018168}\ncmd_interval_p99_ok: True\nfb_interval_s: {'p50': 0.009997040997404838, 'p95': 0.010243468997941818, 'p99': 0.010410031998617342, 'max': 0.011147576999064768}\nlag_s: 0.029\ntracking_error_raw_m: {'p50': 0.000643100839258226, 'p95': 0.0009026538748322043, 'p99': 0.0009249451237916049, 'max': 0.0009625464850677723}\ntracking_error_lag_comp_m: {'p50': 1.7454959249763036e-05, 'p95': 6.238856203736318e-05, 'p99': 0.0001043621288665619, 'max': 0.00013072701181915392}\n\uae30\ub85d: /home/umm/conveyor-tracker-bot/records/bench/stream-2026-11-07-195647-speedl-100hz.csv\n",
+    "stderr": ""
+  },
+  {
+    "iface": "speedl",
+    "rate_hz": 50,
+    "started_unix_s": 1794049007.575326,
+    "ended_unix_s": 1794049070.6803043,
+    "exit": 0,
+    "command": [
+      "python3",
+      "-u",
+      "tools/bench/stream_bench.py",
+      "--iface",
+      "speedl",
+      "--rate-hz",
+      "50",
+      "--amp-m",
+      "0.010",
+      "--freq-hz",
+      "0.5",
+      "--duration-s",
+      "60"
+    ],
+    "stdout": "robot_state=1(1=STANDBY) \ub9c8\uc9c0\ub9c9 \uc54c\ub78c(\uae30\ub85d)=(level 0, group 0, index 0)\nposx(mm,deg)=['624.00', '11.09', '290.21', '76.39', '-147.44', '-16.63']  FK\u2212posx \ucc28=0.00 mm\n\uacc4\ud68d: speedl_stream 50.0 Hz, x\ucd95 \u00b110.0 mm, 0.5 Hz, 60.0 s, \ucd5c\ub300 31.4 mm/s, ramp 2.0 s\n# TC-BEN-004-01 2026-11-07-195750\nargs: {'iface': 'speedl', 'rate_hz': 50.0, 'axis': 'x', 'amp_m': 0.01, 'freq_hz': 0.5, 'duration_s': 60.0, 'ramp_s': 2.0, 'vel_limit_mps': 0.05, 'acc_limit_mps2': 0.2, 'cmd_time_s': 0.04, 'ns': '/dsr01', 'dry_run': False}\ncenter_posx_mm_deg: [623.9973754882812, 11.093101501464844, 290.2080078125, 76.39335632324219, -147.44276428222656, -16.633703231811523]\naborted_by_guard: False\ncommands: 3000\nfeedback: 6010\nperiod_s: 0.02\ncmd_interval_s: {'p50': 0.019999893997010076, 'p95': 0.020069060901369083, 'p99': 0.020129941300765494, 'max': 0.020597003000148106}\ncmd_interval_p99_ok: True\nfb_interval_s: {'p50': 0.009995398999308236, 'p95': 0.010332023999944795, 'p99': 0.010596073478955078, 'max': 0.011457218002760783}\nlag_s: 0.049\ntracking_error_raw_m: {'p50': 0.0010858656764393682, 'p95': 0.0015280664205643002, 'p99': 0.00154904663653621, 'max': 0.001598155199148299}\ntracking_error_lag_comp_m: {'p50': 1.8222486017127615e-05, 'p95': 5.4440431131269574e-05, 'p99': 8.490715718109776e-05, 'max': 0.00010396592903216817}\n\uae30\ub85d: /home/umm/conveyor-tracker-bot/records/bench/stream-2026-11-07-195750-speedl-50hz.csv\n",
+    "stderr": ""
+  },
+  {
+    "iface": "servol",
+    "rate_hz": 100,
+    "started_unix_s": 1794049070.6805952,
+    "ended_unix_s": 1794049133.945147,
+    "exit": 0,
+    "command": [
+      "python3",
+      "-u",
+      "tools/bench/stream_bench.py",
+      "--iface",
+      "servol",
+      "--rate-hz",
+      "100",
+      "--amp-m",
+      "0.010",
+      "--freq-hz",
+      "0.5",
+      "--duration-s",
+      "60"
+    ],
+    "stdout": "robot_state=1(1=STANDBY) \ub9c8\uc9c0\ub9c9 \uc54c\ub78c(\uae30\ub85d)=(level 0, group 0, index 0)\nposx(mm,deg)=['623.97', '11.09', '290.22', '76.39', '-147.44', '-16.63']  FK\u2212posx \ucc28=0.00 mm\n\uacc4\ud68d: servol_stream 100.0 Hz, x\ucd95 \u00b110.0 mm, 0.5 Hz, 60.0 s, \ucd5c\ub300 31.4 mm/s, ramp 2.0 s\n# TC-BEN-004-01 2026-11-07-195853\nargs: {'iface': 'servol', 'rate_hz': 100.0, 'axis': 'x', 'amp_m': 0.01, 'freq_hz': 0.5, 'duration_s': 60.0, 'ramp_s': 2.0, 'vel_limit_mps': 0.05, 'acc_limit_mps2': 0.2, 'cmd_time_s': 0.0, 'ns': '/dsr01', 'dry_run': False}\ncenter_posx_mm_deg: [623.966796875, 11.09292221069336, 290.21734619140625, 76.3947982788086, -147.44309997558594, -16.632083892822266]\naborted_by_guard: False\ncommands: 6000\nfeedback: 6015\nperiod_s: 0.01\ncmd_interval_s: {'p50': 0.00999939000030281, 'p95': 0.010129549900739221, 'p99': 0.010225263179891043, 'max': 0.011219969997910084}\ncmd_interval_p99_ok: True\nfb_interval_s: {'p50': 0.009987008501411765, 'p95': 0.010444988750168704, 'p99': 0.01074057765014004, 'max': 0.013779911001620349}\nlag_s: 0.1\ntracking_error_raw_m: {'p50': 0.002031528199245569, 'p95': 0.003423515334982119, 'p99': 0.0039719590118728445, 'max': 0.004261885158473366}\ntracking_error_lag_comp_m: {'p50': 0.0002570989329874207, 'p95': 0.0006537760802734711, 'p99': 0.0009501175638745192, 'max': 0.0012004966802904304}\n\uae30\ub85d: /home/umm/conveyor-tracker-bot/records/bench/stream-2026-11-07-195853-servol-100hz.csv\n",
+    "stderr": ""
+  },
+  {
+    "iface": "servol",
+    "rate_hz": 50,
+    "started_unix_s": 1794049133.9454875,
+    "ended_unix_s": 1794049196.8930278,
+    "exit": 0,
+    "command": [
+      "python3",
+      "-u",
+      "tools/bench/stream_bench.py",
+      "--iface",
+      "servol",
+      "--rate-hz",
+      "50",
+      "--amp-m",
+      "0.010",
+      "--freq-hz",
+      "0.5",
+      "--duration-s",
+      "60"
+    ],
+    "stdout": "robot_state=1(1=STANDBY) \ub9c8\uc9c0\ub9c9 \uc54c\ub78c(\uae30\ub85d)=(level 1, group 2, index 1216)\nposx(mm,deg)=['623.96', '11.09', '290.23', '76.39', '-147.44', '-16.63']  FK\u2212posx \ucc28=0.00 mm\n\uacc4\ud68d: servol_stream 50.0 Hz, x\ucd95 \u00b110.0 mm, 0.5 Hz, 60.0 s, \ucd5c\ub300 31.4 mm/s, ramp 2.0 s\n# TC-BEN-004-01 2026-11-07-195956\nargs: {'iface': 'servol', 'rate_hz': 50.0, 'axis': 'x', 'amp_m': 0.01, 'freq_hz': 0.5, 'duration_s': 60.0, 'ramp_s': 2.0, 'vel_limit_mps': 0.05, 'acc_limit_mps2': 0.2, 'cmd_time_s': 0.0, 'ns': '/dsr01', 'dry_run': False}\ncenter_posx_mm_deg: [623.962646484375, 11.086874008178711, 290.22705078125, 76.39405059814453, -147.44229125976562, -16.632572174072266]\naborted_by_guard: False\ncommands: 3000\nfeedback: 6010\nperiod_s: 0.02\ncmd_interval_s: {'p50': 0.020000581000203965, 'p95': 0.02038031880147173, 'p99': 0.020600919961943874, 'max': 0.021592306002276018}\ncmd_interval_p99_ok: True\nfb_interval_s: {'p50': 0.009992277002311312, 'p95': 0.01044442380152759, 'p99': 0.010731227841315558, 'max': 0.011595178999414202}\nlag_s: 0.496\ntracking_error_raw_m: {'p50': 0.007068235630631525, 'p95': 0.009956365728953242, 'p99': 0.009992522552579573, 'max': 0.010001819502675535}\ntracking_error_lag_comp_m: {'p50': 0.006980143646854953, 'p95': 0.00996496119584388, 'p99': 0.009994655550147143, 'max': 0.00999808434693672}\n\uae30\ub85d: /home/umm/conveyor-tracker-bot/records/bench/stream-2026-11-07-195956-servol-50hz.csv\n",
+    "stderr": ""
+  }
+]

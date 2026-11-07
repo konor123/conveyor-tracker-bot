@@ -3,3 +3,5 @@ date,parameter,old_value,new_value,unit,evidence_file,evidence_n,evidence_stat,c
 2026-11-07,orchestrator.judge.pick_stone.d_stone_max_m,0.015,0.018,m,records/bench/site-survey-2026-11-07.csv S01·S02,1(보고 범위),17~18 mm 범위 상한(팔각기둥 꼭짓점-꼭짓점),claude,REQ-ORC-003
 2026-11-07,orchestrator.judge.release.d_stone_m → d_stone_max_m,0.015,0.018,m,records/bench/site-survey-2026-11-07.csv S01·S02,1(보고 범위),17~18 mm 범위 상한,claude,REQ-ORC-003
 2026-11-07,calibration.camera_profile(d455_color_1280x800).fx / fy,644.1401 / 643.2153,646.3336 / 645.4055,px,records/bench/d455-intrinsics-2026-11-07.txt,6(조회),"보고값 변동 0.42%, 실제 배율 변화 0.04%. 데워진 뒤 반복 보고된 값으로 고정",claude,REQ-CAL-009
+2026-11-07,bench.gripper_once.close_endpoint,1150,750,pulse,records/sessions/gripper-takeover-2026-11-07.md,미측정(사용자 지정),현장 사용자: 750이 끝점이다. 수정해,codex,REQ-GRP-004
+2026-11-07,bench.gripper.current_default_and_max,200 (legacy max 400; direct default 250),100,mA,records/sessions/gripper-takeover-2026-11-07.md,미측정(사용자 지정),사용자 전부 100mA로 줄인다; 코드 25 tests pass; 실제 장비 갱신은 실행 중 DRL로 차단,codex,REQ-GRP-004

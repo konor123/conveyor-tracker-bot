@@ -123,6 +123,22 @@ class SelectReply:
 
 
 @dataclass(frozen=True)
+class PlanReply:
+    result: int
+    reason_code: str
+    status: int
+    track_id: int = 0
+    epoch: int = 0
+    source_t: float = 0.0
+    release_t: float = 0.0
+    valid_until_t: float = 0.0
+    target_xyz: tuple = (0.0, 0.0, 0.0)
+    target_vel: tuple = (0.0, 0.0, 0.0)
+    position_std: float = 0.0
+    time_margin_s: float = 0.0
+
+
+@dataclass(frozen=True)
 class VerifyReply:
     verdict: int
     stone_inside: bool
@@ -429,6 +445,30 @@ class ScenarioEngine:
         t_enter = fr.t + (reach - best.position[0]) / v if v > 0 else math.inf
         return SelectReply(RESULT['OK'], '', best.track_id, best.epoch, t_enter)
 
+    def compute_intercept(self, t: float, target_track_id: int, target_epoch: int,
+                          resets: int = 0, t_required_s: float = 3.6) -> PlanReply:
+        fr = self.frame(self.frame_index(t), resets)
+        tr = next((x for x in fr.tracks if x.track_id == target_track_id), None)
+        if tr is None or tr.status != OBSERVED:
+            return PlanReply(RESULT['FAILED'], 'NO_TRACK', 2)
+        if tr.epoch != target_epoch:
+            return PlanReply(RESULT['FAILED'], 'EPOCH_MISMATCH', 4, tr.track_id, tr.epoch)
+        v = fr.belt.speed
+        x_exit = float(self._zones['reach_end_m'])
+        t_avail = (x_exit - tr.position[0]) / v if v > 0 else 0.0
+        margin = t_avail - t_required_s
+        dt_rel = min(t_required_s, max(0.0, t_avail))
+        x_rel = tr.position[0] + v * dt_rel
+        p_base = tuple(float(c) for c in self.conveyor_to_base([x_rel, tr.position[1], tr.position[2]]))
+        v_xy = self._conv_R @ [v, 0.0]
+        v_base = (float(v_xy[0]), float(v_xy[1]), 0.0)
+        valid_until_t = fr.t + max(t_avail, 5.0)
+        if margin < 1.0 - 1e-9:
+            return PlanReply(RESULT['FAILED'], 'TIME_INSUFFICIENT', 1, tr.track_id, tr.epoch,
+                             fr.t, fr.t + dt_rel, valid_until_t, p_base, v_base, self._pos_std, margin)
+        return PlanReply(RESULT['OK'], '', 0, tr.track_id, tr.epoch, fr.t, fr.t + dt_rel,
+                         valid_until_t, p_base, v_base, self._pos_std, margin)
+
     def verify(self, call_index: int) -> VerifyReply:
         e = self._verify[min(call_index, len(self._verify) - 1)] or {}
         verdict = VERDICT[e.get('verdict', 'SUCCESS')]
@@ -473,7 +513,11 @@ class ScenarioEngine:
             str(ph): {str(mk): float(mv) for mk, mv in (md or {}).items()}
             for ph, md in raw_pm.items()
         }
-        return SkillReply(name=name, duration_s=float(e['duration_s']) * self._scale,
+        raw_dur = float(e['duration_s'])
+        scaled_dur = raw_dur * self._scale
+        if name == 'DynamicPlace' and raw_dur >= 1.8 and scaled_dur < 1.8:
+            scaled_dur = 1.8
+        return SkillReply(name=name, duration_s=scaled_dur,
                           result=RESULT[e['result']], reason_code=e['reason_code'],
                           hang=bool(e['hang']), cancel_ack=bool(e['cancel_ack']),
                           protective_stop_at_ratio=e['protective_stop_at_ratio'],

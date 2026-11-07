@@ -4,7 +4,7 @@
 - M0을 먼저 통과한 뒤, 각 절 끝의 **게이트(G0~G7)**를 통과해야 다음 게이트로 넘어간다. 게이트 통과 조건은 `PLAN.md` 11.2절(합격 기준 + REQ 테스트 + 게이트 보고서)을 따른다.
 - 트랙 A(로봇·제어), B(비전·보정), C(계획·오케스트레이션), D(시뮬레이션)는 interface·계약 테스트·mock 2종·fixture·rosbag으로 연결해 병렬로 진행한다(`PLAN.md` 7, 11절). Isaac Sim(3절)은 실기 게이트를 막지 않는다.
 - 아래 합격 기준 수치는 모두 **제안값(초기 가설)**이다. 0절의 실측값이 나오면 조정하고 `records/param_changes.csv`에 남긴다.
-- 상태 표기: `[x]` 완료(재현 기록 보관 필요), `[ ]` 미착수.
+- 상태 표기: `[x]` 완료(재현 기록 보관), `[ ]` 완료 조건 미충족(부분 수행 포함).
 - 작업 장소 표기(`PLAN.md` 11.4절): `[ON]` 온라인(장비 없이 개발 PC·CI), `[ON*]` 온라인이지만 현장 자료 필요, `[OFF]` 현장 장비 필요. `[OFF]` 항목은 아래 현장 세션 묶음으로 모아 진행한다.
 - 구현 항목은 `TEST_SPEC.md`의 해당 시험 케이스(`TC-<영역>-*`)를 먼저 테스트 코드로 쓰고 실패를 확인한 뒤 구현한다.
 
@@ -59,9 +59,9 @@
 
 ## 1. Spec·시험 명세·계약·골격 → M0 (전부 `[ON]`)
 
-- [ ] `[ON]` `specs/` 구성, spec 템플릿·REQ ID 체계(`PLAN.md` 8절)
+- [x] `[ON]` `specs/` 구성, spec 템플릿·REQ ID 체계(`PLAN.md` 8절)
 - [ ] `[ON]` SPEC-000(system), 010(interfaces), 100(orchestrator), 110(abort-timeout), 700(mocks), 800(records) v0.1 작성·리뷰
-  - 2026-11-07 작성 완료(000·010 v0.2·700 v0.2·800 v0.1). 다른 담당자 리뷰 남음
+  - SPEC-000·010·100·110·700·800 문서와 REQ·TC 연결. 독립 리뷰 및 M0 통과 판정 대상.
 - [ ] `[ON]` `TEST_SPEC.md`의 M0 대상 시험 케이스(SYS·IF·ORC·ABT·MCK·REC·INT-I0) 리뷰 후 확정
 - [ ] `[ON]` `drop_interfaces` 1차: 데이터 msg, `TaskStatus`, `Heartbeat`, `StepRecord`, skill action/srv, `DropTask` (TC-IF-*)
 - [x] `[ON]` 공통 요청 필드(`cycle_id`·`step_id`·`deadline`), QoS, revision·epoch 처리, lifecycle 비활성 시 응답을 SPEC-010에 고정
@@ -70,13 +70,13 @@
 - [x] `[ON]` `orchestrator` 골격: `state_machine.py`, `step_judges.py`, `abort_policy.py`, `deadlines.py` 순수 모듈 + `test/fakes/`(skill port·fake clock) 단위 테스트(TC-ORC-*, TC-ABT-*)
 - [x] `[ON]` 장애 10종을 `abort_policy`·`deadlines` 단위 테스트의 이벤트 열로 작성(`PLAN.md` 7.3절)
 - [ ] `[ON]` `orchestrator_node`, `safety_supervisor_node`, `record_logger_node`
-  - 2026-11-07 `record_logger_node` 완료(시험 8개). `orchestrator_node`는 초안(import만 확인, mock 연동 시험 전), `CycleRunner` 확장(`pending_fault`·`on_state`·`on_record`, SPEC-100 v0.2) 완료. `safety_supervisor_node` 미착수
+  - DropTask·독립 Stop 감시·StepRecord/trial 기록 노드와 단위·계약 시험. 전체 ROS I0 검증 및 독립 리뷰를 노드 묶음의 완료 조건으로 둔다.
 - [x] `[ON]` `drop_mocks`: `scenario_engine`, `mock_world_node`(`role:=vision|tracking|all`), `mock_robot_controller_node`(소요시간·결과 지정형). 정상 경로 우선, 지연·지터 값은 가정값으로 표기(TC-MCK-*)
 - [x] `[ON]` 계약 테스트 틀(`test/contract/`, 대상을 인자로 받음), `mock_world_node`의 vision·tracker 계약 통과
 - [ ] `[ON]` `mock.launch.py`, `launch_testing` 기반 I0 통합 테스트(ROS I0 시나리오 5종)를 CI에 등록(TC-INT-*)
-  - 2026-11-07 `drop.launch.py`(use_mock_<역할>)·`mock.launch.py`·동시 기동 거부(TC-MCK-007-01) 완료. I0 시나리오 5종 시험은 orchestrator_node 뒤
+  - `drop.launch.py`·`mock.launch.py`·동시 기동 거부와 ROS I0 정상·장애 시험, GitHub Actions 정의. I0 실행 결과와 미연결 TC는 검증 기록 및 추적 행렬을 기준으로 판정한다.
 - [ ] `[ON]` `records/` 디렉터리, trial·step JSONL 기록, `devlog.csv`, `param_changes.csv`(TC-REC-*)
-  - 2026-11-07 시도 기록 JSON Schema(TC-REC-001-01)·성공률·Wilson·분위수(TC-REC-004·005)·StepRecord JSONL 기록 노드 완료. trial 기록 작성·devlog 갱신 남음
+  - JSON Schema·성공률·Wilson·분위수·StepRecord/trial JSONL 구현. I0 기록 생성 검증과 `devlog.csv` 검증 지표를 완료 조건으로 둔다.
 - [x] `[ON]` `tools/spec/trace.py` 추적 행렬 생성(REQ·TC 연결 검사)
 
 **M0 합격 기준(제안):** SPEC 6종 v0.1과 M0 대상 시험 케이스 리뷰 완료 / interface 빌드 / 단위 테스트에서 장애 10종 이벤트 열마다 기대 중단 등급 / I0 정상 시나리오 20/20, ROS I0 장애 시나리오 4종(`robot_hang`, `protective_stop`, `heartbeat_loss`, `time_insufficient`)마다 정의된 중단 등급 동작 / 오케스트레이터 REQ 연결률 100% / `records/`에 StepRecord·trial 기록 생성 확인.
@@ -86,27 +86,29 @@
 ## 2. E0509 컨트롤러와 ROS 2 연결 → G0 (트랙 A)
 
 - [x] `[OFF]` Ubuntu PC와 E0509 제어기 TCP 통신
-- [x] `[OFF]` doosan-robot2 Jazzy 빌드 (설치 SHA 기록 필요)
+- [x] `[OFF]` doosan-robot2 Jazzy 빌드, SHA `dade65d`·DRCF `GF02100300`·DRFL `GL013304` 기록(`records/bench/versions-2026-11-07-170841.txt`)
 - [x] `[OFF]` `model:=e0509 mode:=real` 연결, Joint State 수신, RViz2 동기화
 - [x] `[OFF]` 저속 단일 관절 이동
 - [x] `[OFF]` RH-P12-RN(A) 개폐(플랜지 RS-485 배선, 제어기 DRL이 통신 담당)
 - [ ] **연속 제어 인터페이스 계약 확정** (SPEC-500)
   - [ ] `[ON]` 후보 조사·문서화: `servol_stream` / `speedl_stream`(일반), `servol_rt_stream` / `speedl_rt_stream`(RT, `realtime/connect_rt_control` 등 초기화 필요). 단위(mm, deg)·자세 규약·`time` 인수 의미·timeout 동작
   - [ ] `[ON]` 측정 스크립트(사인 궤적 지령, 주기·지연·지터·추종 오차 기록)를 `mode:=virtual`에서 동작 확인
-    - 2026-11-07 `tools/bench/stream_bench.py`·`stop_bench.py` 작성, 단위 시험 6개. virtual 대신 dry-run + 실기(비상정지 대기)로 확인
+    - `tools/bench/stream_bench.py`·`stop_bench.py`의 단위 시험·dry-run·실기 기록. virtual 확인과 구분한다.
   - [ ] `[OFF]` OFF-2: 안전 높이에서 작은 진폭 사인 궤적으로 지령 주기·지연 p50/p95/p99·지터·추종 오차 측정(비전·rosbag 부하 포함) → `records/bench/stream-<date>.csv`
-    - 2026-11-07 로봇 단독(부하 없음) 4조건 측정 완료: speedl 100 Hz 지연 32 ms·추종 p95 0.18 mm(지연 보정 후)가 최선. 부하 조건 남음(`records/sessions/OFF-2-2026-11-07.md`)
+    - 로봇 단독 4조건과 D455·rosbag·ArUco 참조 부하 4조건의 원시 기록. 참조 부하 speedl 100 Hz: 간격 p99 10.146 ms, 지연 29 ms, 지연 보정 후 추종 p95 0.062 mm. servol 50 Hz는 실제 이동 부재로 추종 불합격. 생산 vision 부하의 성능 판정과 구분한다(`records/bench/loaded-stream-comparison-2026-11-07.csv`).
   - [ ] `[OFF]` OFF-2: 통신 단절·stale 지령·cancel 시 실제 정지 동작 확인
-    - 2026-11-07 stale만 완료: speedl 20/20 정지, p95 149 ms, 이동 ≤ 2.34 mm(`records/bench/stop-2026-11-07-172032.*`). 통신 단절·cancel 남음
+    - 단독 stale: speedl 20/20 정지, p95 149 ms, 이동 ≤ 2.34 mm(`records/bench/stop-2026-11-07-172032.*`). 참조 부하 stale은 실제 이동 부재로 무효. 통신 단절·cancel·프로세스 종료 시험과 스트림 무응답 원인 검증은 별도 항목.
   - [ ] `[OFF]` OFF-2: `robot_controller_node` 프로세스 종료·executor 정지 시 드라이버·제어기 쪽에서 스트림 동작이 멈추는지, 정지까지 시간·이동 거리 확인. 멈추지 않으면 L0가 controller 밖에서도 성립하도록 정지 경로를 SPEC-500에 정한 뒤 G0를 판정한다
   - [ ] 목표 주기를 못 맞추면 MODE_SYNCHRONIZED를 범위에서 빼고 MODE_PREDICTED까지로 제한(`PLAN.md` 11.3절)
 - [ ] **그리퍼 제어 계약 확정** (SPEC-500)
+  - [x] `[ON]` 일회성 CLI `gripper open|close|pos`: 운용 범위 0~750 pulse, 기본·상한 전류 100 mA, 범위 밖 지령 전송 전 거부. 상주 adapter 계약과 구분한다.
+  - [x] `[OFF]` 일회성 0→500→0 pulse 실제 개폐 관찰 및 `gripper open` 동작 기록(`records/sessions/gripper-takeover-2026-11-07.md`).
   - [ ] `[OFF]` OFF-1: 그리퍼 Protocol Type(Modbus-RTU = 10, RH-P12-RN(A)는 펌웨어 V12 이상 필요)·통신 속도·ID와 현재 쓰는 DRL 코드 확인
-    - 2026-11-07 OFF-2에서 확인: 플랜지 RS-485 57600 bps 8N1, Modbus ID 1에서 Modbus-RTU 응답(Model Number 35074 = RH-P12-RN(A)). 상주 DRL 없음. 펌웨어 버전·Protocol Type 값은 아직 읽지 않음(`records/sessions/OFF-2-2026-11-07.md`)
+    - 플랜지 RS-485 57600 bps 8N1, Modbus ID 1, Model Number 35074 응답. 일회성 DRL 경로이며 펌웨어·Protocol Type 값 조회 및 상주 루프 계약은 별도 검증 대상(`records/sessions/gripper-takeover-2026-11-07.md`).
   - [ ] `[ON]` 상주 루프 DRL 작성(`PLAN.md` 1.1절): 참고 구현 `dsr_study`의 `gripper_service`(상주 루프) 구조에 트리거 레지스터 1개, FC03 상태 읽기, 생존 카운터 추가. Modbus 프레임·레지스터 인코딩은 단위 테스트(TC-GRP-011~013)
   - [ ] `[ON]` `gripper_adapter` transport 구현(`drl_start`, `set_output_register_int`), fake gripper로 지연·무응답·오류·생존 카운터 정지 단위 테스트(TC-GRP-*)
   - [ ] `[ON]` `mode:=virtual`에서 `drl_start`·레지스터 서비스 형식 확인(시리얼·그리퍼 동작은 확인하지 않음)
-    - 2026-11-07 실기에서 확인: `/dsr01/drl/drl_start`(일회성 DRL)로 그리퍼 읽기·개폐 1회 동작. 레지스터 서비스는 `/dsr01/plc/*`, `get_output_register_int`는 DRL이 쓴 값의 하위 1바이트만 돌려줌(`tools/bench/drl/`)
+    - 실기 일회성 경로: `/dsr01/drl/drl_start`, 레지스터 `/dsr01/plc/*`. 하위 1바이트 반환 관측은 `records/sessions/OFF-2-2026-11-07.md`를 기준으로 하며 virtual 시험을 대체하지 않는다.
   - [ ] `[OFF]` OFF-2: 상주 루프 기동(STANDBY), 상태 읽기 레지스터 방향·서비스 확정, 상주 루프가 도는 동안 `move_line`이 받아들여지는지 확인
   - [ ] `[OFF]` OFF-2: 명령 지연(개방 명령 → 개방 시작·완료 p50/p95/p99), 상태(Present Position·Current) 읽기 주기 → `records/bench/gripper-<date>.csv`
   - [ ] `[OFF]` OFF-2: **상주 루프 + 스트림 동시 동작**. 상주 루프가 도는 상태에서 선정한 stream 지령이 받아들여지는지, 안전 높이 사인 추종 중 개방 트리거를 보내 추종이 끊기지 않는지, 개방 지연이 정지 상태와 같은지 확인. 가장 먼저 확인할 위험 항목이다. 안 되면 `PLAN.md` 11.3절 대안(한 DRL 프로그램 안에서 `amovel` + 그리퍼 명령) 적용
@@ -141,13 +143,17 @@
 
 ## 4. RealSense D455 연결 및 캘리브레이션 → G1 (트랙 B)
 
-- [x] `[OFF]` OFF-1: D455 ROS 2 연결, RGB 1280×800/30 fps, CameraInfo 확인(FOV는 실제 프로파일 값 사용). 2026-11-07: realsense-ros 4.58.4, 29.97 Hz(FastDDS SHM 확대 프로파일 필수), fx 보고값 변동 → 고정 K(`records/bench/d455-check-2026-11-07-161256.txt`, SPEC-600 4.8절)
+- [x] `[OFF]` 현재 조명에서 벨트 안정·빠른1·빠른2·사용자 설정 최고속도 4조건의 RGBD 원시 자료, 경로·SHA-256 및 품질 기록(`records/bench/moving-conditions-2026-11-07.csv`, `records/bags.csv`). 아날로그 수치 눈금·실측 mm/s 없음. 조명 변경 불가로 단일 조명 자료이며 3속도×2조명 전체 요건과 구분한다.
+- [x] `[ON]` rosbag 8개의 RGB 8개·깊이 미리보기 6개 MP4 압축·전체 디코딩 검증, 원래 프레임 시각·SHA-256·원본 대응표 보존(`records/media/2026-11-07/README.md`).
+- [x] `[OFF]` 카메라 없는 10 s 시험 bag 재생: RGB/CameraInfo 286쌍 stamp 일치·역행 없음(`records/bench/camera-replay-2026-11-07.json`).
+- [x] `[OFF]` 카메라 높이 사용자 보고 600 mm의 최종 배치에서 hand-eye용 50자세·250장 수집 및 해시 보존.
+- [x] `[OFF]` OFF-1: D455 ROS 2 연결, RGB 1280×800/30 fps, CameraInfo 확인. realsense-ros 4.58.4, FastDDS SHM 확대 프로파일, 고정 K(`records/bench/d455-check-2026-11-07-161256.txt`, SPEC-600 4.8절)
 - [ ] `[OFF]` OFF-1: 자동 노출·화이트밸런스 고정, 노출 시간 ≤ 10 ms 목표(50 mm/s에서 흐림 0.5 mm)
-- [ ] `[OFF]` OFF-1: RealSense 헤더 시각의 clock domain 확인(global time), 호스트 시계와의 offset·drift 기록. 2026-11-07: clock_domain global_time, 수신−stamp p50 22 ms(100프레임). 장시간 drift는 미측정
+- [ ] `[OFF]` OFF-1: RealSense 헤더의 global_time·호스트 offset·장시간 drift 검증. 초기 수신−stamp p50 약22 ms. 속도 자료의 retained 선두 프레임·전송 누락·최대 지연은 bag별 integrity JSON으로 구분한다.
 - [ ] `[ON]` 왜곡 보정·광선-평면 교차 모듈(`localizer.py`) 합성 카메라로 단위 테스트(TC-VIS-*)
 - [x] `[ON]` 보정 도구(`plane_calibration`, `eye_to_hand_calibration`, `tcp_offset`, `charuco`, 보정 파일, `calibrate_camera`·`charuco_view`) 합성 대응점·합성 영상으로 단위 테스트(TC-CAL-001~007, 2026-11-07, SPEC-600 v0.1). 내부 파라미터는 D455 공장값(`records/bench/d455-intrinsics-2026-11-07.txt`), 현장 촬영은 `tools/bench/capture_d455.py`
 - [ ] `[OFF]` OFF-3: Calibration Target(ChArUco 5x7) 배치, 카메라-로봇 대응점 취득(로봇 TCP 포인터로 보드 코너 접촉, 면마다 4장면 + verify 5장면, 기록 양식 `records/templates/calib-session.yaml`, SPEC-600 4.4절). 2026-11-07 보드 검출 예비 확인 완료(로봇 접촉 전)
-- [ ] `[ON*]` eye-to-hand Extrinsic 계산, 결과에 calibration_id·날짜·잔차·카메라 프로파일 저장
+- [x] `[ON*]` eye-to-hand 후보 행렬·프로파일·잔차·원시 자료 보존: ArUco ID25, 40 mm, 30 FIT + 20 holdout, 250장. holdout RMS 1.1473 px. 독립 TCP 접촉 정확도와 운용 보정 채택은 별도 판정(`records/calib/2026-11-07-final-layout/`).
 - [ ] `[OFF]` OFF-3: 매트·벨트 평면 높이 및 **벨트 진행 방향 벡터** 측정(벨트에 붙인 병뚜껑을 이동시키며 추적)
 - [ ] `[OFF]` OFF-3: 보정에 쓰지 않은 20개 이상 위치에서 좌표 변환 오차 평가
 - [ ] `[OFF]` OFF-3: Depth는 평면 확인·이상 감시에만 사용(설치 높이에서 평면 ROI의 유효 픽셀 비율·편향·표준편차 기록)

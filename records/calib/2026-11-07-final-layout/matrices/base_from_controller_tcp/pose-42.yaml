@@ -1,0 +1,27 @@
+parent: base_link
+child: controller_tcp
+translation_unit: m
+matrix_direction: base <- controller_tcp
+matrix_4x4:
+- - -0.02708960510790348
+  - -0.9918720126152039
+  - 0.12432228028774261
+  - 0.62898681640625
+- - -0.8578662872314453
+  - 0.08691118657588959
+  - 0.5064700245857239
+  - 0.00197109591960907
+- - -0.5131584405899048
+  - -0.0929318219423294
+  - -0.8532479405403137
+  - 0.285043212890625
+- - 0.0
+  - 0.0
+  - 0.0
+  - 1.0
+source: recorded actual controller position and rotation; no SO(3) projection applied
+raw_sources:
+  posx_file: pose-42-posx.txt
+  posx_sha256: e7a9d607dff30a48057a65b404654c87e33c880a2433844678a1deed0c9eca70
+  rotm_file: pose-42-rotm.txt
+  rotm_sha256: 22dc795db9bfb6fad72284c18740b371e833048c669af15b33c455d78aeabd36

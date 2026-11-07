@@ -1,0 +1,5 @@
+condition,lighting,duration_s,rgb_frames,depth_frames,speed_mps,bag_path,sha256,quality
+analog-stable-current,current,57.906422752,1735,1736,,/home/umm/drop_bags/2026-11-07/2026-11-07_200632_off1-moving-analog-stable-current,793ed580be4a60badb68d2da307b3016104a9846789bb7a6c3039d49a6f82f8f,transport loss2; no full stamp audit
+analog-fast-1,current,64.487611146,1933,1933,,/home/umm/drop_bags/2026-11-07/2026-11-07_201202_off1-moving-analog-fast-1-long,e3233671c224aefa66d41cf03ed6bf7bc46c41a1644f2dac1a6cdf75b495e32b,RGB stale leading sample; current paired span64.4821s
+analog-fast-2,current,64.491319916,1930,1930,,/home/umm/drop_bags/2026-11-07/2026-11-07_201739_off1-moving-analog-fast-2,1af60f6b79bf06d3f516cca89f5e9f3c0d1b731954bf24a61bad8c0b6f10ed39,depth stale leading sample; current paired span64.4808s
+analog-maximum,current,64.130580929,1918,1918,,/home/umm/drop_bags/2026-11-07/2026-11-07_202213_off1-moving-analog-maximum,6f5d798fa8b05399286a9da763a7bd460d47f191d2b88e3082fbffe67daa14f1,transport loss8; max gap166.875ms; received age>.3s2/stream

@@ -1,0 +1,29 @@
+{
+  "condition": "analog-fast-1",
+  "user_action": "ready after increasing analog speed from stable-current",
+  "bag_path": "/home/umm/drop_bags/2026-11-07/2026-11-07_201012_off1-moving-analog-fast-1",
+  "duration_s": 59.414504577,
+  "topics": {
+    "/camera/camera/depth/camera_info": 1775,
+    "/camera/camera/color/image_raw": 1775,
+    "/camera/camera/color/camera_info": 1774,
+    "/tf_static": 1,
+    "/camera/camera/color/metadata": 1774,
+    "/camera/camera/depth/image_rect_raw": 1776
+  },
+  "numeric_speed_mps": null,
+  "visual_qc": {
+    "condition": "analog-fast-1",
+    "frames_received": 561,
+    "blue_region_observations": 503,
+    "u_range_px": [
+      373.49446494464945,
+      732.6546281433921
+    ],
+    "method": "same blue-HSV ROI as stable condition; qualitative pixel QC, not calibrated detection or metric speed",
+    "conveyor_band_pairs": 493,
+    "median_u_speed_px_s": 54.98152752784125
+  },
+  "at_least_60s_continuous_observation": false,
+  "production_tracking_or_gate_pass": false
+}

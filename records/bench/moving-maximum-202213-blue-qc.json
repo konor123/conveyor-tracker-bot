@@ -1,0 +1,7 @@
+{
+  "condition": "analog-maximum",
+  "blue_region_observations": 1883,
+  "method": "qualitative blue-HSV ROI, same thresholds as earlier samples; full stored RGB interval; no metric speed/identity validation",
+  "conveyor_band_pairs": 1864,
+  "median_u_speed_px_s": 95.38303200201898
+}

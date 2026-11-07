@@ -379,7 +379,7 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-GRP-002-01 | 시작 확인 | U | `[ON]` | Model Number 35074 / 다른 값 / Hardware Error ≠ 0 | 통과 / 예외(구형 펌웨어 표 사용 방지) / 예외 |
 | TC-GRP-003-01 | 레지스터 주소(프로토콜별) | U | `[ON]` | config 주소표, protocol = dynamixel2 / modbus | dynamixel2: Torque Enable 512, Hardware Error Status 518, Goal Current 550, Profile Velocity 560, Goal Position 564, Present Current 574, Present Position 580 / modbus: Torque Enable 256, Hardware Error Status 259(하위 바이트), Goal Current 275, Goal Position 282, Present Current 287, Present Position 290. 두 표를 섞어 쓰면 로드 실패 |
 | TC-GRP-003-02 | EEPROM 쓰기는 토크 꺼진 상태에서만 | U | `[ON]` | 토크 켜진 상태에서 Operating Mode 쓰기 요청 | 쓰기 0건, 예외 |
-| TC-GRP-004-01 | 닫기 순서 | U | `[ON]` | `close(current_limit_ma)` | 쓰기 순서: (필요 시) 모드 5 확인 → Goal Current → Goal Position. 한도(config 최대) 초과 전류는 거부 |
+| TC-GRP-004-01 | 닫기 순서 | U | `[ON]` | `close(current_limit_ma)` | 쓰기 순서: (필요 시) 모드 5 확인 → Goal Current → Goal Position. 한도(config 최대) 초과 전류는 거부. 현장 일회성 CLI는 `open=0`, `close=750` pulse이며 기본 전류는 100 mA이며, 0~750 범위 밖 목표와 100 mA 초과 전류를 거부(개폐·위치·측정 도구 공통) |
 | TC-GRP-005-01 | 부분 개방 | U | `[ON]` | `open(0.019)` | Goal Position = `width_to_pulse(0.019)`, Present Position이 허용오차 안에 들면 OK |
 | TC-GRP-006-01 | 파지 판정 | U | `[ON]` | 간격·전류 조합(경계 3점씩) | TC-ORC-003-04·05와 같은 결과 |
 | TC-GRP-007-01 | 응답 제한시간 | U | `[ON]` | 응답 0.500 / 0.501 s, 무응답 | OK / `FAULT`(`GRIPPER_TIMEOUT`) / `FAULT`. steady 시계 사용 |
@@ -406,6 +406,13 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-CAL-004-01 | TCP 오프셋 추정 | U | `[ON]` | 알려진 오프셋 + 잡음 0.2 mm, 30자세: 기울기 ±30° 3축 / 수직 접근 yaw만 + XY 관측 + z 고정 | 오차 ≤ 0.2 mm / XY 오차 ≤ 0.2 mm, z 미고정 시 `DEGENERATE` |
 | TC-CAL-005-01 | 보정 파일 필수 항목 | U | `[ON]` | 항목 누락 파일, 빈 값, 프로파일 내부 항목 누락, 단위가 아닌 quaternion | 로드 실패(calibration_id·날짜·잔차·카메라 프로파일·transform), 정상 파일 왕복 일치 |
 | TC-CAL-005-02 | calibration_id 불일치 | C | `[ON]` | vision과 orchestrator의 id 다름 | PRECHECK FAILED(`CALIBRATION_MISMATCH`) |
+| TC-CAL-006-01 | 광선-평면 교차·검증 통계 | U | `[ON]` | 오차 없는 투영 50점(시야 가장자리 5 px까지) / XY 오차 0~1.9 mm 20점, z 차이 10 mm / 10점 | 왕복 오차 ≤ 1 µm / p95·최대 일치, 불합격(p95 > 1 mm), 절반 크기면 합격, z 무시 / 불합격(n < 20) |
+| TC-CAL-007-01 | ChArUco 검출·자세 | U | `[ON]` | 원근 렌더(4배 초표본) 보드 5자세, 거리 0.37 m, 기울기 ≤ 20° | 코너 24개, 코너 오차 ≤ 0.2 px, 자세 이동 ≤ 1 mm·회전 ≤ 0.2°, 보드 좌표가 인쇄 원본 배치와 일치 |
+| TC-CAL-008-01 | camera_link static TF 합성 | U | `[ON]` | 보정 결과 + RealSense형 camera_link ← 광학 TF | 다시 합성한 base ← 광학이 보정 결과와 1e-12 이내, det = 1 |
+| TC-CAL-009-01 | CameraInfo ↔ 프로파일 비교 | U | `[ON]` | 같은 값, fx +0.4 px / 높이 720, 왜곡 모델 다름, cx +0.6 px, k3 +0.01, 왜곡 0 / fx·fy +2.2 px | 불일치 없음 / 해당 항목 불일치 / fx·fy만 불일치, `check_focal=False`면 없음 |
+| TC-CAL-010-01 | 독립 접촉점 검증 통계·기준 판정 | U | `[ON]` | n ≥ 20점 독립 접촉점, 포인터 보정 좌표와 카메라 추정 좌표 비교, p95 ≤ 1 mm 및 최대 ≤ 2 mm 기준 | 점별 XY 잔차, p50·p95·최대 오차 일치, 기준 만족 시 pass=True, 초과 시 pass=False |
+| TC-CAL-010-02 | 독립 접촉점 거부 규칙 | U | `[ON]` | 20점 미만, 중복 점/ID, fit 점 재사용, NaN/Inf/불량 변환, 단위 오류(>10 m 등), 미정의 포인터 TCP, 출처 누락/불일치, 합성 데이터 물리 검증 제출 | 지정된 거부 사유(예외 또는 refusal) 반환, 물리 게이트 pass 불가 |
+| TC-CAL-010-03 | 오프라인 캡처/가져오기 도구 | U | `[ON]` | 로봇 제어 서비스 미연결 오프라인 상태에서 템플릿 생성, CSV/YAML 검증, 스키마 왕복 | 로봇 이동 지령 0건, 스키마 검증 및 파싱 성공, 재현성 확인 |
 
 ### 3.11 MCK — 대역
 
@@ -425,10 +432,6 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 
 | TC | 검증 내용(REQ 초안) | 수준 | 장소 | 조건 | 기대 결과 |
 |---|---|---|---|---|---|
-| TC-CAL-006-01 | 광선-평면 교차·검증 통계 | U | `[ON]` | 오차 없는 투영 50점(시야 가장자리 5 px까지) / XY 오차 0~1.9 mm 20점, z 차이 10 mm / 10점 | 왕복 오차 ≤ 1 µm / p95·최대 일치, 불합격(p95 > 1 mm), 절반 크기면 합격, z 무시 / 불합격(n < 20) |
-| TC-CAL-007-01 | ChArUco 검출·자세 | U | `[ON]` | 원근 렌더(4배 초표본) 보드 5자세, 거리 0.37 m, 기울기 ≤ 20° | 코너 24개, 코너 오차 ≤ 0.2 px, 자세 이동 ≤ 1 mm·회전 ≤ 0.2°, 보드 좌표가 인쇄 원본 배치와 일치 |
-| TC-CAL-008-01 | camera_link static TF 합성 | U | `[ON]` | 보정 결과 + RealSense형 camera_link ← 광학 TF | 다시 합성한 base ← 광학이 보정 결과와 1e-12 이내, det = 1 |
-| TC-CAL-009-01 | CameraInfo ↔ 프로파일 비교 | U | `[ON]` | 같은 값, fx +0.4 px / 높이 720, 왜곡 모델 다름, cx +0.6 px, k3 +0.01, 왜곡 0 / fx·fy +2.2 px | 불일치 없음 / 해당 항목 불일치 / fx·fy만 불일치, `check_focal=False`면 없음 |
 | TC-REC-001-01 | 시도 기록 스키마 | U | `[ON]` | `PLAN.md` 10.2절 JSON Schema로 검증 | 필수 필드 누락 시 실패 |
 | TC-REC-002-01 | 시도하지 않은 경우도 기록 | I0 | `[ON]` | `time_insufficient` 소진 | `result = NOT_ATTEMPTED`, reason, `passes_skipped` 기록 |
 | TC-REC-003-01 | 단계 기록 | I0 | `[ON]` | 정상 1사이클 | 단계 수만큼 StepRecord JSONL, metric 키 포함 |

@@ -2,9 +2,12 @@ deliverables/
 build/
 install/
 log/
+third_party/
 __pycache__/
 *.pyc
 .pytest_cache/
 *.egg-info/
 *.mcap
 *.db3
+.agents/
+.gemini/

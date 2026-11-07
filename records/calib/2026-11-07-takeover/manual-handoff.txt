@@ -1,0 +1,7 @@
+2026-11-07T18:34:59.616770+09:00
+User clarified marker side length as 40 mm; numeric marker ID remains unknown.
+Preflight for second move: robot_state=1, joint_6=90 deg, drl_state=1 (STOP).
+Command: joint_6 relative -180 deg at 5 deg/s, acceleration 10 deg/s2, synchronous.
+MoveJoint response success=True. Expected endpoint approximately -90 deg; no post-command measurement because user requested manual control handoff.
+User requested automatic control stop after rotation to manually bring gripper into camera FOV.
+No more robot or gripper commands. No automatic return. Await explicit user resumption.

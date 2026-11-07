@@ -492,11 +492,14 @@ class CycleRunner:
                 c.tracker.on_cancel_ack()
             c.active_goal = False
             c.tracker.tick()
+        ok = True
         if c.tracker.level is L.L2:
-            port.move_to_pose('safe', clock.ros_now() + p.abort_path_l2_s + 0.001)
+            ok = bool(port.move_to_pose('safe', clock.ros_now() + p.abort_path_l2_s + 0.001))
         elif c.tracker.level is L.L3:
-            port.safe_retreat(keep_sync=failed_state in DYNAMIC_STATES, place_back=True,
-                              deadline=clock.ros_now() + p.abort_path_l3_s + 0.001)
+            ok = bool(port.safe_retreat(keep_sync=failed_state in DYNAMIC_STATES, place_back=True,
+                                        deadline=clock.ros_now() + p.abort_path_l3_s + 0.001))
+        if not ok:
+            c.tracker._set(L.L4)
         if c.tracker.tick() is L.L4:
             port.stop()
         c.tracker.on_path_done()

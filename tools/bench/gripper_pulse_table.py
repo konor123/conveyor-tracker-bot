@@ -30,7 +30,7 @@ from typing import Callable, Iterable, Sequence
 
 PULSE_MIN = 0
 PULSE_MAX = 1150
-CURRENT_MAX_MA = 400          # 측정 중 파지력 상한(참고 구현 권장 200~400)
+CURRENT_MAX_MA = 100          # 사용자 지정 현장 전류 상한
 REG_DEFAULT = {"seq": 10, "pos_hi": 11, "pos_lo": 12, "cur_hi": 13, "cur_lo": 14}
 
 CSV_FIELDS = ["date", "seq", "direction", "pass", "cmd_pulse", "goal_current",
@@ -230,7 +230,7 @@ def main(argv: Sequence[str] | None = None, inp=input, transport=None, sleep=tim
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--ns", default="/dsr01")
     ap.add_argument("--stone-mm", type=float, required=True, help="공깃돌 지름(실측 최대값)")
-    ap.add_argument("--current", type=int, default=200, help=f"Goal Current [mA], 1~{CURRENT_MAX_MA}")
+    ap.add_argument("--current", type=int, default=100, help=f"Goal Current [mA], 1~{CURRENT_MAX_MA}")
     ap.add_argument("--settle", type=float, default=1.5, help="정착 대기 [s]")
     ap.add_argument("--passes-up", type=int, default=3)
     ap.add_argument("--passes-down", type=int, default=1)

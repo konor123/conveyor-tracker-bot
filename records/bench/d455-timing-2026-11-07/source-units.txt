@@ -1,0 +1,3 @@
+SDK source: https://raw.githubusercontent.com/realsenseai/librealsense/v2.58.4/src/linux/backend-v4l2.cpp
+
+            case RS2_OPTION_EXPOSURE: return V4L2_CID_EXPOSURE_ABSOLUTE; // Is this actually valid? I'm getting a lot of VIDIOC error 22s...

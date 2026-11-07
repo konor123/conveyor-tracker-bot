@@ -1,0 +1,13 @@
+{
+  "copied_files": 37,
+  "image_files": 25,
+  "camera_capture_file_copies": 14,
+  "unique_camera_exposures_by_sha256": 11,
+  "kinds": {
+    "annotation": 7,
+    "camera_capture": 14,
+    "derived_crop": 2,
+    "reference_pdf_render": 2,
+    "source_metadata": 12
+  }
+}

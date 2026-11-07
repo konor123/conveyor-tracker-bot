@@ -1,0 +1,85 @@
+{
+  "bag": "/home/umm/drop_bags/2026-11-07/2026-11-07_201739_off1-moving-analog-fast-2",
+  "streams": {
+    "/camera/camera/color/image_raw": {
+      "count": 1930,
+      "sizes": [
+        [
+          1280,
+          800
+        ]
+      ],
+      "non_increasing_stamps": 0,
+      "max_stamp_gap_s": 0.066755127,
+      "max_bag_time_minus_stamp_s": 0.044674218,
+      "samples_age_over_0_3s": 0
+    },
+    "/camera/camera/color/camera_info": {
+      "count": 1929,
+      "sizes": [
+        [
+          1280,
+          800
+        ]
+      ],
+      "non_increasing_stamps": 0,
+      "max_stamp_gap_s": 0.066755127,
+      "max_bag_time_minus_stamp_s": 0.022367499,
+      "samples_age_over_0_3s": 0
+    },
+    "/camera/camera/depth/image_rect_raw": {
+      "count": 1930,
+      "sizes": [
+        [
+          1280,
+          720
+        ]
+      ],
+      "non_increasing_stamps": 0,
+      "max_stamp_gap_s": 273.01141626,
+      "max_bag_time_minus_stamp_s": 273.019898206,
+      "samples_age_over_0_3s": 1
+    },
+    "/camera/camera/depth/camera_info": {
+      "count": 1929,
+      "sizes": [
+        [
+          1280,
+          720
+        ]
+      ],
+      "non_increasing_stamps": 0,
+      "max_stamp_gap_s": 0.066754883,
+      "max_bag_time_minus_stamp_s": 0.019575606,
+      "samples_age_over_0_3s": 0
+    }
+  },
+  "pairs": {
+    "rgb": {
+      "count": 1929,
+      "stamp_span_s": 64.480814453,
+      "non_increasing_stamps": 0,
+      "max_gap_s": 0.066755127,
+      "gaps_over_50ms": 4,
+      "unpaired_images": [
+        {
+          "index": 0,
+          "bag_time_minus_stamp_s": 0.044674218
+        }
+      ]
+    },
+    "depth": {
+      "count": 1929,
+      "stamp_span_s": 64.480814453,
+      "non_increasing_stamps": 0,
+      "max_gap_s": 0.066754883,
+      "gaps_over_50ms": 4,
+      "unpaired_images": [
+        {
+          "index": 0,
+          "bag_time_minus_stamp_s": 273.019898206
+        }
+      ]
+    }
+  }
+}

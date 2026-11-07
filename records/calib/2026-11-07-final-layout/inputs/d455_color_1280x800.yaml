@@ -1,0 +1,20 @@
+# D455F 컬러 1280x800 내부 파라미터. 보정과 vision이 같은 K를 쓴다(SPEC-600 4.8절).
+# 근거: records/bench/d455-intrinsics-2026-11-07.txt
+#   - 15:40 첫 조회(카메라 연결 직후) fx 644.1401 fy 643.2153
+#   - 16:2x 이후 pyrealsense2·realsense-ros CameraInfo 모두 아래 값(스트림 시작마다 0.3% 안팎 변동 관측)
+#   - 같은 보드를 찍은 영상의 실제 배율 변화는 15:49 → 16:24 사이 0.037%뿐이었다
+# RealSense 'inverse_brown_conrady' = OpenCV plumb_bob(투영 시 왜곡 적용) 계수 순서 k1 k2 p1 p2 k3
+# 픽셀 단위 값과 무차원 왜곡 계수는 단위 접미사 대신 unitless에 둔다(TC-SYS 규약, 접미사 목록에 px 없음)
+unitless: [width, height, fps, fx, fy, cx, cy, distortion]
+serial: '313522301601'
+firmware: 5.17.0.9
+stream: color
+width: 1280
+height: 800
+fps: 30
+fx: 646.3336181640625
+fy: 645.4055175781250
+cx: 640.61962890625
+cy: 405.6260681152344
+distortion_model: plumb_bob
+distortion: [-0.05499815568327904, 0.06443826854228973, -0.0008744244114495814, 0.0007429665420204401, -0.021013302728533745]

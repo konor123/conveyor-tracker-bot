@@ -1,0 +1,112 @@
+{
+  "condition": "analog-maximum",
+  "user_confirmation": "maximum analog control set, ready",
+  "bag_path": "/home/umm/drop_bags/2026-11-07/2026-11-07_202213_off1-moving-analog-maximum",
+  "duration_s": 64.130580929,
+  "topics": {
+    "/camera/camera/color/camera_info": 1921,
+    "/tf_static": 1,
+    "/camera/camera/color/metadata": 1921,
+    "/camera/camera/depth/image_rect_raw": 1918,
+    "/camera/camera/depth/camera_info": 1921,
+    "/camera/camera/color/image_raw": 1918
+  },
+  "numeric_speed_mps": null,
+  "lighting": "current",
+  "lighting_change_unavailable": true,
+  "robot_operating_limit_validated": false,
+  "recorder_reported_transport_messages_lost": 8,
+  "integrity": {
+    "bag": "/home/umm/drop_bags/2026-11-07/2026-11-07_202213_off1-moving-analog-maximum",
+    "recorder_reported_transport_messages_lost": 8,
+    "streams": {
+      "/camera/camera/color/image_raw": {
+        "count": 1918,
+        "sizes": [
+          [
+            1280,
+            800
+          ]
+        ],
+        "non_increasing_stamps": 0,
+        "max_stamp_gap_s": 0.166874756,
+        "max_bag_time_minus_stamp_s": 0.352290066,
+        "samples_age_over_0_3s": 2
+      },
+      "/camera/camera/color/camera_info": {
+        "count": 1921,
+        "sizes": [
+          [
+            1280,
+            800
+          ]
+        ],
+        "non_increasing_stamps": 0,
+        "max_stamp_gap_s": 0.06675,
+        "max_bag_time_minus_stamp_s": 0.352327851,
+        "samples_age_over_0_3s": 2
+      },
+      "/camera/camera/depth/image_rect_raw": {
+        "count": 1918,
+        "sizes": [
+          [
+            1280,
+            720
+          ]
+        ],
+        "non_increasing_stamps": 0,
+        "max_stamp_gap_s": 0.166874023,
+        "max_bag_time_minus_stamp_s": 0.35394621,
+        "samples_age_over_0_3s": 2
+      },
+      "/camera/camera/depth/camera_info": {
+        "count": 1921,
+        "sizes": [
+          [
+            1280,
+            720
+          ]
+        ],
+        "non_increasing_stamps": 0,
+        "max_stamp_gap_s": 0.06675,
+        "max_bag_time_minus_stamp_s": 0.353958273,
+        "samples_age_over_0_3s": 2
+      }
+    },
+    "pairs": {
+      "rgb": {
+        "count": 1917,
+        "stamp_span_s": 64.113566894,
+        "non_increasing_stamps": 0,
+        "max_gap_s": 0.166874756,
+        "gaps_over_50ms": 2,
+        "unpaired_images": [
+          {
+            "index": 0,
+            "bag_time_minus_stamp_s": 0.03572704
+          }
+        ]
+      },
+      "depth": {
+        "count": 1917,
+        "stamp_span_s": 64.113566894,
+        "non_increasing_stamps": 0,
+        "max_gap_s": 0.166874023,
+        "gaps_over_50ms": 2,
+        "unpaired_images": [
+          {
+            "index": 0,
+            "bag_time_minus_stamp_s": 0.037528893
+          }
+        ]
+      }
+    }
+  },
+  "visual_qc": {
+    "condition": "analog-maximum",
+    "blue_region_observations": 1883,
+    "method": "qualitative blue-HSV ROI, same thresholds as earlier samples; full stored RGB interval; no metric speed/identity validation",
+    "conveyor_band_pairs": 1864,
+    "median_u_speed_px_s": 95.38303200201898
+  }
+}

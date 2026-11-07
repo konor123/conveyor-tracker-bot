@@ -1,0 +1,54 @@
+{
+  "condition": "analog-fast-2",
+  "bag_path": "/home/umm/drop_bags/2026-11-07/2026-11-07_201739_off1-moving-analog-fast-2",
+  "duration_s": 64.491319916,
+  "topics": {
+    "/camera/camera/depth/camera_info": 1929,
+    "/camera/camera/color/image_raw": 1930,
+    "/camera/camera/color/camera_info": 1929,
+    "/tf_static": 1,
+    "/camera/camera/color/metadata": 1929,
+    "/camera/camera/depth/image_rect_raw": 1930
+  },
+  "numeric_speed_mps": null,
+  "lighting": "current",
+  "lux": null,
+  "visual_qc": {
+    "condition": "analog-fast-2",
+    "frames_received": 568,
+    "blue_region_observations": 559,
+    "method": "same blue-HSV pixel ROI QC; metric speed and identity tracking not validated",
+    "conveyor_band_pairs": 552,
+    "median_u_speed_px_s": 70.23605928279693
+  },
+  "pairing_audit": {
+    "rgb": {
+      "count": 1929,
+      "stamp_span_s": 64.480814453,
+      "non_increasing_stamps": 0,
+      "max_gap_s": 0.066755127,
+      "gaps_over_50ms": 4,
+      "unpaired_images": [
+        {
+          "index": 0,
+          "bag_time_minus_stamp_s": 0.044674218
+        }
+      ]
+    },
+    "depth": {
+      "count": 1929,
+      "stamp_span_s": 64.480814453,
+      "non_increasing_stamps": 0,
+      "max_gap_s": 0.066754883,
+      "gaps_over_50ms": 4,
+      "unpaired_images": [
+        {
+          "index": 0,
+          "bag_time_minus_stamp_s": 273.019898206
+        }
+      ]
+    }
+  },
+  "quality": "RGB all observed ages <.3s; depth has one stale retained leading sample. Original preserved. Both current paired subsets >=60s, four approx66.75ms gaps.",
+  "production_tracking_or_gate_pass": false
+}

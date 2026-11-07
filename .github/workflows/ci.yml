@@ -1,0 +1,69 @@
+name: CI (M0 Offline & I0 Mock Suite)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  ROS_DOMAIN_ID: "142"
+  ROS_AUTOMATIC_DISCOVERY_RANGE: "LOCALHOST"
+
+jobs:
+  m0-verify:
+    runs-on: ubuntu-24.04
+    container:
+      image: ros:jazzy-ros-base
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            python3-colcon-common-extensions \
+            python3-jsonschema \
+            python3-pytest \
+            python3-yaml \
+            ros-jazzy-launch-ros \
+            ros-jazzy-launch-testing-ament-cmake \
+            ros-jazzy-lifecycle-msgs \
+            ros-jazzy-tf2-ros
+
+      - name: Build workspace
+        shell: bash
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          colcon build --symlink-install
+
+      - name: Run spec and eval unit tests
+        shell: bash
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          source install/setup.bash
+          PYTHONPATH="$PWD/tools/spec:${PYTHONPATH:-}" python3 -m pytest tools/spec -v
+          python3 -m pytest tools/eval -v
+
+      - name: Run orchestrator and drop_mocks unit tests
+        shell: bash
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          source install/setup.bash
+          PYTHONPATH="$PWD/tools/spec:${PYTHONPATH:-}" python3 -m pytest src/orchestrator/test -v
+          python3 -m pytest src/drop_mocks/test --ignore=src/drop_mocks/test/contract -v
+
+      - name: Run contract and I0 integration tests
+        shell: bash
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          source install/setup.bash
+          python3 -m pytest src/drop_mocks/test/contract -v
+          PYTHONPATH="$PWD/tools/spec:${PYTHONPATH:-}" python3 -m pytest src/drop_bringup/test -v
+
+      - name: Check M0 requirement/test trace
+        shell: bash
+        run: |
+          python3 tools/spec/trace.py --area IF,ORC,ABT,MCK,REC
+          python3 tools/spec/trace.py --area SYS,IF,ORC,ABT,MCK,REC,INT || true

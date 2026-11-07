@@ -1,0 +1,6 @@
+waiting for service to become available...
+requester: making request: dsr_msgs2.srv.GetLastAlarm_Request()
+
+response:
+dsr_msgs2.srv.GetLastAlarm_Response(log_alarm=dsr_msgs2.msg.LogAlarm(level=1, group=2, index=3206, param=['Change singularity region status(Inside -> Outside), Singularity handling mode(1)', '', '']), success=True)
+

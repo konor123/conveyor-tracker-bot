@@ -1,0 +1,15 @@
+{
+  "original_worker_archive": "result-worker-original.tar.gz",
+  "archive_sha256": "e638e476b12b3fa383f089f202f3c83e64b39460b5473120d0eb11e6f2c910b1",
+  "original_analysis_sha256": "f83e9bc03d1d6e12dd3a64f51142b1fff18de6e18ace1e4c383022f1533df048",
+  "corrected_analysis_sha256": "0314f29e9eb719c442191bdc92669f59f6f7fffceb21ae2d13b9818613fe10a3",
+  "scope": "Report facts and archive reproducibility only; objective, fit data, split, fixed intrinsics and mathematical estimator unchanged.",
+  "corrections": [
+    "Replace unproven global optimum claim with convergence of tested initializations",
+    "Describe holdout diagnostics accurately; selection uses FIT only",
+    "Derive depth/marker size/jitter from computed metrics",
+    "Do not compare table height with base-frame camera z",
+    "Label formal covariance assumptions and physical systematic errors",
+    "Allow rerunning archived script without SameFileError; freeze numerical imports and intrinsics"
+  ]
+}

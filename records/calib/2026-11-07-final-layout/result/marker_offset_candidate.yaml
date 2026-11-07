@@ -1,0 +1,130 @@
+calibration_id: cal-2026-11-07-handeye-01
+date: '2026-11-07'
+status: CANDIDATE_UNVERIFIED_PHYSICAL_ACCURACY
+tcp_name_reported: ''
+tcp_frame_note: controller_tcp is the Doosan controller default flange/TCP (reported
+  tcp_name=""); do not conflate with arbitrary URDF tool0 without verifying frame
+  definition
+marker_dictionary: DICT_4X4_50
+marker_id: 25
+marker_black_side_m_user_reported: 0.04
+transform:
+  parent_frame: controller_tcp
+  child_frame: aruco_marker_25
+  matrix_direction: controller_tcp <- aruco_marker_25
+  translation_unit: m
+  matrix_4x4:
+  - - -0.0084771190270031
+    - -0.9991986550485691
+    - -0.039117594534080535
+    - -0.00024537921029941514
+  - - -0.999434677751638
+    - 0.0071934012498490185
+    - 0.032841739995592284
+    - -0.03951985931841701
+  - - -0.03253403387963806
+    - 0.039373883826584535
+    - -0.9986947651369407
+    - 0.14718507687035462
+  - - 0.0
+    - 0.0
+    - 0.0
+    - 1.0
+  translation_m:
+  - -0.00024537921029941514
+  - -0.03951985931841701
+  - 0.14718507687035462
+  translation_mm:
+  - -0.24537921029941515
+  - -39.51985931841701
+  - 147.1850768703546
+  rotation_matrix_3x3:
+  - - -0.0084771190270031
+    - -0.9991986550485691
+    - -0.039117594534080535
+  - - -0.999434677751638
+    - 0.0071934012498490185
+    - 0.032841739995592284
+  - - -0.03253403387963806
+    - 0.039373883826584535
+    - -0.9986947651369407
+  rotation_xyzw:
+  - 0.7040994682678167
+  - -0.7096416851858748
+  - -0.025440875772137578
+  - 0.0023193256511974975
+  rodrigues_rvec_rad:
+  - 2.2087335827597467
+  - -2.2261193090406852
+  - -0.07980707162158075
+  rotation_angle_deg: 179.73422461946097
+  det_R: 0.9999999999999999
+  orthogonality_error_fro: 1.5883854151770845e-16
+  note: Candidate X (controller_tcp <- aruco_marker_25) fitted on pose-00..29 only
+transform_inverse:
+  parent_frame: aruco_marker_25
+  child_frame: controller_tcp
+  matrix_direction: aruco_marker_25 <- controller_tcp
+  translation_unit: m
+  matrix_4x4:
+  - - -0.0084771190270031
+    - -0.999434677751638
+    - -0.03253403387963806
+    - -0.034711073693987377
+  - - -0.9991986550485691
+    - 0.0071934012498490185
+    - 0.039373883826584535
+    - -0.005756148489193355
+  - - -0.039117594534080535
+    - 0.032841739995592284
+    - -0.9986947651369407
+    - 0.14828126807664363
+  - - 0.0
+    - 0.0
+    - 0.0
+    - 1.0
+  translation_m:
+  - -0.034711073693987377
+  - -0.005756148489193355
+  - 0.14828126807664363
+  translation_mm:
+  - -34.71107369398737
+  - -5.756148489193355
+  - 148.28126807664364
+  rotation_matrix_3x3:
+  - - -0.0084771190270031
+    - -0.999434677751638
+    - -0.03253403387963806
+  - - -0.9991986550485691
+    - 0.0071934012498490185
+    - 0.039373883826584535
+  - - -0.039117594534080535
+    - 0.032841739995592284
+    - -0.9986947651369407
+  rotation_xyzw:
+  - -0.7040994682678167
+  - 0.7096416851858748
+  - 0.025440875772137578
+  - 0.0023193256511974975
+  rodrigues_rvec_rad:
+  - -2.2087335827597494
+  - 2.226119309040683
+  - 0.07980707162158075
+  rotation_angle_deg: 179.73422461946097
+  det_R: 0.9999999999999999
+  orthogonality_error_fro: 1.5858761229762263e-16
+  note: Inverse of candidate X (aruco_marker_25 <- controller_tcp)
+uncertainty_1sigma:
+  rot_deg:
+  - 0.23512576619612263
+  - 0.16942205916560482
+  - 0.35699341172712523
+  trans_mm:
+  - 0.19655118627236745
+  - 0.17154950186365542
+  - 0.25248986677787144
+verify:
+  pass: false
+  G1_pass: false
+  reason: Jointly estimated with Y from pixel observations; no independent physical
+    TCP touch verification performed.

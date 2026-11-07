@@ -1,0 +1,5 @@
+iface,rate_hz,command_interval_p99_ms,lag_ms,tracking_error_raw_p95_mm,tracking_error_lag_comp_p95_mm,feedback_range_mm,executed_motion,all_commands_in_recording,all_commands_in_reference_vision,last_command_recording_margin_s,source
+speedl,100.0,10.146178581780985,29.0,0.9026538748322043,0.062388562037363184,20.073568318248913,True,True,True,189.63798356056213,records/bench/stream-2026-11-07-195647-speedl-100hz.summary.txt
+speedl,50.0,20.129941300765495,49.0,1.5280664205643002,0.054440431131269576,19.994628531237566,True,True,True,126.5634925365448,records/bench/stream-2026-11-07-195750-speedl-50hz.summary.txt
+servol,100.0,10.225263179891042,100.0,3.423515334982119,0.6537760802734711,20.09420137495188,True,True,True,63.29399061203003,records/bench/stream-2026-11-07-195853-servol-100hz.summary.txt
+servol,50.0,20.600919961943873,496.0,9.95636572895324,9.96496119584388,0.0036026648321252353,False,True,True,0.31926703453063965,records/bench/stream-2026-11-07-195956-servol-50hz.summary.txt

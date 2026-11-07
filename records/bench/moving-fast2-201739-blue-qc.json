@@ -1,0 +1,8 @@
+{
+  "condition": "analog-fast-2",
+  "frames_received": 568,
+  "blue_region_observations": 559,
+  "method": "same blue-HSV pixel ROI QC; metric speed and identity tracking not validated",
+  "conveyor_band_pairs": 552,
+  "median_u_speed_px_s": 70.23605928279693
+}

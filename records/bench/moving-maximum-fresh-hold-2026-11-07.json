@@ -1,0 +1,31 @@
+{
+  "counts": {
+    "/camera/camera/color/image_raw": 2190,
+    "/camera/camera/depth/image_rect_raw": 2190
+  },
+  "max_received_age_s": {
+    "/camera/camera/color/image_raw": 0.037642717361450195,
+    "/camera/camera/depth/image_rect_raw": 0.034249305725097656
+  },
+  "received_age_outside_0_to_0_3s": {
+    "/camera/camera/color/image_raw": 0,
+    "/camera/camera/depth/image_rect_raw": 0
+  },
+  "recorder_exit": 0,
+  "command": [
+    "bash",
+    "tools/eval/record_trial.sh",
+    "-n",
+    "off1-moving-analog-maximum",
+    "-p",
+    "moving",
+    "-d",
+    "65",
+    "-l",
+    "current",
+    "-t",
+    "/camera/camera/color/image_raw /camera/camera/color/camera_info /camera/camera/depth/image_rect_raw /camera/camera/depth/camera_info /camera/camera/color/metadata /tf_static",
+    "-m",
+    "Final condition analog-maximum: user confirmed physical analog control at maximum. Numeric speed unknown; not a robot-approved operating limit. Same current lighting; lighting change unavailable. RGB+depth fresh VOLATILE subscriptions held through recording. No robot/gripper commands."
+  ]
+}

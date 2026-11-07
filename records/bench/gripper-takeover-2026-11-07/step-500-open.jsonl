@@ -1,0 +1,5 @@
+{"preflight": {"robot_state": 1, "alarm_level": 1, "alarm_group": 1, "alarm_index": 2007, "alarm_param": ["", "", ""]}}
+{"drl_start": true, "file": "records/bench/gripper-takeover-2026-11-07/step-500-open.drl"}
+{"page": 1, "bytes": [1, 244, 1, 244, 0, 8, 1, 0]}
+{"page": 2, "bytes": [0, 0, 0, 0, 0, 7, 1, 0]}
+{"finished": true, "postflight": {"robot_state": 1, "alarm_level": 1, "alarm_group": 1, "alarm_index": 2007, "alarm_param": ["", "", ""]}}

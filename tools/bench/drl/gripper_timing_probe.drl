@@ -1,0 +1,23 @@
+# Non-motion probe: verify controller stopwatch and its cumulative behavior.
+# Official DRL timer documentation:
+# https://manual.doosanrobotics.com/en/programming-manual/3.2.1/publish/start_timer
+# https://manual.doosanrobotics.com/en/programming-manual/3.2.1/publish/end_timer
+# Report milliseconds as byte pairs; do not infer sampling precision from this.
+def put16(reg, v):
+    set_output_register_int(reg, (v >> 8) & 255)
+    set_output_register_int(reg + 1, v & 255)
+set_output_register_int(15, 0)
+r = start_timer()
+wait(0.1)
+a = end_timer()
+wait(0.1)
+b = end_timer()
+wait(0.1)
+c = end_timer()
+put16(16, int(a * 1000))
+put16(18, int(b * 1000))
+put16(20, int(c * 1000))
+put16(22, r)
+set_output_register_int(15, 1)
+wait(2.0)
+set_output_register_int(15, 250)

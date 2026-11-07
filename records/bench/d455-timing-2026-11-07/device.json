@@ -1,0 +1,67 @@
+{
+  "started": "2026-11-07T20:35:51.491611+09:00",
+  "method": "SDK wait_for_frames arrival; not ROS transport latency",
+  "serial": "313522301601",
+  "firmware": "5.17.0.9",
+  "sensors": [
+    {
+      "name": "Stereo Module",
+      "options": {
+        "enable_auto_exposure": {
+          "value": 1.0,
+          "description": "Enable Auto Exposure"
+        },
+        "exposure": {
+          "value": 8500.0,
+          "description": "Depth Exposure (usec)"
+        },
+        "gain": {
+          "value": 16.0,
+          "description": "UVC image gain"
+        },
+        "global_time_enabled": {
+          "value": 1.0,
+          "description": "Enable/Disable global timestamp"
+        }
+      }
+    },
+    {
+      "name": "RGB Camera",
+      "options": {
+        "enable_auto_exposure": {
+          "value": 1.0,
+          "description": "Enable / disable auto-exposure"
+        },
+        "exposure": {
+          "value": 166.0,
+          "description": "Controls exposure time of color camera. Setting any value will disable auto exposure"
+        },
+        "gain": {
+          "value": 64.0,
+          "description": "UVC image gain"
+        },
+        "enable_auto_white_balance": {
+          "value": 1.0,
+          "description": "Enable / disable auto-white-balance"
+        },
+        "white_balance": {
+          "value": 4600.0,
+          "description": "Controls white balance of color image. Setting any value will disable auto white balance"
+        },
+        "global_time_enabled": {
+          "value": 1.0,
+          "description": "Enable/Disable global timestamp"
+        }
+      }
+    },
+    {
+      "name": "Motion Module",
+      "options": {
+        "global_time_enabled": {
+          "value": 1.0,
+          "description": "Enable/Disable global timestamp"
+        }
+      }
+    }
+  ]
+}

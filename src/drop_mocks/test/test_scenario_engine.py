@@ -226,3 +226,23 @@ def test_phase_metrics_defaults_overrides_and_assumed(load_scenario):
         {'sync_ok': 0.0, 'rim_clearance_m': 0.001, 'height_error_m': 0.0002})
     assert 'robot.skills.DynamicPlace.phase_metrics.DESCEND.rim_clearance_m' in eng.assumed_params()
     assert eng.robot_status_pose() == pytest.approx((0.40, 0.0, 0.20, 0.0, 0.0, 0.0, 1.0))
+
+
+@pytest.mark.level('U')
+def test_compute_intercept_and_time_insufficient(load_scenario):
+    eng = ScenarioEngine(load_scenario('nominal_20mms'))
+    sel = eng.select_target(5.0, min_observation_count=30)
+    assert sel.result == RESULT['OK']
+    plan = eng.compute_intercept(5.0, sel.track_id, sel.epoch)
+    assert plan.result == RESULT['OK'] and plan.status == 0
+    assert plan.time_margin_s > 1.0
+    assert eng.compute_intercept(5.0, sel.track_id, sel.epoch + 1).reason_code == 'EPOCH_MISMATCH'
+    assert eng.compute_intercept(5.0, 999, sel.epoch).reason_code == 'NO_TRACK'
+
+    eng_ti = ScenarioEngine(load_scenario('time_insufficient'))
+    s1 = eng_ti.select_target(6.0, min_observation_count=30)
+    p1 = eng_ti.compute_intercept(6.0, s1.track_id, s1.epoch)
+    assert p1.time_margin_s < 1.0
+    s4 = eng_ti.select_target(10.5, min_observation_count=30)
+    p4 = eng_ti.compute_intercept(10.5, s4.track_id, s4.epoch)
+    assert p4.result == RESULT['OK'] and p4.time_margin_s > 5.0

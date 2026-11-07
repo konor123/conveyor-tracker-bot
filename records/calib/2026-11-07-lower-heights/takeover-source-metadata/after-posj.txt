@@ -1,0 +1,7 @@
+waiting for service to become available...
+requester: making request: dsr_msgs2.srv.GetCurrentPosj_Request()
+
+response:
+dsr_msgs2.srv.GetCurrentPosj_Response(pos=array([-5.57474559e-04, -1.05249977e+00,  9.10995407e+01, -3.41143546e-04,
+        9.00037613e+01,  8.99999466e+01]), success=True)
+

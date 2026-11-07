@@ -1,0 +1,3 @@
+file,host_time,frame_timestamp_ms,auto_exposure,exposure_us,gain,serial,firmware
+test-00.png,2026-11-07T16:00:28.364,1794034828319.743,1.0,166.0,64.0,313522301601,5.17.0.9
+test-01.png,2026-11-07T16:00:28.596,1794034828519.848,1.0,166.0,64.0,313522301601,5.17.0.9
