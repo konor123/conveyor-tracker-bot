@@ -2,8 +2,8 @@
 
 `tools/spec/trace.py`가 생성한다. 손으로 고치지 않는다.
 
-- REQ 25개 중 TC 연결 25개
-- pytest 대상 TC 43개 중 테스트 연결 43개
+- REQ 56개 중 TC 연결 56개
+- pytest 대상 TC 164개 중 테스트 연결 78개
 
 | TC | 수준 | REQ | 테스트 |
 |---|---|---|---|
@@ -24,6 +24,80 @@
 | TC-ABT-014-01 | U | REQ-ABT-014 | `src/orchestrator/test/test_watchdogs.py::test_gripper_monitor`<br>`src/orchestrator/test/test_watchdogs.py::test_gripper_alive_counter_stall`<br>`src/orchestrator/test/test_watchdogs.py::test_gripper_fault_levels` |
 | TC-ABT-015-01 | U | REQ-ABT-015 | `src/orchestrator/test/test_abort_policy.py::test_fault_event_sequences`<br>`src/orchestrator/test/test_abort_policy.py::test_fault_list_covers_plan_7_3` |
 | TC-ABT-016-01 | U | REQ-ABT-016 | `src/orchestrator/test/test_abort_policy.py::test_wait_operator_has_no_timeout` |
+| TC-BEN-001-01 | B | REQ-BEN-001(SPEC 없음) | 절차 시험 |
+| TC-BEN-002-01 | B | REQ-BEN-002(SPEC 없음) | 절차 시험 |
+| TC-BEN-003-01 | B | REQ-BEN-003(SPEC 없음) | 절차 시험 |
+| TC-BEN-004-01 | B | REQ-BEN-004(SPEC 없음) | 절차 시험 |
+| TC-BEN-005-01 | B | REQ-BEN-005(SPEC 없음) | 절차 시험 |
+| TC-BEN-006-01 | B | REQ-BEN-006(SPEC 없음) | 절차 시험 |
+| TC-BEN-007-01 | B | REQ-BEN-007(SPEC 없음) | 절차 시험 |
+| TC-BEN-008-01 | B | REQ-BEN-008(SPEC 없음) | 절차 시험 |
+| TC-BEN-009-01 | B | REQ-BEN-009(SPEC 없음) | 절차 시험 |
+| TC-BEN-010-01 | B | REQ-BEN-010(SPEC 없음) | 절차 시험 |
+| TC-BEN-011-01 | B | REQ-BEN-011(SPEC 없음) | 절차 시험 |
+| TC-BEN-012-01 | B | REQ-BEN-012(SPEC 없음) | 절차 시험 |
+| TC-CAL-001-01 | U | REQ-CAL-001 | `src/calibration/test/test_plane_calibration.py::test_fit_plane_with_outliers`<br>`src/calibration/test/test_plane_calibration.py::test_fit_plane_rejects_collinear_points` |
+| TC-CAL-002-01 | U | REQ-CAL-002 | `src/calibration/test/test_plane_calibration.py::test_fit_direction_straight_track`<br>`src/calibration/test/test_plane_calibration.py::test_fit_direction_projects_onto_plane` |
+| TC-CAL-002-02 | U | REQ-CAL-002 | `src/calibration/test/test_board_session.py::test_belt_direction_from_board_track` |
+| TC-CAL-003-01 | U | REQ-CAL-003 | `src/calibration/test/test_eye_to_hand_calibration.py::test_rigid_known_transform` |
+| TC-CAL-003-02 | U | REQ-CAL-003 | `src/calibration/test/test_eye_to_hand_calibration.py::test_rigid_rejects_collinear`<br>`src/calibration/test/test_eye_to_hand_calibration.py::test_pnp_rejects_collinear_and_too_few` |
+| TC-CAL-003-03 | U | REQ-CAL-003 | `src/calibration/test/test_eye_to_hand_calibration.py::test_pnp_touch_points` |
+| TC-CAL-003-04 | U | REQ-CAL-003 | `src/calibration/test/test_board_session.py::test_board_session_meets_verify_gate`<br>`src/calibration/test/test_board_session.py::test_bad_touch_is_flagged`<br>`src/calibration/test/test_cli.py::test_calibrate_camera_end_to_end` |
+| TC-CAL-004-01 | U | REQ-CAL-004 | `src/calibration/test/test_tcp_offset.py::test_tcp_offset_full_3d`<br>`src/calibration/test/test_tcp_offset.py::test_tcp_offset_xy_only_vertical_approach` |
+| TC-CAL-005-01 | U | REQ-CAL-005 | `src/calibration/test/test_calibration_file.py::test_roundtrip`<br>`src/calibration/test/test_calibration_file.py::test_missing_required_key_fails`<br>`src/calibration/test/test_calibration_file.py::test_invalid_values_fail` |
+| TC-CAL-005-02 | C | REQ-CAL-005 | — |
+| TC-CAL-006-01 | U | REQ-CAL-006 | `src/calibration/test/test_eye_to_hand_calibration.py::test_pixel_to_plane_roundtrip`<br>`src/calibration/test/test_eye_to_hand_calibration.py::test_verify_xy_stats_and_gate` |
+| TC-CAL-007-01 | U | REQ-CAL-007 | `src/calibration/test/test_charuco.py::test_corners_and_pose_on_rendered_board`<br>`src/calibration/test/test_charuco.py::test_board_points_match_print_layout` |
+| TC-CAL-008-01 | U | REQ-CAL-008 | `src/calibration/test/test_camera_frames.py::test_base_to_camera_link_composes_back` |
+| TC-CAL-009-01 | U | REQ-CAL-009 | `src/calibration/test/test_camera_frames.py::test_camera_info_matches_profile`<br>`src/calibration/test/test_camera_frames.py::test_camera_info_mismatch`<br>`src/calibration/test/test_camera_frames.py::test_camera_info_focal_drift_can_be_ignored` |
+| TC-EXP-CMP-01 | E | — | 절차 시험 |
+| TC-EXP-G2-01 | E | — | 절차 시험 |
+| TC-EXP-G3-01 | E | — | 절차 시험 |
+| TC-EXP-G4-01 | E | — | 절차 시험 |
+| TC-EXP-G5-01 | E | — | 절차 시험 |
+| TC-EXP-G6-01 | E | — | 절차 시험 |
+| TC-EXP-G7-01 | E | — | 절차 시험 |
+| TC-GRP-001-01 | U | REQ-GRP-001(SPEC 없음) | — |
+| TC-GRP-001-02 | U | REQ-GRP-001(SPEC 없음) | — |
+| TC-GRP-002-01 | U | REQ-GRP-002(SPEC 없음) | — |
+| TC-GRP-003-01 | U | REQ-GRP-003(SPEC 없음) | — |
+| TC-GRP-003-02 | U | REQ-GRP-003(SPEC 없음) | — |
+| TC-GRP-004-01 | U | REQ-GRP-004(SPEC 없음) | — |
+| TC-GRP-005-01 | U | REQ-GRP-005(SPEC 없음) | — |
+| TC-GRP-006-01 | U | REQ-GRP-006(SPEC 없음) | — |
+| TC-GRP-007-01 | U | REQ-GRP-007(SPEC 없음) | — |
+| TC-GRP-008-01 | U | REQ-GRP-008(SPEC 없음) | — |
+| TC-GRP-009-01 | U | REQ-GRP-009(SPEC 없음) | — |
+| TC-GRP-010-01 | U | REQ-GRP-010(SPEC 없음) | — |
+| TC-GRP-011-01 | U | REQ-GRP-011(SPEC 없음) | — |
+| TC-GRP-012-01 | U | REQ-GRP-012(SPEC 없음) | — |
+| TC-GRP-012-02 | U | REQ-GRP-012(SPEC 없음) | — |
+| TC-GRP-013-01 | U | REQ-GRP-013(SPEC 없음) | — |
+| TC-GRP-013-02 | U | REQ-GRP-013(SPEC 없음) | — |
+| TC-IF-001-01 | U | REQ-IF-001 | `tools/spec/test_interfaces.py::test_interface_snapshots_match` |
+| TC-IF-002-01 | U | REQ-IF-002 | `tools/spec/test_interfaces.py::test_common_request_fields_order` |
+| TC-IF-003-01 | U | REQ-IF-003 | `tools/spec/test_interfaces.py::test_interface_constants_match_spec` |
+| TC-IF-004-01 | C | REQ-IF-004 | `tools/spec/test_qos_contract.py::test_publisher_qos_matches_spec_table` |
+| TC-IF-004-02 | C | REQ-IF-004 | `tools/spec/test_qos_contract.py::test_qos_mismatch_best_effort_pub_reliable_sub_detected` |
+| TC-IF-005-01 | C | REQ-IF-005 | `src/drop_mocks/test/contract/test_mock_robot_controller_contract.py::<module>` |
+| TC-INT-001-01 | I0 | REQ-INT-001(SPEC 없음) | — |
+| TC-INT-002-01 | I0 | REQ-INT-002(SPEC 없음) | — |
+| TC-INT-003-01 | I0 | REQ-INT-003(SPEC 없음) | — |
+| TC-INT-004-01 | I0 | REQ-INT-004(SPEC 없음) | — |
+| TC-INT-005-01 | I0 | REQ-INT-005(SPEC 없음) | — |
+| TC-INT-006-01 | I0 | REQ-INT-006(SPEC 없음) | — |
+| TC-INT-007-01 | I1 | REQ-INT-007(SPEC 없음) | — |
+| TC-INT-020-01 | I3 | REQ-INT-020(SPEC 없음) | 절차 시험 |
+| TC-INT-021-01 | I4 | REQ-INT-021(SPEC 없음) | 절차 시험 |
+| TC-MCK-001-01 | U | REQ-MCK-001 | `src/drop_mocks/test/test_scenario_engine.py::test_same_scenario_and_seed_give_same_output` |
+| TC-MCK-002-01 | C | REQ-MCK-002 | `src/drop_mocks/test/test_mock_nodes.py::test_role_split_processes_see_same_world` |
+| TC-MCK-003-01 | C | REQ-MCK-003 | `src/drop_mocks/test/contract/test_mock_world_tracker_contract.py::<module>`<br>`src/drop_mocks/test/contract/test_mock_world_vision_contract.py::<module>` |
+| TC-MCK-004-01 | C | REQ-MCK-004 | `src/drop_mocks/test/contract/test_mock_robot_controller_contract.py::<module>` |
+| TC-MCK-005-01 | C | REQ-MCK-005 | `src/drop_mocks/test/test_mock_nodes.py::test_injected_events_appear_at_scheduled_time` |
+| TC-MCK-005-02 | U | REQ-MCK-005 | `src/drop_mocks/test/test_scenario_engine.py::test_events_take_effect_at_scheduled_frame` |
+| TC-MCK-006-01 | U | REQ-MCK-006 | `src/drop_mocks/test/test_scenario_engine.py::test_every_value_is_assumed_or_measured`<br>`src/drop_mocks/test/test_scenario_engine.py::test_unclassified_or_double_classified_value_is_rejected` |
+| TC-MCK-006-02 | I0 | REQ-MCK-006 | — |
+| TC-MCK-007-01 | I0 | REQ-MCK-007 | `src/drop_bringup/test/test_mock_bringup.py::test_mock_refuses_when_real_provider_is_running` |
 | TC-ORC-001-01 | U | REQ-ORC-001 | `src/orchestrator/test/test_cycle_runner.py::test_synchronized_nominal_sequence` |
 | TC-ORC-001-02 | U | REQ-ORC-001 | `src/orchestrator/test/test_cycle_runner.py::test_static_skips_synchronize_and_detects_cap`<br>`src/orchestrator/test/test_step_judges.py::test_static_place` |
 | TC-ORC-001-03 | U | REQ-ORC-001 | `src/orchestrator/test/test_cycle_runner.py::test_predicted_uses_entry_judgement`<br>`src/orchestrator/test/test_step_judges.py::test_predicted_entry` |
@@ -50,6 +124,78 @@
 | TC-ORC-007-02 | U | REQ-ORC-007 | `src/orchestrator/test/test_cycle_runner.py::test_passes_exhausted_is_not_attempted` |
 | TC-ORC-008-01 | U | REQ-ORC-008 | `src/orchestrator/test/test_cycle_runner.py::test_plan_failure_goes_to_next_pass` |
 | TC-ORC-009-01 | U | REQ-ORC-009 | `src/orchestrator/test/test_cycle_runner.py::test_resume_requires_reason`<br>`src/orchestrator/test/test_cycle_runner.py::test_precheck_failure_returns_to_idle_without_wait_operator` |
+| TC-PLN-001-01 | U | REQ-PLN-001(SPEC 없음) | — |
+| TC-PLN-001-02 | U | REQ-PLN-001(SPEC 없음) | — |
+| TC-PLN-001-03 | U | REQ-PLN-001(SPEC 없음) | — |
+| TC-PLN-002-01 | U | REQ-PLN-002(SPEC 없음) | — |
+| TC-PLN-003-01 | U | REQ-PLN-003(SPEC 없음) | — |
+| TC-PLN-004-01 | U | REQ-PLN-004(SPEC 없음) | — |
+| TC-PLN-005-01 | U | REQ-PLN-005(SPEC 없음) | — |
+| TC-PLN-006-01 | C | REQ-PLN-006(SPEC 없음) | — |
+| TC-PLN-007-01 | C | REQ-PLN-007(SPEC 없음) | — |
+| TC-PLN-008-01 | U | REQ-PLN-008(SPEC 없음) | — |
+| TC-PLN-009-01 | U | REQ-PLN-009(SPEC 없음) | — |
+| TC-PLN-010-01 | U | REQ-PLN-010(SPEC 없음) | — |
+| TC-PLN-011-01 | I2 | REQ-PLN-011(SPEC 없음) | — |
+| TC-REC-001-01 | U | REQ-REC-001 | `tools/eval/test_trial_schema.py::test_schema_is_valid`<br>`tools/eval/test_trial_schema.py::test_plan_example_passes`<br>`tools/eval/test_trial_schema.py::test_missing_required_field_fails`<br>`tools/eval/test_trial_schema.py::test_out_of_range_value_fails`<br>`tools/eval/test_trial_schema.py::test_scenario_seed_required`<br>`tools/eval/test_trial_schema.py::test_mock_trial_passes` |
+| TC-REC-002-01 | I0 | REQ-REC-002 | — |
+| TC-REC-003-01 | I0 | REQ-REC-003 | — |
+| TC-REC-004-01 | U | REQ-REC-004 | `tools/eval/test_stats.py::test_wilson_interval`<br>`tools/eval/test_stats.py::test_wilson_interval_empty`<br>`tools/eval/test_stats.py::test_wilson_interval_invalid` |
+| TC-REC-004-02 | U | REQ-REC-004 | `tools/eval/test_stats.py::test_success_rate_unknown_in_denominator`<br>`tools/eval/test_stats.py::test_success_rate_invalid` |
+| TC-REC-005-01 | U | REQ-REC-005 | `tools/eval/test_stats.py::test_quantiles_random_sample`<br>`tools/eval/test_stats.py::test_quantiles_small_sample`<br>`tools/eval/test_stats.py::test_quantiles_empty` |
+| TC-REC-006-01 | U | REQ-REC-006 | `tools/spec/test_trace.py::test_reports_missing_and_nonzero_exit` |
+| TC-ROB-001-01 | U | REQ-ROB-001(SPEC 없음) | — |
+| TC-ROB-001-02 | U | REQ-ROB-001(SPEC 없음) | — |
+| TC-ROB-002-01 | U | REQ-ROB-002(SPEC 없음) | — |
+| TC-ROB-003-01 | U | REQ-ROB-003(SPEC 없음) | — |
+| TC-ROB-004-01 | U | REQ-ROB-004(SPEC 없음) | — |
+| TC-ROB-005-01 | C | REQ-ROB-005(SPEC 없음) | — |
+| TC-ROB-006-01 | U | REQ-ROB-006(SPEC 없음) | — |
+| TC-ROB-007-01 | C | REQ-ROB-007(SPEC 없음) | — |
+| TC-ROB-007-02 | C | REQ-ROB-007(SPEC 없음) | — |
+| TC-ROB-008-01 | U | REQ-ROB-008(SPEC 없음) | — |
+| TC-ROB-009-01 | U | REQ-ROB-009(SPEC 없음) | — |
+| TC-ROB-010-01 | U | REQ-ROB-010(SPEC 없음) | — |
+| TC-ROB-011-01 | C | REQ-ROB-011(SPEC 없음) | — |
+| TC-ROB-012-01 | C | REQ-ROB-012(SPEC 없음) | — |
+| TC-SIM-001-01 | S | REQ-SIM-001(SPEC 없음) | 절차 시험 |
+| TC-SIM-002-01 | S | REQ-SIM-002(SPEC 없음) | 절차 시험 |
+| TC-SIM-003-01 | S | REQ-SIM-003(SPEC 없음) | 절차 시험 |
+| TC-SIM-004-01 | S | REQ-SIM-004(SPEC 없음) | 절차 시험 |
+| TC-SYS-001-01 | U | REQ-SYS-001 | `tools/spec/test_sys_conventions.py::test_package_names_do_not_collide_with_underlay` |
+| TC-SYS-002-01 | U | REQ-SYS-002 | `tools/spec/test_sys_conventions.py::test_yaml_numeric_keys_have_unit_suffix` |
+| TC-SYS-003-01 | C | REQ-SYS-003 | — |
+| TC-SYS-003-02 | C | REQ-SYS-003 | — |
+| TC-SYS-004-01 | U | REQ-SYS-004 | `tools/spec/test_sys_conventions.py::test_unit_conversions_only_in_adapters` |
+| TC-TRK-001-01 | U | REQ-TRK-001(SPEC 없음) | — |
+| TC-TRK-001-02 | U | REQ-TRK-001(SPEC 없음) | — |
+| TC-TRK-002-01 | U | REQ-TRK-002(SPEC 없음) | — |
+| TC-TRK-003-01 | U | REQ-TRK-003(SPEC 없음) | — |
+| TC-TRK-003-02 | U | REQ-TRK-003(SPEC 없음) | — |
+| TC-TRK-004-01 | U | REQ-TRK-004(SPEC 없음) | — |
+| TC-TRK-005-01 | U | REQ-TRK-005(SPEC 없음) | — |
+| TC-TRK-006-01 | U | REQ-TRK-006(SPEC 없음) | — |
+| TC-TRK-006-02 | U | REQ-TRK-006(SPEC 없음) | — |
+| TC-TRK-007-01 | U | REQ-TRK-007(SPEC 없음) | — |
+| TC-TRK-008-01 | U | REQ-TRK-008(SPEC 없음) | — |
+| TC-TRK-009-01 | C | REQ-TRK-009(SPEC 없음) | — |
+| TC-TRK-010-01 | C | REQ-TRK-010(SPEC 없음) | — |
+| TC-TRK-011-01 | C | REQ-TRK-011(SPEC 없음) | — |
+| TC-TRK-012-01 | C | REQ-TRK-012(SPEC 없음) | — |
+| TC-TRK-013-01 | I1 | REQ-TRK-013(SPEC 없음) | — |
+| TC-VIS-001-01 | U | REQ-VIS-001(SPEC 없음) | — |
+| TC-VIS-001-02 | U | REQ-VIS-001(SPEC 없음) | — |
+| TC-VIS-002-01 | U | REQ-VIS-002(SPEC 없음) | — |
+| TC-VIS-003-01 | U | REQ-VIS-003(SPEC 없음) | — |
+| TC-VIS-004-01 | U | REQ-VIS-004(SPEC 없음) | — |
+| TC-VIS-005-01 | U | REQ-VIS-005(SPEC 없음) | — |
+| TC-VIS-006-01 | U | REQ-VIS-006(SPEC 없음) | — |
+| TC-VIS-007-01 | U | REQ-VIS-007(SPEC 없음) | — |
+| TC-VIS-008-01 | C | REQ-VIS-008(SPEC 없음) | — |
+| TC-VIS-008-02 | C | REQ-VIS-008(SPEC 없음) | — |
+| TC-VIS-009-01 | U | REQ-VIS-009(SPEC 없음) | — |
+| TC-VIS-009-02 | U | REQ-VIS-009(SPEC 없음) | — |
+| TC-VIS-010-01 | I1 | REQ-VIS-010(SPEC 없음) | — |
 
 ## TC가 없는 REQ
 
@@ -57,4 +203,89 @@
 
 ## 테스트가 없는 TC(pytest 대상)
 
-- 없음
+- TC-CAL-005-02
+- TC-GRP-001-01
+- TC-GRP-001-02
+- TC-GRP-002-01
+- TC-GRP-003-01
+- TC-GRP-003-02
+- TC-GRP-004-01
+- TC-GRP-005-01
+- TC-GRP-006-01
+- TC-GRP-007-01
+- TC-GRP-008-01
+- TC-GRP-009-01
+- TC-GRP-010-01
+- TC-GRP-011-01
+- TC-GRP-012-01
+- TC-GRP-012-02
+- TC-GRP-013-01
+- TC-GRP-013-02
+- TC-INT-001-01
+- TC-INT-002-01
+- TC-INT-003-01
+- TC-INT-004-01
+- TC-INT-005-01
+- TC-INT-006-01
+- TC-INT-007-01
+- TC-MCK-006-02
+- TC-PLN-001-01
+- TC-PLN-001-02
+- TC-PLN-001-03
+- TC-PLN-002-01
+- TC-PLN-003-01
+- TC-PLN-004-01
+- TC-PLN-005-01
+- TC-PLN-006-01
+- TC-PLN-007-01
+- TC-PLN-008-01
+- TC-PLN-009-01
+- TC-PLN-010-01
+- TC-PLN-011-01
+- TC-REC-002-01
+- TC-REC-003-01
+- TC-ROB-001-01
+- TC-ROB-001-02
+- TC-ROB-002-01
+- TC-ROB-003-01
+- TC-ROB-004-01
+- TC-ROB-005-01
+- TC-ROB-006-01
+- TC-ROB-007-01
+- TC-ROB-007-02
+- TC-ROB-008-01
+- TC-ROB-009-01
+- TC-ROB-010-01
+- TC-ROB-011-01
+- TC-ROB-012-01
+- TC-SYS-003-01
+- TC-SYS-003-02
+- TC-TRK-001-01
+- TC-TRK-001-02
+- TC-TRK-002-01
+- TC-TRK-003-01
+- TC-TRK-003-02
+- TC-TRK-004-01
+- TC-TRK-005-01
+- TC-TRK-006-01
+- TC-TRK-006-02
+- TC-TRK-007-01
+- TC-TRK-008-01
+- TC-TRK-009-01
+- TC-TRK-010-01
+- TC-TRK-011-01
+- TC-TRK-012-01
+- TC-TRK-013-01
+- TC-VIS-001-01
+- TC-VIS-001-02
+- TC-VIS-002-01
+- TC-VIS-003-01
+- TC-VIS-004-01
+- TC-VIS-005-01
+- TC-VIS-006-01
+- TC-VIS-007-01
+- TC-VIS-008-01
+- TC-VIS-008-02
+- TC-VIS-009-01
+- TC-VIS-009-02
+- TC-VIS-010-01

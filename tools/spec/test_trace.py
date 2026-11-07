@@ -82,3 +82,21 @@ def test_area_filter(tmp_path):
     repo = _repo(tmp_path, SPEC, TS + "    | TC-ABT-001-01 | x | U | y |\n", TESTS)
     r = trace.build(repo, {"ABT"})
     assert list(r["tcs"]) == ["TC-ABT-001-01"] and r["reqs"] == {}
+
+
+@pytest.mark.level("U")
+def test_module_and_class_pytestmark_count_as_tests(tmp_path):
+    body = """\
+        import pytest
+        from suite import *  # noqa
+
+        pytestmark = [pytest.mark.req("REQ-ORC-001"), pytest.mark.tc("TC-ORC-001-01")]
+
+        @pytest.mark.tc("TC-ORC-002-01")
+        class TestImported(Base):
+            pass
+    """
+    repo = _repo(tmp_path, SPEC, TS, body)
+    r = trace.build(repo)
+    assert r["by_tc"]["TC-ORC-001-01"] == ["src/orchestrator/test/test_x.py::<module>"]
+    assert r["by_tc"]["TC-ORC-002-01"] == ["src/orchestrator/test/test_x.py::TestImported"]

@@ -322,3 +322,52 @@ def test_abort_path_hang_escalates_to_stop(fake_clock, cfg):
     assert out.abort_level == AbortLevel.L4
     assert out.result == 'PROTECTIVE_STOP'
     assert port.names()[-1] == 'Stop'
+
+
+# ---------------------------------------------------------------- 비동기 장애·진행 알림(SPEC-100 v0.2 4.7절)
+class FaultAfter(FakeSkillPort):
+    """`trigger` skill을 부른 뒤부터 `event`를 장애로 돌려준다."""
+
+    def __init__(self, clock, event, trigger):
+        super().__init__(clock)
+        self.event, self.trigger, self.fault = event, trigger, None
+
+    def _call(self, key, deadline, **kw):
+        r = super()._call(key, deadline, **kw)
+        if key == self.trigger:
+            self.fault = self.event
+        return r
+
+    def pending_fault(self):
+        return self.fault
+
+
+@pytest.mark.level("U")
+def test_protective_stop_during_descend_ends_in_protective_stop(fake_clock, cfg):
+    from orchestrator.abort_policy import Event
+    port = FaultAfter(fake_clock, Event.PROTECTIVE_STOP, 'feedback.DESCEND')
+    out = CycleRunner(port, fake_clock, cfg).run(goal())
+    assert out.states[-3:] == [S.DESCEND, S.PROTECTIVE_STOP, S.WAIT_OPERATOR]
+    assert out.result == 'PROTECTIVE_STOP' and out.abort_level is AbortLevel.L4
+    assert out.records[-1].step_name == 'DESCEND' and out.records[-1].result == Result.FAULT
+    assert out.records[-1].reason_code == 'PROTECTIVE_STOP'
+    assert 'Stop' in port.names() and 'feedback.RELEASE' not in port.names()
+
+
+@pytest.mark.level("U")
+def test_vision_heartbeat_loss_before_pick_is_l2(fake_clock, cfg):
+    from orchestrator.abort_policy import Event
+    port = FaultAfter(fake_clock, Event.HEARTBEAT_LOST, 'DetectObjects.MAT')
+    out = CycleRunner(port, fake_clock, cfg).run(goal())
+    assert S.ABORT_CYCLE in out.states and out.result == 'FAILURE'
+    assert 'PickStone' not in port.names()
+
+
+@pytest.mark.level("U")
+def test_progress_callbacks_match_outcome(fake_clock, cfg):
+    seen_states, seen_records = [], []
+    port = FakeSkillPort(fake_clock)
+    out = CycleRunner(port, fake_clock, cfg, on_state=seen_states.append,
+                      on_record=seen_records.append).run(goal())
+    assert seen_states == out.states[1:]           # IDLE은 시작 상태라 알리지 않는다
+    assert seen_records == out.records

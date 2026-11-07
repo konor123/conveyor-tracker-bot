@@ -30,3 +30,6 @@ bool released
 float64 release_error             # 정지 목표 기준 XY 오차 [m]
 ---
 string phase
+bool phase_done                   # true = phase가 끝났고 metric이 그 phase 판정의 최종 입력(SPEC-010 v0.2)
+string[] metric_keys              # 판정 측정값 이름(SPEC-100 4.4절 키, 단위 접미사 포함)
+float64[] metric_values           # 같은 순서의 값. 불리언은 1.0/0.0

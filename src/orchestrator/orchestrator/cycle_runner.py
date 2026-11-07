@@ -6,7 +6,7 @@ orchestrator_node는 ROS service·action 클라이언트로 SkillPort를 구현�
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Protocol
+from typing import Any, Callable, Protocol
 
 from . import step_judges as sj
 from .abort_policy import AbortCtx, AbortParams, AbortTracker, Event
@@ -99,6 +99,8 @@ class SkillPort(Protocol):
     def stop(self) -> Any: ...
     def cancel_active(self, wait_s: float) -> bool: ...
     def cancel_requested(self) -> bool: ...
+    # 선택: 비동기 장애(SPEC-100 4.7절). 없으면 장애 없음으로 본다
+    # def pending_fault(self) -> Event | None: ...
 
 
 # ---------------------------------------------------------------- 설정
@@ -180,10 +182,14 @@ class _Cycle:
 
 
 class CycleRunner:
-    def __init__(self, port: SkillPort, clock: Clock, cfg: OrchestratorCfg):
+    def __init__(self, port: SkillPort, clock: Clock, cfg: OrchestratorCfg,
+                 on_state: Callable[[State], None] | None = None,
+                 on_record: Callable[[StepRec], None] | None = None):
         self._port = port
         self._clock = clock
         self._cfg = cfg
+        self._on_state = on_state
+        self._on_record = on_record
         self._waiting: WaitOperatorEntry | None = None
         self.resumes: list[ResumeRecord] = []
 
@@ -216,6 +222,8 @@ class CycleRunner:
         state = S.PRECHECK
         while True:
             states.append(state)
+            if self._on_state is not None:
+                self._on_state(state)
             if state in (S.DONE, S.IDLE):
                 break
             if state in (S.ABORT_CYCLE, S.SAFE_ABORT, S.PROTECTIVE_STOP):
@@ -223,18 +231,22 @@ class CycleRunner:
                 if c.tracker.level is L.L4:           # 중단 경로 자체가 L4로 승격된 경우 포함
                     result = 'PROTECTIVE_STOP'
                 states.append(S.WAIT_OPERATOR)
+                if self._on_state is not None:
+                    self._on_state(S.WAIT_OPERATOR)
                 self._waiting = WaitOperatorEntry(clock.ros_now(), reason or state.name, c.tracker.level)
                 break
             event = self._pending_event(c, state)
             if event is not None:
-                j = Judgement(Result.CANCELED if event is Event.USER_CANCEL else Result.TIMEOUT,
-                              event.name, {})
+                j = Judgement(self._event_result(event), event.name, {})
                 level = self._level(c, state, event, j)
                 if event is Event.USER_CANCEL:
                     result = 'CANCELED'
             else:
                 t_start = clock.ros_now()
                 j, event = self._execute(c, state)
+                fault = self._fault()
+                if fault is not None:                 # 단계 중 생긴 비동기 장애가 판정보다 우선
+                    j, event = Judgement(Result.FAULT, fault.name, j.metrics), fault
                 level = self._level(c, state, event, j) if event is not None else L.NONE
                 if j.reason_code != sj.WAIT:
                     self._record(records, c, state, j, t_start, level)
@@ -419,7 +431,22 @@ class CycleRunner:
         return m
 
     # ------------------------------------------------------------ 중단
+    def _fault(self) -> Event | None:
+        pending = getattr(self._port, 'pending_fault', None)
+        return pending() if pending is not None else None
+
+    @staticmethod
+    def _event_result(event: Event) -> Result:
+        if event is Event.USER_CANCEL:
+            return Result.CANCELED
+        if event is Event.CYCLE_TIMEOUT:
+            return Result.TIMEOUT
+        return Result.FAULT
+
     def _pending_event(self, c, state) -> Event | None:
+        fault = self._fault()
+        if fault is not None:
+            return fault
         if self._port.cancel_requested():
             return Event.USER_CANCEL
         if not c.released and c.timer.expired():
@@ -477,5 +504,8 @@ class CycleRunner:
     def _record(self, records, c, state, j, t_start, level) -> None:
         keys, values = metrics_to_record(j)
         lv = int(level) if level in (L.L1, L.L2, L.L3, L.L4) else 0
-        records.append(StepRec(len(records) + 1, state.name, t_start, self._clock.ros_now(), j.result,
-                               j.reason_code, c.attempts.get(state, 1), lv, keys, values, j.detail))
+        rec = StepRec(len(records) + 1, state.name, t_start, self._clock.ros_now(), j.result,
+                      j.reason_code, c.attempts.get(state, 1), lv, keys, values, j.detail)
+        records.append(rec)
+        if self._on_record is not None:
+            self._on_record(rec)

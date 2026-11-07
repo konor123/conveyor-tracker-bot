@@ -1,6 +1,6 @@
 # SPEC-100 orchestrator
 
-- 버전: v0.1
+- 버전: v0.2
 - 근거: PLAN.md 4절
 - REQ 영역: ORC
 
@@ -9,6 +9,7 @@
 | 버전 | 날짜 | 내용 |
 |---|---|---|
 | v0.1 | 2026-11-07 | 상태 열(모드 3종), 단계별 skill·선행조건·판정·기록 키, 재시도·통과 보내기, WAIT_OPERATOR 재개 |
+| v0.2 | 2026-11-07 | 비동기 장애(`SkillPort.pending_fault`), 진행 알림 콜백(`on_state`·`on_record`), `orchestrator_node`의 ROS 대응(4.8절) |
 
 ## 1. 목적·범위
 
@@ -151,6 +152,8 @@ SPEC-010 v0.1 기준.
 - PLAN_INTERCEPT는 실제 deadline(`min(now + 0.5 s, 동적 deadline, 사이클 deadline)`)까지 재계산하고, 통과마다 최종 판정 1건을 기록한다.
 - PICK_STONE 선행조건(검출 나이)이 깨지면 `PRECONDITION`을 기록하고 DETECT_STONE으로 돌아간다. 이 재검출은 `retry.pick_stone_count`번까지이고 넘으면 L2다.
 - holding은 PICK_STONE OK부터 RELEASE 응답까지 참으로 둔다(MOVE_STANDBY의 `DROPPED`도 L3로 처리해 매트 쪽으로 정리한다).
+- 비동기 장애: 포트의 `pending_fault()`가 SPEC-110 이벤트(보호정지, controller heartbeat 손실, vision·tracker heartbeat 손실, 그리퍼 이상 등)를 돌려주면 실행기는 단계 실행 전과 직후에 그 이벤트로 중단 등급을 정한다(판정 `FAULT`, 이유 = 이벤트 이름). 포트는 장애가 생기면 진행 중인 대기를 바로 끝내고 `None`을 돌려준다. 장애는 사이클이 끝날 때까지 유지된다(포트가 latch).
+- 진행 알림: `CycleRunner(..., on_state=f, on_record=g)`이면 상태가 바뀔 때 `f(state)`, 단계 기록이 생길 때 `g(StepRec)`를 부른다(TaskStatus·StepRecord 발행용). 결과 열은 콜백 유무와 같다.
 
 | 끝난 방식 | `DropTask.result` |
 |---|---|
@@ -160,6 +163,26 @@ SPEC-010 v0.1 기준.
 | L3 | `SAFE_ABORT`(통과 보내기 소진이면 `NOT_ATTEMPTED`) |
 | L4(중단 경로 중 승격 포함) | `PROTECTIVE_STOP` |
 | 사용자 cancel | `CANCELED` |
+
+### 4.8 `orchestrator_node`(ROS 대응)
+
+| SkillPort | ROS | 측정값 출처 |
+|---|---|---|
+| `status` | 구독 캐시 | `system/heartbeat`(노드 ACTIVE·나이), `robot/status`, `belt/measured_motion`, `objects/detections.calibration_id` |
+| `detect_stones` | `vision/detect_objects`(MAT, STONE) | 응답 검출. `clearance_m` = 가장 가까운 다른 검출까지 거리(없으면 1 m). 검출 시각 = 응답 수신 시각 |
+| `pick_stone` | `robot/pick_stone` | 결과 값. `stone_on_mat` = 결과 뒤 `DetectObjects(MAT)`에 목표 10 mm 안 공깃돌이 남음. 이유 코드 `GRIPPER*` = 그리퍼 오류, 그 밖 FAULT = 로봇 오류 |
+| `move_to_pose` | `robot/move_to_pose`(named_pose) | `pose_error`, holding = `robot/status.holding` |
+| `select_target`·`observe_cap` | `tracking/select_target`, `objects/tracked` | track 상태·관측 수, `BeltMotion`, 병뚜껑 검출 `stone_inside`, 시간 예산(4.9절) |
+| `detect_cap`(STATIC) | `vision/detect_objects`(BELT, CAP) | 정지 뚜껑 검출 |
+| `compute_intercept` | `planner/compute_intercept` | `InterceptPlan` |
+| `place_start`·`place_feedback` | `robot/place_stone`·`robot/dynamic_place` | phase 끝 feedback의 `metric_keys/values`(SPEC-010 v0.2). SYNCHRONIZE는 진행 중 feedback의 `e_xy`·`v_rel` 열 |
+| `verify` | `vision/verify_drop` | `verdict` |
+| `safe_retreat`·`stop`·`cancel_active` | `robot/safe_retreat`, `robot/stop`, goal cancel | — |
+| `pending_fault` | 구독 캐시 | `robot/status.protective_stop` → PROTECTIVE_STOP, `connected = false` → ROBOT_COMM_LOST, heartbeat 손실(SPEC-110) |
+
+### 4.9 시간 예산(M0 임시)
+
+planner의 `time_budget`이 생기기 전까지 WAIT_CAP 예산은 `orchestrator_node`가 conveyor_frame에서 계산한다: `t_available = (x_exit − x_cap) / v`, `t_required = Σ budget 성분`(설정 `budget:` 절). 실제 planner가 계약 시험을 통과하면 planner 결과로 바꾼다.
 
 ## 5. 시간 제약(주기·제한시간)
 

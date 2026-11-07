@@ -74,23 +74,50 @@ def _mark_ids(dec) -> tuple[str, list[str]] | None:
     return f.attr, ids
 
 
+def _collect(marks, got):
+    for dec in marks:
+        m = _mark_ids(dec)
+        if m:
+            got[m[0]] += m[1]
+    return got
+
+
+def _pytestmark(body) -> list:
+    """모듈·클래스 본문의 `pytestmark = [pytest.mark.tc(...), ...]`(또는 단일 마커)."""
+    out = []
+    for st in body:
+        if isinstance(st, ast.Assign) and any(isinstance(t, ast.Name) and t.id == "pytestmark" for t in st.targets):
+            v = st.value
+            out += list(v.elts) if isinstance(v, (ast.List, ast.Tuple)) else [v]
+    return out
+
+
 def load_tests(repo: str) -> list[tuple[str, list[str], list[str]]]:
-    """(테스트 위치, TC 목록, REQ 목록). 함수 데코레이터만 읽는다(문자열 안의 마커는 무시)."""
+    """(테스트 위치, TC 목록, REQ 목록). 함수·클래스 데코레이터와 모듈·클래스 `pytestmark`를 읽는다.
+
+    모듈 `pytestmark`는 `<파일>::<module>` 하나로, 클래스 마커는 `<파일>::<클래스>` 하나로 센다
+    (공용 계약 시험 묶음을 상속·가져와 쓰는 파일용). 문자열 안의 마커는 무시한다.
+    """
     files = glob.glob(os.path.join(repo, "src", "*", "test", "**", "*.py"), recursive=True)
     files += glob.glob(os.path.join(repo, "tools", "**", "test_*.py"), recursive=True)
     out = []
     for f in sorted(set(files)):
         tree = ast.parse(open(f, encoding="utf-8").read(), filename=f)
+        rel = os.path.relpath(f, repo)
+        got = _collect(_pytestmark(tree.body), {"tc": [], "req": []})
+        if got["tc"] or got["req"]:
+            out.append((f"{rel}::<module>", got["tc"], got["req"]))
         for node in ast.walk(tree):
+            if isinstance(node, ast.ClassDef) and node.name.startswith("Test"):
+                got = _collect(node.decorator_list + _pytestmark(node.body), {"tc": [], "req": []})
+                if got["tc"] or got["req"]:
+                    out.append((f"{rel}::{node.name}", got["tc"], got["req"]))
+                continue
             if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) or not node.name.startswith("test"):
                 continue
-            got = {"tc": [], "req": []}
-            for dec in node.decorator_list:
-                m = _mark_ids(dec)
-                if m:
-                    got[m[0]] += m[1]
+            got = _collect(node.decorator_list, {"tc": [], "req": []})
             if got["tc"] or got["req"]:
-                out.append((f"{os.path.relpath(f, repo)}::{node.name}", got["tc"], got["req"]))
+                out.append((f"{rel}::{node.name}", got["tc"], got["req"]))
     return out
 
 

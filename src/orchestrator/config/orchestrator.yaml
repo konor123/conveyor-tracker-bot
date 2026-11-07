@@ -81,3 +81,22 @@ watchdog:
   gripper_alive_stall_s: 0.1           # TBD(측정 G0)
   cycle_timeout_s: 90.0
   cycle_steady_factor_ratio: 2.0
+
+node:                                  # orchestrator_node(SPEC-100 4.8절)
+  required_nodes: [vision_node, tracker_node, robot_controller_node]
+  startup_wait_s: 3.0                  # 사이클 시작 전 heartbeat·상태 캐시를 기다리는 시간
+  pick_approach_height_m: 0.05         # TBD(현장 배치 OFF-1)
+  pick_grip_current_ma: 150            # TBD(측정 G0, TC-BEN-008-01)
+  stone_on_mat_radius_m: 0.01          # 파지 뒤 같은 자리에 공깃돌이 남았는지 보는 반경
+  verify_hold_s: 1.0                   # PLAN.md 4.5절
+  select_retry_s: 0.2                  # 대상 없음일 때 SelectTarget 재질의 간격
+  status_period_s: 0.1                 # TaskStatus 10 Hz
+
+budget:                                # M0 임시 시간 예산(SPEC-100 4.9절). planner time_budget이 생기면 대체, TBD(측정 G0)
+  x_exit_m: 0.40                       # conveyor_frame 도달 구간 끝
+  plan_s: 0.5
+  approach_s: 1.5
+  synchronize_s: 0.5
+  descend_s: 0.8
+  release_s: 0.3
+  retreat_margin_s: 1.0                # 동적 deadline = 지금 + t_available − 이 값

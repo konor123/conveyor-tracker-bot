@@ -13,6 +13,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/InterceptPlan.msg"
   "msg/ObjectDetection.msg"
   "msg/ObjectDetectionArray.msg"
+  "msg/RobotStatus.msg"
   "msg/StepRecord.msg"
   "msg/TaskStatus.msg"
   "msg/TrackedObject.msg"

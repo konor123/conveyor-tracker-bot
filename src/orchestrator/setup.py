@@ -20,5 +20,9 @@ setup(
     description='상태 머신·단계 판정·중단·감시·기록',
     license='Apache-2.0',
     tests_require=['pytest'],
-    entry_points={'console_scripts': []},
+    entry_points={'console_scripts': [
+        'orchestrator_node = orchestrator.orchestrator_node:main',
+        'safety_supervisor_node = orchestrator.safety_supervisor_node:main',
+        'record_logger_node = orchestrator.record_logger_node:main',
+    ]},
 )

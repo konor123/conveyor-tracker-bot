@@ -15,6 +15,11 @@
   <exec_depend>realsense2_camera</exec_depend>
   <exec_depend>calibration</exec_depend>
 
+  <exec_depend>drop_mocks</exec_depend>
+
+  <test_depend>ament_cmake_pytest</test_depend>
+  <test_depend>python3-pytest</test_depend>
+
   <export>
     <build_type>ament_cmake</build_type>
   </export>

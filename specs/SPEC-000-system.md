@@ -1,30 +1,148 @@
 # SPEC-000 system
 
-- 버전: v0.0
-- 근거: PLAN.md 0.2, 1, 2.5절
+- 버전: v0.1
+- 근거: PLAN.md 0.2, 1, 2.3~2.5절
 - REQ 영역: SYS
 
 ## 변경 이력
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
+| v0.1 | 2026-11-07 | 패키지 구성·이름 규칙(10개), TF 트리·좌표계, 시각·시계 규약, SI 단위·단위 변환 어댑터·설정 키 단위 접미사(10종) |
 
 ## 1. 목적·범위
 
-범위, 용어, 좌표·시각·단위 규약
+이동 병뚜껑 공깃돌 투입 시스템(`conveyor-tracker-bot`) 전체에 공통으로 적용되는 시스템 규약을 정의한다.
+
+- 범위: 워크스페이스 패키지 구성과 이름 규칙, 좌표계 및 TF 트리, 관측·추적·계획 타임스탬프와 시계 분리, 프로젝트 내부 SI 단위 규약, 장비 경계 단위 변환 어댑터 분리, 설정·시나리오 YAML 수치 키의 단위 접미사 규칙.
+- 범위 밖: 개별 메시지·서비스·액션 필드 정의와 QoS(SPEC-010), 오케스트레이터 상태 머신·단계 판정(SPEC-100), 중단 등급·제한시간·감시 타이머(SPEC-110), 카메라·평면·TCP 보정 절차(SPEC-600).
 
 ## 2. 입력·출력(interface 버전)
 
+SPEC-010 v0.1(`src/drop_interfaces/`) 기준.
+
+- 입력 설정 파일: 각 패키지 `src/*/config/*.yaml`, 대역 시나리오 `src/drop_mocks/scenarios/*.yaml`.
+- 주요 좌표계(`frame_id`):
+  - `ObjectDetectionArray.header.frame_id = "robot_base"`
+  - `TrackedObject.header.frame_id = "conveyor_frame"`, `TrackedObjectArray.header.frame_id = "conveyor_frame"`
+  - `BeltMotion.header.frame_id = "conveyor_frame"`
+  - `InterceptPlan.header.frame_id = "robot_base"`
+- TF 방송(`/tf_static`, `/tf`):
+  - 고정 좌표계: `world → robot_base → {conveyor_frame, mat_frame, camera_link → camera_color_optical_frame}`
+  - 로봇 링크: `robot_base → ... → tcp` (`robot_state_publisher`)
+  - 관측 동적 TF: `conveyor_frame → cap_<track_id>` (`tracker_node`, 시각화 전용)
+
 ## 3. 파라미터(단위·기본값·근거)
+
+### 3.1 프로젝트 내부 물리 단위 규약
+
+프로젝트 내부 코드, 순수 Python 판단·계산 모듈, ROS 메시지(`drop_interfaces`)는 모두 **SI 단위와 quaternion**만 사용한다.
+
+| 물리량 | 내부 단위 | 비고 |
+|---|---|---|
+| 길이·위치·오차 | `m` | 픽셀 좌표(`u`, `v`, `diameter_px`)는 영상 평면 `[px]` |
+| 시간·주기·지연 | `s` | 주파수는 `Hz` |
+| 선속도 | `m/s` | |
+| 선가속도 | `m/s^2` | |
+| 각도 | `rad` | |
+| 3차원 자세(회전) | `quaternion (x, y, z, w)` | `geometry_msgs/Pose`, `Transform` |
+| 그리퍼 제어기 레지스터 | `pulse` (0~1150), `mA` | 하드웨어·레지스터 경계 값만 예외 |
+
+### 3.2 설정·시나리오 YAML 수치 키 단위 접미사
+
+`src/*/config/*.yaml` 및 `src/*/scenarios/*.yaml` 안의 모든 수치 키(정수·부동소수점 스칼라 및 수치 리스트, `bool` 제외)는 아래 10개 단위 접미사 중 하나로 끝나야 한다.
+
+| 접미사 | 물리량 | 단위 | 예시 키 |
+|---|---|---|---|
+| `_m` | 길이·거리·위치·높이·표준편차 | m | `d_stone_min_m`, `e_xy_max_m`, `safe_z_m` |
+| `_s` | 시간·제한시간·창 길이·유효기간 | s | `timeout_s`, `hold_s`, `heartbeat_timeout_s` |
+| `_mps` | 선속도 | m/s | `speed_mps`, `v_rel_max_mps` |
+| `_mps2` | 선가속도 | m/s² | `a_max_mps2` |
+| `_rad` | 각도·시야각·요(yaw) | rad | `conveyor_yaw_rad`, `hfov_rad` |
+| `_hz` | 주파수·발행 주기 | Hz | `frame_rate_hz` |
+| `_ma` | 전류 | mA | `grip_current_min_ma` |
+| `_pulse` | 그리퍼 위치 펄스 | pulse | `open_pulse`, `close_pulse` |
+| `_count` | 개수·횟수·해상도(픽셀 수) | 무차원 정수 | `observation_count_min_count`, `width_count` |
+| `_ratio` | 비율·신뢰도·배율 | 무차원 | `confidence_min_ratio`, `drop_ratio` |
+
+- 접미사가 없는 무차원 수치 키(예: `seed`)는 해당 YAML 파일 최상단 `unitless: [<키 또는 점 경로>, ...]` 목록에 명시한다.
+- 시나리오 파일의 `measured:` 블록(실측 출처 문자열 매핑)은 수치 키 검사 대상에서 제외한다.
+
+### 3.3 단위 변환 어댑터 제한
+
+외부 장비 고유 단위와 내부 SI 단위 사이의 변환은 다음 두 어댑터 모듈에서만 수행한다(PLAN.md 0.2-1절).
+
+| 변환 대상 | 외부 표현 | 내부 표현 | 유일한 허용 모듈 |
+|---|---|---|---|
+| Doosan 로봇 위치·자세 | `mm`, `deg`, Euler(ZYZ) | `m`, `rad`, `quaternion (x, y, z, w)` | `src/robot_control/robot_control/motion_adapter.py` |
+| RH-P12-RN(A) 그리퍼 간격 | `pulse` (0~1150) | 핑거 간격 `m` | `src/robot_control/robot_control/gripper_adapter.py` |
 
 ## 4. 동작(상태·알고리즘)
 
+### 4.1 패키지 구성과 이름·구조 규칙 (PLAN.md 2.1~2.4절)
+
+1. 워크스페이스는 다음 10개 패키지로 구성한다:
+   `drop_interfaces`, `vision`, `tracking`, `intercept_planner`, `robot_control`, `orchestrator`, `calibration`, `drop_mocks`, `drop_bringup`, `drop_sim`.
+2. 모든 패키지 이름은 ROS 2 Jazzy underlay(`/opt/ros/jazzy`)의 기본 패키지와 충돌하지 않아야 한다.
+3. 검출, 칼만 필터, 미래 위치 예측, 시간 예산, 단위 변환, 상태 전이, 단계 성공 판정, 중단 등급 판정은 ROS와 무관한 순수 Python 모듈로 작성하여 단위 시험(U)으로 검증하고, ROS 노드는 이를 감싸는 얇은 어댑터로만 동작한다(PLAN.md 0.2-6절).
+4. 지휘 규칙(PLAN.md 2.2절):
+   - 작업 순서와 서비스/액션 호출은 `orchestrator_node`에서만 나가며, 기능 노드끼리 서로의 서비스/액션을 호출하지 않는다.
+   - 연속 데이터(`objects/detections → objects/tracked → drop/intercept_plan`)는 토픽 파이프라인으로 전달한다.
+   - 로봇과 그리퍼에 지령을 내리는 주체는 `robot_controller_node` 하나뿐이다.
+
+### 4.2 좌표계와 TF 트리 (PLAN.md 0.2-3, 2.5절)
+
+```
+world
+ └── robot_base (base_link, 드라이버/URDF 명칭에 맞춤)
+      ├── conveyor_frame        (static: 벨트 장치 고정, x축 = 벨트 진행 방향, z축 = 벨트 표면 법선)
+      ├── mat_frame             (static: 매트 평면 기준)
+      ├── camera_link → camera_color_optical_frame   (static: eye-to-hand 보정 결과 / 광학 TF는 RealSense 드라이버 소유)
+      ├── ... robot links → tcp (dynamic: robot_state_publisher 소유)
+      └── conveyor_frame → cap_<track_id>   (dynamic: tracker_node 발행, stamp = t_state, 시각화 전용)
+```
+
+- `conveyor_frame`은 벨트 표면을 따라 움직이지 않고 컨베이어 장치에 고정된다(`x`축: 벨트 진행 방향, `z`축: 벨트 표면 위쪽 법선, 오른손 좌표계).
+- `cap_<track_id>`의 회전(`orientation`)은 항상 단위 사원수(`x=0, y=0, z=0, w=1`)로 발행하며, 원형 병뚜껑의 yaw는 관측하지 않고 파지 자세와 구분한다.
+- TF와 예측의 분리: TF(`tf2`)는 고정 좌표 변환과 **현재까지 관측된** 병뚜껑 위치 시각화에 한정한다. `tf2`로 미래 시각을 외삽하지 않으며, 미래 위치 예측은 `intercept_planner`가 `TrackedObject` 상태·속도·공분산으로 계산해 `InterceptPlan`과 RViz `Marker`(`drop/predicted_marker`)로만 내보낸다.
+- 단일 발행 원칙: 동일한 parent→child TF 프레임 쌍을 두 개 이상의 노드가 중복 발행하지 않는다.
+
+### 4.3 시각과 시계 규약 (PLAN.md 0.2-2절, SPEC-110 5절)
+
+- **관측 시각 보존:** `ObjectDetectionArray.header.stamp`는 카메라 **영상 노출 시각**(`sensor_msgs/Image.header.stamp`)을 그대로 복사한다. 노드가 영상을 수신하거나 처리를 끝낸 시각으로 덮어쓰지 않는다.
+- **추적·계획 시각 분리:**
+  - `TrackedObject.header.stamp` 및 `TrackedObjectArray.header.stamp`는 칼만 필터 상태의 기준 시각 `t_state`다.
+  - 마지막으로 실제 검출이 연관된 시각 `last_observed_stamp`(`t_last_obs`)와 추정 유효 만료 시각 `valid_until`을 별도 필드로 둔다.
+  - `InterceptPlan`은 계획 생성 시각(`header.stamp`), 입력 상태 시각(`source_state_stamp`), 목표 해제 시각(`release_time`), 계획 만료 시각(`valid_until`)을 별도 필드로 구분한다.
+- **시계 이원화:** 메시지 타임스탬프, `valid_until`, 관측 신선도(`t_now - t_last_obs`), 시간 예산, 단계·동적·사이클 `deadline`은 ROS 시각(`use_sim_time` 적용 대상)을 쓰고, heartbeat 감시·그리퍼 응답 시간·호출/취소/중단 경로 제한시간·사이클 steady 상한은 단조 증가(steady) 시계를 쓴다.
+
 ## 5. 시간 제약(주기·제한시간)
+
+| 항목 | 주기 / 제한시간 | 시계 | 근거 |
+|---|---|---|---|
+| 카메라·검출·추적 데이터 토픽 | 30 Hz (프레임 주기 `1 / frame_rate_hz`) | ROS | PLAN.md 3.3절 |
+| `system/heartbeat`, `task/status` | 10 Hz | steady / ROS | PLAN.md 3.3절, SPEC-010 |
+| 단위 시험(U) 1건 실행 시간 | ≤ 1.0 s (`FakeClock` 사용, `time.sleep` 금지) | — | TEST_SPEC.md 0.4절 |
 
 ## 6. 실패 모드와 응답(중단 등급)
 
+- 패키지 이름 충돌(`REQ-SYS-001` 위반), YAML 단위 접미사 누락(`REQ-SYS-002` 위반), 어댑터 외 단위 변환 코드(`REQ-SYS-004` 위반)는 정적·단위 시험(U)에서 즉시 실패로 검출하여 게이트 통과를 차단한다.
+- 런타임 중 관측·추적 타임스탬프가 역행(`CLOCK_JUMP`)하거나 동적 구간에서 관측 신선도(`t_now - t_last_obs > obs_freshness_s`)가 초과되면 오케스트레이터가 SPEC-110 4.3절에 따라 트랙·계획을 무효화하고 L2 또는 L3 중단으로 전이한다.
+
 ## 7. 성공 판정(측정 가능)
+
+- REQ-SYS-001: 워크스페이스를 source하지 않은 깨끗한 underlay(`/opt/ros/jazzy`) 환경에서 `src/*/package.xml`의 10개 패키지 각각에 대해 `ros2 pkg prefix <name>`을 실행하면 10개 모두 `"not found"`(종료 코드 ≠ 0, 충돌 0건)를 반환한다.
+- REQ-SYS-002: `src/*/config/*.yaml`과 `src/*/scenarios/*.yaml`의 모든 수치(스칼라·수치 리스트, `bool` 제외) 키는 파일 내 `unitless:` 목록(또는 `measured:` 출처 블록)에 명시된 경우를 제외하면 `_m`, `_s`, `_mps`, `_mps2`, `_rad`, `_hz`, `_ma`, `_pulse`, `_count`, `_ratio` 10종 중 하나로 끝나며 위반 건수는 0건이다.
+- REQ-SYS-003: 처리 지연(50~80 ms)이 주입되어도 `ObjectDetectionArray.header.stamp`는 입력 영상 노출 시각 `T`와 정확히 일치(오차 0 ns)하고, `TrackedObject.header.stamp`는 상태 시각 `t_state == T`와 정확히 일치(오차 0 ns)한다.
+- REQ-SYS-004: `src/**/*.py`(`build`·`install`·`test` 제외)에서 단위 변환 토큰 패턴(`* 1000`, `/ 1000`, `*= 1000`, `/= 1000`, `1000 *`, `math.degrees`, `math.radians`)은 `motion_adapter.py`와 `gripper_adapter.py` 두 파일에만 존재하며 그 외 파일에서의 검출 건수는 0건이다.
 
 ## 8. 검증 방법(`TEST_SPEC.md` TC ID, 게이트)
 
+- `TC-SYS-001-01`, `TC-SYS-002-01`, `TC-SYS-004-01`: 수준 U, 게이트 M0 (`tools/spec/test_sys_conventions.py`).
+- `TC-SYS-003-01`: 수준 C, 게이트 G1 (`vision_node` 계약 시험).
+- `TC-SYS-003-02`: 수준 C, 게이트 G3 (`tracker_node` 계약 시험).
+
 ## 9. 미결 사항
+
+- 고정 TF 프레임(`conveyor_frame`, `mat_frame`, `camera_link`, `tcp`)의 실기 보정 수치: TBD(현장 보정 OFF-3 / G1, SPEC-600).
+- `vision_node`·`tracker_node` 실제 노드에 대한 `TC-SYS-003-01`·`TC-SYS-003-02` 실행 검증: 각 패키지 노드 구현 단계(G1·G3)에서 수행.

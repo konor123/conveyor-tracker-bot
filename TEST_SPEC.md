@@ -130,6 +130,23 @@ class CycleRunner:
     def run(self, goal: DropGoal) -> CycleOutcome   # 상태 열, StepRecord 열, 결과, passes_skipped
     def resume(self, reason: str) -> bool          # WAIT_OPERATOR 재개, 빈 사유는 거부
 
+# ---------- drop_mocks ----------
+class ScenarioEngine:                      # 단일 세계 모델(SPEC-700 4절). 출력은 (seed, 프레임 k)만으로 결정
+    def __init__(self, scenario: dict, seed: int | None = None): ...
+    @classmethod
+    def from_file(cls, path: str, seed: int | None = None) -> ScenarioEngine
+    def frame_index(self, t: float) -> int
+    def frame(self, k: int, resets: int = 0) -> Frame            # t, stamp_offset, dropped, detections, tracks, belt
+    def heartbeat_alive(self, role: str, t: float) -> bool
+    def detect(self, t: float, region: int, object_class: int, min_count: int) -> DetectReply
+    def select_target(self, t: float, min_observation_count: int, resets: int = 0) -> SelectReply
+    def verify(self, call_index: int) -> VerifyReply
+    def skill(self, name: str, call_index: int) -> SkillReply
+    def protective_stop(self, t: float) -> bool
+    def gripper_delay(self, t: float) -> float
+    def assumed_params(self) -> list[str]
+def classify_params(scenario: dict) -> tuple[dict[str, str], list[str]]   # (키 경로 → "assumed"/"measured", 오류 목록)
+
 # ---------- intercept_planner ----------
 @dataclass(frozen=True)
 class Budget: t_available: float; t_required: float; ok: bool; components: dict[str, float]
@@ -214,6 +231,7 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-IF-003-01 | 상수 값이 명세와 같다 | U | `[ON]` | `ObjectDetection`, `TrackedObject`, `BeltMotion`, `InterceptPlan`, `DropTask` 상수 | `CLASS_STONE=1`, `CLASS_CAP=2`, `CLASS_BELT_MARKER=3`, `OBSERVED=0`, `COASTING=1`, `LOST=2`, `NOT_ATTEMPTED=6` 등 3장 값과 일치 |
 | TC-IF-004-01 | 발행 QoS가 3.3절 표와 같다 | C | `[ON]` | 노드별 실행 후 `get_publishers_info_by_topic` | reliability·durability·depth 일치 |
 | TC-IF-004-02 | QoS가 맞지 않는 구독은 계약 시험에서 실패로 잡힌다 | C | `[ON]` | best effort 발행자 + reliable 구독자 구성 | 계약 시험이 `QOS_MISMATCH`로 실패(오류 없는 무수신을 놓치지 않음) |
+| TC-IF-005-01 | PlaceStone·DynamicPlace의 각 phase 끝 feedback은 `phase_done=true`이고 지정 키를 모두 가진다 | C | `[ON]` | robot_controller 계약 시험에서 PlaceStone·DynamicPlace phase 끝 feedback 키 | 누락 0 |
 
 ### 3.3 ORC — 상태 머신·단계 판정
 
@@ -397,8 +415,10 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-MCK-002-01 | 역할 분리 일관성 | C | `[ON]` | `role:=vision`, `role:=tracking` 별도 프로세스 | 같은 시각의 뚜껑 위치 차 ≤ 1e-9 m |
 | TC-MCK-003-01 | mock_world 계약 | C | `[ON]` | vision·tracker 계약 시험 | 통과 |
 | TC-MCK-004-01 | mock_robot_controller 계약 | C | `[ON]` | robot_controller 계약 시험 | 통과 |
-| TC-MCK-005-01 | 장애 주입 시각 | C | `[ON]` | 시나리오 이벤트 10종 | 지정 시각 ± 1 프레임에 발생 |
-| TC-MCK-006-01 | 가정값 표기 | U | `[ON]` | 시나리오 파일 | 실측이 아닌 값이 `assumed:` 목록에 있고 trial 기록 `assumed_params`로 복사 |
+| TC-MCK-005-01 | 장애 주입 시각 | C | `[ON]` | 시나리오 이벤트 10종, 노드 topic·heartbeat·skill 결과 관찰 | 지정 시각 ± 1 프레임에 발생 |
+| TC-MCK-005-02 | 장애 주입 시각(엔진) | U | `[ON]` | 이벤트 10종을 넣은 시나리오, 이벤트 직전·직후 프레임 | 직전 프레임은 효과 없음, 직후 프레임(± 1)에 효과 |
+| TC-MCK-006-01 | 가정값 표기 | U | `[ON]` | `scenarios/*.yaml` | `world`·`robot` 수치 값이 모두 `assumed:` 또는 `measured:` 중 하나로 분류(중복 0), 엔진 `assumed_params`가 분류 결과와 같음 |
+| TC-MCK-006-02 | 가정값 기록 복사 | I0 | `[ON]` | mock 1사이클 | trial 기록 `assumed_params` == 대역 노드 `assumed_params` 파라미터 |
 | TC-MCK-007-01 | 실제·대역 동시 기동 금지 | I0 | `[ON]` | `use_mock_vision:=true`와 실제 vision 동시 지정 | bringup이 기동 거부 |
 
 ### 3.12 REC — 기록·분석
