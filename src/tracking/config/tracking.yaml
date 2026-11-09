@@ -1,5 +1,5 @@
 # SPEC-300 v0.1, SI units. Dimensionless exceptions are declared explicitly.
-unitless: [gate_chi2, cusum_k, cusum_h]
+unitless: [gate_chi2, cusum_k, cusum_h, T_base_conveyor]
 kf:
   sigma_accel_mps2: 0.001
   meas_std_default_m: 0.0003
@@ -23,3 +23,7 @@ select:
   x_reach_start_m: -0.05
 clock:
   backstep_tol_s: 0.0
+# ROS adapter: row-major robot_base <- conveyor_frame; calibration replaces identity.
+T_base_conveyor: [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0]
+# Grace before synthesizing empty frames when detections stop (ROS seconds).
+input_timeout_s: 0.2

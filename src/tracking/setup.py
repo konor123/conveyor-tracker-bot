@@ -20,5 +20,5 @@ setup(
     description='병뚜껑 추적·벨트 속도·관측 TF',
     license='Apache-2.0',
     tests_require=['pytest'],
-    entry_points={'console_scripts': []},
+    entry_points={'console_scripts': ['tracker_node = tracking.tracker_node:main']},
 )

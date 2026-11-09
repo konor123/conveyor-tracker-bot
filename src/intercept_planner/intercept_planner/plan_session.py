@@ -33,6 +33,15 @@ class PlanSession:
                 self.active = payload
         return reply
 
+    def expire(self, reason: str) -> Plan | None:
+        """Close once for adapter events such as a ROS clock reset."""
+        previous = self.active
+        if previous is None:
+            return None
+        self.active = None
+        return Plan(Result.FAILED, reason, replace(previous, status=Status.EXPIRED,
+                    reason=reason, revision=previous.revision + 1))
+
     def update(self, track: TrackState | None, now: float, *,
                current_epoch: int | None = None) -> Plan | None:
         previous = self.active

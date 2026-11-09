@@ -199,9 +199,10 @@
   - `tracking/track_manager.py`·`association.py`, TC-TRK-002~005 U.
 - [x] `[ON]` 다이얼 조작에 따른 속도 변화 검출(혁신값 누적) → `BeltMotion.steady = false`
   - 양쪽 CUSUM(`tracking/speed_change.py`). TC-TRK-006: 20 → 30 mm/s 검출 지연 최대 0.167 s, 60 s 등속 오검출 0(seed 20).
-- [ ] `[ON]` `ResetTracking`, `SelectTarget`(도달 구간에 들어오기 전 가장 가까운 병뚜껑 선택, 진입 시각 예측) 서비스, Heartbeat, 계약 테스트
-  - 판단 로직은 순수 모듈(`select_target.py`, `belt_motion.py`, `TrackManager.reset`)과 U 보조 시험. `tracker_node`와 계약 시험 TC-TRK-009~012가 완료 조건이다.
+- [x] `[ON]` `ResetTracking`, `SelectTarget`(도달 구간에 들어오기 전 가장 가까운 병뚜껑 선택, 진입 시각 예측) 서비스, Heartbeat, 계약 테스트
+  - `tracker_node`(Managed Lifecycle) + 순수 모듈. 계약 TC-TRK-009~012와 공용 tracker 계약(`tools/testing/contracts/tracker_contract.py`)을 officepc WSL에서 2회 반복 통과(SPEC-300 v0.2).
 - [ ] `[ON*]` OFF-1 bag으로 실데이터 추적 확인, 병뚜껑 검출 시각은 노출 시각 기준
+  - 압축 영상(`records/media/2026-11-07/`) 5조건 재생: 통과마다 track 1개, 한 바퀴 10.5·7.0·4.5 s, 검출 잡음 0.1~0.3 mm, 벨트 속도 맥동 확인(`records/bench/belt-video-2026-11-07/README.md`). 원본 bag 기반 I1(TC-TRK-013-01)과 독립 GT 비교가 완료 조건이다.
 - [ ] `[ON*]` rosbag 회귀 자료(정상·가림·프레임 누락·속도 변화) 정리 → I1 CI 자료. 프레임을 뺀 편집 bag으로 `frame_drop_10pct` 시험
 - [x] `[ON]` `occlusion_long`·`speed_change`·`frame_drop_10pct`·`clock_jump` 단위 테스트(`PLAN.md` 7.3절)
   - TC-TRK-004-01(가림 초과 LOST), 006-01, 007-01(10% 누락: 유효 추적 100%, 위치 p95 최대 0.209 mm), 008-01.
@@ -213,7 +214,8 @@
 ## 8. Moving Reference Frame 구현 → G3
 
 - [ ] `[ON]` `world → robot_base → {conveyor_frame, mat_frame, camera_link}` static TF, 로봇 링크는 robot_state_publisher
-- [ ] `[ON]` tracker가 `conveyor_frame → cap_<track_id>` 동적 TF 발행(stamp = 상태 시각, orientation identity)
+- [x] `[ON]` tracker가 `conveyor_frame → cap_<track_id>` 동적 TF 발행(stamp = 상태 시각, orientation identity)
+  - TC-TRK-012-01.
 - [ ] `[ON]` **미래 시각 TF 조회 금지**: tf2는 외삽하지 않으므로 예측은 9절 planner가 `TrackedObject`로 계산
 - [ ] `[ON]` TF Timestamp 동기화: 관측 시각 기준 변환, `TimePointZero`(최신값) 남용 금지, `/clock` 역행·재시작 시 track·계획 무효화(`PLAN.md` 5.3절)
 - [ ] `[ON]` RViz2: 관측 TF + 예측 Marker 별도 표시
@@ -229,14 +231,16 @@
   - TC-PLN-002-01.
 - [ ] `[ON]` 시간 예산 판정(`PLAN.md` 9절) `time_budget.py` 구현, `deadlines.py` 연동, 통과 보내기(`max_passes`) 판정
   - `time_budget.py`와 TC-PLN-001(식·경계·정지·역방향). `deadlines.py`·WAIT_CAP 연동이 완료 조건이다.
-- [ ] `[ON]` 벨트 속도 변화 시 예측 갱신(revision 증가), 계획 만료 처리
-  - `plan_session.py`(plan_id·revision·해제 시각 고정·EXPIRED 닫기) U 보조 시험. 노드 발행과 TC-PLN-006-01 계약 시험이 완료 조건이다.
-- [ ] `[ON]` `ComputeIntercept` 서비스, 계약 테스트, I2(합성 tracked fixture 또는 replay → 실제 tracker 입력으로 예측·시간 예산 CI: 정상, `time_insufficient`, `UNCERTAIN`, 만료·epoch 불일치·clock reset)
+- [x] `[ON]` 벨트 속도 변화 시 예측 갱신(revision 증가), 계획 만료 처리
+  - `plan_session.py` + `intercept_planner_node`, TC-PLN-006-01(SPEC-400 v0.2).
+- [x] `[ON]` `ComputeIntercept` 서비스, 계약 테스트, I2(합성 tracked fixture 또는 replay → 실제 tracker 입력으로 예측·시간 예산 CI: 정상, `time_insufficient`, `UNCERTAIN`, 만료·epoch 불일치·clock reset)
+  - TC-PLN-007-01, TC-PLN-011-01(합성 tracked fixture → 실제 planner 7개 시나리오), officepc WSL 2회 반복 통과.
 - [ ] `[ON]` 실제 planner가 계약 테스트를 통과하면 `mock_world_node`의 임시 plan 발행(`publish_plan`)을 쓰지 않음
 - [ ] `[OFF]` OFF-5: 지연 구성 측정: 노출→수신→검출 완료→상태→계획→지령 송신→TCP 응답→그리퍼 개방 명령→개방 시작→공깃돌 이탈
 - [ ] `[ON*]` 가림 허용 시간 τ_max 산출: `e_pred ≤ e_pos + |δv|·τ + ½·a·τ² + |v|·δt` → 해제 게이트 값(`PLAN.md` 4.4절). 측정한 가림 시간보다 짧으면 벨트 표식 관측을 도입
   - 계산 함수 `tau.py`(TC-PLN-010-01). G3·G4 측정값(e_pos·δv·a·δt)과 OFF-5 가림 시간이 완료 조건이다.
 - [ ] `[ON*]` OFF-5 bag으로 50/100/200 ms horizon별 예측 오차를 이후 실제 관측과 대조
+  - OFF-1 압축 영상 예비값(σ_a 0.1, XY p95): 0.1 s 1.2~4.2 mm, 0.5 s 4.6~7.3 mm, 2.8 s 22~33 mm(`records/bench/belt-video-2026-11-07/README.md`). OFF-5 bag과 독립 GT가 완료 조건이다.
 
 ## 10. Moving Frame 기반 로봇 추종 제어 → G5 (트랙 A)
 

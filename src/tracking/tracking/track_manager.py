@@ -101,7 +101,10 @@ class TrackManager:
                  and d.position.size in (2, 3) and np.all(np.isfinite(d.position))]
         for track in self._tracks:
             track.kf.predict(t_stamp)
-            if track.kf.x[0] > self.x_obs_max_m+self.exit_margin_m:
+            # SPEC-300 4.2: past the exit or past the coast limit -> LOST before association,
+            # so a detection after a frame gap never revives an expired track.
+            if (track.kf.x[0] > self.x_obs_max_m+self.exit_margin_m
+                    or t_stamp-track.last_observed > self.coast_max_s):
                 track.status = LOST
         assignment = associate(self.tracks, valid, self.gate_chi2)
         # Select the source with post-assignment observation counts, matching BeltMotion.

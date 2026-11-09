@@ -132,7 +132,7 @@ def test_config_matches_runtime_defaults():
     values = {}
     section = None
     for line in (Path(__file__).parents[1]/'config/tracking.yaml').read_text().splitlines():
-        if not line.strip() or line.startswith(('#', 'unitless:')):
+        if not line.strip() or line.startswith(('#', 'unitless:', 'T_base_conveyor:', 'input_timeout_s:')):
             continue
         key, value = line.strip().split(':', 1)
         if not value.strip():
@@ -156,3 +156,21 @@ def test_predicted_exit_cannot_be_reacquired_in_same_frame():
     tracks = m.process_frame(3., [Det([.009, 0.])])
     assert next(t for t in tracks if t.track_id == first.track_id).status == LOST
     assert next(t for t in tracks if t.status == OBSERVED).track_id > first.track_id
+
+
+@pytest.mark.req('REQ-TRK-004')
+@pytest.mark.level('U')
+def test_track_past_coast_limit_is_lost_even_without_intermediate_frames():
+    """프레임 공백(카메라 정지·재개) 뒤 첫 검출이 coast 한도를 넘긴 track에 붙지 않는다."""
+    from types import SimpleNamespace
+    from tracking.track_manager import LOST, OBSERVED, TrackManager
+    tm = TrackManager(x_obs_min_m=-10., x_obs_max_m=10.)
+    det = lambda x: SimpleNamespace(object_class=2, position_valid=True,
+                                    position=np.array([x, 0.]), position_cov=np.eye(2) * 9e-8)
+    for k in range(40):
+        tm.process_frame(k / 30, [det(0.02 * k / 30)])
+    first = tm.tracks[0].track_id
+    out = tm.process_frame(40 / 30 + 1.5, [det(0.02 * (40 / 30 + 1.5))])
+    by_id = {s.track_id: s for s in out}
+    assert by_id[first].status == LOST
+    assert [s.status for s in out if s.track_id != first] == [OBSERVED]

@@ -3,7 +3,7 @@
 `tools/spec/trace.py`가 생성한다. 손으로 고치지 않는다.
 
 - REQ 117개 중 TC 연결 117개
-- pytest 대상 TC 192개 중 테스트 연결 171개
+- pytest 대상 TC 192개 중 테스트 연결 178개
 
 | TC | 수준 | REQ | 테스트 |
 |---|---|---|---|
@@ -150,12 +150,12 @@
 | TC-PLN-003-01 | U | REQ-PLN-003 | `src/intercept_planner/test/test_planner.py::test_covariance` |
 | TC-PLN-004-01 | U | REQ-PLN-004 | `src/intercept_planner/test/test_planner.py::test_target_offset_transform` |
 | TC-PLN-005-01 | U | REQ-PLN-005 | `src/intercept_planner/test/test_planner.py::test_workspace_boundary` |
-| TC-PLN-006-01 | C | REQ-PLN-006 | — |
-| TC-PLN-007-01 | C | REQ-PLN-007 | — |
+| TC-PLN-006-01 | C | REQ-PLN-006 | `src/intercept_planner/test/contract/test_planner_node_contract.py::test_revision_and_expiry` |
+| TC-PLN-007-01 | C | REQ-PLN-007 | `src/intercept_planner/test/contract/test_planner_node_contract.py::test_epoch` |
 | TC-PLN-008-01 | U | REQ-PLN-008 | `src/intercept_planner/test/test_planner.py::test_uncertainty` |
 | TC-PLN-009-01 | U | REQ-PLN-009 | `src/intercept_planner/test/test_planner.py::test_earliest_release` |
 | TC-PLN-010-01 | U | REQ-PLN-010 | `src/intercept_planner/test/test_planner.py::test_tau` |
-| TC-PLN-011-01 | I2 | REQ-PLN-011 | — |
+| TC-PLN-011-01 | I2 | REQ-PLN-011 | `src/intercept_planner/test/contract/test_planner_node_contract.py::test_i2` |
 | TC-REC-001-01 | U | REQ-REC-001 | `src/orchestrator/test/test_record_logger.py::test_schema_validation_from_external_symlink_build`<br>`tools/eval/test_trial_schema.py::test_schema_is_valid`<br>`tools/eval/test_trial_schema.py::test_plan_example_passes`<br>`tools/eval/test_trial_schema.py::test_missing_required_field_fails`<br>`tools/eval/test_trial_schema.py::test_out_of_range_value_fails`<br>`tools/eval/test_trial_schema.py::test_scenario_seed_required`<br>`tools/eval/test_trial_schema.py::test_mock_trial_passes` |
 | TC-REC-002-01 | I0 | REQ-REC-002 | `src/drop_bringup/test/test_i0_integration.py::test_i0_time_insufficient_pass_skip_and_not_attempted_record`<br>`src/orchestrator/test/test_record_logger.py::test_build_and_validate_trial_record` |
 | TC-REC-002-02 | U | REQ-REC-002 | `src/orchestrator/test/test_node_failure_regressions.py::test_logger_invalid_root_and_io_recovery`<br>`src/orchestrator/test/test_node_failure_regressions.py::test_missing_schema_fails_closed`<br>`src/orchestrator/test/test_node_failure_regressions.py::test_logger_serializes_callbacks_and_surfaces_write_failure`<br>`src/orchestrator/test/test_node_failure_regressions.py::test_actual_step_callbacks_preserve_writer_order`<br>`src/orchestrator/test/test_node_failure_regressions.py::test_trial_open_and_flush_failures_do_not_commit_dedup` |
@@ -206,10 +206,10 @@
 | TC-TRK-006-02 | U | REQ-TRK-006 | `src/tracking/test/test_tracking.py::test_no_false_alarm` |
 | TC-TRK-007-01 | U | REQ-TRK-007 | `src/tracking/test/test_tracking.py::test_dropped_frames` |
 | TC-TRK-008-01 | U | REQ-TRK-008 | `src/tracking/test/test_tracking.py::test_clock_reset` |
-| TC-TRK-009-01 | C | REQ-TRK-009 | — |
-| TC-TRK-010-01 | C | REQ-TRK-010 | — |
-| TC-TRK-011-01 | C | REQ-TRK-011 | — |
-| TC-TRK-012-01 | C | REQ-TRK-012 | — |
+| TC-TRK-009-01 | C | REQ-TRK-009 | `src/tracking/test/contract/test_tracker_node_contract.py::test_reset` |
+| TC-TRK-010-01 | C | REQ-TRK-010 | `src/tracking/test/contract/test_tracker_node_contract.py::test_select` |
+| TC-TRK-011-01 | C | REQ-TRK-011 | `src/tracking/test/contract/test_tracker_node_contract.py::test_belt` |
+| TC-TRK-012-01 | C | REQ-TRK-012 | `src/tracking/test/contract/test_tracker_node_contract.py::test_tf_stamp_and_coasting` |
 | TC-TRK-013-01 | I1 | REQ-TRK-013 | — |
 | TC-VIS-001-01 | U | REQ-VIS-001 | `src/vision/test/test_detector.py::test_stone_center_accuracy_on_mat` |
 | TC-VIS-001-02 | U | REQ-VIS-001 | `src/vision/test/test_detector.py::test_cap_center_accuracy_on_belt` |
@@ -237,17 +237,10 @@
 - TC-ABT-014-02
 - TC-CAL-005-02
 - TC-INT-007-01
-- TC-PLN-006-01
-- TC-PLN-007-01
-- TC-PLN-011-01
 - TC-ROB-011-01
 - TC-ROB-012-01
 - TC-SYS-003-01
 - TC-SYS-003-02
-- TC-TRK-009-01
-- TC-TRK-010-01
-- TC-TRK-011-01
-- TC-TRK-012-01
 - TC-TRK-013-01
 - TC-VIS-009-01
 - TC-VIS-009-02

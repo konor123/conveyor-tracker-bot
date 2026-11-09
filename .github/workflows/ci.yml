@@ -57,7 +57,7 @@ jobs:
           PYTHONPATH="$PWD/tools/spec:${PYTHONPATH:-}" python3 -m pytest src/orchestrator/test -v
           python3 -m pytest src/drop_mocks/test --ignore=src/drop_mocks/test/contract -v
 
-      - name: Run tracking and intercept_planner unit tests
+      - name: Run tracking and intercept_planner unit, contract and I2 tests
         shell: bash
         run: |
           source /opt/ros/jazzy/setup.bash

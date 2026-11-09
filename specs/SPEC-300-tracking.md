@@ -1,6 +1,6 @@
 # SPEC-300 tracking
 
-- 버전: v0.1
+- 버전: v0.2
 - 근거: PLAN.md 2.5, 3.1, 4.3, 5.3, 7절
 - REQ 영역: TRK
 
@@ -8,6 +8,7 @@
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
+| v0.2 | 2026-11-09 | `tracker_node`: `T_base_conveyor` 파라미터, 입력 중단 시 빈 프레임 처리(`input_timeout_s`), 프레임 공백 뒤 coast 한도 초과 track의 연관 금지 |
 | v0.1 | 2026-11-09 | 등속 칼만 필터, 연관·재획득, 상태 전이, 통과별 track, 속도 변화 검출, 시각 역행, `BeltMotion`·`SelectTarget`·`ResetTracking`·관측 TF |
 
 ## 1. 목적·범위
@@ -21,7 +22,7 @@
 
 SPEC-010 wire schema v0.2 / runtime contract v0.4 기준.
 
-- 입력: `objects/detections`(`ObjectDetectionArray`, `robot_base`, stamp = 노출 시각), static TF `robot_base → conveyor_frame`, `/clock`(sim·replay) 또는 시스템 ROS 시각.
+- 입력: `objects/detections`(`ObjectDetectionArray`, `robot_base`, stamp = 노출 시각), `robot_base ← conveyor_frame` 변환(파라미터 `T_base_conveyor`, 4×4 row-major 16개. 같은 값을 static TF로 발행하는 쪽은 bringup이며 SPEC-400 planner와 같은 값을 쓴다), `/clock`(sim·replay) 또는 시스템 ROS 시각.
 - 출력: `objects/tracked`(`TrackedObjectArray`, `conveyor_frame`, stamp = `t_state`), `belt/measured_motion`(`BeltMotion`), 동적 TF `conveyor_frame → cap_<track_id>`, `system/heartbeat`.
 - 서비스: `tracking/reset`(`ResetTracking`), `tracking/select_target`(`SelectTarget`).
 - 순수 모듈 API는 `TEST_SPEC.md` 2절 tracking 절을 따른다. 위치·속도는 `conveyor_frame`의 XY 성분만 다룬다(z는 벨트 평면 + 테두리 높이로 고정, 출력 `position.z`는 관측 평균).
@@ -46,6 +47,8 @@ SPEC-010 wire schema v0.2 / runtime contract v0.4 기준.
 | `belt.window_max_s` | 2.0 | `BeltMotion.window_sec` 상한 |
 | `belt.v_min_mps` | 0.002 | 이 속력 이하이면 벨트 정지로 본다(SPEC-400과 같은 값) |
 | `select.x_reach_start_m` | −0.05 | 로봇 도달 구간 상류 끝. TBD(배치도 OFF-1) |
+| `T_base_conveyor` | 단위 행렬 | `robot_base ← conveyor_frame` 4×4. TBD(보정 OFF-3, 벨트 진행 방향 측정) |
+| `input_timeout_s` | 0.2 | 마지막 검출 수신 뒤 이 시간(ROS 시각)이 지나면 노드가 30 Hz steady 타이머로 현재 ROS 시각의 빈 프레임을 넣어 `COASTING → LOST`를 진행시킨다 |
 | `clock.backstep_tol_s` | 0.0 | ROS 시각이 이 값보다 크게 역행하면 초기화(SPEC-110 `ClockMonitor`와 같은 규칙) |
 
 ## 4. 동작(상태·알고리즘)
@@ -61,6 +64,7 @@ SPEC-010 wire schema v0.2 / runtime contract v0.4 기준.
 
 - 프레임마다 `CLASS_CAP`이고 `position_valid`인 검출만 쓴다.
 - 처리 순서: (1) 시각 검사 → (2) 모든 track을 검출 stamp로 예측 → (3) 마할라노비스 거리 `d² ≤ gate_chi2`인 쌍을 거리 오름차순으로 탐욕 배정 → (4) 배정된 track 갱신(`OBSERVED`, `observation_count += 1`, `last_observed_stamp` 갱신) → (5) 배정되지 않은 검출로 새 track 생성 → (6) 배정되지 않은 track 상태 전이.
+- 예측 단계에서 `t − t_last_obs > coast.max_s`인 track은 연관 전에 `LOST`가 된다(프레임 공백 뒤 첫 검출이 만료된 track에 붙지 않는다).
 - 상태 전이: 관측이 있으면 `OBSERVED`. 관측이 없고 `t − t_last_obs ≤ coast.max_s`이면 `COASTING`(예측만, 공분산 증가). 초과하면 `LOST`. 예측 `x > x_obs_max + exit_margin`이면 즉시 `LOST`.
 - `LOST` track은 한 번 발행한 뒤 제거한다. 한번 `LOST`가 된 track_id는 다시 쓰지 않는다. 같은 병뚜껑이 `T_lap` 뒤 다시 관측 구간에 들어오면 새 track_id를 받는다(epoch는 바뀌지 않는다).
 - `track_id`는 노드 기동부터 단조 증가하며 epoch가 바뀌어도 되돌리지 않는다.
@@ -98,6 +102,7 @@ SPEC-010 wire schema v0.2 / runtime contract v0.4 기준.
 - `tracker_node`는 Managed Lifecycle 노드이며 SPEC-010 4.3절의 비활성 응답 규칙을 따른다.
 - 관측 TF `conveyor_frame → cap_<track_id>`는 `OBSERVED`·`COASTING` track마다 프레임 처리 직후 발행한다. stamp = `t_state`, orientation identity. 미래 stamp는 발행하지 않는다. TF는 시각화 전용이며 planner·controller는 TF가 아니라 `objects/tracked`를 쓴다.
 - 공통 요청 필드의 `deadline`이 이미 지났으면 처리하지 않고 `TIMEOUT`으로 응답한다.
+- 검출 입력이 `input_timeout_s` 넘게 끊기면 빈 프레임을 넣어 상태 전이를 진행한다. 정상 지연 범위의 입력 사이에는 빈 프레임을 넣지 않으며, ROS 시각이 멈추면 상태도 늙지 않는다.
 
 ## 5. 시간 제약(주기·제한시간)
 

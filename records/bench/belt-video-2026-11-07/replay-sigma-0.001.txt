@@ -1,0 +1,37 @@
+2026-11-07_200632_off1-moving-analog-stable-current.caps.csv: passes 4/4 tracks, speed 23.81 mm/s, lap [25.31, 16.71] s, alarms 45, lateral std 0.79 mm
+  H=0.05 s n=  786 along p95 1.70 mm, xy p95 1.71 mm, max 3.83 mm
+  H= 0.1 s n=  771 along p95 3.08 mm, xy p95 3.09 mm, max 6.88 mm
+  H= 0.2 s n=  757 along p95 5.57 mm, xy p95 5.74 mm, max 15.38 mm
+  H= 0.5 s n=  728 along p95 15.23 mm, xy p95 15.34 mm, max 36.39 mm
+  H=   1 s n=  653 along p95 27.86 mm, xy p95 27.93 mm, max 39.55 mm
+  H=   2 s n=  478 along p95 32.31 mm, xy p95 32.84 mm, max 39.93 mm
+  H= 2.8 s n=  378 along p95 36.55 mm, xy p95 36.56 mm, max 39.70 mm
+2026-11-07_201012_off1-moving-analog-fast-1.caps.csv: passes 5/7 tracks, speed 54.40 mm/s, lap [10.67, 10.6, 10.41, 10.49] s, alarms 37, lateral std 0.79 mm
+  H=0.05 s n=  635 along p95 1.66 mm, xy p95 1.67 mm, max 3.97 mm
+  H= 0.1 s n=  620 along p95 3.67 mm, xy p95 3.68 mm, max 8.97 mm
+  H= 0.2 s n=  607 along p95 5.83 mm, xy p95 5.89 mm, max 20.72 mm
+  H= 0.5 s n=  562 along p95 10.78 mm, xy p95 11.11 mm, max 23.80 mm
+  H=   1 s n=  483 along p95 18.71 mm, xy p95 19.16 mm, max 38.82 mm
+  H=   2 s n=  321 along p95 27.17 mm, xy p95 27.75 mm, max 38.18 mm
+  H= 2.8 s n=  193 along p95 30.82 mm, xy p95 31.01 mm, max 39.77 mm
+2026-11-07_201202_off1-moving-analog-fast-1-long.caps.csv: passes 6/7 tracks, speed 53.33 mm/s, lap [10.71, 10.63, 10.63, 10.71, 10.7] s, alarms 51, lateral std 0.76 mm
+  H=0.05 s n=  784 along p95 1.66 mm, xy p95 1.68 mm, max 4.95 mm
+  H= 0.1 s n=  769 along p95 3.32 mm, xy p95 3.34 mm, max 9.03 mm
+  H= 0.2 s n=  754 along p95 5.55 mm, xy p95 5.62 mm, max 18.21 mm
+  H= 0.5 s n=  702 along p95 11.95 mm, xy p95 12.18 mm, max 28.42 mm
+  H=   1 s n=  607 along p95 22.98 mm, xy p95 23.24 mm, max 39.85 mm
+  H=   2 s n=  402 along p95 28.88 mm, xy p95 30.11 mm, max 39.93 mm
+  H= 2.8 s n=  253 along p95 30.12 mm, xy p95 32.24 mm, max 39.26 mm
+2026-11-07_201739_off1-moving-analog-fast-2.caps.csv: passes 9/9 tracks, speed 81.48 mm/s, lap [6.97, 6.97, 6.98, 7.01, 7.02, 7.0, 7.0, 7.06] s, alarms 42, lateral std 0.74 mm
+  H=0.05 s n=  673 along p95 2.58 mm, xy p95 2.59 mm, max 6.05 mm
+  H= 0.1 s n=  652 along p95 3.67 mm, xy p95 3.75 mm, max 11.43 mm
+  H= 0.2 s n=  631 along p95 4.00 mm, xy p95 4.09 mm, max 26.62 mm
+  H= 0.5 s n=  550 along p95 6.18 mm, xy p95 6.59 mm, max 23.41 mm
+  H=   1 s n=  414 along p95 10.34 mm, xy p95 11.03 mm, max 38.66 mm
+  H=   2 s n=  146 along p95 13.93 mm, xy p95 15.11 mm, max 25.53 mm
+2026-11-07_202213_off1-moving-analog-maximum.caps.csv: passes 14/14 tracks, speed 126.72 mm/s, lap [4.51, 4.51, 4.51, 4.5, 4.51, 4.54, 4.52, 4.53, 4.53, 4.51, 4.5, 4.48, 4.46] s, alarms 47, lateral std 0.71 mm
+  H=0.05 s n=  527 along p95 3.63 mm, xy p95 3.69 mm, max 10.91 mm
+  H= 0.1 s n=  500 along p95 3.54 mm, xy p95 3.76 mm, max 17.88 mm
+  H= 0.2 s n=  458 along p95 3.73 mm, xy p95 4.03 mm, max 11.53 mm
+  H= 0.5 s n=  332 along p95 5.48 mm, xy p95 5.90 mm, max 16.43 mm
+  H=   1 s n=  122 along p95 11.05 mm, xy p95 11.68 mm, max 30.04 mm

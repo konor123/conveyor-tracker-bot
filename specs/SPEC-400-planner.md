@@ -1,6 +1,6 @@
 # SPEC-400 planner
 
-- 버전: v0.1
+- 버전: v0.2
 - 근거: PLAN.md 3.1, 4.3, 4.4, 9절
 - REQ 영역: PLN
 
@@ -8,6 +8,7 @@
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
+| v0.2 | 2026-11-09 | `intercept_planner_node`: 시계 역행 시 `EXPIRED`·`CLOCK_RESET` 1회 발행, 빈 `TrackedObjectArray`에서는 마지막 epoch 유지 |
 | v0.1 | 2026-11-09 | 예측·공분산 전파, 시간 예산, 해제 시각 선택, 도달성, 상태 우선순위, plan_id·revision·만료, τ_max |
 
 ## 1. 목적·범위
@@ -111,7 +112,8 @@ ok          = time_margin ≥ margin
 
 ### 4.7 노드
 
-- `intercept_planner_node`는 Managed Lifecycle 노드이며 SPEC-010 4.3절 비활성 응답을 따른다. 시각은 ROS 시각(`use_sim_time` 지원)이며 `/clock` 역행 시 활성 계획을 `EXPIRED`로 닫는다.
+- `intercept_planner_node`는 Managed Lifecycle 노드이며 SPEC-010 4.3절 비활성 응답을 따른다. 시각은 ROS 시각(`use_sim_time` 지원)이며 `/clock` 역행 시 활성 계획을 `status = EXPIRED`, `reason = CLOCK_RESET`으로 한 번 발행하고 닫는다.
+- 현재 epoch는 마지막으로 받은 track의 epoch다. `TrackedObjectArray`에는 배열 epoch가 없으므로 빈 배열은 epoch를 바꾸지 않고, 다음 track에서 변경을 감지한다. 입력이 없을 때는 계획 `valid_until` 타이머로 만료한다.
 
 ## 5. 시간 제약(주기·제한시간)
 
