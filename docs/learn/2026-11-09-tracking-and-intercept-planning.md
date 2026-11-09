@@ -73,3 +73,7 @@ python3 tools/spec/trace.py --area TRK,PLN --check   # 남은 TC 8개는 C·I1·
 ## 9. ROS 노드에서 만난 함정: `_clock`
 
 `LifecycleNode`를 상속한 노드에 `def _clock(self)` 메서드를 만들었더니 `trigger_activate()`가 실패했다. rclpy `Node.__init__`가 `self._clock = ROSClock()`을 인스턴스 속성으로 만들기 때문에, 인스턴스에서 `self._clock`은 메서드가 아니라 시계 객체가 된다. 호출하면 `TypeError`가 나고 전이 콜백이 실패한다. 부모 클래스가 쓰는 밑줄 이름(`_clock`, `_parameters`, `_logger` 등)은 피한다. 재현은 officepc WSL에서 `tracking_rig.Rig(TrackerNode)` 한 줄이면 된다.
+
+## 10. 결론: σ_a 0.01과 "가리지 않는 배치"
+
+팀 결정으로 예측 방식은 여기서 마무리했다. σ_a는 0.01이다. 합성 등속 시험의 기준은 실제 벨트에 맞춰 위치 0.4 mm, 속도 1.5 mm/s로 바꿨다. 등속 벨트만 가정하면 필터를 지나치게 둔하게 만들게 된다. 컨베이어는 그리퍼가 카메라 시야에서 뚜껑을 가리지 않게 놓고, 뚜껑은 2개를 붙인다. 그러면 해제 직전까지 관측이 이어져 예측 거리가 짧아진다. 남은 숙제는 속도 변화 검출이다. 실제 맥동(±10~40%)이 시험의 다이얼 계단(10 mm/s)보다 커서 혁신값 누적만으로는 둘을 구분하지 못한다. 다이얼 조작 bag을 모아 다시 본다.

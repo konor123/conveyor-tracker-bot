@@ -54,6 +54,6 @@ def test_passes_lap_and_prediction(tmp_path):
     for p in r['passes']:
         assert p['speed_fit_mps'] == pytest.approx(0.03, abs=2e-4)
     assert r['speed_change_alarms_s'] == []
-    # 등속 합성: 예측 오차는 측정 잡음 수준(σ 0.3 mm, 2D p95 약 0.75 mm)
+    # 등속 합성: 1 s 앞 오차 = 측정 잡음(σ 0.3 mm) + 속도 추정 오차(sigma_accel 0.01에서 p95 약 1.2 mm/s) × 1 s
     e = r['prediction_error']['1']
-    assert e['n'] > 100 and e['xy_p95_mm'] < 1.2
+    assert e['n'] > 100 and e['xy_p95_mm'] < 2.0

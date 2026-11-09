@@ -37,8 +37,8 @@ def run_trajectory(seed, **kwargs):
 @pytest.mark.parametrize('seed', range(20))
 def test_constant_accuracy(seed):
     _, e, _, _ = run_trajectory(seed)
-    assert np.percentile(np.linalg.norm(e[:, :2], axis=1), 95) <= .0003
-    assert np.percentile(np.linalg.norm(e[:, 2:], axis=1), 95) <= .0005
+    assert np.percentile(np.linalg.norm(e[:, :2], axis=1), 95) <= .0004
+    assert np.percentile(np.linalg.norm(e[:, 2:], axis=1), 95) <= .0015
 
 
 @pytest.fixture(scope='module')
@@ -168,8 +168,8 @@ def test_no_false_alarm(seed):
 def test_dropped_frames(seed):
     _, e, valid, _ = run_trajectory(seed, drop_fraction=.1)
     assert np.mean(valid) >= .99
-    assert np.percentile(np.linalg.norm(e[:, :2], axis=1), 95) <= .00033
-    assert np.percentile(np.linalg.norm(e[:, 2:], axis=1), 95) <= .00055
+    assert np.percentile(np.linalg.norm(e[:, :2], axis=1), 95) <= .00044
+    assert np.percentile(np.linalg.norm(e[:, 2:], axis=1), 95) <= .00165
 
 
 @pytest.mark.req('REQ-TRK-008')

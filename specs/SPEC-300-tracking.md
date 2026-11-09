@@ -1,6 +1,6 @@
 # SPEC-300 tracking
 
-- 버전: v0.2
+- 버전: v0.3
 - 근거: PLAN.md 2.5, 3.1, 4.3, 5.3, 7절
 - REQ 영역: TRK
 
@@ -8,6 +8,7 @@
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
+| v0.3 | 2026-11-09 | `sigma_accel_mps2` 0.01(OFF-1 벨트 영상), REQ-TRK-001 정확도 기준, 병뚜껑 2개·가림 없는 배치 |
 | v0.2 | 2026-11-09 | `tracker_node`: `T_base_conveyor` 파라미터, 입력 중단 시 빈 프레임 처리(`input_timeout_s`), 프레임 공백 뒤 coast 한도 초과 track의 연관 금지 |
 | v0.1 | 2026-11-09 | 등속 칼만 필터, 연관·재획득, 상태 전이, 통과별 track, 속도 변화 검출, 시각 역행, `BeltMotion`·`SelectTarget`·`ResetTracking`·관측 TF |
 
@@ -15,7 +16,7 @@
 
 `tracking` 패키지가 벨트에 붙은 병뚜껑을 `conveyor_frame`에서 추적하고, 벨트 속도를 추정하며, 오케스트레이터에 다음 통과 대상을 알려 주는 규칙을 정한다. 판단 로직은 ROS와 무관한 순수 Python 모듈(`kalman.py`, `association.py`, `speed_change.py`, `track_manager.py`, `belt_motion.py`, `select_target.py`)이고 `tracker_node`는 메시지 변환·TF·서비스·Heartbeat만 맡는다(PLAN.md 0.2절).
 
-- 대상 class: `CLASS_CAP`. 공깃돌·벨트 표식 추적은 범위 밖이다(벨트 표식은 Progress.md 7절 선택 실험에서 정한다).
+- 대상 class: `CLASS_CAP`. 벨트에는 병뚜껑 2개가 붙어 있고 관측 구간에는 한 번에 하나씩 들어온다(연관은 여러 track을 지원한다). 컨베이어는 해제 자세의 그리퍼가 카메라 시야에서 뚜껑을 가리지 않는 위치에 둔다(PLAN.md 1.1절). 공깃돌·벨트 표식 추적은 범위 밖이다(벨트 표식은 Progress.md 7절 선택 실험에서 정한다).
 - 미래 시각 위치 예측은 하지 않는다. tracker는 상태 시각 `t_state`의 상태와 공분산만 내고, 해제 시각 예측은 SPEC-400 planner가 한다.
 
 ## 2. 입력·출력(interface 버전)
@@ -33,7 +34,7 @@ SPEC-010 wire schema v0.2 / runtime contract v0.4 기준.
 
 | 키 | 기본값 | 근거 |
 |---|---|---|
-| `kf.sigma_accel_mps2` | 0.001 | 이산 백색 가속도 모델 표준편차. 합성 시험(TC-TRK-001·007)에서 0.02는 속도 오차 p95 2.24 mm/s로 불통과, 0.001은 위치 p95 최대 0.204 mm·속도 p95 최대 0.214 mm/s. 속도 변화는 4.4절 검출로 처리한다. TBD(OFF-5 실측 bag, 벨트 맥동) |
+| `kf.sigma_accel_mps2` | 0.01 | 이산 백색 가속도 모델 표준편차. OFF-1 벨트 영상 5조건 재생(`records/bench/belt-video-2026-11-07/`)에서 0.1 s 앞 예측 XY p95 2.6~3.4 mm(0.001은 3.1~3.8 mm). 합성 등속 시험에서 위치 p95 최대 0.334 mm, 속도 p95 최대 1.16 mm/s. `records/param_changes.csv` |
 | `kf.meas_std_default_m` | 0.0003 | 검출 `position_cov`가 비었거나 양의 정부호가 아닐 때 쓰는 측정 표준편차(TEST_SPEC 3.6절 합성 조건) |
 | `kf.init_vel_std_mps` | 0.05 | 새 track 초기 속도 표준편차. 최고 벨트 속도 후보의 1배 수준 |
 | `assoc.gate_chi2` | 100.0 | 정상 상태 혁신 표준편차 약 0.31 mm에서 gate 반경 약 3.1 mm(병뚜껑 간격보다 충분히 작다). χ²(2) 99%(9.21, 반경 약 0.95 mm)는 합성 시험에서 측정 이상치와 속도 계단 때 새 track을 만들어 TC-TRK-006-01 불통과. 여러 뚜껑이 가까운 배치는 TBD(OFF-5) |
@@ -123,7 +124,7 @@ SPEC-010 wire schema v0.2 / runtime contract v0.4 기준.
 
 ## 7. 성공 판정(측정 가능)
 
-- REQ-TRK-001: 등속 합성 궤적(30 Hz, σ = 0.3 mm, 20 mm/s, 60 s, seed 20개)에서 관측 30회 이후 위치 오차 p95 ≤ 0.3 mm, 속도 오차 p95 ≤ 0.5 mm/s이고, 모델과 같은 잡음으로 만든 궤적에서 평균 NEES가 χ²(4) 95% 구간 안이다.
+- REQ-TRK-001: 등속 합성 궤적(30 Hz, σ = 0.3 mm, 20 mm/s, 60 s, seed 20개)에서 관측 30회 이후 위치 오차 p95 ≤ 0.4 mm, 속도 오차 p95 ≤ 1.5 mm/s이고, 모델과 같은 잡음으로 만든 궤적에서 평균 NEES가 χ²(4) 95% 구간 안이다.
 - REQ-TRK-002: `t_state`보다 이른 stamp의 검출은 상태를 바꾸지 않고 폐기 카운트를 1 올린다.
 - REQ-TRK-003: 관측이 끊기면 `coast.max_s`까지 `COASTING`이며 공분산 trace가 단조 증가하고, 재관측이 게이트(`gate_chi2`) 안이면 같은 track_id로 `OBSERVED`, 밖이면 새 track을 만든다.
 - REQ-TRK-004: 관측 없음이 `coast.max_s`(1.0 s)를 넘으면 `LOST`가 된다.
@@ -145,5 +146,5 @@ SPEC-010 wire schema v0.2 / runtime contract v0.4 기준.
 ## 9. 미결 사항
 
 - 관측 구간·도달 구간 경계값: TBD(배치도 OFF-1, 보정 OFF-3).
-- `sigma_accel_mps2`·CUSUM 임계: 합성 시험 값, TBD(OFF-5 실측 bag).
+- 속도 변화 검출: `sigma_accel_mps2` 0.01에서 TC-TRK-006(10 mm/s 계단 1 s 안 검출)을 지키는 CUSUM은 `k` 1·`h` 8뿐이며, OFF-1 벨트 영상에서 약 60 s당 22~38회 경보가 난다(실제 맥동 범위가 시험 계단보다 크다). 다이얼 조작과 맥동을 구분하는 방법과 WAIT_CAP의 `steady` 조건은 TBD(OFF-5 다이얼 조작 bag).
 - 그리퍼 가림 시간 분포와 `coast.max_s`의 관계: TBD(측정 G3, OFF-5).

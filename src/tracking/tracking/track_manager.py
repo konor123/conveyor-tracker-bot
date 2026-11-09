@@ -43,7 +43,7 @@ class _Track:
 
 
 class TrackManager:
-    def __init__(self, *, sigma_accel_mps2=.001, meas_std_default_m=.0003,
+    def __init__(self, *, sigma_accel_mps2=.01, meas_std_default_m=.0003,
                  init_vel_std_mps=.05, gate_chi2=100., coast_max_s=1.,
                  x_obs_min_m=-.35, x_obs_max_m=.35, exit_margin_m=.01,
                  cusum_k=1., cusum_h=8., recover_s=2., window_max_s=2.,

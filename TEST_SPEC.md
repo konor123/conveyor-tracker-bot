@@ -329,7 +329,7 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 
 | TC | 검증 내용(REQ 초안) | 수준 | 장소 | 조건 | 기대 결과 |
 |---|---|---|---|---|---|
-| TC-TRK-001-01 | 등속 추적 정확도 | U | `[ON]` | 60 s, seed 20 | 관측 30회 이후 위치 오차 p95 ≤ 0.3 mm, 속도 오차 p95 ≤ 0.5 mm/s |
+| TC-TRK-001-01 | 등속 추적 정확도 | U | `[ON]` | 60 s, seed 20 | 관측 30회 이후 위치 오차 p95 ≤ 0.4 mm, 속도 오차 p95 ≤ 1.5 mm/s |
 | TC-TRK-001-02 | 필터 일관성 | U | `[ON]` | 같은 조건 | 평균 NEES가 χ²(4) 95% 구간 안 |
 | TC-TRK-002-01 | 역순 stamp는 버린다 | U | `[ON]` | t_state보다 이른 검출 입력 | 상태 불변, 폐기 카운트 +1 |
 | TC-TRK-003-01 | 가림 중 COASTING | U | `[ON]` | 0.5 s 관측 없음 | `COASTING`, 공분산 trace 단조 증가 |
