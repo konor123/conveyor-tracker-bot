@@ -1,6 +1,6 @@
 # SPEC-000 system
 
-- 버전: v0.2
+- 버전: v0.3
 - 근거: PLAN.md 0.2, 1, 2.3~2.5절
 - REQ 영역: SYS
 
@@ -8,6 +8,7 @@
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
+| v0.3 | 2026-11-09 | 현장 정지 pick-and-place 실행기 `static_pick_place` 추가(11개 패키지), 로봇 지령 주체 예외 범위 |
 | v0.2 | 2026-11-09 | M0 검증 범위·게이트 및 독립 계약 기대값 정합성 |
 | v0.1 | 2026-11-07 | 패키지 구성·이름 규칙(10개), TF 트리·좌표계, 시각·시계 규약, SI 단위·단위 변환 어댑터·설정 키 단위 접미사(10종) |
 
@@ -82,14 +83,14 @@ SPEC-010 wire schema v0.2 / runtime contract v0.4(`src/drop_interfaces/`) 기준
 
 ### 4.1 패키지 구성과 이름·구조 규칙 (PLAN.md 2.1~2.4절)
 
-1. 워크스페이스는 다음 10개 패키지로 구성한다:
-   `drop_interfaces`, `vision`, `tracking`, `intercept_planner`, `robot_control`, `orchestrator`, `calibration`, `drop_mocks`, `drop_bringup`, `drop_sim`.
+1. 워크스페이스는 다음 11개 패키지로 구성한다:
+   `drop_interfaces`, `vision`, `tracking`, `intercept_planner`, `robot_control`, `orchestrator`, `calibration`, `drop_mocks`, `drop_bringup`, `drop_sim`, `static_pick_place`.
 2. 모든 패키지 이름은 ROS 2 Jazzy underlay(`/opt/ros/jazzy`)의 기본 패키지와 충돌하지 않아야 한다.
 3. 검출, 칼만 필터, 미래 위치 예측, 시간 예산, 단위 변환, 상태 전이, 단계 성공 판정, 중단 등급 판정은 ROS와 무관한 순수 Python 모듈로 작성하여 단위 시험(U)으로 검증하고, ROS 노드는 이를 감싸는 얇은 어댑터로만 동작한다(PLAN.md 0.2-6절).
 4. 지휘 규칙(PLAN.md 2.2절):
    - 작업 순서와 서비스/액션 호출은 `orchestrator_node`에서만 나가며, 기능 노드끼리 서로의 서비스/액션을 호출하지 않는다.
    - 연속 데이터(`objects/detections → objects/tracked → drop/intercept_plan`)는 토픽 파이프라인으로 전달한다.
-   - 로봇과 그리퍼에 지령을 내리는 주체는 `robot_controller_node` 하나뿐이다.
+   - 로봇과 그리퍼에 지령을 내리는 주체는 `robot_controller_node` 하나뿐이다. 예외: `static_pick_place`의 `pick_place` 실행기는 `robot_controller_node`에 실기 backend가 생기기 전까지 쓰는 `[OFF]` 현장 도구다. 사람 입회에서만 `--execute`로 실행하고, `robot_controller_node`·오케스트레이터와 동시에 띄우지 않는다.
 
 ### 4.2 좌표계와 TF 트리 (PLAN.md 0.2-3, 2.5절)
 
@@ -134,7 +135,7 @@ M0는 감시 판정 함수와 이벤트 입력의 U 검증 범위다. ROS 관측
 
 ## 7. 성공 판정(측정 가능)
 
-- REQ-SYS-001: 워크스페이스를 source하지 않은 깨끗한 underlay(`/opt/ros/jazzy`) 환경에서 `src/*/package.xml`의 10개 패키지 각각에 대해 `ros2 pkg prefix <name>`을 실행하면 10개 모두 `"not found"`(종료 코드 ≠ 0, 충돌 0건)를 반환한다.
+- REQ-SYS-001: 워크스페이스를 source하지 않은 깨끗한 underlay(`/opt/ros/jazzy`) 환경에서 `src/*/package.xml`의 11개 패키지 각각에 대해 `ros2 pkg prefix <name>`을 실행하면 11개 모두 `"not found"`(종료 코드 ≠ 0, 충돌 0건)를 반환한다.
 - REQ-SYS-002: `src/*/config/*.yaml`과 `src/*/scenarios/*.yaml`의 모든 수치(스칼라·수치 리스트, `bool` 제외) 키는 파일 내 `unitless:` 목록(또는 `measured:` 출처 블록)에 명시된 경우를 제외하면 `_m`, `_s`, `_mps`, `_mps2`, `_rad`, `_hz`, `_ma`, `_pulse`, `_count`, `_ratio` 10종 중 하나로 끝나며 위반 건수는 0건이다.
 - REQ-SYS-003: 처리 지연(50~80 ms)이 주입되어도 `ObjectDetectionArray.header.stamp`는 입력 영상 노출 시각 `T`와 정확히 일치(오차 0 ns)하고, `TrackedObject.header.stamp`는 상태 시각 `t_state == T`와 정확히 일치(오차 0 ns)한다.
 - REQ-SYS-004: `src/**/*.py`(`build`·`install`·`test` 제외)에서 단위 변환 토큰 패턴(`* 1000`, `/ 1000`, `*= 1000`, `/= 1000`, `1000 *`, `math.degrees`, `math.radians`)은 `motion_adapter.py`와 `gripper_adapter.py` 두 파일에만 존재하며 그 외 파일에서의 검출 건수는 0건이다.

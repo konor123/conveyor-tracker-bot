@@ -1,0 +1,2 @@
+{"preflight": {"robot_state": 1, "alarm_level": 1, "alarm_group": 2, "alarm_index": 3206, "alarm_param": ["Change singularity region status(Inside -> Outside), Singularity handling mode(1)", "", ""]}}
+{"drl_start": true, "file": "/home/umm/conveyor-tracker-bot/records/bench/gripper-cli/20261109T211230791754+0900.drl"}

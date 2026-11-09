@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>static_pick_place</name>
+  <version>0.0.1</version>
+  <description>정지 벨트 공깃돌 pick-and-place: 카메라 검출 → 파지 → 정지 병뚜껑 투입 (conveyor-tracker-bot)</description>
+  <maintainer email="konor123@users.noreply.github.com">konor123</maintainer>
+  <license>Apache-2.0</license>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>dsr_msgs2</exec_depend>
+  <exec_depend>vision</exec_depend>
+  <exec_depend>calibration</exec_depend>
+  <exec_depend>robot_control</exec_depend>
+  <exec_depend>python3-yaml</exec_depend>
+
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

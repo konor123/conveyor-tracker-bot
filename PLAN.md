@@ -96,7 +96,7 @@ vision_node   tracker_node   intercept_planner   robot_controller   (calibration
 6. **필터는 tracker에서 한 번만 적용한다.** planner는 tracker 상태를 받아 예측만 하고 다시 필터링하지 않는다.
 7. **기능 노드는 입력 topic만으로 동작한다.** 다른 기능 노드가 떠 있다고 가정하지 않으며, 입력은 rosbag·합성 publisher로 바꿀 수 있어야 한다.
 
-### 2.3 패키지 책임 (10개)
+### 2.3 패키지 책임 (11개)
 
 | 패키지 | 책임 | 소유하는 상태/결정 | 노드 | 지휘용 인터페이스 |
 |---|---|---|---|---|
@@ -110,6 +110,7 @@ vision_node   tracker_node   intercept_planner   robot_controller   (calibration
 | `drop_mocks` | 시나리오 엔진·장애 주입(7절) | — | `mock_world_node`, `mock_robot_controller_node` | 실제 노드와 같은 인터페이스 |
 | `drop_bringup` | launch·공통 설정·통합 테스트 | namespace, `use_sim_time`, `use_mock_<node>` | launch | — |
 | `drop_sim` | Isaac Sim 장면·컨베이어·가상 카메라 | sim GT(평가 전용) | 시뮬레이션 스크립트 | — |
+| `static_pick_place` | 현장 정지 pick-and-place 실행기(`[OFF]`, 사람 입회): 카메라 1프레임 검출 → 매트 공깃돌 파지 → 정지 병뚜껑 투입. `robot_controller_node` 실기 backend 전까지의 도구 | 현장 실측 높이·그리퍼 값 | `pick_place`(CLI) | — |
 
 ### 2.4 디렉터리 구조
 

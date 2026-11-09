@@ -9,19 +9,23 @@ import sys
 HERE = Path(__file__).resolve().parent
 
 
-def render(pulse, current):
+def render(pulse, current, enable_torque=False):
     if type(pulse) is not int or not 0 <= pulse <= 750:
         raise ValueError('pulse must be an integer in 0..750')
-    if type(current) is not int or not 1 <= current <= 100:
-        raise ValueError('current must be an integer in 1..100 mA (approved limit)')
-    return (HERE / 'drl/gripper_once.drl').read_text().replace('__PULSE__', str(pulse)).replace('__CURRENT__', str(current))
+    if type(current) is not int or not 1 <= current <= 150:
+        raise ValueError('current must be an integer in 1..150 mA (approved limit, 2026-11-09 사용자 지시)')
+    return (HERE / 'drl/gripper_once.drl').read_text().replace('__PULSE__', str(pulse)).replace('__CURRENT__', str(current)).replace('__ENABLE_TORQUE__', 'True' if enable_torque else 'False')
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description='그리퍼 일회성 DRL 제어. 현장 비상정지 담당자·간섭 확인 필수. 하드웨어 pulse 사용.')
     parser.add_argument('action', choices=['open', 'close', 'set'])
     parser.add_argument('--pulse', type=int, help='목표 pulse (0..750), 생략 시 open=0, close=750')
-    parser.add_argument('--current', type=int, default=100, help='전류 1..100 mA (기본 100)')
+    parser.add_argument('--current', type=int, default=100, help='전류 1..150 mA (기본 100)')
+    parser.add_argument('--enable-torque', action='store_true',
+                        help='Operating Mode가 5일 때만 Torque Enable(256, RAM)을 1로 쓴다. EEPROM은 쓰지 않는다')
+    parser.add_argument('--ack-alarm', type=int, action='append', default=[],
+                        help='이미 확인한 지난 알람 index. 상태가 STANDBY일 때만 실행한다')
     parser.add_argument('--dry-run', action='store_true', help='장비에 연결하지 않고 DRL 출력')
     args = parser.parse_args(argv)
     pulse = args.pulse
@@ -30,7 +34,7 @@ def main(argv=None):
             parser.error('set requires --pulse')
         pulse = 0 if args.action == 'open' else 750
     try:
-        code = render(pulse, args.current)
+        code = render(pulse, args.current, args.enable_torque)
     except ValueError as exc:
         parser.error(str(exc))
     if args.dry_run:
@@ -43,7 +47,7 @@ def main(argv=None):
     drl.write_text(code)
     print(f'그리퍼 목표 {pulse} pulse, {args.current} mA. DRL: {drl}', flush=True)
     with (destination / (stamp + '.jsonl')).open('w') as log:
-        process = subprocess.Popen([sys.executable, str(HERE / 'drl/gripper_timing_run.py'), str(drl), '--timeout', '60'], stdout=subprocess.PIPE, text=True)
+        process = subprocess.Popen([sys.executable, str(HERE / 'drl/gripper_timing_run.py'), str(drl), '--timeout', '60'] + [a for i in args.ack_alarm for a in ('--ack-alarm', str(i))], stdout=subprocess.PIPE, text=True)
         try:
             for line in process.stdout:
                 print(line, end='', flush=True)

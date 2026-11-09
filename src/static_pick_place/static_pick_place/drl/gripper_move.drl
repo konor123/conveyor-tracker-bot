@@ -1,0 +1,117 @@
+# RH-P12-RN(A) 그리퍼 1회 이동(제어기 플랜지 RS-485, Modbus-RTU ID 1, 57600 8N1). 팔 지령·EEPROM 쓰기 없음.
+# 원본: tools/bench/drl/gripper_once.drl(2026-11-07 검증). 바뀐 점: exit() 대신 결과 코드를 반환해 DRL이 끝까지 실행되어
+# 종료한다(실패 시 PLAY로 남던 문제), 파지 모드는 대상에 막혀 멈추면 성공, Torque Enable(RAM 256) 켜기.
+# 출력 레지스터: 16..23 = [목표 hi, lo, 위치 hi, lo, 전류 hi, lo, 상태, 0], 마지막에 15 = 결과(250 성공, 24x 실패).
+# Modbus 주소 = 문서 40xxx − 40001. u32는 낮은 word가 먼저.
+TARGET = __PULSE__
+CURRENT = __CURRENT__
+GRASP = __GRASP__
+
+def crc16(d):
+    c = 0xFFFF
+    for b in d:
+        c = c ^ b
+        for i in range(8):
+            if c & 1:
+                c = (c >> 1) ^ 0xA001
+            else:
+                c = c >> 1
+    return c
+
+def read_words(addr, count):
+    d = [1, 3, (addr >> 8) & 255, addr & 255, 0, count]
+    c = crc16(d)
+    flange_serial_write(bytes(d + [c & 255, (c >> 8) & 255]))
+    res, rx = flange_serial_read(0.5)
+    expected = 5 + 2 * count
+    if res != expected or len(rx) != expected:
+        return None
+    c = crc16(rx[:-2])
+    if rx[0] != 1 or rx[1] != 3 or rx[2] != 2 * count or rx[-2] != (c & 255) or rx[-1] != ((c >> 8) & 255):
+        return None
+    vals = []
+    for i in range(count):
+        vals.append(rx[3 + i * 2] * 256 + rx[4 + i * 2])
+    return vals
+
+def write_checked(pdu):
+    c = crc16(pdu)
+    flange_serial_write(bytes(pdu + [c & 255, (c >> 8) & 255]))
+    res, rx = flange_serial_read(0.5)
+    if res != 8 or len(rx) != 8:
+        return False
+    c = crc16(rx[:-2])
+    return list(rx[:6]) == pdu[:6] and rx[-2] == (c & 255) and rx[-1] == ((c >> 8) & 255)
+
+def position():
+    v = read_words(290, 2)
+    if v is None:
+        return None
+    return v[0] + 65536 * v[1]
+
+def report(pos, cur, status):
+    vals = [(TARGET >> 8) & 255, TARGET & 255, (pos >> 8) & 255, pos & 255, (cur >> 8) & 255, cur & 255, status, 0]
+    for i in range(8):
+        set_output_register_int(16 + i, vals[i])
+
+def run():
+    model = read_words(0, 1)
+    if model is None:
+        return 241
+    if model[0] != 35074:
+        return 246
+    mode = read_words(5, 1)
+    if mode is None or (mode[0] >> 8) != 5:
+        return 247
+    torque = read_words(256, 1)
+    if torque is None:
+        return 241
+    if torque[0] != 1 and not write_checked([1, 6, 1, 0, 0, 1]):
+        return 242
+    err = read_words(259, 1)
+    if err is None or (err[0] & 255):
+        return 244
+    if not write_checked([1, 6, 1, 19, 0, CURRENT]):
+        return 242
+    if not write_checked([1, 16, 1, 26, 0, 2, 4, (TARGET >> 8) & 255, TARGET & 255, 0, 0]):
+        return 242
+    last = -100
+    still = 0
+    status = 0
+    pos = 0
+    for i in range(80):
+        wait(0.1)
+        err = read_words(259, 1)
+        if err is None:
+            return 241
+        if err[0] & 255:
+            return 244
+        pos = position()
+        if pos is None:
+            return 241
+        if abs(pos - TARGET) <= 3:
+            status = 1
+            break
+        if abs(pos - last) <= 2:
+            still = still + 1
+        else:
+            still = 0
+        last = pos
+        if GRASP and still >= 3:
+            status = 2
+            break
+    if status == 0:
+        return 245
+    wait(0.2)
+    pos = position()
+    cur = read_words(287, 1)
+    if pos is None or cur is None:
+        return 241
+    report(pos, cur[0], status)
+    return 250
+
+set_output_register_int(15, 0)
+flange_serial_open(baudrate=57600, bytesize=DR_EIGHTBITS, parity=DR_PARITY_NONE, stopbits=DR_STOPBITS_ONE)
+result = run()
+flange_serial_close()
+set_output_register_int(15, result)

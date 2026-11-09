@@ -86,7 +86,11 @@ set_output_register_int(15, 0)
 flange_serial_open(baudrate=57600, bytesize=DR_EIGHTBITS, parity=DR_PARITY_NONE, stopbits=DR_STOPBITS_ONE)
 if read_words(0, 1)[0] != 35074:
     fail(246)
-if (read_words(5, 1)[0] >> 8) != 5 or read_words(256, 1)[0] != 1:
+if (read_words(5, 1)[0] >> 8) != 5:
+    fail(247)
+if __ENABLE_TORQUE__ and read_words(256, 1)[0] != 1:
+    write_checked([1, 6, 1, 0, 0, 1])
+if read_words(256, 1)[0] != 1:
     fail(247)
 if read_words(259, 1)[0] & 255 or position() > 750:
     fail(248)

@@ -1,0 +1,31 @@
+# Pixel and color-space values are unitless. Defaults: SPEC-200 §3 (TBD).
+unitless: [mat_roi_px, belt_roi_px, diameter_min_px, diameter_max_px,
+           delta_e_min, delta_e_soft, hsv_lo, hsv_hi, center_std_px,
+           roi_edge_margin_px, open_kernel_px, exclude_dilate_px,
+           color_dilate_px, occlusion_dilate_px, std_max_px, gate_px]
+mat_roi_px: []
+belt_roi_px: []
+stone:
+  diameter_min_px: 11.0
+  diameter_max_px: 26.0
+  circularity_min_ratio: 0.70
+  delta_e_min: 30.0
+  delta_e_soft: 15.0
+cap:
+  diameter_min_px: 28.0
+  diameter_max_px: 52.0
+  circularity_min_ratio: 0.75
+  ring_coverage_min_ratio: 0.50
+  hsv_lo: [90, 120, 70]
+  hsv_hi: [118, 255, 255]
+detect:
+  roi_edge_margin_px: 4
+  open_kernel_px: 3
+  exclude_dilate_px: 6
+  color_dilate_px: 1
+  center_std_px: 0.5
+  occlusion_dilate_px: 2
+inner_diameter_ratio: 0.80
+window:
+  std_max_px: 1.0
+  gate_px: 8.0

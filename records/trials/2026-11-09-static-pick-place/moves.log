@@ -1,0 +1,92 @@
+21:07:20
+
+data=[373.0148010253906, 0.0039061708375811577, 404.9511413574219, 2.1767942905426025, -179.9923553466797, 2.1759753227233887, 2.0]
+21:07:43
+[373.0, 0.0, 284.4, 1.91, -179.99, 1.91]
+success=True
+data=[373.0035095214844, 0.00027525436598807573, 284.38446044921875, 1.7164618968963623, -179.99029541015625, 1.7162201404571533, 2.0]
+21:07:58
+success=True
+data=[679.5064086914062, -16.11204719543457, 284.38568115234375, 1.290132761001587, -179.98829650878906, 1.2892509698867798, 2.0]
+21:09:51
+descend 160 user instructed
+success=True
+data=[679.495849609375, -16.100116729736328, 124.3672103881836, 1.4065386056900024, -179.98809814453125, 1.4065611362457275, 2.0]
+21:10:45
+raise 20 user instructed (too low)
+success=True
+data=[679.5074462890625, -16.10019874572754, 144.4800567626953, 5.993930339813232, -179.99559020996094, 5.9939656257629395, 2.0]
+21:12:09 gripper close 150mA
+그리퍼 목표 750 pulse, 150 mA. DRL: /home/umm/conveyor-tracker-bot/records/bench/gripper-cli/20261109T211209480002+0900.drl
+{"preflight": {"robot_state": 1, "alarm_level": 1, "alarm_group": 2, "alarm_index": 3206, "alarm_param": ["Change singularity region status(Inside -> Outside), Singularity handling mode(1)", "", ""]}}
+Traceback (most recent call last):
+  File "/home/umm/conveyor-tracker-bot/tools/bench/drl/gripper_timing_run.py", line 88, in <module>
+    main()
+  File "/home/umm/conveyor-tracker-bot/tools/bench/drl/gripper_timing_run.py", line 58, in main
+    raise RuntimeError('DRL is not stopped: ' + str(drl_state))
+RuntimeError: DRL is not stopped: 3
+21:12:30 gripper close 150mA retry (drl_state 3 accepted)
+{"preflight": {"robot_state": 1, "alarm_level": 1, "alarm_group": 2, "alarm_index": 3206, "alarm_param": ["Change singularity region status(Inside -> Outside), Singularity handling mode(1)", "", ""]}}
+{"drl_start": true, "file": "/home/umm/conveyor-tracker-bot/records/bench/gripper-cli/20261109T211230791754+0900.drl"}
+Traceback (most recent call last):
+  File "/home/umm/conveyor-tracker-bot/tools/bench/drl/gripper_timing_run.py", line 89, in <module>
+    main()
+  File "/home/umm/conveyor-tracker-bot/tools/bench/drl/gripper_timing_run.py", line 69, in main
+    raise RuntimeError('DRL failure marker: ' + str(marker))
+RuntimeError: DRL failure marker: 247
+21:12:57 gripper close 150mA --enable-torque
+Traceback (most recent call last):
+  File "/home/umm/conveyor-tracker-bot/tools/bench/drl/gripper_timing_run.py", line 89, in <module>
+    main()
+  File "/home/umm/conveyor-tracker-bot/tools/bench/drl/gripper_timing_run.py", line 59, in main
+    raise RuntimeError('DRL is not stopped: ' + str(drl_state))
+RuntimeError: DRL is not stopped: 0
+21:13:49 drl_stop own stuck DRL (247)
+21:15:18 driver restart (user instructed)
+21:19:01 driver restart x2 failed: INITIAL STATE CALL FAILURE (access control not granted). driver stopped
+21:21:52 controller rebooted by user; driver start
+21:24:18 after reboot: ACCESS_CONTROL_DENY, STATE_SAFE_OFF; driver stopped
+21:25:55 user set Auto/Standby; driver start
+data=[679.4666137695312, -16.096723556518555, 144.2195587158203, 179.19960021972656, 179.9726104736328, 179.19937133789062, 2.0]
+21:26:16 gripper close 150mA --enable-torque (after reboot)
+  File "/home/umm/conveyor-tracker-bot/tools/bench/drl/gripper_timing_run.py", line 89, in <module>
+    main()
+  File "/home/umm/conveyor-tracker-bot/tools/bench/drl/gripper_timing_run.py", line 82, in main
+    raise RuntimeError('DRL timeout; inspect before considering drl_stop')
+RuntimeError: DRL timeout; inspect before considering drl_stop
+21:28:48 lift with stone to z 284.4
+success=True
+data=[679.5035400390625, -16.099140167236328, 284.4037780761719, 1.1984755992889404, -179.98976135253906, 1.1984390020370483, 2.0]
+21:29:11 move over cap z 284.4
+success=True
+data=[679.500244140625, -16.10006332397461, 284.4005432128906, 1.9903866052627563, -179.9901580810547, 1.990384578704834, 2.0]
+21:36:38 move over cap (612.2,86.8) z 284.4 after relayout
+success=True
+data=[612.19091796875, 86.81382751464844, 284.4192199707031, 0.56297767162323, -179.99302673339844, 0.5630925297737122, 2.0]
+21:37:31 descend 40 (user) to z 244.4
+success=True
+data=[612.2037353515625, 86.8005599975586, 244.36888122558594, 2.5331919193267822, -179.9889373779297, 2.5332748889923096, 2.0]
+21:37:42 gripper open to 600 pulse (user: open only 600)
+                                   ^^^^^^^^
+  File "/home/umm/conveyor-tracker-bot/tools/bench/drl/gripper_timing_run.py", line 47, in safety
+    raise RuntimeError('STOP, report coordinator: ' + json.dumps(info))
+RuntimeError: STOP, report coordinator: {"robot_state": 1, "alarm_level": 2, "alarm_group": 2, "alarm_index": 1206, "alarm_param": ["[ERR] Pose(808.00mm[31.8110in], -81.70mm[-3.2165in], 284.40mm[11.1969in], 1.91deg, -179.99deg, 1.91deg) is NOT REACHA
+21:38:04 gripper open to 600 pulse, ack stale alarm 1206
+    call(DrlStart, 'drl/drl_start', robot_system=0, code=args.file.read_text())
+  File "/home/umm/conveyor-tracker-bot/tools/bench/drl/gripper_timing_run.py", line 39, in call
+    raise RuntimeError('service unsuccessful: ' + suffix)
+RuntimeError: service unsuccessful: drl/drl_start
+21:38:23 set_robot_mode 1 (AUTONOMOUS) for DRL
+21:38:29 gripper open to 600 pulse (retry, auto mode)
+{"preflight": {"robot_state": 1, "alarm_level": 2, "alarm_group": 2, "alarm_index": 1206, "alarm_param": ["[ERR] Pose(808.00mm[31.8110in], -81.70mm[-3.2165in], 284.40mm[11.1969in], 1.91deg, -179.99deg, 1.91deg) is NOT REACHABLE", "", ""]}}
+{"drl_start": true, "file": "/home/umm/conveyor-tracker-bot/records/bench/gripper-cli/20261109T213829525421+0900.drl"}
+{"page": 1, "bytes": [2, 88, 2, 88, 0, 7, 1, 0]}
+{"finished": true, "postflight": {"robot_state": 1, "alarm_level": 2, "alarm_group": 2, "alarm_index": 1206, "alarm_param": ["[ERR] Pose(808.00mm[31.8110in], -81.70mm[-3.2165in], 284.40mm[11.1969in], 1.91deg, -179.99deg, 1.91deg) is NOT REACHABLE", "
+21:38:48 retreat to z 284.4
+success=True
+21:39:08 move [373.0, 0.0, 284.4]
+success=True
+21:39:18 move [373.0, 0.0, 405.0]
+success=True
+21:49:38 static_pick_place --execute run 1
+21:51:19 static_pick_place resume run1 from lift_stone

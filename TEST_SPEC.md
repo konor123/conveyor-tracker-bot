@@ -216,7 +216,7 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 
 | TC | 검증 내용(REQ 초안) | 수준 | 장소 | 조건 | 기대 결과 |
 |---|---|---|---|---|---|
-| TC-SYS-001-01 | 프로젝트 패키지 이름은 underlay와 겹치지 않는다 | U | `[ON]` | workspace를 source하지 않은 셸에서 10개 패키지마다 `ros2 pkg prefix <name>` | 모두 "not found" |
+| TC-SYS-001-01 | 프로젝트 패키지 이름은 underlay와 겹치지 않는다 | U | `[ON]` | workspace를 source하지 않은 셸에서 11개 패키지마다 `ros2 pkg prefix <name>` | 모두 "not found" |
 | TC-SYS-002-01 | 설정 파일의 수치 키는 단위 접미사를 가진다 | U | `[ON]` | 모든 `config/*.yaml`, `scenarios/*.yaml` 파싱 | 수치 키가 모두 `_m`, `_s`, `_mps`, `_mps2`, `_rad`, `_hz`, `_ma`, `_pulse`, `_count`, `_ratio` 중 하나로 끝남(예외 목록은 파일 안 `unitless:`) |
 | TC-SYS-003-01 | 관측 메시지 stamp는 영상 노출 시각이다 | C | `[ON]` | `vision_node`에 stamp T인 합성 영상 입력, 처리 지연 50 ms 주입 | `ObjectDetectionArray.header.stamp == T`(정확히 일치) |
 | TC-SYS-003-02 | track stamp는 상태 시각이다 | C | `[ON]` | `tracker_node`에 stamp T 검출 입력, 수신은 T+80 ms | `TrackedObject.header.stamp == t_state == T` |

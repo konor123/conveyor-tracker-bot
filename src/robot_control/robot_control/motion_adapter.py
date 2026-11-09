@@ -167,6 +167,11 @@ def speed_si_to_doosan(lin_mps, ang_radps) -> list[float]:
     return [float(v * MM_PER_M) for v in lin] + [float(v * DEG_PER_RAD) for v in ang]
 
 
+def joints_doosan_to_si(posj) -> np.ndarray:
+    """관절각 deg×6 → rad×6."""
+    return _vector(posj, 6, 'posj') / DEG_PER_RAD
+
+
 def speed_doosan_to_si(speed) -> tuple[np.ndarray, np.ndarray]:
     """[mm/s×3, deg/s×3] → 선속도 m/s, 각속도 rad/s."""
     values = _vector(speed, 6, 'speed_doosan')

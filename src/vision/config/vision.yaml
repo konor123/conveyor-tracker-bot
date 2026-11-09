@@ -1,2 +1,17 @@
-# vision 파라미터. 수치 키는 단위 접미사(_m, _s, _mps, _mps2, _rad, _hz, _ma, _pulse, _count, _ratio)를 붙인다.
-{}
+# Standard ROS parameters. Pixel/color configuration lives in detector.yaml.
+vision_node:
+  ros__parameters:
+    detector_config_file: ''  # Empty resolves to share/vision/config/detector.yaml
+    image_topic: camera/color/image_raw
+    calibration_file: ''
+    mat_plane_file: ''
+    belt_plane_file: ''
+    h_stone_offset_m: 0.008
+    h_rim_m: 0.006
+    floor_thickness_m: 0.0015
+    frame_timeout_s: 0.5
+    window_horizon_s: 3.0
+    window_std_max_m: 0.0005
+    presence_min_ratio: 0.8
+    gate_m: 0.005
+    span_tol_s: 0.05

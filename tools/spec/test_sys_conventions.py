@@ -191,7 +191,7 @@ def test_package_names_do_not_collide_with_underlay():
     if not ROS_SETUP.exists():
         pytest.skip("/opt/ros/jazzy가 없어 건너뜀")
     pkg_names, violations = check_underlay_package_collisions(REPO_ROOT, ROS_SETUP)
-    assert len(pkg_names) == 10, f"패키지 수가 10개가 아님: {pkg_names}"
+    assert len(pkg_names) == 11, f"패키지 수가 11개가 아님: {pkg_names}"
     assert not violations, "underlay와 겹치는 패키지:\n" + "\n".join(violations)
 
 

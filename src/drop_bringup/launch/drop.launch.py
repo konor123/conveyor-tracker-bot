@@ -1,7 +1,7 @@
 """시스템 bringup(PLAN.md 2.4, 7.2절). 역할마다 실제 노드와 대역 중 하나만 띄운다(use_mock_<역할>).
 
 대역은 기동할 때 같은 역할의 서버가 이미 있으면 스스로 종료하고(REQ-MCK-007), 이 launch는 그때 전체를 내린다.
-실제 vision·tracker·robot_controller 노드는 아직 없으므로 v0.1에서는 use_mock_<역할>:=false인 역할은 띄우지 않는다.
+vision은 실제 lifecycle 노드 또는 대역을 선택한다. tracker·robot의 실제 경로는 별도 단계다.
 """
 import time
 
@@ -13,7 +13,7 @@ from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
 ROLES = ('vision', 'tracking', 'robot')
-REAL_PENDING = {'vision': 'vision vision_node', 'tracking': 'tracking tracker_node',
+REAL_PENDING = {'tracking': 'tracking tracker_node',
                 'robot': 'robot_control robot_controller_node'}
 
 
@@ -55,7 +55,10 @@ def _nodes(context):
         out.append(Node(package='drop_mocks', executable='mock_robot_controller_node',
                         name='mock_robot_controller_node', output='screen', parameters=[common]))
     for r in ROLES:
-        if not mock[r]:
+        if r == 'vision' and not mock[r]:
+            out.append(Node(package='vision', executable='vision_node', name='vision_node',
+                            output='screen', parameters=[{'use_sim_time': sim_time}]))
+        elif not mock[r]:
             out.append(LogInfo(msg=f'{r}: 실제 노드({REAL_PENDING[r]})는 아직 없어 띄우지 않는다'))
     if _flag(context, 'launch_orchestrator'):
         rec_params = {'use_sim_time': sim_time, 'scenario': scenario, 'seed': max(0, seed)}

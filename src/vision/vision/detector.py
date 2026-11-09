@@ -49,7 +49,7 @@ class ColorModel:
     hsv_hi: tuple[int, int, int] | None = None
     delta_e_min: float = 30.0      # Lab 거리(CIE76), 이 값 이상이면 전경
     delta_e_soft: float = 15.0     # 경계 가중치가 0이 되는 거리(delta_e_min에서 1)
-    ring_coverage_min: float = 0.60  # 끊긴 고리를 원 적합할 때 바깥 경계가 덮어야 하는 각도 비율
+    ring_coverage_min: float = 0.50  # 끊긴 고리를 원 적합할 때 바깥 경계가 덮어야 하는 각도 비율
 
 
 @dataclass(frozen=True)
@@ -60,6 +60,7 @@ class DetectParams:
     color_dilate_px: int = 1             # 색 범위 대상물 경계 혼합 픽셀 제외 폭
     center_std_px: float = 0.5           # 중심 표준편차 제안값(TBD, OFF-1 정지 영상 반복성)
     occlusion_dilate_px: int = 2         # 로봇 마스크 겹침 판정 여유
+    cap_search_ratio: float = 0.85       # 뚜껑 안 공깃돌을 뚜껑 색 기준으로 찾는 원 반지름 / 바깥 반지름(테두리 하이라이트 제외)
 
 
 @dataclass(frozen=True)
@@ -224,6 +225,7 @@ def detect(image_bgr: np.ndarray, roi: Roi, classes: dict[int, ColorModel], *,
     dist = np.linalg.norm(lab - background, axis=2)
 
     color_raw = np.zeros(roi_in.shape, np.uint8)
+    caps: list[tuple[Blob, np.ndarray]] = []     # (뚜껑, 뚜껑 색 Lab 중앙값)
     out: list[Blob] = []
     ranged = [(c, m) for c, m in classes.items() if m.hsv_lo is not None]
     by_bg = [(c, m) for c, m in classes.items() if m.hsv_lo is None]
@@ -246,6 +248,7 @@ def detect(image_bgr: np.ndarray, roi: Roi, classes: dict[int, ColorModel], *,
                 out.append(b)
                 # 채택한 대상물의 색 픽셀만 배경 거리 class에서 뺀다(같은 색의 작은 파란 공깃돌은 남긴다)
                 color_raw |= raw & comp
+                caps.append((b, np.median(lab[(raw & comp) > 0], axis=0)))
 
     if by_bg:
         exclude_color = cv2.dilate(color_raw, _kernel(p.color_dilate_px)) if p.color_dilate_px > 0 else color_raw
@@ -265,13 +268,32 @@ def detect(image_bgr: np.ndarray, roi: Roi, classes: dict[int, ColorModel], *,
                 big = cv2.dilate(big, _kernel(p.exclude_dilate_px))
             soft = np.clip((dist - m.delta_e_soft) / max(m.delta_e_min - m.delta_e_soft, 1e-6), 0.0, 1.0)
             soft[exclude_color > 0] = 0.0
+            # ROI 경계에 닿은 성분은 일부가 ROI 밖이라 중심을 믿을 수 없다(레일·매트 가장자리 조각)
+            edge = roi_in - cv2.erode(roi_in, _kernel(1))
+            search = [(c, 0.5 * c.diameter_px * p.cap_search_ratio) for c, _ in caps]
             for i, labels, x, y, w, h, a in _components(fg):
                 comp = (labels == i).astype(np.uint8)
-                if (comp & big).any():
+                if (comp & big).any() or (comp & edge).any():
                     continue
                 b = _blob(image_bgr, comp, soft, m, object_class, roi.region, p, robot_mask)
-                if b is not None:
+                if b is not None and not any(np.hypot(b.u - c.u, b.v - c.v) < r for c, r in search):
                     out.append(b)
+            # 뚜껑 안은 배경이 벨트가 아니라 뚜껑이다. 뚜껑 색과의 거리로 다시 찾는다(벨트와 색이 비슷한 노란 돌)
+            for cap, cap_lab in caps:
+                disk = np.zeros_like(roi_in)
+                cv2.circle(disk, (int(round(cap.u)), int(round(cap.v))),
+                           int(0.5 * cap.diameter_px * p.cap_search_ratio), 1, -1)
+                cdist = np.linalg.norm(lab - cap_lab, axis=2)
+                cfg = ((cdist >= m.delta_e_min) & (disk > 0) & (exclude_color == 0)).astype(np.uint8)
+                if p.open_kernel_px > 1:
+                    cfg = cv2.morphologyEx(cfg, cv2.MORPH_OPEN, _kernel(p.open_kernel_px // 2))
+                csoft = np.clip((cdist - m.delta_e_soft) / max(m.delta_e_min - m.delta_e_soft, 1e-6), 0.0, 1.0)
+                csoft[exclude_color > 0] = 0.0
+                for i, labels, *_ in _components(cfg):
+                    b = _blob(image_bgr, (labels == i).astype(np.uint8), csoft, m, object_class, roi.region, p,
+                              robot_mask)
+                    if b is not None:
+                        out.append(b)
     return out
 
 

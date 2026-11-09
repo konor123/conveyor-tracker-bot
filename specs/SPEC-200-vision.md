@@ -33,7 +33,7 @@ SPEC-010 wire schema v0.2 기준.
 | 공깃돌 `delta_e_min` / `delta_e_soft` | 30 / 15 | 배경(매트·벨트) 중앙값과의 Lab 거리. 경계 가중치는 15에서 0, 30에서 1 |
 | 병뚜껑 `hsv_lo` / `hsv_hi` | (90,120,70) / (118,255,255) | 파란 뚜껑 실영상 H 97~100, S 200~230 |
 | 병뚜껑 `diameter_min_px`·`diameter_max_px` | 28 / 52 | 실영상 바깥 지름 38~42 px |
-| 병뚜껑 `ring_coverage_min` | 0.60 | 뚜껑 안 공깃돌로 끊긴 고리의 각도 덮임 |
+| 병뚜껑 `ring_coverage_min` | 0.50 | 뚜껑 안 공깃돌로 끊긴 고리의 각도 덮임. 2026-11-09 로봇 투입 뒤 장면(하이라이트로 고리 일부 소실) 0.56 |
 | `inner_diameter_ratio` | 0.80 | TBD(`D_in` 실측 OFF-1) |
 | `center_std_px` | 0.5 | TBD(정지 영상 반복성) |
 | `h_stone_offset_m` | 0.008 | TBD(공깃돌 높이 S03 실측) |

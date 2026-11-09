@@ -26,7 +26,7 @@ def test_validated_wire_frames():
 @pytest.mark.req('REQ-GRP-004')
 @pytest.mark.tc('TC-GRP-004-01')
 @pytest.mark.level('U')
-@pytest.mark.parametrize('pulse,current', [(-1,100),(751,100),(0,0),(0,101),(0,65536)])
+@pytest.mark.parametrize('pulse,current', [(-1,100),(751,100),(0,0),(0,151),(0,65536)])
 def test_reject_outside_approved_envelope(pulse, current):
     with pytest.raises(ValueError):
         m.render(pulse, current)
@@ -45,14 +45,14 @@ def test_site_endpoint_and_close_default(capsys):
 @pytest.mark.tc('TC-GRP-004-01')
 @pytest.mark.level('U')
 @pytest.mark.parametrize('action', ['open', 'close', 'set'])
-def test_all_commands_default_100_and_reject_101(action, capsys):
+def test_all_commands_default_100_and_reject_151(action, capsys):
     args = [action, '--dry-run']
     if action == 'set':
         args += ['--pulse', '300']
     assert m.main(args) == 0
     assert 'write_checked([1, 6, 1, 19, 0, 100])' in capsys.readouterr().out
     with pytest.raises(SystemExit) as error:
-        m.main(args + ['--current', '101'])
+        m.main(args + ['--current', '151'])
     assert error.value.code == 2
 
 @pytest.mark.req('REQ-GRP-004')
@@ -74,3 +74,12 @@ def test_legacy_transports_reject_101_before_io(monkeypatch):
     with pytest.raises(ValueError):
         writer.send(gripper_pulse_table.Command(0, 101))
     assert not writes
+
+
+@pytest.mark.level('U')
+def test_enable_torque_writes_ram_256_only_when_requested():
+    assert 'if False and read_words(256, 1)[0] != 1:' in m.render(750, 150)
+    code = m.render(750, 150, enable_torque=True)
+    assert 'if True and read_words(256, 1)[0] != 1:' in code
+    assert 'write_checked([1, 6, 1, 0, 0, 1])' in code
+    assert code.index('fail(247)') < code.index('write_checked([1, 6, 1, 0, 0, 1])')   # 모드 확인이 먼저

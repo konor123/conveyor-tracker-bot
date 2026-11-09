@@ -1,0 +1,9 @@
+{"t": 1794228680.681, "event": "ready", "status": {"robot_state": 1, "robot_mode": 1, "drl_state": 1, "alarm": [1, 1, 2007, ["", "", ""]]}, "resume_from": "lift_stone"}
+{"t": 1794228695.318, "event": "done", "step": "lift_stone", "reached_m": [0.572, -0.0496, 0.2844]}
+{"t": 1794228703.195, "event": "done", "step": "over_cap", "reached_m": [0.6032, 0.0918, 0.2844]}
+{"t": 1794228707.825, "event": "done", "step": "descend_release", "reached_m": [0.6032, 0.0918, 0.2445]}
+{"t": 1794228714.399, "event": "done", "step": "open_release", "position_pulse": 600, "current_ma": 6, "status": 1}
+{"t": 1794228719.03, "event": "done", "step": "retreat", "reached_m": [0.6032, 0.0918, 0.2844]}
+{"t": 1794228732.06, "event": "done", "step": "to_park", "reached_m": [0.373, -0.0, 0.2844]}
+{"t": 1794228744.759, "event": "done", "step": "park", "reached_m": [0.373, 0.0, 0.405]}
+{"t": 1794228745.275, "event": "verify", "cap": [{"class": 2, "region": 2, "uv_px": [675.6, 83.9], "position_m": [0.6037, 0.0917, 0.0839], "stone_inside": true, "stone_inside_valid": true}]}

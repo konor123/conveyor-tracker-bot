@@ -16,6 +16,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('file', type=Path)
     parser.add_argument('--timeout', type=float, default=35)
+    parser.add_argument('--ack-alarm', type=int, action='append', default=[],
+                        help='이미 확인한 지난 알람 index(예: 1206 도달 불가 거절). robot_state=1일 때만 통과')
     args = parser.parse_args()
     rclpy.init()
     node = rclpy.create_node('gripper_timing_run')
@@ -43,7 +45,7 @@ def main():
         info = {'robot_state': state, 'alarm_level': alarm.level,
                 'alarm_group': alarm.group, 'alarm_index': alarm.index,
                 'alarm_param': list(alarm.param)}
-        if state != 1 or alarm.level >= 2:
+        if state != 1 or (alarm.level >= 2 and alarm.index not in args.ack_alarm):
             raise RuntimeError('STOP, report coordinator: ' + json.dumps(info))
         return info
 
@@ -54,7 +56,8 @@ def main():
     try:
         print(json.dumps({'preflight': safety()}), flush=True)
         drl_state = call(GetDrlState, 'drl/get_drl_state').drl_state
-        if drl_state != 1:
+        # 1 = STOP, 3 = LAST(드라이버 연결 뒤 아직 실행한 프로그램이 없음). 0 PLAY·2 HOLD는 다른 DRL이 있다
+        if drl_state not in (1, 3):
             raise RuntimeError('DRL is not stopped: ' + str(drl_state))
         call(DrlStart, 'drl/drl_start', robot_system=0, code=args.file.read_text())
         print(json.dumps({'drl_start': True, 'file': str(args.file)}), flush=True)

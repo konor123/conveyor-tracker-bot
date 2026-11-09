@@ -20,5 +20,5 @@ setup(
     description='공깃돌·병뚜껑 검출, 평면 교차 XY, 로봇 마스크, 투입 판정',
     license='Apache-2.0',
     tests_require=['pytest'],
-    entry_points={'console_scripts': []},
+    entry_points={'console_scripts': ['vision_node = vision.vision_node:main']},
 )
