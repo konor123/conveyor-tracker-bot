@@ -17,11 +17,12 @@ import pytest
 
 rclpy = pytest.importorskip('rclpy')
 from drop_interfaces.action import DropTask  # noqa: E402
-from drop_interfaces.msg import Heartbeat, RobotStatus, TaskStatus  # noqa: E402
+from drop_interfaces.msg import Heartbeat, RobotStatus, StepRecord, TaskStatus  # noqa: E402
 from drop_interfaces.srv import Stop  # noqa: E402
 from drop_mocks.ros_common import scenario_file  # noqa: E402
 from drop_mocks.scenario_engine import ScenarioEngine  # noqa: E402
 from drop_ros import DOMAIN, Harness, wait_future  # noqa: E402
+from spec_metrics import EXPECTED_METRIC_KEYS
 from lifecycle_msgs.msg import Transition  # noqa: E402
 from lifecycle_msgs.srv import ChangeState  # noqa: E402
 from orchestrator.record_logger_node import (  # noqa: E402
@@ -145,6 +146,13 @@ def _get_stop_info(h: Harness) -> tuple[int, int, str]:
     return int(vals[0].integer_value), int(vals[1].integer_value), str(vals[2].string_value)
 
 
+def _get_cancel_stop_history(h):
+    res = h.call(GetParameters, '/mock_robot_controller_node/get_parameters',
+                 names=['cancel_count', 'cancel_received_steady_s', 'stop_history_json'], timeout=5.0)
+    return (res.values[0].integer_value, res.values[1].double_value,
+            json.loads(res.values[2].string_value))
+
+
 def _read_jsonl(path: str | Path) -> list[dict]:
     p = Path(path)
     if not p.exists():
@@ -166,6 +174,7 @@ def _send_goal(h: Harness, goal: DropTask.Goal, timeout: float = 20.0):
 def test_i0_nominal_20_cycles_and_records(ros, tmp_path):
     h = Harness()
     task_msgs = h.record(TaskStatus, 'task/status')
+    step_msgs = h.record(StepRecord, 'task/step_record')
     proc = _launch(
         'scenario:=nominal_20mms',
         'duration_scale_ratio:=0.12',
@@ -199,7 +208,10 @@ def test_i0_nominal_20_cycles_and_records(ros, tmp_path):
                 max_passes=3,
             )
             _, res = _send_goal(h, goal, timeout=20.0)
-            assert res.result == DropTask.Result.SUCCESS, f'seed={seed} 실패: {res.result} ({res.reason_code})'
+            assert res.result == DropTask.Result.SUCCESS, (
+                f'seed={seed} 실패: {res.result} ({res.reason_code}); '
+                f'steps={[(m.step_name, m.reason_code, dict(zip(m.metric_keys, m.metric_values))) for _, m in step_msgs if m.cycle_id == task_msgs[-1][1].cycle_id]}'
+            )
             observed = []
             for _, m in task_msgs[before_idx:]:
                 if not observed or observed[-1] != m.state:
@@ -227,17 +239,26 @@ def test_i0_nominal_20_cycles_and_records(ros, tmp_path):
             # TC-REC-003-01: 단계 기록 파일 및 필수 메트릭 검증
             s_file = steps_path(str(tmp_path), rec['trial_id'], DATE_STR)
             step_rows = _read_jsonl(s_file)
-            assert len(step_rows) == 12
-            for srec in step_rows:
-                assert srec['t_end_s'] >= srec['t_start_s']
-                assert len(srec['metric_keys']) == len(srec['metric_values'])
-            by_step = {s['step_name']: s for s in step_rows}
-            assert 'stone_count' in by_step['DETECT_STONE']['metric_keys']
-            assert 'grip_width_m' in by_step['PICK_STONE']['metric_keys']
-            assert 't_available_s' in by_step['WAIT_CAP']['metric_keys']
-            assert 'time_margin_s' in by_step['PLAN_INTERCEPT']['metric_keys']
-            assert 'e_xy_m' in by_step['SYNCHRONIZE']['metric_keys']
-            assert 'verdict' in by_step['VERIFY']['metric_keys']
+            assert [r['step_name'] for r in step_rows] == expected_states[:-1]
+            live = [m for _, m in step_msgs if m.cycle_id == rec['trial_id']]
+            assert len(live) == 12
+            budget_names = {'plan', 'approach', 'synchronize', 'descend', 'release'}
+            for srec, msg in zip(step_rows, live):
+                # These are raw ROS stamps, which may go backward during NTP
+                # correction. The logger must preserve both endpoints verbatim.
+                assert srec['t_start_s'] == msg.t_start.sec + msg.t_start.nanosec * 1e-9
+                assert srec['t_end_s'] == msg.t_end.sec + msg.t_end.nanosec * 1e-9
+                assert srec['attempt'] == msg.attempt == 1
+                assert srec['step_seq'] == msg.step_seq
+                keys = set(srec['metric_keys'])
+                expected_keys = EXPECTED_METRIC_KEYS[srec['step_name']]
+                if srec['step_name'] == 'WAIT_CAP':
+                    expected_keys = expected_keys | {f'budget_{n}_s' for n in budget_names}
+                assert keys == expected_keys
+                assert len(srec['metric_keys']) == len(keys) == len(srec['metric_values'])
+                assert srec['metric_keys'] == list(msg.metric_keys)
+                assert srec['metric_values'] == list(msg.metric_values)
+                assert srec['metrics'] == dict(zip(msg.metric_keys, msg.metric_values))
     finally:
         _stop(proc)
         h.close()
@@ -248,7 +269,7 @@ def test_i0_nominal_20_cycles_and_records(ros, tmp_path):
 @pytest.mark.level('I0')
 def test_i0_robot_hang_escalates_and_stops(ros, tmp_path):
     h = Harness()
-    task_msgs = h.record(TaskStatus, 'task/status')
+    task_msgs = h.record(TaskStatus, 'task/status', steady=True)
     proc = _launch(
         'scenario:=robot_hang',
         'duration_scale_ratio:=0.2',
@@ -268,6 +289,15 @@ def test_i0_robot_hang_escalates_and_stops(ros, tmp_path):
         stop_count, requester, _ = _get_stop_info(h)
         assert stop_count >= 1
         assert requester == Stop.Request.ORCHESTRATOR
+        cancel_count, cancel_received, stops = _get_cancel_stop_history(h)
+        assert cancel_count == 1
+        ours = [s for s in stops if s['requester'] == Stop.Request.ORCHESTRATOR]
+        assert ours
+        # Both endpoints are observed in one mock process. 20 ms covers cancel transport offset.
+        delay = ours[0]['received_steady_s'] - cancel_received
+        assert 0.5 - 0.02 <= delay <= 0.7, delay
+        before = [m.abort_level for t, m in task_msgs if t < cancel_received]
+        assert before and max(before) < 4
         assert any(m.state == 'WAIT_OPERATOR' and m.abort_level == 4 for _, m in task_msgs)
     finally:
         _stop(proc)
@@ -308,10 +338,11 @@ def test_i0_protective_stop_waits_for_operator_resume(ros, tmp_path):
         # safety_supervisor_node의 Stop 호출 대기 및 확인
         deadline = time.monotonic() + 2.0
         stop_count, requester, _ = _get_stop_info(h)
-        while time.monotonic() < deadline and stop_count < 1:
+        _, _, stops = _get_cancel_stop_history(h)
+        while time.monotonic() < deadline and not any(s['requester'] == Stop.Request.SUPERVISOR for s in stops):
             time.sleep(0.05)
-            stop_count, requester, _ = _get_stop_info(h)
-        assert stop_count >= 1
+            _, _, stops = _get_cancel_stop_history(h)
+        assert any(s['requester'] == Stop.Request.SUPERVISOR for s in stops), stops
 
         # WAIT_OPERATOR 상태 유지(자동 복귀 0회) 및 재시도 거부 확인
         time.sleep(0.4)
@@ -351,31 +382,40 @@ def test_i0_heartbeat_loss_all_roles(ros, tmp_path):
             timeout=15.0,
             max_passes=3,
         )
-        # 1) vision heartbeat 손실 (파지 전 holding=False) -> L2 (FAILURE)
-        _set_params(h, 'mock_world_node', [_param_str('drop_role', 'vision'), _param_double('drop_at_s', 0.2)])
-        _reset_cycle_clock(h)
-        _, res_vis = _send_goal(h, goal, timeout=15.0)
+        def inject(role, node, state):
+            # Recover all heartbeats before PRECHECK, then inject in an observed
+            # state. Absolute scenario offsets can fire during DDS discovery or
+            # the preceding trial and turn this into a PRECHECK rejection test.
+            _set_params(h, 'mock_world_node', [_param_str('drop_role', 'none'),
+                                             _param_double('drop_at_s', 999.0)])
+            _set_params(h, 'mock_robot_controller_node', [_param_str('drop_role', 'none'),
+                                                        _param_double('drop_at_s', 999.0)])
+            _reset_cycle_clock(h)
+            _wait_ready(h)
+            states = h.record(TaskStatus, 'task/status')
+            ac = h.action(DropTask, 'drop_task')
+            gh = wait_future(ac.send_goal_async(goal), 5.0)
+            assert gh.accepted
+            h.wait_for(lambda: any(m.state == state for _, m in states), timeout=5.0,
+                       what=f'{role} injection state {state}')
+            _set_params(h, node, [_param_str('drop_role', role), _param_double('drop_at_s', 0.0)])
+            out = wait_future(gh.get_result_async(), 15.0).result
+            return out
+
+        # 1) PickStone still runs with holding=False -> L2 (FAILURE).
+        res_vis = inject('vision', 'mock_world_node', 'PICK_STONE')
         assert res_vis.result == DropTask.Result.FAILURE
         assert res_vis.reason_code == 'HEARTBEAT_LOST'
 
-        # 2) tracking heartbeat 손실 (파지 후 holding=True) -> L3 (SAFE_ABORT)
+        # 2) PickStone completed, holding=True -> L3 (SAFE_ABORT).
         _set_params(h, 'orchestrator_node', [_param_str('resume_reason', 'resume_after_vision_loss')])
-        _set_params(h, 'mock_world_node', [_param_str('drop_role', 'tracking'), _param_double('drop_at_s', 1.05)])
-        _reset_cycle_clock(h)
-        _, res_trk = _send_goal(h, goal, timeout=15.0)
+        res_trk = inject('tracking', 'mock_world_node', 'MOVE_STANDBY')
         assert res_trk.result == DropTask.Result.SAFE_ABORT
         assert res_trk.reason_code == 'HEARTBEAT_LOST'
 
-        # 3) robot_controller heartbeat 손실 -> L4 (PROTECTIVE_STOP + Stop 호출)
+        # 3) Controller heartbeat loss -> L4 and Stop.
         _set_params(h, 'orchestrator_node', [_param_str('resume_reason', 'resume_after_tracking_loss')])
-        _set_params(h, 'mock_world_node', [_param_str('drop_role', 'none'), _param_double('drop_at_s', 999.0)])
-        _set_params(
-            h,
-            'mock_robot_controller_node',
-            [_param_str('drop_role', 'robot_controller'), _param_double('drop_at_s', 0.25)],
-        )
-        _reset_cycle_clock(h)
-        _, res_ctrl = _send_goal(h, goal, timeout=15.0)
+        res_ctrl = inject('robot_controller', 'mock_robot_controller_node', 'PICK_STONE')
         assert res_ctrl.result == DropTask.Result.PROTECTIVE_STOP
         assert res_ctrl.reason_code == 'CONTROLLER_HEARTBEAT_LOST'
         stop_count, _, _ = _get_stop_info(h)

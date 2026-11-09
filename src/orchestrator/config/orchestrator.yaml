@@ -90,6 +90,7 @@ node:                                  # orchestrator_node(SPEC-100 4.8절)
   stone_on_mat_radius_m: 0.01          # 파지 뒤 같은 자리에 공깃돌이 남았는지 보는 반경
   verify_hold_s: 1.0                   # PLAN.md 4.5절
   select_retry_s: 0.2                  # 대상 없음일 때 SelectTarget 재질의 간격
+  detect_stable_window_s: 0.5         # DetectObjects 안정 창(SPEC-100 4.8절)
   status_period_s: 0.1                 # TaskStatus 10 Hz
 
 budget:                                # M0 임시 시간 예산(SPEC-100 4.9절). planner time_budget이 생기면 대체, TBD(측정 G0)

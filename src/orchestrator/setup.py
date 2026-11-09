@@ -12,6 +12,7 @@ setup(
         ('share/ament_index/resource_index/packages', ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
         ('share/orchestrator/config', glob('config/*.yaml')),
+        ('share/orchestrator/schema', ['../../tools/eval/trial_schema.json']),
     ],
     install_requires=['setuptools'],
     zip_safe=True,

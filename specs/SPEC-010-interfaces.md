@@ -1,6 +1,6 @@
 # SPEC-010 interfaces
 
-- 버전: v0.3
+- 버전: v0.4
 - 근거: PLAN.md 2.2, 3, 7.4절, `src/drop_interfaces/`
 - REQ 영역: IF
 
@@ -8,6 +8,7 @@
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
+| v0.4 | 2026-11-09 | M0 검증 범위·게이트 및 독립 계약 기대값 정합성 |
 | v0.1 | 2026-11-07 | msg 9종·srv 6종·action 6종 규약, 공통 요청 필드·결과 코드·상수 표, QoS 표, revision·epoch 규칙, lifecycle 비활성 응답, Heartbeat 오류 코드, 스냅샷 버전 규칙 |
 | v0.2 | 2026-11-07 | `RobotStatus` msg 신설(`robot/status`, 10 Hz), `PlaceStone`·`DynamicPlace` feedback에 `phase_done`·`metric_keys`·`metric_values` 추가 및 phase별 측정값 키 규약(REQ-IF-005) |
 | v0.3 | 2026-11-09 | 실행 노드의 구독·발행에 기본 QoS 이벤트 핸들러를 붙이지 않음(6절, REQ-IF-006), heartbeat 주기의 계약 측정 기준을 수신 steady 시각으로 정함 |
@@ -19,6 +20,8 @@
 필드 선언의 정확한 원문은 `src/drop_interfaces/{msg,srv,action}/` 및 `specs/snapshots/*.txt`가 원본이며, 이 문서는 필드 전체를 중복 나열하지 않고 단위·의미·동작 계약 중심으로 기술한다.
 
 ## 2. 입력·출력(interface 버전)
+
+wire schema는 v0.2이며 v0.3·v0.4는 필드 선언을 바꾸지 않는 runtime contract다. 시도 기록의 `interface_version = SPEC-010 0.2`는 wire schema를 뜻한다.
 
 ### 2.1 데이터 및 상태 메시지 (`src/drop_interfaces/msg/`, 10종)
 

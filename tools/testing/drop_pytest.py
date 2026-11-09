@@ -59,6 +59,9 @@ def pytest_collection_modifyitems(config, items):
         for m in item.iter_markers("level"):
             if not m.args or m.args[0] not in LEVELS:
                 raise pytest.UsageError(f"{item.nodeid}: level은 {LEVELS} 중 하나")
+        level = item.get_closest_marker("level")
+        if level is not None:
+            item.user_properties.append(("level", level.args[0]))
         for m in item.iter_markers("needs_data"):
             for name in m.args:
                 if dataset_path(name) is None:

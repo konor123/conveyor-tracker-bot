@@ -12,7 +12,6 @@ import time
 
 import rclpy
 import yaml
-from action_msgs.msg import GoalStatus
 from drop_interfaces.action import DropTask, DynamicPlace, MoveToPose, PickStone, PlaceStone, SafeRetreat
 from drop_interfaces.msg import (BeltMotion, Heartbeat, ObjectDetection, ObjectDetectionArray, RobotStatus,
                                  StepRecord, TaskStatus, TrackedObject, TrackedObjectArray)
@@ -89,6 +88,13 @@ class RosSkillPort:
     def __init__(self, node: 'OrchestratorNode'):
         self.n = node
         self.clock = node.clock
+        self._pending_send = None
+        self._abandoned_send = False
+        self._cancelled_goal = None
+        self._send_lock = threading.RLock()
+        self._wait_guard = None
+        self._cleanup_wait = False
+        self._feedback_token = object()
         self._goal = None              # 진행 중 skill goal handle
         self._result_future = None
         self._feedback: list = []
@@ -106,7 +112,9 @@ class RosSkillPort:
 
     # ------------------------------------------------------------ 공통 대기
     def reset(self, goal_handle) -> None:
-        self._goal = self._result_future = None
+        self._wait_guard = None
+        self._cleanup_wait = False
+        self._feedback_token = object()
         self._feedback = []
         with self._fault_lock:
             self._fault = None
@@ -138,11 +146,35 @@ class RosSkillPort:
             ev, self._fault = self._fault, None
         return ev
 
+    def set_wait_guard(self, guard, cleanup=False) -> None:
+        self._wait_guard = guard
+        self._cleanup_wait = cleanup
+
     def _wait(self, pred, deadline: float | None) -> bool:
+        # A frozen ROS clock must not make a transport call unbounded.
+        budget = max(0., deadline - self.clock.ros_now()) if deadline is not None else 1.
+        # ROS deadlines can move relative to steady time after a backward clock
+        # correction. Use the same finite safety factor as the cycle watchdog;
+        # cleanup/cycle guards below still enforce their independent hard caps.
+        factor = float(self.n.cfg_dict['watchdog']['cycle_steady_factor_ratio'])
+        steady_end = time.monotonic() + budget * factor
         while True:
+            context = getattr(self.n, 'context', None)
+            if context is not None and not context.ok():
+                self.raise_fault(Event.ROBOT_COMM_LOST)
+                return False
+            if self.cancel_requested() and not self._released and not self._cleanup_wait:
+                self.raise_fault(Event.USER_CANCEL)
+                return False
+            event = self._wait_guard() if self._wait_guard is not None else None
+            if event is not None:
+                self.raise_fault(event)
+                return False
+            if self._interrupting():
+                return False
             if pred():
                 return True
-            if self._interrupting():
+            if time.monotonic() >= steady_end:
                 return False
             if deadline is not None and self.clock.ros_now() >= deadline:
                 return False
@@ -157,20 +189,58 @@ class RosSkillPort:
         return fut.result() if self._wait(fut.done, deadline) else None
 
     def _send(self, name: str, goal, deadline: float):
+        self._accept_pending()
+        if self._abandoned_send and self._result_future is not None and self._result_future.done():
+            self.cancel_active(0.)
+        if self._pending_send is not None or self._goal is not None:
+            return None  # unresolved prior motion forbids a replacement
         ac = self.n.actions[name]
         if not self._wait(ac.server_is_ready, deadline):
             return None
         goal.cycle_id, goal.step_id, goal.deadline = self.n.cycle_id, self.n.step_id, _to_time(deadline)
         self._feedback = []
-        fut = ac.send_goal_async(goal, feedback_callback=lambda fb: self._feedback.append(
-            (self.clock.ros_now(), fb.feedback)))
+        token = self._feedback_token = object()
+        def feedback(fb):
+            if token is self._feedback_token:
+                self._feedback.append((self.clock.ros_now(), fb.feedback))
+        with self._send_lock:
+            fut = self._pending_send = ac.send_goal_async(goal, feedback_callback=feedback)
+            self._abandoned_send = False
         if not self._wait(fut.done, deadline):
+            with self._send_lock:
+                self._abandoned_send = True
+            if hasattr(fut, 'add_done_callback'):
+                fut.add_done_callback(lambda done: self._accept_pending())
             return None
-        gh = fut.result()
-        if not gh.accepted:
-            return False
-        self._goal, self._result_future = gh, gh.get_result_async()
-        return gh
+        self._accept_pending()
+        return self._goal if self._goal is not None else False
+
+    def _accept_pending(self):
+        with self._send_lock:
+            fut = self._pending_send
+            if fut is None or not fut.done():
+                return
+            try:
+                gh = fut.result()
+            except Exception as exc:
+                self.n.get_logger().warning(f'action acceptance failed: {exc}')
+                return  # acceptance remains unknown; replacement is forbidden
+            if gh is None:
+                return  # no acceptance decision
+            if gh.accepted:
+                try:
+                    result_future = gh.get_result_async()
+                except Exception as exc:
+                    self.n.get_logger().warning(f'action result subscription failed: {exc}')
+                    return  # retain acceptance future for a safe retry
+                self._goal, self._result_future = gh, result_future
+                if self._abandoned_send:
+                    try:
+                        gh.cancel_goal_async()
+                        self._cancelled_goal = gh
+                    except Exception as exc:
+                        self.n.get_logger().warning(f'late action cancel failed: {exc}')
+            self._pending_send = None
 
     def _result(self, deadline: float):
         """진행 중 goal 결과. deadline까지 없으면 None(goal은 cancel 대상으로 남는다)."""
@@ -206,7 +276,8 @@ class RosSkillPort:
 
     def detect_stones(self, deadline):
         r = self._call(DetectObjects, 'vision/detect_objects', deadline, region=ObjectDetection.REGION_MAT,
-                       object_class=ObjectDetection.CLASS_STONE, min_count=1, stable_window=0.0)
+                       object_class=ObjectDetection.CLASS_STONE, min_count=1,
+                       stable_window=float(self.n.node_cfg['detect_stable_window_s']))
         if r is None:
             return None
         dets = list(r.detections)
@@ -295,7 +366,8 @@ class RosSkillPort:
         retry = float(self.n.node_cfg['select_retry_s'])
         while True:
             r = self._call(DetectObjects, 'vision/detect_objects', deadline, region=ObjectDetection.REGION_BELT,
-                           object_class=ObjectDetection.CLASS_CAP, min_count=1, stable_window=0.0)
+                           object_class=ObjectDetection.CLASS_CAP, min_count=1,
+                           stable_window=float(self.n.node_cfg['detect_stable_window_s']))
             if r is None:
                 return None
             if r.result == 0 and r.detections:
@@ -405,25 +477,56 @@ class RosSkillPort:
 
     def _call_unguarded(self, typ, name, timeout_s, **fields):
         """장애 중에도 보내야 하는 호출(Stop). steady 제한시간."""
+        context = getattr(self.n, 'context', None)
+        if context is not None and not context.ok():
+            return None
         cli = self.n.srv_clients[name]
         end = time.monotonic() + timeout_s
         while not cli.service_is_ready() and time.monotonic() < end:
+            if context is not None and not context.ok():
+                return None
             time.sleep(POLL_S)
+        if not cli.service_is_ready():
+            return None
         fut = cli.call_async(typ.Request(**fields))
         while not fut.done() and time.monotonic() < end:
+            if context is not None and not context.ok():
+                return None
             time.sleep(POLL_S)
         return fut.result() if fut.done() else None
 
     def cancel_active(self, wait_s):
-        gh, res = self._goal, self._result_future
-        if gh is None:
-            return True
-        gh.cancel_goal_async()
         end = time.monotonic() + wait_s
+        self._abandoned_send = True
+        while self._pending_send is not None and time.monotonic() < end:
+            self._accept_pending()
+            if self._pending_send is not None:
+                time.sleep(POLL_S)
+        with self._send_lock:
+            if self._pending_send is not None:
+                return False
+            gh, res = self._goal, self._result_future
+            if gh is None:
+                return True
+            if self._cancelled_goal is not gh:
+                try:
+                    gh.cancel_goal_async()
+                    self._cancelled_goal = gh
+                except Exception as exc:
+                    self.n.get_logger().warning(f'action cancel failed: {exc}')
+                    return False
         while not res.done() and time.monotonic() < end:
             time.sleep(POLL_S)
         if res.done():
+            try:
+                terminal = res.result()
+                if terminal is None or terminal.status not in (4, 5, 6):
+                    return False
+            except Exception as exc:
+                self.n.get_logger().warning(f'action termination unconfirmed: {exc}')
+                return False
             self._goal = self._result_future = None
+            self._feedback_token = object()
             return True
         return False
 

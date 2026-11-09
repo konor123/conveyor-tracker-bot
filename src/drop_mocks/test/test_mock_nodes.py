@@ -15,7 +15,7 @@ from drop_interfaces.srv import DetectObjects, ResetTracking, SelectTarget, Stop
 from rclpy.parameter import Parameter  # noqa: E402
 
 from conftest import scenario_path  # noqa: E402
-from drop_ros import DOMAIN, Harness, own_qos_event_handlers, wait_future  # noqa: E402
+from drop_ros import DOMAIN, Harness, SteadyRosClock, own_qos_event_handlers, wait_future  # noqa: E402
 from drop_mocks.mock_robot_controller_node import MockRobotControllerNode  # noqa: E402
 from drop_mocks.mock_world_node import MockWorldNode  # noqa: E402
 from drop_mocks.ros_common import ERROR_PROTECTIVE_STOP, from_time, to_time  # noqa: E402
@@ -49,28 +49,35 @@ def _first(seq, pred):
 @pytest.mark.tc('TC-MCK-005-01')
 @pytest.mark.level('C')
 def test_injected_events_appear_at_scheduled_time(ros):
-    t0 = time.time() + 1.0
+    # Scenario schedules use ROS time. Supply a controlled timeline so host NTP
+    # corrections cannot change its mapping to the independent receive clock.
+    clock = SteadyRosClock()
+    t0 = clock.now() + 1.0
+    steady_t0 = clock.steady_origin + t0 - clock.ros_origin
     eng = ScenarioEngine.from_file(scenario_path('all_events'))
     ev = {e['type']: e for e in eng.events}
-    world = MockWorldNode(parameter_overrides=_params('all_events', t0))
-    robot = MockRobotControllerNode(parameter_overrides=_params('all_events', t0))
-    h = Harness(world, robot)
+    sim = [Parameter('use_sim_time', value=True)]
+    world = MockWorldNode(parameter_overrides=_params('all_events', t0) + sim)
+    robot = MockRobotControllerNode(parameter_overrides=_params('all_events', t0) + sim)
+    h = Harness(world, robot, use_sim_time=True)
     try:
-        dets = h.record(ObjectDetectionArray, 'objects/detections')
-        trks = h.record(TrackedObjectArray, 'objects/tracked')
-        belt = h.record(BeltMotion, 'belt/measured_motion')
-        hbs = h.record(Heartbeat, 'system/heartbeat')
+        dets = h.record(ObjectDetectionArray, 'objects/detections', steady=True)
+        trks = h.record(TrackedObjectArray, 'objects/tracked', steady=True)
+        belt = h.record(BeltMotion, 'belt/measured_motion', steady=True)
+        hbs = h.record(Heartbeat, 'system/heartbeat', steady=True)
         pick = h.action(PickStone, 'robot/pick_stone')
         results = {}
         for label, t_start in (('before_delay', 6.0), ('in_delay', 6.5 + 2 * FRAME), ('pstop', 8.3)):
             h.wait_until(t0 + t_start)
+            sent_at = time.monotonic() - steady_t0
             gh = _send(pick, PickStone.Goal())
             assert gh.accepted
             res = wait_future(gh.get_result_async(), 5.0).result
-            results[label] = (t_start, h.now() - t0, res)
+            results[label] = (sent_at, time.monotonic() - steady_t0, res)
         h.wait_until(t0 + 10.0)
     finally:
         h.close()
+        clock.close()
 
     def scen(stamp):                 # stamp → 시나리오 시각(clock_jump 전)
         return from_time(stamp) - t0
@@ -96,13 +103,17 @@ def test_injected_events_appear_at_scheduled_time(ros):
     jumped = _first(dets, lambda x: from_time(x[1].header.stamp) - (t0 + x[1].image_seq * FRAME) < -4.9)
     near(jumped[1].image_seq * FRAME, ev['clock_jump']['t_s'])
 
-    # heartbeat(10 Hz): 구간 안에는 없고, 구간 경계 ± 1 프레임 밖에서는 계속 온다
+    # Preserve injection phase and measure receive delay independently of ROS stamp.
+    assert all(-0.01 <= t - steady_t0 - m.image_seq * FRAME <= 0.2 for t, m in dets if t >= steady_t0)
+    print({'steady_origin_s': steady_t0, 'events': ev,
+           'heartbeat_phase_s': (hbs[0][0] - steady_t0) % 0.1})
+    # 10 Hz heartbeat sampling (0.1 s) plus observed transport bound (0.2 s).
     hb = ev['heartbeat_stop']
-    t_vis = [t - t0 for t, m in hbs if m.node_name == 'vision_node']
+    t_vis = [t - steady_t0 for t, m in hbs if m.node_name == 'vision_node']
     t_end = hb['t_s'] + hb['duration_s']
-    assert not [t for t in t_vis if hb['t_s'] + FRAME <= t < t_end - FRAME]
-    assert [t for t in t_vis if hb['t_s'] - 0.15 <= t < hb['t_s'] + FRAME]
-    assert [t for t in t_vis if t_end - FRAME <= t < t_end + 0.15]
+    assert not [t for t in t_vis if hb['t_s'] + 0.2 <= t < t_end]
+    assert [t for t in t_vis if hb['t_s'] - 0.1 <= t < hb['t_s'] + 0.2]
+    assert [t for t in t_vis if t_end <= t < t_end + 0.3]
 
     # gripper_delay: 시작 시각이 이벤트 전이면 0.3 s, 후면 0.3 + 0.6 s
     s0, e0, r0 = results['before_delay']
@@ -112,10 +123,10 @@ def test_injected_events_appear_at_scheduled_time(ros):
     # protective_stop: 8.3 s에 시작한 goal이 8.5 s ± 1 프레임에 FAULT로 끝나고 heartbeat에 표시
     _, e2, r2 = results['pstop']
     assert (r2.result, r2.reason_code) == (RESULT['FAULT'], 'PROTECTIVE_STOP')
-    near(e2, ev['protective_stop']['t_s'])
-    rb = [(t - t0, m) for t, m in hbs if m.node_name == 'robot_controller_node']
-    assert all(m.error_code == ERROR_PROTECTIVE_STOP for t, m in rb if 8.5 + FRAME <= t < 9.0 - FRAME)
-    assert all(m.error_code == 0 for t, m in rb if t < 8.5 - FRAME or t >= 9.0 + 0.15)
+    assert 0 <= e2 - ev['protective_stop']['t_s'] <= 0.205
+    rb = [(t - steady_t0, m) for t, m in hbs if m.node_name == 'robot_controller_node']
+    assert all(m.error_code == ERROR_PROTECTIVE_STOP for t, m in rb if 8.5 + 0.3 <= t < 9.0)
+    assert all(m.error_code == 0 for t, m in rb if t < 8.5 or t >= 9.0 + 0.3)
 
 
 # ------------------------------------------------------------------ TC-MCK-002-01

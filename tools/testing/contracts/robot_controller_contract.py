@@ -58,7 +58,7 @@ RESULT_TIMEOUT_S = 5.0
 @pytest.fixture(scope='module')
 def robot_contract(robot_target):
     proc, h = common.started(robot_target, '/robot/stop')
-    h.status = h.record(RobotStatus, 'robot/status')
+    h.status = h.record(RobotStatus, 'robot/status', steady=True)
     h.clients = {name: h.action(typ, name) for name, typ in SKILLS.items()}
     h.target = robot_target
     yield h
@@ -96,16 +96,26 @@ class TestRobotControllerContract:
     def test_robot_status_stream(self, robot_contract):
         h = robot_contract
         window = 1.5
-        t0 = h.now()
+        t0 = time.monotonic()
         h.sleep(window + 0.05)
-        got = [m for t, m in h.status if t0 <= t < t0 + window]
+        received = [(t, m) for t, m in h.status if t0 <= t < t0 + window]
+        got = [m for _, m in received]
         assert len(got) >= 3, len(got)
         assert all(m.header.frame_id == 'robot_base' for m in got)
-        stamps = [drop_ros.from_time(m.header.stamp) for m in got]
+        stamps = [t for t, _ in received]
+        # Header stays ROS time; it is not the cadence clock.
+        assert all(0 <= m.header.stamp.nanosec < 1_000_000_000 for m in got)
         gaps = [b - a for a, b in zip(stamps, stamps[1:])]
         rate = (len(stamps) - 1) / (stamps[-1] - stamps[0])
         assert 0.8 * common.HEARTBEAT_HZ <= rate <= 1.2 * common.HEARTBEAT_HZ, rate
         assert max(gaps) < 0.3, max(gaps)
+
+    def test_robot_status_stamp_uses_ros_time(self, robot_contract):
+        h = robot_contract
+        h.sleep(0.2)
+        assert h.status
+        stamp = drop_ros.from_time(h.status[-1][1].header.stamp)
+        assert abs(h.now() - stamp) <= 0.3  # separate from steady cadence
 
     @pytest.mark.parametrize('name', sorted(SKILLS))
     def test_robot_skill_accepts_feedback_and_ok(self, robot_contract, name):

@@ -100,3 +100,77 @@ def test_module_and_class_pytestmark_count_as_tests(tmp_path):
     r = trace.build(repo)
     assert r["by_tc"]["TC-ORC-001-01"] == ["src/orchestrator/test/test_x.py::<module>"]
     assert r["by_tc"]["TC-ORC-002-01"] == ["src/orchestrator/test/test_x.py::TestImported"]
+
+
+@pytest.mark.req("REQ-REC-006")
+@pytest.mark.tc("TC-REC-006-02")
+@pytest.mark.level("U")
+@pytest.mark.parametrize("expression, expected", [
+    ("ORC 전부", {"TC-ORC-001-01", "TC-ORC-002-01", "TC-ORC-002-02"}),
+    ("ORC-001·002", {"TC-ORC-001-01", "TC-ORC-002-01", "TC-ORC-002-02"}),
+    ("ORC-001~002", {"TC-ORC-001-01", "TC-ORC-002-01", "TC-ORC-002-02"}),
+    ("ORC 전부(002-02 제외)", {"TC-ORC-001-01", "TC-ORC-002-01"}),
+    ("ORC 전부(002제외)", {"TC-ORC-001-01"}),
+    ("ORC-002-01·002-02", {"TC-ORC-002-01", "TC-ORC-002-02"}),
+    ("EXP-G2", {"TC-EXP-G2-01"}),
+    ("—", set()),
+])
+def test_gate_expression(expression, expected, tmp_path):
+    repo = _repo(tmp_path, SPEC, TS, TESTS)
+    assert trace.select_tcs(expression, trace.load_tcs(repo)) == expected
+
+
+@pytest.mark.req("REQ-REC-006")
+@pytest.mark.tc("TC-REC-006-02")
+@pytest.mark.level("U")
+@pytest.mark.parametrize("expression", ["ORC", "ORC-002~001", "ORC-999", "ORC 全部",
+    "ORC-001,", "ORC 전부(999-02 제외)", "ORC-001 garbage", "XYZ 전부"])
+def test_gate_rejects_invalid_expression(expression, tmp_path):
+    repo = _repo(tmp_path, SPEC, TS, TESTS)
+    with pytest.raises(ValueError):
+        trace.select_tcs(expression, trace.load_tcs(repo))
+
+
+@pytest.mark.req("REQ-REC-006")
+@pytest.mark.tc("TC-REC-006-02")
+@pytest.mark.level("U")
+def test_gate_scopes_requirements_and_unknown_marks(tmp_path):
+    ts = textwrap.dedent(TS) + "\n| M0 | ORC-001 | — | — |\n"
+    repo = _repo(tmp_path, SPEC, ts, TESTS)
+    r = trace.build(repo, gate="M0")
+    assert set(r["reqs"]) == {"REQ-ORC-001"}
+    assert set(r["tcs"]) == {"TC-ORC-001-01"}
+    assert not r["unknown"] and not r["req_no_tc"]
+    assert trace.main(["--repo", repo, "--gate", "M0", "--check"]) == 0
+    with pytest.raises(SystemExit) as exc:
+        trace.main(["--repo", repo, "--gate", "unknown", "--check"])
+    assert exc.value.code == 2
+
+
+@pytest.mark.req("REQ-REC-006")
+@pytest.mark.tc("TC-REC-006-02")
+@pytest.mark.level("U")
+def test_repository_m0_gate():
+    repo = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    r = trace.build(repo, gate="M0")
+    excluded = {"TC-ABT-011-02", "TC-ABT-012-02", "TC-ABT-013-02", "TC-ABT-014-02",
+                "TC-INT-007-01", "TC-SYS-003-01", "TC-SYS-003-02"}
+    assert excluded.isdisjoint(r["tcs"])
+    assert "TC-ABT-011-01" in r["tcs"]
+    assert trace.main(["--repo", repo, "--gate", "M0", "--check"]) == 0
+    for gate in ["G0", "G1", "G2", "G3", "G4", "G5", "G6", "G7"]:
+        assert trace.build(repo, gate=gate)["tcs"]
+
+
+@pytest.mark.req("REQ-REC-006")
+@pytest.mark.tc("TC-REC-006-02")
+@pytest.mark.level("U")
+def test_gate_malformed_row_fails_without_writing(tmp_path):
+    ts = "| TC-ORC-001-01 | a | U | x |\n| M0 | ORC-001 | — | — |\n"
+    repo = _repo(tmp_path, "", ts,
+                 "import pytest\n@pytest.mark.tc('TC-ORC-001-01')\ndef test_a(): pass\n")
+    (tmp_path / "TEST_SPEC.md").write_text(ts.replace("ORC-001 | —", "ORC typo | —"))
+    with pytest.raises(SystemExit) as exc:
+        trace.main(["--repo", repo, "--gate", "M0"])
+    assert exc.value.code == 2
+    assert not (tmp_path / "specs" / "TRACE.md").exists()

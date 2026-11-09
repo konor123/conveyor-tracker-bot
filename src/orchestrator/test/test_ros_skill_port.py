@@ -24,9 +24,10 @@ class _Clock:
 
 
 def _port():
-    node = SimpleNamespace(clock=_Clock(), get_logger=lambda: _Log(), _watch=lambda: None)
+    node = SimpleNamespace(cfg_dict={'watchdog': {'cycle_steady_factor_ratio': 2.0}},
+                           clock=_Clock(), get_logger=lambda: _Log(), _watch=lambda: None)
     port = RosSkillPort(node)
-    port.reset(goal_handle=object())
+    port.reset(goal_handle=SimpleNamespace(is_cancel_requested=False))
     return port
 
 
@@ -91,7 +92,7 @@ def test_soft_fault_does_not_override_hard():
 def test_reset_clears_release():
     port = _port()
     _released(port)
-    port.reset(goal_handle=object())
+    port.reset(goal_handle=SimpleNamespace(is_cancel_requested=False))
     port.raise_fault(Event.HEARTBEAT_LOST)
     assert port._wait(lambda: False, deadline=10.0) is False
 
@@ -165,3 +166,15 @@ def test_concurrent_consume_and_hard_raise_loses_nothing():
           lambda: port.raise_fault(Event.CONTROLLER_HEARTBEAT_LOST))
     seen = [got[0], port.pending_fault()]
     assert seen.count(Event.CONTROLLER_HEARTBEAT_LOST) == 1         # 소비 결과나 남은 latch 중 한 곳에서만 보인다
+
+
+@pytest.mark.req('REQ-ORC-010')
+@pytest.mark.tc('TC-ORC-010-02')
+@pytest.mark.level('U')
+def test_ready_response_after_original_cycle_deadline():
+    port = _port()
+    _released(port)
+    port.clock.t = 91.0
+    port.raise_fault(Event.CYCLE_TIMEOUT)
+    assert port._wait(lambda: True, deadline=90.0)
+    assert not port._wait(lambda: False, deadline=90.0)

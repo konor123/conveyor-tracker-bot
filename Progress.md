@@ -61,16 +61,18 @@
 
 - [x] `[ON]` `specs/` 구성, spec 템플릿·REQ ID 체계(`PLAN.md` 8절)
 - [ ] `[ON]` SPEC-000(system), 010(interfaces), 100(orchestrator), 110(abort-timeout), 700(mocks), 800(records) v0.1 작성·리뷰
-  - SPEC-000·010·100·110·700·800 문서와 REQ·TC 연결. 독립 리뷰 및 M0 통과 판정 대상.
+  - SPEC 6종의 M0 범위·해제 후 정리·감시 게이트·기록 계약과 REQ·TC 연결. 독립 리뷰 지적 사항에 대한 재확인이 확정 조건이다.
 - [ ] `[ON]` `TEST_SPEC.md`의 M0 대상 시험 케이스(SYS·IF·ORC·ABT·MCK·REC·INT-I0) 리뷰 후 확정
+  - M0 게이트 REQ 49·TC 93, 연결 누락 0. 독립 리뷰 지적 사항에 대한 재확인이 확정 조건이다.
 - [ ] `[ON]` `drop_interfaces` 1차: 데이터 msg, `TaskStatus`, `Heartbeat`, `StepRecord`, skill action/srv, `DropTask` (TC-IF-*)
+  - officepc WSL의 10개 패키지 빌드와 계약 시험 통과. SPEC-010·M0 TC 재확인이 완료 조건이다.
 - [x] `[ON]` 공통 요청 필드(`cycle_id`·`step_id`·`deadline`), QoS, revision·epoch 처리, lifecycle 비활성 시 응답을 SPEC-010에 고정
 - [x] `[ON]` 타이머별 시계 정책(ROS 시각 / steady)을 SPEC-110에 고정(`PLAN.md` 6.2절)
 - [x] `[ON]` 접두 없는 패키지 이름이 underlay와 겹치지 않는지 첫 빌드에서 확인(TC-SYS-*)
 - [x] `[ON]` `orchestrator` 골격: `state_machine.py`, `step_judges.py`, `abort_policy.py`, `deadlines.py` 순수 모듈 + `test/fakes/`(skill port·fake clock) 단위 테스트(TC-ORC-*, TC-ABT-*)
 - [x] `[ON]` 장애 10종을 `abort_policy`·`deadlines` 단위 테스트의 이벤트 열로 작성(`PLAN.md` 7.3절)
 - [ ] `[ON]` `orchestrator_node`, `safety_supervisor_node`, `record_logger_node`
-  - DropTask·독립 Stop 감시·StepRecord/trial 기록 노드와 단위·계약 시험. 전체 ROS I0 검증 및 독립 리뷰를 노드 묶음의 완료 조건으로 둔다.
+  - F1~F8의 결함 처리 및 F4 감시 연결의 G0/G3/G4 게이트 조건, 해제 후 N1 정리 경로 시험. N1 수정 후 노드 묶음 독립 재검수가 완료 조건이다.
 - [x] `[ON]` `drop_mocks`: `scenario_engine`, `mock_world_node`(`role:=vision|tracking|all`), `mock_robot_controller_node`(소요시간·결과 지정형). 정상 경로 우선, 지연·지터 값은 가정값으로 표기(TC-MCK-*)
 - [x] `[ON]` 계약 테스트 틀(`test/contract/`, 대상을 인자로 받음), `mock_world_node`의 vision·tracker 계약 통과
 - [x] `[ON]` `mock.launch.py`, `launch_testing` 기반 I0 통합 테스트(ROS I0 시나리오 5종)를 CI에 등록(TC-INT-*)

@@ -2,6 +2,7 @@
 from dataclasses import replace
 
 import pytest
+from spec_metrics import EXPECTED_METRIC_KEYS
 
 from fakes import measures as M
 from fakes.skills import FakeSkillPort, Reply
@@ -62,7 +63,7 @@ def test_static_skips_synchronize_and_detects_cap(fake_clock, cfg):
     assert ('DetectObjects.BELT', {'region': 'BELT', 'object_class': 'CAP'}) in port.calls
     assert 'PlaceStone' in names and 'DynamicPlace' not in names
     descend = next(r for r in out.records if r.step_name == 'DESCEND')
-    assert set(descend.metric_keys) == sj.METRIC_KEYS['DESCEND_STATIC']
+    assert set(descend.metric_keys) == EXPECTED_METRIC_KEYS['DESCEND_STATIC']
 
 
 @pytest.mark.req("REQ-ORC-001")
@@ -72,7 +73,7 @@ def test_predicted_uses_entry_judgement(fake_clock, cfg):
     _, port, out = run(fake_clock, cfg, g=goal(Mode.PREDICTED), mode_entry=M.OK_ENTRY)
     assert out.states == SEQ_SYNC
     sync = next(r for r in out.records if r.step_name == 'SYNCHRONIZE')
-    assert set(sync.metric_keys) == sj.METRIC_KEYS['SYNCHRONIZE_PREDICTED']
+    assert set(sync.metric_keys) == EXPECTED_METRIC_KEYS['SYNCHRONIZE_PREDICTED']
 
 
 # ---------------------------------------------------------------- 실패 뒤 다음 단계 금지
@@ -112,7 +113,7 @@ def test_no_next_skill_after_failure(fake_clock, cfg, step):
 
 
 @pytest.mark.req("REQ-ORC-002")
-@pytest.mark.tc("TC-ORC-002-01")
+@pytest.mark.tc("TC-ORC-002-02")
 @pytest.mark.level("U")
 def test_release_failure_continues_to_retreat_and_verify(fake_clock, cfg):
     script = {'feedback.RELEASE': [Reply(replace(M.OK_REL, open_width_m=0.010), 0.3)]}
@@ -383,12 +384,21 @@ def test_progress_callbacks_match_outcome(fake_clock, cfg):
 def test_released_fault_executes_cleanup(fake_clock, cfg, event, point):
     trigger = {'after_release': 'feedback.RELEASE', 'after_retreat': 'result.RETREAT',
                'after_verify': 'VerifyDrop'}.get(point)
-    port = FaultAfter(fake_clock, event, trigger)
+    cycle_end = fake_clock.ros_now() + goal().timeout_s
+    class ExpiringFaultPort(FaultAfter):
+        def _call(self, key, deadline, **kw):
+            result = super()._call(key, deadline, **kw)
+            if event is Event.CYCLE_TIMEOUT and key == trigger:
+                fake_clock.advance_ros(max(0., cycle_end - fake_clock.ros_now() + .1))
+            return result
+    port = ExpiringFaultPort(fake_clock, event, trigger)
 
     def on_state(state):
         if (point == 'before_retreat' and state is S.RETREAT
                 or point == 'before_verify' and state is S.VERIFY):
             port.fault = event
+            if event is Event.CYCLE_TIMEOUT:
+                fake_clock.advance_ros(max(0., cycle_end - fake_clock.ros_now() + .1))
 
     out = CycleRunner(port, fake_clock, cfg, on_state=on_state).run(goal())
     if event in HARD_FAULTS:
@@ -437,3 +447,100 @@ def test_released_soft_fault_escalates_to_hard_fault(fake_clock, cfg):
     assert 'result.RETREAT' in port.names()
     assert 'VerifyDrop' not in port.names()
     assert 'Stop' in port.names()
+
+
+@pytest.mark.req("REQ-ORC-003")
+@pytest.mark.tc("TC-ORC-003-14")
+@pytest.mark.level("U")
+@pytest.mark.parametrize("duration, hang, expected", [
+    (2.999, False, 'SUCCESS'), (3.000, False, 'SUCCESS'),
+    (3.001, False, 'UNKNOWN'), (0.0, True, 'UNKNOWN'),
+])
+def test_verify_deadline_and_final_outcome(fake_clock, cfg, duration, hang, expected):
+    class TimedPort(FakeSkillPort):
+        def verify(self, deadline):
+            self.verify_start = self.clock.ros_now()
+            self.verify_deadline = deadline
+            return super().verify(deadline)
+    port = TimedPort(fake_clock, {'VerifyDrop': [Reply(M.OK_VER, duration, hang=hang)]})
+    out = CycleRunner(port, fake_clock, cfg).run(goal())
+    assert port.verify_deadline - port.verify_start == pytest.approx(3.0)
+    assert fake_clock.ros_now() - port.verify_start == pytest.approx(min(duration, 3.0) if not hang else 3.0)
+    assert out.result == expected
+    assert port.names()[port.names().index('VerifyDrop') + 1:] == []
+    assert out.states[-1] is S.DONE
+    if expected == 'UNKNOWN':
+        assert out.reason_code == 'VERIFY_TIMEOUT'
+        assert out.records[-1].reason_code == 'VERIFY_TIMEOUT'
+
+
+@pytest.mark.req('REQ-ABT-004')
+@pytest.mark.tc('TC-ABT-004-01')
+@pytest.mark.level('U')
+def test_cancel_escalation_timeline(fake_clock, cfg, monkeypatch):
+    import orchestrator.cycle_runner as cr
+    observed = []
+    class TracedTracker(cr.AbortTracker):
+        def on_cancel_sent(self):
+            observed.append(self.level)
+            super().on_cancel_sent()
+        def _set(self, level):
+            super()._set(level)
+            if observed and observed[-1] is not self.level:
+                observed.append(self.level)
+    monkeypatch.setattr(cr, "AbortTracker", TracedTracker)
+    class CancelTimeline(FakeSkillPort):
+        def cancel_active(self, wait_s):
+            self.sent_at = self.clock.steady_now()
+            assert wait_s == 0.5
+            return super().cancel_active(wait_s)
+
+        def stop(self):
+            self.stop_at = self.clock.steady_now()
+            return super().stop()
+    port = CancelTimeline(fake_clock, {'PickStone': [Reply(None, hang=True)],
+                                      'cancel': [Reply(None, hang=True)]})
+    runner = CycleRunner(port, fake_clock, cfg)
+    out = runner.run(replace(goal(), timeout_s=1.2))
+    assert observed[:2] == [AbortLevel.L2, AbortLevel.L3]
+    assert observed[-1] is AbortLevel.L4
+    assert port.names().count('cancel') == 1
+    assert port.stop_at - port.sent_at == pytest.approx(0.5)
+    assert out.abort_level is AbortLevel.L4
+
+
+@pytest.mark.req('REQ-ORC-010')
+@pytest.mark.tc('TC-ORC-010-02')
+@pytest.mark.level('U')
+@pytest.mark.parametrize('point', ['before_retreat', 'during_retreat', 'before_verify'])
+@pytest.mark.parametrize('failed', [False, True])
+def test_cleanup_after_real_cycle_deadline(fake_clock, cfg, point, failed):
+    cycle_end = fake_clock.ros_now() + goal().timeout_s
+    class DeadlinePort(FakeSkillPort):
+        def place_feedback(self, phase, deadline):
+            if phase == 'RETREAT':
+                assert deadline > self.clock.ros_now()
+                if point == 'during_retreat':
+                    self.clock.advance_ros(cycle_end - self.clock.ros_now() + .1)
+                    assert deadline > self.clock.ros_now()
+            return super().place_feedback(phase, deadline)
+        def verify(self, deadline):
+            assert deadline - self.clock.ros_now() == pytest.approx(cfg.verify.timeout_s)
+            return super().verify(deadline)
+    port = DeadlinePort(fake_clock)
+    if failed:
+        port.script['result.RETREAT'] = [Reply(replace(M.OK_RET, tcp_z_m=.05), .1)]
+    def on_state(state):
+        if ((point == 'before_retreat' and state is S.RETREAT)
+                or (point == 'before_verify' and state is S.VERIFY)):
+            fake_clock.advance_ros(cycle_end - fake_clock.ros_now() + .1)
+        elif point == 'during_retreat' and state is S.RETREAT:
+            fake_clock.advance_ros(cycle_end - fake_clock.ros_now() - .1)
+    out = CycleRunner(port, fake_clock, cfg, on_state=on_state).run(goal())
+    if failed:
+        assert out.abort_level is AbortLevel.L4
+        assert 'Stop' in port.names() and 'VerifyDrop' not in port.names()
+    else:
+        assert out.result == 'SUCCESS'
+        assert out.states[-3:] == [S.RETREAT, S.VERIFY, S.DONE]
+        assert port.names().count('VerifyDrop') == 1

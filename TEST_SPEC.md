@@ -243,7 +243,8 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-ORC-001-01 | MODE_SYNCHRONIZED 정상 상태 열 | U | `[ON]` | 모든 판정 OK | `IDLE→PRECHECK→DETECT_STONE→PICK_STONE→MOVE_STANDBY→WAIT_CAP→PLAN_INTERCEPT→APPROACH→SYNCHRONIZE→DESCEND→RELEASE→RETREAT→VERIFY→DONE` |
 | TC-ORC-001-02 | MODE_STATIC은 PLAN_INTERCEPT·SYNCHRONIZE를 건너뛰고 WAIT_CAP을 정지 뚜껑 검출로 바꾼다 | U | `[ON]` | mode = STATIC, 모든 판정 OK | PLAN_INTERCEPT·SYNCHRONIZE 없음, WAIT_CAP 단계에서 `DetectObjects(REGION_BELT, CLASS_CAP)` 호출, `PlaceStone` 사용 |
 | TC-ORC-001-03 | MODE_PREDICTED는 SYNCHRONIZE를 계획 속도 일치 구간 진입 판정으로 바꾼다 | U | `[ON]` | mode = PREDICTED | SYNCHRONIZE 판정 입력이 계획 구간 진입 시각·속도 오차 |
-| TC-ORC-002-01 | 판정 실패 뒤 다음 단계 skill을 부르지 않는다 | U | `[ON]` | 각 단계를 하나씩 FAILED로 대본 작성(단계 수만큼 parametrize) | `FakeSkillPort.calls`에 다음 단계 skill 없음 |
+| TC-ORC-002-01 | 최종 실패 뒤 정상 경로의 다음 skill 차단(재관측·L1·통과 보내기·해제 뒤 정리 예외) | U | `[ON]` | 각 단계를 하나씩 FAILED로 대본 작성(단계 수만큼 parametrize) | `FakeSkillPort.calls`에 다음 단계 skill 없음 |
+| TC-ORC-002-02 | 해제 후 정리 경로 | U | `[ON]` | RELEASE 실패 | RETREAT→VERIFY, 최종 FAILURE; 하드 이상·RETREAT 실패는 L4 우선 |
 | TC-ORC-003-01 | PRECHECK heartbeat 나이 경계 | U | `[ON]` | 나이 0.299 / 0.300 / 0.301 s | OK / OK / FAILED(`HEARTBEAT_STALE`) |
 | TC-ORC-003-02 | PRECHECK 그리퍼 응답·상태 | U | `[ON]` | 응답 0.5 s / 0.501 s, error_bits ≠ 0, 개방 아님 | OK / FAILED(`GRIPPER_SLOW`) / FAILED(`GRIPPER_ERROR`) / FAILED(`GRIPPER_NOT_OPEN`) |
 | TC-ORC-003-03 | DETECT_STONE 판정 | U | `[ON]` | confidence 0.89 / 0.90, 창 표준편차 0.5 / 0.51 mm, 개수 0 | FAILED / OK, OK / FAILED, FAILED(`NO_STONE`) |
@@ -251,14 +252,14 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-ORC-003-05 | PICK_STONE 전류·매트 확인 | U | `[ON]` | 전류 < 하한 / 매트 ROI에 공깃돌 남음 | FAILED(`GRIP_CURRENT_LOW`) / FAILED(`STONE_ON_MAT`) |
 | TC-ORC-003-06 | MOVE_STANDBY 자세 오차 | U | `[ON]` | 2.0 / 2.1 mm, holding false | OK / FAILED, FAILED(`DROPPED`) |
 | TC-ORC-003-07 | WAIT_CAP 추적 안정 경계 | U | `[ON]` | observation_count 29 / 30, speed_std 1.00 / 1.01 mm/s, `steady=false` | 통과 대기 / OK, OK / 대기, 대기 |
-| TC-ORC-003-08 | WAIT_CAP 빈 뚜껑·시간 예산 | U | `[ON]` | `stone_inside=true` / `stone_inside_valid=false` / margin −0.01 s / margin 0 | FAILED(`CAP_NOT_EMPTY`) / reason `PASS_SKIP`(`CAP_STATE_UNKNOWN`) / reason `PASS_SKIP` / OK |
+| TC-ORC-003-08 | WAIT_CAP 빈 뚜껑·시간 예산 | U | `[ON]` | `stone_inside=true` / `stone_inside_valid=false` / `t_available−t_required` = 0.99 / 1.00 / 1.01 s (`margin_s=1.00 s`) | FAILED(`CAP_NOT_EMPTY`) / reason `PASS_SKIP`(`CAP_STATE_UNKNOWN`) / reason `PASS_SKIP` / OK / OK |
 | TC-ORC-003-09 | PLAN_INTERCEPT 판정 | U | `[ON]` | time_margin 0.99 / 1.00 s, position_std 0.5 / 0.51 mm, `valid_until = now + T_approach` | FAILED / OK, OK / FAILED, FAILED(경계는 `>`) |
 | TC-ORC-003-10 | SYNCHRONIZE 연속 0.3 s | U | `[ON]` | 100 Hz 표본, 0.25 s 시점에 e_xy 1회 초과 | 초과 시점부터 다시 셈, 초과 후 0.3 s 연속 만족한 시점에 OK, 2 s 안에 못 채우면 TIMEOUT |
 | TC-ORC-003-11 | DESCEND 핑거 끝 여유 | U | `[ON]` | 핑거 끝 − 테두리 = 1.9 / 2.0 mm | FAILED(`RIM_CLEARANCE`) / OK |
 | TC-ORC-003-12 | RELEASE 개방 확인 | U | `[ON]` | 간격 20.9 / 21.0 mm(`d_stone_max+Δ_open−1 mm` = 21 mm) | FAILED / OK |
 | TC-ORC-003-13 | RETREAT 판정 | U | `[ON]` | z < 안전 높이 / 그리퍼에 공깃돌 보임 | FAILED → L4 / FAILED → L4 |
-| TC-ORC-003-14 | VERIFY 제한시간 | U | `[ON]` | `VerifyDrop` 3 s 무응답 | 결과 UNKNOWN, reason `VERIFY_TIMEOUT` |
-| TC-ORC-004-01 | 판정에 쓴 값이 모두 StepRecord에 남는다 | U | `[ON]` | 각 judge 호출 | `Judgement.metrics` 키가 단계별 명세 키 집합과 같고, StepRecord `metric_keys`에 그대로 복사 |
+| TC-ORC-003-14 | VERIFY 제한시간 | U | `[ON]` | fake clock·VerifyDrop 2.999 / 3.000 / 3.001 s 응답 및 hang | 직전·경계 응답 수용, 직후·hang은 3.000 s에 UNKNOWN·`VERIFY_TIMEOUT`, 추가 로봇 지령 0회 |
+| TC-ORC-004-01 | 판정에 쓴 값이 모두 StepRecord에 남는다 | U | `[ON]` | 각 judge 호출, 구현 상수와 독립인 SPEC 키 fixture | `Judgement.metrics` 키가 단계별 명세 키 집합과 같고, StepRecord `metric_keys`에 그대로 복사 |
 | TC-ORC-005-01 | 선행조건 불충족이면 실행하지 않는다 | U | `[ON]` | PICK_STONE 검출 시각 1.01 s 전 | `PRECONDITION`, skill 호출 0회, 로봇 미동작 |
 | TC-ORC-006-01 | 재시도 횟수 | U | `[ON]` | DETECT_STONE 2회 실패 후 OK / 3회 실패 | attempt 3에서 진행 / L2 |
 | TC-ORC-006-02 | 재시도는 선행조건부터 다시 본다 | U | `[ON]` | PICK_STONE 실패 후 재시도 시 검출 시각이 1 s 지남 | DETECT_STONE부터 다시 실행 |
@@ -266,6 +267,7 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-ORC-007-02 | 통과 보내기 소진 | U | `[ON]` | max_passes = 2, 세 통과 모두 부족 | L3, `SafeRetreat(keep_sync=false, place_back_pose=매트)` 호출, 결과 `NOT_ATTEMPTED` |
 | TC-ORC-008-01 | 대기 자세에서 계획 실패는 다음 통과로 넘긴다 | U | `[ON]` | PLAN_INTERCEPT가 동적 deadline까지 실패, 남은 통과 있음 | APPROACH 호출 0회, WAIT_CAP 복귀 |
 | TC-ORC-009-01 | WAIT_OPERATOR 재개 | U | `[ON]` | `resume` 사유 없음 / 사유 있음 | 거부 / PRECHECK부터 재시작, 진입 시각·사유 기록 |
+| TC-ORC-010-02 | 해제 뒤 독립 cleanup 예산 | U | `[ON]` | RELEASE 직후·RETREAT 도중·VERIFY 직전 실제 ROS 시각이 원 사이클 deadline 초과, 준비된 결과·지연 결과·실패·동결 시계 | RETREAT·VERIFY 각각 기존 단계 제한시간, 준비된 응답 우선, 실제 후퇴 실패·하드 이상 L4, steady 상한 유지 |
 | TC-ORC-010-01 | 포트 대기와 비동기 장애 latch | U | `[ON]` | 해제 전 비하드 장애 / RELEASE 응답 뒤 비하드 장애 / 해제 뒤 비하드 latch 중 하드 이상 / 하드 latch 중 비하드 / `reset` 뒤 | 대기 종료 / 대기 계속·latch 유지 / 대기 종료·하드로 교체 / 하드 유지 / 해제 표시 초기화 |
 
 ### 3.4 ABT — 중단·제한시간·감시
@@ -278,18 +280,25 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-ABT-002-01 | 높은 등급이 낮은 등급을 덮어쓴다 | U | `[ON]` | L3 진행 중 L4 / L4 진행 중 L2 | L4 / L4 유지 |
 | TC-ABT-003-01 | L2 중단 경로 제한시간 | U | `[ON]` | steady 10.000 / 10.001 s 경과 | 유지 / L4 |
 | TC-ABT-003-02 | L3 중단 경로 제한시간 | U | `[ON]` | steady 15.000 / 15.001 s 경과 | 유지 / L4 |
+| TC-ABT-003-03 | 포트 대기 steady·cancel·종료 | U | `[ON]` | ROS 시각 정지, 대기 중 cancel·context 종료·cleanup guard | steady 상한 반환, USER_CANCEL 또는 하드 중단, cleanup 지속; 0.8 s ROS 역행 중 0.36 s 정상 phase는 deadline 1 s·steady 2 s 안에서 완료, ROS 정지 시 steady 2 s에서 종료 |
 | TC-ABT-004-01 | cancel 무응답 승격 | U | `[ON]` | cancel 후 0.5 s 응답 없음 | 한 단계 승격 |
+| TC-ABT-004-02 | 늦은 action 수락 | U | `[ON]` | 수락 future 지연 후 cancel 요청·늦은 수락 | 미확정은 ack=false, 수락 후 cancel, terminal 확인 전 대체 모션 없음 |
 | TC-ABT-005-01 | 들고 있을 때 사용자 cancel은 L3 | U | `[ON]` | holding = true, 사용자 cancel | L3 |
 | TC-ABT-006-01 | 실제 deadline은 세 값의 최솟값 | U | `[ON]` | 단계·동적·사이클이 각각 최소인 3경우, 동적 = None | 최솟값 / None은 무시 |
 | TC-ABT-007-01 | 측정 기반 단계 제한시간 | U | `[ON]` | (p95, p99) = (1.0, 1.2) / (2.0, 2.1) | 2.0 / 4.0(`max(ceil(1.5·p99), p95+0.5)`) |
 | TC-ABT-008-01 | `/clock`이 멈춰도 사이클은 끝난다 | U | `[ON]` | `freeze_ros()`, steady만 `goal.timeout × 2` 진행 | 사이클 중단(L2, 들고 있으면 L3) |
 | TC-ABT-009-01 | 감시 타이머는 steady 시계를 쓴다 | U | `[ON]` | `jump_ros(−5 s)` 후 heartbeat 정상 / `freeze_ros()` 후 heartbeat 0.3 s 끊김 | 오검출 없음 / 검출 |
 | TC-ABT-009-02 | heartbeat·상태 발행 및 감시 ROS 타이머가 steady 시계 | C | `[ON]` | `use_sim_time:=true`, `/clock` 없음(ROS 시각 정지): `mock_world_node`·`mock_robot_controller_node`·`robot_controller_node` 1 s, `safety_supervisor_node`에 controller heartbeat 1회 후 끊김, `orchestrator_node._watch` 타이머 시계 | heartbeat·`robot/status` 각 7회 이상 / 0.5 s 안에 `Stop(CONTROLLER_HEARTBEAT_LOST)` / `STEADY_TIME` |
+| TC-ABT-009-03 | Supervisor Stop 재시도 | U | `[ON]` | 서비스 지연·future 지연·거부·예외 | in-flight 최대 1개, stopped=true까지 재시도·오류 경고 |
 | TC-ABT-010-01 | heartbeat 3회 누락 | U | `[ON]` | 누락 0.299 / 0.300 s, 대상 vision(동적 구간) / vision(비동적) / robot_controller | 유지 / 검출 → L3 / L2 / L4 |
 | TC-ABT-011-01 | 동적 구간 관측 신선도 | U | `[ON]` | `t_now − t_last_obs` = 0.300 / 0.301 s, 해제 전 | 유지 / L3 |
-| TC-ABT-012-01 | ROS 시각 역행 | U | `[ON]` | 역행 1회 | track·plan 무효화, 들고 있으면 L3 아니면 L2 |
+| TC-ABT-012-01 | ROS 시각 역행 | U | `[ON]` | 역행 1회 | U: 역행 검출과 이벤트 등급(holding L3 / 비holding L2); epoch 증가·기존 track 제거·기존 plan 재사용 거부는 TC-ABT-012-02(G3) |
 | TC-ABT-013-01 | 벨트 속도 급변 | U | `[ON]` | `steady=false`, 해제 전 / 해제 후 | L3 / 계속(RETREAT→VERIFY) |
 | TC-ABT-014-01 | 그리퍼 감시 | U | `[ON]` | error_bits ≠ 0 또는 응답 0.501 s, holding / 비holding | L3 / L2 |
+| TC-ABT-011-02 | 관측 freshness ROS 연결(G3/G4) | C | `[ON]` | 실제 관측 cache를 0.301 s 오래되게 주입 | 해제 전 L3, 실제 경로 사용 전 필수 |
+| TC-ABT-012-02 | 역행 무효화 ROS 연결(G3) | C | `[ON]` | 독립 track·plan 저장소 fixture, ROS 역행 1회 | epoch 증가·기존 track 제거·기존 plan 재사용 거부, holding L3 / 비holding L2 |
+| TC-ABT-013-02 | 벨트 ROS 이벤트 연결(G3) | C | `[ON]` | 실행 중 BeltMotion.steady=false | BELT_UNSTEADY 이벤트, 해제 전 L3 / 후 RETREAT→VERIFY |
+| TC-ABT-014-02 | 그리퍼 ROS 감시 연결(G0) | C | `[ON]` | 오류·응답 지연 상태 입력 | holding L3 / 비holding L2, 실제 경로 사용 전 필수 |
 | TC-ABT-015-01 | 장애 10종 이벤트 열 | U | `[ON]` | `PLAN.md` 7.3절 10종을 이벤트 열로(시나리오마다 1 TC, 순번 01~10) | 시나리오별 기대 등급(`test/data/fault_expectations.yaml`) |
 | TC-ABT-016-01 | WAIT_OPERATOR는 제한시간이 없다 | U | `[ON]` | steady 1 h 경과 | 상태 유지, 승격 없음 |
 
@@ -427,7 +436,7 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-MCK-002-01 | 역할 분리 일관성 | C | `[ON]` | `role:=vision`, `role:=tracking` 별도 프로세스 | 같은 시각의 뚜껑 위치 차 ≤ 1e-9 m |
 | TC-MCK-003-01 | mock_world 계약 | C | `[ON]` | vision·tracker 계약 시험 | 통과 |
 | TC-MCK-004-01 | mock_robot_controller 계약 | C | `[ON]` | robot_controller 계약 시험 | 통과 |
-| TC-MCK-005-01 | 장애 주입 시각 | C | `[ON]` | 시나리오 이벤트 10종, 노드 topic·heartbeat·skill 결과 관찰 | 지정 시각 ± 1 프레임에 발생 |
+| TC-MCK-005-01 | 장애 주입 시각 | C | `[ON]` | 단조 시계로 구동한 시험용 ROS 시각에서 시나리오 이벤트 10종, 노드 topic·heartbeat·skill 결과 관찰 | 엔진·30 Hz 데이터 ≤ 1프레임, heartbeat ≤ 0.1 s, skill 첫 검사 주기; 주입 위상·수신 steady 기록, 전송 관측 지연 ≤ 0.2 s |
 | TC-MCK-005-02 | 장애 주입 시각(엔진) | U | `[ON]` | 이벤트 10종을 넣은 시나리오, 이벤트 직전·직후 프레임 | 직전 프레임은 효과 없음, 직후 프레임(± 1)에 효과 |
 | TC-MCK-006-01 | 가정값 표기 | U | `[ON]` | `scenarios/*.yaml` | `world`·`robot` 수치 값이 모두 `assumed:` 또는 `measured:` 중 하나로 분류(중복 0), 엔진 `assumed_params`가 분류 결과와 같음 |
 | TC-MCK-006-02 | 가정값 기록 복사 | I0 | `[ON]` | mock 1사이클 | trial 기록 `assumed_params` == 대역 노드 `assumed_params` 파라미터 |
@@ -440,20 +449,28 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 |---|---|---|---|---|---|
 | TC-REC-001-01 | 시도 기록 스키마 | U | `[ON]` | `PLAN.md` 10.2절 JSON Schema로 검증 | 필수 필드 누락 시 실패 |
 | TC-REC-002-01 | 시도하지 않은 경우도 기록 | I0 | `[ON]` | `time_insufficient` 소진 | `result = NOT_ATTEMPTED`, reason, `passes_skipped` 기록 |
-| TC-REC-003-01 | 단계 기록 | I0 | `[ON]` | 정상 1사이클 | 단계 수만큼 StepRecord JSONL, metric 키 포함 |
+| TC-REC-002-03 | 일반 설치 schema | U | `[ON]` | 저장소 밖 CWD의 copy install | 설치된 schema 발견·정상 trial 검증 |
+| TC-REC-002-02 | logger 실패·직렬화·격리 | U | `[ON]` | I/O 오류 후 같은 trial 재전달, callback 경합, 잘못된 summary, schema 부재 | 오류 노출·성공 뒤 dedup, 직렬화, invalid 격리·정상 기록 금지 |
+| TC-REC-003-01 | 단계 기록 | I0 | `[ON]` | 정상 1사이클 | 12단계 이름·순서·attempt=1·전체 metric 키는 독립 SPEC 기대값과 같음; 키/값 전체는 수신 StepRecord와 JSONL이 같음; 시작·종료 ROS 시각은 역행을 포함해 원본 StepRecord와 동일 |
 | TC-REC-004-01 | Wilson 95% 구간 | U | `[ON]` | k/n = 45/50, 50/50, 0/20 | [0.7864, 0.9565], [0.9287, 1.0000], [0.0000, 0.1611](±1e-4) |
 | TC-REC-004-02 | UNKNOWN 처리 | U | `[ON]` | SUCCESS 40, FAILURE 5, UNKNOWN 5 | 성공률 40/50(UNKNOWN은 분모에만) |
 | TC-REC-005-01 | 분위수 보고 | U | `[ON]` | 알려진 표본 | p50/p95/p99/최대값이 numpy `method="linear"`와 일치 |
 | TC-REC-006-01 | 추적 행렬 | U | `[ON]` | TC 없는 REQ 1개, 테스트 없는 TC 1개 | 두 목록 출력, 종료 코드 ≠ 0 |
+| TC-REC-006-02 | 게이트 추적 필터 | U | `[ON]` | 영역 전체·REQ 목록·범위·TC 순번·제외·잘못된 문법, M0 | 선택 TC와 연결 REQ만 검사, 잘못된 항목은 오류, M0 누락 0 |
+| TC-REC-007-01 | JUnit 수준별 집계 | U | `[ON]` | 여러 XML, U/C/I0/I1, 실패·오류·skip·수준 없음 | 통과/전체와 미측정 빈칸, U+I1 합계 |
+| TC-REC-007-02 | 하루 한 줄 | U | `[ON]` | 기존 날짜 중복과 다른 날짜 | 헤더·다른 날짜 보존, 같은 날짜 한 행 |
+| TC-REC-007-03 | 개발 지표 CLI | U | `[ON]` | git 저장소·추적 명세·운영 인자 | SHA·날짜·REQ 연결률·운영 값 기록 |
+| TC-REC-007-04 | JUnit 수준 속성 | U | `[ON]` | 공통 pytest 훅으로 U 및 skip 실행 | JUnit testcase properties에 level 보존 |
+| TC-REC-007-05 | 잘못된 입력 | U | `[ON]` | XML·날짜·운영 수치·CSV 헤더 오류 | 실패, 기존 출력 보존 |
 
 ### 3.13 INT — ROS 통합
 
 | TC | 검증 내용(REQ 초안) | 수준 | 장소 | 조건 | 기대 결과 |
 |---|---|---|---|---|---|
 | TC-INT-001-01 | I0 정상 | I0 | `[ON]` | `nominal_20mms`, 20회 | 20/20 SUCCESS(mock 판정), 상태 열 TC-ORC-001-01과 같음 |
-| TC-INT-002-01 | 로봇 무응답 | I0 | `[ON]` | `robot_hang` | cancel 0.5 s 무응답 → 승격, 정의된 등급 |
-| TC-INT-003-01 | 보호정지 | I0 | `[ON]` | `protective_stop` | supervisor → `Stop` → WAIT_OPERATOR, 자동 재개 0회 |
-| TC-INT-004-01 | heartbeat 손실 | I0 | `[ON]` | vision·tracker·controller 각각 끊음 | L2/L3/L4(TC-ABT-010-01과 같음) |
+| TC-INT-002-01 | 로봇 무응답 | I0 | `[ON]` | `robot_hang` | cancel 호출 1회, steady cancel 송신→L4 승격 0.5~0.7 s(관측 지연 ≤ 0.2 s), cancel 직전 L2 / 미종료 로봇 지령 확인 뒤 L4(U 계측)·Stop ≥1건; I0 수신→Stop은 0.48~0.70 s(송수신 원점 오차 ≤ 0.02 s) |
+| TC-INT-003-01 | 보호정지 | I0 | `[ON]` | `protective_stop` | requester별 이력에서 SUPERVISOR `Stop` ≥1건 → WAIT_OPERATOR, 자동 재개 0회 |
+| TC-INT-004-01 | heartbeat 손실 | I0 | `[ON]` | 정상 heartbeat 확인 후 vision·controller는 PICK_STONE(파지 전), tracker는 MOVE_STANDBY(파지 후)에서 각각 끊음 | L2/L3/L4(TC-ABT-010-01과 같음) |
 | TC-INT-005-01 | 시간 부족 | I0 | `[ON]` | 첫 통과 부족 → 다음 통과 / 전부 부족 | 두 번째 통과에서 진행 / `NOT_ATTEMPTED` |
 | TC-INT-006-01 | lifecycle 비활성 | I0 | `[ON]` | 노드 하나 `INACTIVE` | PRECHECK FAILED, skill 호출 0회 |
 | TC-INT-007-01 | replay는 지령 경로가 없다 | I1 | `[ON]` | `replay.launch.py` | 스트림 토픽 발행자·robot action 클라이언트·그리퍼 호출 0개 |
@@ -507,17 +524,19 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 
 ## 4. 게이트별 필수 시험 묶음
 
-| 게이트 | `[ON]` 필수(모두 통과) | `[ON*]` 필수 | `[OFF]` 필수 |
-|---|---|---|---|
-| M0 | SYS 전부, IF 전부, ORC 전부, ABT 전부, MCK 전부, REC 전부, INT-001~007 | — | — |
-| G0 | ROB-001~012, GRP 전부(실측표 전에는 선형 표) | GRP-001(OFF-1 실측표로 재실행) | BEN-001, 003~008, INT-020 |
-| G1 | VIS-001~008, CAL 전부 | VIS-010 | BEN-012 |
-| G2 | ORC(MODE_STATIC 경로), VIS-009-01 | VIS-009-02 | BEN-009, EXP-G2 |
-| G3 | TRK-001~012 | TRK-013 | BEN-002, 010, INT-021, EXP-G3 |
-| G4 | PLN 전부 | — | BEN-011, EXP-G4 |
-| G5 | ROB-006, 008~010 | — | EXP-G5 |
-| G6 | ROB 전부, PLN 전부 | — | EXP-G6 |
-| G7 | 위 전부 + SIM(선택) | 위 전부 | EXP-G7, EXP-CMP |
+| 게이트 | `[ON]` 필수(모두 통과) | `[ON*]` 필수 | `[OFF]` 필수 | 실행 조건 |
+|---|---|---|---|---|
+| M0 | SYS-001·002·004, IF 전부, ORC 전부, ABT 전부(011-02·012-02·013-02·014-02 제외), MCK 전부, REC 전부, INT-001~006 | — | — | — |
+| G0 | ABT-014-02, ROB-001~012, GRP 전부 | GRP-001 | BEN-001·003~008, INT-020 | GRP: 실측표 전에는 선형 표; `[ON*]` GRP-001은 OFF-1 실측표로 재실행 |
+| G1 | SYS-003-01, ORC-005, VIS-001~008, CAL 전부 | VIS-010 | BEN-012 | ORC-005: 실제 영상 freshness·안정 창 C/I |
+| G2 | ORC 전부, VIS-009-01 | VIS-009-02 | BEN-009, EXP-G2 | ORC: MODE_STATIC 경로 |
+| G3 | SYS-003-02, ABT-011-02·012-02·013-02, TRK-001~012 | TRK-013 | BEN-002·010, INT-021, EXP-G3 | — |
+| G4 | ABT-011-02, PLN 전부 | — | BEN-011, EXP-G4 | — |
+| G5 | ROB-006·008~010 | — | EXP-G5 | — |
+| G6 | ROB 전부, PLN 전부 | — | EXP-G6 | — |
+| G7 | SYS 전부, IF 전부, ORC 전부, ABT 전부, MCK 전부, REC 전부, INT-001~006, ROB 전부, GRP 전부, VIS-001~008·009-01, CAL 전부, TRK-001~012, PLN 전부 | GRP-001, VIS-010·009-02, TRK-013 | EXP-G7, EXP-CMP | 앞 게이트 실행 조건 유지; SIM 전부 선택 |
+
+- INT-007-01은 I1 게이트이며 M0 대상이 아니다. SYS-003-01은 G1, SYS-003-02는 G3다. ABT-011~014의 M0 범위는 U 판정·이벤트 입력이며 ROS 연결은 각 -02의 게이트 조건이다.
 
 - 앞 게이트의 `[ON]` 시험은 뒤 게이트에서도 계속 통과해야 한다(CI 회귀).
 - 시험 케이스를 추가·삭제하면 이 표와 `tools/spec/trace.py` 결과를 같은 커밋에서 맞춘다.

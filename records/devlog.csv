@@ -1,1 +1,2 @@
 date,git_sha,unit_pass,unit_total,contract_pass,contract_total,req_link_pct,integration_stage,ros_i0_pass,ros_i0_total,unit_replay_pass,unit_replay_total,gate_status,open_issues,robot_hours
+2026-11-09,47308d8200fc65f7475042ed011fb1aba5639cd7,793,793,72,72,100.00,I0,8,8,793,793,M0:진행,,0.0

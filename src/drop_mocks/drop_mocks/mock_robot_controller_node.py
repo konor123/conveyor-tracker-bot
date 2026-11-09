@@ -1,6 +1,7 @@
 """mock_robot_controller_node(SPEC-700 4.5절): skill 액션 5종 + Stop + RobotStatus + Heartbeat 대역."""
 from __future__ import annotations
 
+import json
 import threading
 import time
 
@@ -38,6 +39,12 @@ class MockRobotControllerNode(MockLifecycleNode):
         self.declare_parameter('last_stop_requester', 0)
         self.declare_parameter('last_stop_reason', '')
         self._stop_count = 0
+        self.declare_parameter('cancel_count', 0)
+        self.declare_parameter('cancel_received_steady_s', 0.0)
+        self.declare_parameter('stop_history_json', '[]')
+        self._cancel_count = 0
+        self._stop_history = []
+        self._observer_lock = threading.Lock()
         self._lock = threading.Lock()
         self._busy = False
         self._active_skill: str | None = None
@@ -52,7 +59,7 @@ class MockRobotControllerNode(MockLifecycleNode):
         group = ReentrantCallbackGroup()
         self._servers = [
             ActionServer(self, typ, topic, execute_callback=self._executor_for(name),
-                         goal_callback=self._on_goal, cancel_callback=lambda _: CancelResponse.ACCEPT,
+                         goal_callback=self._on_goal, cancel_callback=self._on_cancel,
                          callback_group=group)
             for name, (typ, topic, _) in ACTIONS.items()]
         self.create_service(Stop, 'robot/stop', self._on_stop, callback_group=group)
@@ -75,6 +82,16 @@ class MockRobotControllerNode(MockLifecycleNode):
                 return GoalResponse.REJECT
             self._busy = True
         return GoalResponse.ACCEPT
+
+    def _on_cancel(self, goal_handle):
+        # Observation only: retain the existing ACCEPT behavior, including hang scripts.
+        with self._observer_lock:
+            self._cancel_count += 1
+            self.set_parameters([
+                Parameter('cancel_count', value=self._cancel_count),
+                Parameter('cancel_received_steady_s', value=time.monotonic()),
+            ])
+        return CancelResponse.ACCEPT
 
     def _executor_for(self, name):
         return lambda goal_handle: self._execute(name, goal_handle)
@@ -216,6 +233,14 @@ class MockRobotControllerNode(MockLifecycleNode):
 
     # ------------------------------------------------------------ Stop·Status·Heartbeat
     def _on_stop(self, req, res):
+        with self._observer_lock:
+            self._stop_history.append({
+                'requester': int(req.requester), 'reason_code': str(req.reason_code),
+                'received_steady_s': time.monotonic(),
+            })
+            self.set_parameters([
+                Parameter('stop_history_json', value=json.dumps(self._stop_history)),
+            ])
         self._stop_requested = True
         try:
             end = time.monotonic() + 2.0

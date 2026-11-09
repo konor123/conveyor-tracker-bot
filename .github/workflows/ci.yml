@@ -65,5 +65,5 @@ jobs:
       - name: Check M0 requirement/test trace
         shell: bash
         run: |
-          python3 tools/spec/trace.py --area IF,ORC,ABT,MCK,REC
-          python3 tools/spec/trace.py --area SYS,IF,ORC,ABT,MCK,REC,INT || true
+          python3 tools/spec/trace.py --gate M0 --check
+          python3 tools/spec/trace.py --area SYS,IF,ORC,ABT,MCK,REC,INT --check || true

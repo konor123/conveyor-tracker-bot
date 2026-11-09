@@ -1,6 +1,6 @@
 # SPEC-000 system
 
-- 버전: v0.1
+- 버전: v0.2
 - 근거: PLAN.md 0.2, 1, 2.3~2.5절
 - REQ 영역: SYS
 
@@ -8,6 +8,7 @@
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
+| v0.2 | 2026-11-09 | M0 검증 범위·게이트 및 독립 계약 기대값 정합성 |
 | v0.1 | 2026-11-07 | 패키지 구성·이름 규칙(10개), TF 트리·좌표계, 시각·시계 규약, SI 단위·단위 변환 어댑터·설정 키 단위 접미사(10종) |
 
 ## 1. 목적·범위
@@ -19,7 +20,7 @@
 
 ## 2. 입력·출력(interface 버전)
 
-SPEC-010 v0.1(`src/drop_interfaces/`) 기준.
+SPEC-010 wire schema v0.2 / runtime contract v0.4(`src/drop_interfaces/`) 기준.
 
 - 입력 설정 파일: 각 패키지 `src/*/config/*.yaml`, 대역 시나리오 `src/drop_mocks/scenarios/*.yaml`.
 - 주요 좌표계(`frame_id`):
@@ -128,6 +129,8 @@ world
 
 - 패키지 이름 충돌(`REQ-SYS-001` 위반), YAML 단위 접미사 누락(`REQ-SYS-002` 위반), 어댑터 외 단위 변환 코드(`REQ-SYS-004` 위반)는 정적·단위 시험(U)에서 즉시 실패로 검출하여 게이트 통과를 차단한다.
 - 런타임 중 관측·추적 타임스탬프가 역행(`CLOCK_JUMP`)하거나 동적 구간에서 관측 신선도(`t_now - t_last_obs > obs_freshness_s`)가 초과되면 오케스트레이터가 SPEC-110 4.3절에 따라 트랙·계획을 무효화하고 L2 또는 L3 중단으로 전이한다.
+
+M0는 감시 판정 함수와 이벤트 입력의 U 검증 범위다. ROS 관측 신선도(G3/G4)·시각 역행 무효화(G3)·그리퍼(G0)·벨트 BELT_UNSTEADY 이벤트(G3)의 노드 연결은 해당 게이트 필수 조건이며 실제 경로 사용 전에 C/I 시험을 통과한다. 연결 소유자는 orchestrator_node._watch와 tracking/reset·planner 무효화 경로이며 supervisor의 독립 L4 역할은 유지한다.
 
 ## 7. 성공 판정(측정 가능)
 

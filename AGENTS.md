@@ -55,7 +55,8 @@ source /opt/ros/jazzy/setup.bash
 colcon build --symlink-install && source install/setup.bash
 colcon test && colcon test-result --verbose
 python3 -m pytest -q tools
-python3 tools/spec/trace.py
+python3 tools/spec/trace.py --gate M0 --check
+python3 tools/eval/devlog.py --junit /tmp/drop-tests.xml --gate M0:진행 --open-issues 0 --robot-hours 0
 ```
 
 colcon이 없으면 시스템을 바꾸지 않고 venv에 설치해 쓴다: `python3 -m venv --system-site-packages ~/.venvs/colcon && ~/.venvs/colcon/bin/pip install colcon-common-extensions`.

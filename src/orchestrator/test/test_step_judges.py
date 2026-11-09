@@ -2,6 +2,7 @@
 import dataclasses
 
 import pytest
+from spec_metrics import EXPECTED_METRIC_KEYS
 
 from orchestrator import step_judges as sj
 from orchestrator.abort_policy import AbortCtx, Event, decide
@@ -174,6 +175,7 @@ def test_wait_cap_track_ready(change, result, reason, detail):
     ({'stone_inside_valid': False}, Result.FAILED, 'PASS_SKIP', 'CAP_STATE_UNKNOWN'),
     ({'t_available_s': 4.99, 't_required_s': 4.0}, Result.FAILED, 'PASS_SKIP', 'TIME_MARGIN'),
     ({'t_available_s': 5.00, 't_required_s': 4.0}, Result.OK, '', ''),
+    ({'t_available_s': 5.01, 't_required_s': 4.0}, Result.OK, '', ''),
 ])
 def test_wait_cap_empty_and_budget(change, result, reason, detail):
     j = sj.judge_wait_cap(rep(OK_WAIT, **change), P_WAIT)
@@ -372,7 +374,7 @@ def test_metric_keys_match_spec(step, call):
         budget = {k for k in keys if k.startswith('budget_')}
         assert budget == {f'budget_{n}_s' for n in OK_WAIT.budget_components}
         keys -= budget
-    assert keys == sj.METRIC_KEYS[step]
+    assert keys == EXPECTED_METRIC_KEYS[step]
     assert all(isinstance(v, float) for v in j.metrics.values())
     rk, rv = metrics_to_record(j)
     assert rk == list(j.metrics) and rv == list(j.metrics.values())
@@ -383,7 +385,7 @@ def test_metric_keys_match_spec(step, call):
 @pytest.mark.level("U")
 def test_metric_keys_present_on_failure_too():
     j = sj.judge_pick_stone(rep(OK_PICK, grip_width_m=0.0), P_PICK)
-    assert set(j.metrics) == sj.METRIC_KEYS['PICK_STONE']
+    assert set(j.metrics) == EXPECTED_METRIC_KEYS['PICK_STONE']
 
 
 @pytest.mark.req("REQ-ORC-003")

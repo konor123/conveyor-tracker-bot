@@ -92,3 +92,28 @@ def test_orchestrator_nodes_have_no_qos_event_handlers(ros):
     finally:
         for n in nodes:
             n.destroy_node()
+
+
+@pytest.mark.req('REQ-IF-004')
+@pytest.mark.tc('TC-IF-004-01')
+@pytest.mark.level('C')
+def test_actual_orchestrator_publishers_match_qos(ros):
+    from rclpy.qos import DurabilityPolicy, ReliabilityPolicy
+    node = OrchestratorNode()
+    h = Harness(node)
+    try:
+        expected = {
+            '/task/status': (DurabilityPolicy.TRANSIENT_LOCAL, 1),
+            '/task/step_record': (DurabilityPolicy.VOLATILE, 100),
+        }
+        for topic, (durability, depth) in expected.items():
+            h.wait_for(lambda: h.publisher_qos(topic), 5.0, topic)
+            for qos in h.publisher_qos(topic):
+                assert qos.reliability == ReliabilityPolicy.RELIABLE
+                assert qos.durability == durability
+            # DDS endpoint discovery may report depth=0: inspect actual owning node too.
+            pubs = [p for p in node.publishers if p.topic_name == topic]
+            assert len(pubs) == 1
+            assert pubs[0].qos_profile.depth == depth
+    finally:
+        h.close()

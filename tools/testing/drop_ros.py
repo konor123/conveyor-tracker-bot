@@ -20,6 +20,7 @@ from rclpy.action import ActionClient
 from rclpy.event_handler import SubscriptionEventCallbacks
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.qos import QoSProfile, ReliabilityPolicy
+from rclpy.parameter import Parameter
 
 DOMAIN = 100 + os.getpid() % 100
 RECORD_QOS = QoSProfile(depth=200, reliability=ReliabilityPolicy.RELIABLE)
@@ -68,11 +69,46 @@ def wait_future(fut, timeout: float):
     return fut.result()
 
 
+class SteadyRosClock:
+    """Publish controlled ROS time for schedule tests, independent of host NTP jumps.
+
+    The injected clock_jump scenario still changes message stamps; this clock only
+    supplies a stable scenario timeline. Close after all subscribing nodes stop.
+    """
+
+    def __init__(self):
+        from rosgraph_msgs.msg import Clock
+        self._message = Clock
+        self.node = rclpy.create_node(f'drop_test_clock_{os.getpid()}')
+        self.pub = self.node.create_publisher(Clock, '/clock', 10)
+        self.ros_origin = time.time()
+        self.steady_origin = time.monotonic()
+        self._stop = threading.Event()
+        self._thread = threading.Thread(target=self._run, daemon=True)
+        self._thread.start()
+
+    def now(self):
+        return self.ros_origin + time.monotonic() - self.steady_origin
+
+    def _run(self):
+        while not self._stop.is_set():
+            self.pub.publish(self._message(clock=to_time(self.now())))
+            self._stop.wait(0.005)
+
+    def close(self):
+        self._stop.set()
+        self._thread.join(timeout=2.0)
+        assert not self._thread.is_alive()
+        self.node.destroy_node()
+
+
 class Harness:
     """노드 여러 개 + 시험용 클라이언트 노드를 백그라운드 executor로 돌린다."""
 
-    def __init__(self, *nodes):
-        self.client = rclpy.create_node(f'drop_test_client_{os.getpid()}_{id(self)}')
+    def __init__(self, *nodes, use_sim_time=False):
+        self.client = rclpy.create_node(
+            f'drop_test_client_{os.getpid()}_{id(self)}',
+            parameter_overrides=[Parameter('use_sim_time', value=use_sim_time)])
         self.nodes = list(nodes)
         self.exec = MultiThreadedExecutor()
         for n in self.nodes + [self.client]:

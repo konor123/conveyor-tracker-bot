@@ -216,6 +216,9 @@ class CycleRunner:
                    timer=CycleTimer(clock, t0 + goal.timeout_s,
                                     goal.timeout_s * cfg.watchdog['cycle_steady_factor_ratio']),
                    tracker=AbortTracker(cfg.abort, clock))
+        set_guard = getattr(self._port, 'set_wait_guard', None)
+        if set_guard is not None:
+            set_guard(lambda: Event.CYCLE_TIMEOUT if not c.released and c.timer.expired() else None)
         states: list[State] = [S.IDLE]
         records: list[StepRec] = []
         result, reason = '', ''
@@ -245,7 +248,7 @@ class CycleRunner:
             else:
                 t_start = clock.ros_now()
                 j, event = self._execute(c, state)
-                fault = self._fault() or pending
+                fault = self._pending_event(c, state) or pending
                 # RETREAT 실패 등 하드 이상은 latch된 비하드 장애보다 우선한다.
                 if fault is not None and (event not in HARD_FAULTS or fault in HARD_FAULTS):
                     j, event = Judgement(Result.FAULT, fault.name, j.metrics), fault
@@ -262,6 +265,7 @@ class CycleRunner:
             ctx = CycleCtx(detection_fresh=self._detection_fresh(c))
             state = next_state(state, goal.mode, j, level, ctx)
             if state is S.DONE:
+                reason = reason or j.reason_code
                 result = result or ('FAILURE' if c.release_failed and c.verdict == 'SUCCESS'
                                     else c.verdict)
         return CycleOutcome(states, records, result, reason, c.tracker.level, c.passes_skipped,
@@ -274,6 +278,9 @@ class CycleRunner:
                                            S.RELEASE):
             dynamic = c.cap.dynamic_deadline
         step = self._cfg.step_limit_s(state) if limit is None else limit
+        # Released motion must finish cleanup even after the original cycle expires.
+        if c.released and state in (S.RETREAT, S.VERIFY):
+            return self._clock.ros_now() + step
         return effective_deadline(self._clock.ros_now(), step, dynamic, c.deadline)
 
     def _execute(self, c: _Cycle, state: State) -> tuple[Judgement, Event | None]:
@@ -490,16 +497,22 @@ class CycleRunner:
     def _abort_path(self, c, abort_state: State, failed_state: State) -> None:
         """L2: 안전 자세 / L3: (동기 유지) 상승 → 매트에 내려놓음 / L4: Stop. 경로 제한시간 초과 시 L4."""
         port, clock, p = self._port, self._clock, self._cfg.abort
+        set_guard = getattr(port, 'set_wait_guard', None)
+        if set_guard is not None:
+            set_guard(lambda: Event.PROTECTIVE_STOP if c.tracker.tick() is L.L4 else None, cleanup=True)
+        ok = True
         if c.active_goal:
             c.tracker.on_cancel_sent()
-            if port.cancel_active(p.cancel_response_s):
+            ok = bool(port.cancel_active(p.cancel_response_s))
+            if ok:
                 c.tracker.on_cancel_ack()
             c.active_goal = False
             c.tracker.tick()
-        ok = True
-        if c.tracker.level is L.L2:
+        # A timed-out cancel still escalates one level; unresolved motion
+        # prevents either replacement path and therefore requires Stop.
+        if ok and c.tracker.level is L.L2:
             ok = bool(port.move_to_pose('safe', clock.ros_now() + p.abort_path_l2_s + 0.001))
-        elif c.tracker.level is L.L3:
+        elif ok and c.tracker.level is L.L3:
             ok = bool(port.safe_retreat(keep_sync=failed_state in DYNAMIC_STATES, place_back=True,
                                         deadline=clock.ros_now() + p.abort_path_l3_s + 0.001))
         if not ok:

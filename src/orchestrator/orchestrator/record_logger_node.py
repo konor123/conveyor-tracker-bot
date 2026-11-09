@@ -10,6 +10,8 @@ import datetime
 import json
 import os
 import subprocess
+import threading
+from functools import wraps
 
 import rclpy
 from drop_interfaces.msg import StepRecord
@@ -104,6 +106,12 @@ def _find_schema_path() -> str | None:
         os.path.join(os.path.dirname(__file__), *[os.pardir] * 3, 'tools', 'eval', 'trial_schema.json'),
         os.path.join(os.getcwd(), 'tools', 'eval', 'trial_schema.json'),
     ]
+    try:
+        from ament_index_python.packages import get_package_share_directory
+        candidates.append(os.path.join(get_package_share_directory('orchestrator'),
+                                       'schema', 'trial_schema.json'))
+    except (ImportError, LookupError):
+        pass
     for p in candidates:
         if os.path.isfile(p):
             return os.path.realpath(p)
@@ -113,7 +121,7 @@ def _find_schema_path() -> str | None:
 def validate_trial_record(record: dict) -> list[str]:
     schema_path = _find_schema_path()
     if schema_path is None:
-        return []
+        return ['trial schema unavailable']
     from jsonschema import Draft202012Validator
     with open(schema_path, encoding='utf-8') as fh:
         schema = json.load(fh)
@@ -130,9 +138,23 @@ def _default_git_sha() -> str:
         return 'unknown'
 
 
+def _serialized(method):
+    @wraps(method)
+    def guarded(self, *args, **kwargs):
+        with self._io_lock:
+            try:
+                return method(self, *args, **kwargs)
+            except OSError as exc:
+                self.storage_error = str(exc)
+                self.get_logger().warning(f'record storage failed: {exc}')
+    return guarded
+
+
 class RecordLoggerNode(Node):
     def __init__(self, **kwargs):
         super().__init__('record_logger_node', **kwargs)
+        self._io_lock = threading.RLock()
+        self.storage_error = ''
         default_dir = os.environ.get('DROP_RECORDS_DIR') or os.path.join(
             os.getcwd(), 'records', 'trials')
         self.declare_parameter('records_dir', default_dir)
@@ -169,6 +191,7 @@ class RecordLoggerNode(Node):
                                  callback_group=group, event_callbacks=no_sub_events())
         self.create_timer(0.1, self._poll_mock_params, callback_group=group)
 
+    @_serialized
     def _poll_mock_params(self) -> None:
         if self._mock_synced or self._poll_inflight or not self._mock_cli.service_is_ready():
             return
@@ -177,6 +200,7 @@ class RecordLoggerNode(Node):
         fut = self._mock_cli.call_async(req)
         fut.add_done_callback(self._on_mock_params_reply)
 
+    @_serialized
     def _on_mock_params_reply(self, fut) -> None:
         self._poll_inflight = False
         try:
@@ -194,6 +218,7 @@ class RecordLoggerNode(Node):
             self.assumed_params = [s for s in v_assumed.string_array_value if s]
             self._mock_synced = True
 
+    @_serialized
     def _on_param_event(self, ev: ParameterEvent) -> None:
         node = ev.node.lstrip('/')
         all_params = list(ev.new_parameters) + list(ev.changed_parameters)
@@ -227,25 +252,32 @@ class RecordLoggerNode(Node):
                 pass
         return self.assumed_params
 
+    @_serialized
     def _write_trial_from_json(self, raw: str) -> None:
         try:
             summary = json.loads(raw)
+            if not isinstance(summary, dict):
+                raise ValueError('summary must be an object')
         except Exception as e:
+            self._quarantine({'raw': raw, 'notes': str(e)})
             self.get_logger().warning(f'last_trial_json 파싱 실패: {e}')
             return
         tid = str(summary.get('trial_id', ''))
         if tid and tid == self._last_trial_id:
             return
-        self._last_trial_id = tid
-        rec = build_trial_record(
-            summary,
-            env=self._env,
-            gate=self._gate,
-            git_sha=self._git_sha,
-            scenario_name=self._scenario_name,
-            seed=self._seed,
-            assumed_params=self._ensure_assumed_params(),
-        )
+        try:
+            rec = build_trial_record(
+                summary,
+                env=self._env,
+                gate=self._gate,
+                git_sha=self._git_sha,
+                scenario_name=self._scenario_name,
+                seed=self._seed,
+                assumed_params=self._ensure_assumed_params(),
+            )
+        except (TypeError, ValueError, OverflowError) as exc:
+            self._quarantine({'raw': raw, 'notes': str(exc)})
+            return
         errors = validate_trial_record(rec)
         try:
             path = trials_path(self._root, self._date)
@@ -264,8 +296,18 @@ class RecordLoggerNode(Node):
         with open(path, 'a', encoding='utf-8') as fh:
             fh.write(json.dumps(rec, ensure_ascii=False) + '\n')
             fh.flush()
+        self._last_trial_id = tid
+        self.storage_error = ''
         self.trials_written += 1
 
+    def _quarantine(self, record):
+        path = trials_path(self._root, self._date)[:-6] + '.invalid.jsonl'
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, 'a', encoding='utf-8') as fh:
+            fh.write(json.dumps(record, ensure_ascii=False) + '\n')
+            fh.flush()
+
+    @_serialized
     def _on_step_record(self, msg: StepRecord) -> None:
         try:
             path = steps_path(self._root, msg.cycle_id, self._date)

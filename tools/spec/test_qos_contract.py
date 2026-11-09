@@ -1,4 +1,4 @@
-"""IF QoS 계약 테스트 (TEST_SPEC.md 3.2절: TC-IF-004-01, TC-IF-004-02)."""
+"""QoS 검사 함수 fixture 및 호환성 시험(실제 orchestrator QoS는 test_watch_timers_ros.py). IF QoS 계약 테스트 (TEST_SPEC.md 3.2절: TC-IF-004-01, TC-IF-004-02)."""
 from __future__ import annotations
 
 import os
@@ -35,7 +35,7 @@ def ros():
 @pytest.mark.req("REQ-IF-004")
 @pytest.mark.tc("TC-IF-004-01")
 @pytest.mark.level("C")
-def test_publisher_qos_matches_spec_table(ros):
+def test_qos_checker_accepts_fixture_publishers(ros):
     node = rclpy.create_node("qos_spec_table_pub")
     data_qos = QoSProfile(
         depth=5,
@@ -84,6 +84,8 @@ def test_publisher_qos_matches_spec_table(ros):
         for q in status_infos:
             assert q.reliability == ReliabilityPolicy.RELIABLE
             assert q.durability == DurabilityPolicy.TRANSIENT_LOCAL
+            if q.depth > 0:
+                assert q.depth == 1
 
         # depth 불일치 시 check_data_qos가 실패하는지 확인
         with pytest.raises(AssertionError):

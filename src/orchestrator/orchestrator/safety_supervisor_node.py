@@ -13,10 +13,9 @@ import rclpy
 import yaml
 from drop_interfaces.msg import Heartbeat, RobotStatus, TaskStatus
 from drop_interfaces.srv import Stop
-from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.clock import Clock, ClockType
 from .ros_qos import no_sub_events
-from rclpy.executors import ExternalShutdownException, MultiThreadedExecutor
+from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 
@@ -87,6 +86,10 @@ class SafetySupervisorNode(Node):
         self.steady_clock = _MonoClock()
         self.monitor = SupervisorMonitor(hb_timeout, self.steady_clock)
         self.task_status: TaskStatus | None = None
+        self._stop_future = None
+        self._stop_reason = None
+        self._stop_confirmed = False
+        self._next_stop_try = 0.
         self.stop_calls: list[tuple[str, float]] = []
         self._stop_cli = self.create_client(Stop, 'robot/stop')
         self.create_subscription(Heartbeat, 'system/heartbeat', self._on_hb, HB_QOS, event_callbacks=no_sub_events())
@@ -115,17 +118,46 @@ class SafetySupervisorNode(Node):
         self.task_status = msg
 
     def _tick(self) -> None:
-        reason = self.monitor.check()
-        if reason is not None:
+        # Fault detection and delivery confirmation have separate lifetimes.
+        self.monitor.check()
+        reason = self.monitor.active_fault()
+        now = self.steady_clock.steady_now()
+        if self._stop_future is not None:
+            if not self._stop_future.done():
+                if now >= getattr(self, '_stop_warn_at', now + 1.):
+                    self.get_logger().warning('Stop response pending; no overlapping RPC permitted')
+                    self._stop_warn_at = now + 1.
+                return  # never overlap Stop RPCs, including after fault recovery
+            try:
+                response = self._stop_future.result()
+                self._stop_confirmed = bool(response and response.stopped)
+                if not self._stop_confirmed:
+                    self.get_logger().warning('Stop rejected: stopped=false')
+            except Exception as exc:
+                self.get_logger().warning(f'Stop failed: {exc}')
+                self._stop_confirmed = False
+            self._stop_future = None
+            self._next_stop_try = now + 0.1
+        if reason is None:
+            self._stop_reason, self._stop_confirmed = None, False
+            return
+        if reason != self._stop_reason:
+            self._stop_reason, self._stop_confirmed = reason, False
+        if not self._stop_confirmed and now >= self._next_stop_try:
             self._request_stop(reason)
+            self._next_stop_try = now + 0.1
 
     def _request_stop(self, reason: str) -> None:
         self.stop_calls.append((reason, time.monotonic()))
         if not self._stop_cli.service_is_ready():
-            self._stop_cli.wait_for_service(timeout_sec=0.1)
-        if self._stop_cli.service_is_ready():
-            req = Stop.Request(requester=Stop.Request.SUPERVISOR, reason_code=reason)
-            self._stop_cli.call_async(req)
+            self.get_logger().warning('Stop service unavailable; retry pending')
+            return
+        req = Stop.Request(requester=Stop.Request.SUPERVISOR, reason_code=reason)
+        try:
+            self._stop_future = self._stop_cli.call_async(req)
+            self._stop_warn_at = self.steady_clock.steady_now() + 1.
+        except Exception as exc:
+            self.get_logger().warning(f'Stop send failed: {exc}')
 
 
 def main(args=None):

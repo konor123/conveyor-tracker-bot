@@ -1,6 +1,6 @@
 # SPEC-100 orchestrator
 
-- 버전: v0.3
+- 버전: v0.7
 - 근거: PLAN.md 4절
 - REQ 영역: ORC
 
@@ -8,6 +8,10 @@
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
+| v0.7 | 2026-11-09 | 해제 후 RETREAT·VERIFY 독립 단계 예산과 준비된 응답 우선 |
+| v0.6 | 2026-11-09 | ROS 역행을 고려한 포트 steady 예산 배율 명시 |
+| v0.5 | 2026-11-09 | 미확정 action 수락 보존·취소 및 포트 대기 중단 계약 |
+| v0.4 | 2026-11-09 | M0 검증 범위·게이트 및 독립 계약 기대값 정합성 |
 | v0.1 | 2026-11-07 | 상태 열(모드 3종), 단계별 skill·선행조건·판정·기록 키, 재시도·통과 보내기, WAIT_OPERATOR 재개 |
 | v0.2 | 2026-11-07 | 비동기 장애(`SkillPort.pending_fault`), 진행 알림 콜백(`on_state`·`on_record`), `orchestrator_node`의 ROS 대응(4.8절) |
 | v0.3 | 2026-11-09 | 해제 뒤 비하드 장애의 포트 대기 처리와 latch 교체 규칙(4.7절, REQ-ORC-010) |
@@ -18,7 +22,7 @@
 
 ## 2. 입력·출력(interface 버전)
 
-SPEC-010 v0.1 기준.
+SPEC-010 wire schema v0.2 / runtime contract v0.4 기준.
 
 - 입력: `DropTask` goal(mode, max_belt_speed, timeout, max_passes), skill 결과·feedback, `TrackedObjectArray`, `BeltMotion`, `InterceptPlan`, `Heartbeat`, 로봇·그리퍼 상태.
 - 출력: `DropTask` 결과·feedback, `TaskStatus`(10 Hz), `StepRecord`(단계 종료마다).
@@ -62,6 +66,8 @@ SPEC-010 v0.1 기준.
 | `verify.timeout_s` | 3.0 | PLAN.md 4.3절 |
 | `retry.detect_stone_count` | 2 | PLAN.md 4.3절 |
 | `retry.pick_stone_count` | 2 | PLAN.md 4.3절 |
+
+`wait_cap.time_margin_s = t_available_s − t_required_s`이며 통과 조건은 `time_margin_s >= margin_s`다.
 
 단계 제한시간(`step_timeout:`)은 PLAN.md 4.3절 값을 쓰고 측정 후 SPEC-110 5절 식으로 바꾼다.
 
@@ -170,20 +176,26 @@ SPEC-010 v0.1 기준.
 | SkillPort | ROS | 측정값 출처 |
 |---|---|---|
 | `status` | 구독 캐시 | `system/heartbeat`(노드 ACTIVE·나이), `robot/status`, `belt/measured_motion`, `objects/detections.calibration_id` |
-| `detect_stones` | `vision/detect_objects`(MAT, STONE) | 응답 검출. `clearance_m` = 가장 가까운 다른 검출까지 거리(없으면 1 m). 검출 시각 = 응답 수신 시각 |
+| `detect_stones` | `vision/detect_objects`(MAT, STONE) | 응답 검출. `clearance_m` = 가장 가까운 다른 검출까지 거리(없으면 1 m). M0 임시 포트의 검출 시각 = 응답 수신 시각(영상 freshness 증명 아님) |
 | `pick_stone` | `robot/pick_stone` | 결과 값. `stone_on_mat` = 결과 뒤 `DetectObjects(MAT)`에 목표 10 mm 안 공깃돌이 남음. 이유 코드 `GRIPPER*` = 그리퍼 오류, 그 밖 FAULT = 로봇 오류 |
 | `move_to_pose` | `robot/move_to_pose`(named_pose) | `pose_error`, holding = `robot/status.holding` |
 | `select_target`·`observe_cap` | `tracking/select_target`, `objects/tracked` | track 상태·관측 수, `BeltMotion`, 병뚜껑 검출 `stone_inside`, 시간 예산(4.9절) |
 | `detect_cap`(STATIC) | `vision/detect_objects`(BELT, CAP) | 정지 뚜껑 검출 |
 | `compute_intercept` | `planner/compute_intercept` | `InterceptPlan` |
-| `place_start`·`place_feedback` | `robot/place_stone`·`robot/dynamic_place` | phase 끝 feedback의 `metric_keys/values`(SPEC-010 v0.2). SYNCHRONIZE는 진행 중 feedback의 `e_xy`·`v_rel` 열 |
+| `place_start`·`place_feedback` | `robot/place_stone`·`robot/dynamic_place` | phase 끝 feedback의 `metric_keys/values`(SPEC-010 wire schema v0.2 / runtime contract v0.4). SYNCHRONIZE는 진행 중 feedback의 `e_xy`·`v_rel` 열 |
 | `verify` | `vision/verify_drop` | `verdict` |
 | `safe_retreat`·`stop`·`cancel_active` | `robot/safe_retreat`, `robot/stop`, goal cancel | — |
 | `pending_fault` | 구독 캐시 | `robot/status.protective_stop` → PROTECTIVE_STOP, `connected = false` → ROBOT_COMM_LOST, heartbeat 손실(SPEC-110) |
 
+검출의 실제 freshness 원점은 PLAN.md 4.3절·SPEC-000의 영상 노출 시각이다. 검출 안정 창은 `stable_window=0.5 s`로 요청한다. M0 서비스 응답에는 관측 stamp·image_seq가 없어 수신 시각을 임시 대용하며 실제 vision 경로에는 사용할 수 없다. G1 필수 C/I 시험은 응답과 영상 노출 stamp의 연결 계약, 지연 응답·오래된 cache의 PICK_STONE 거부, 0.5 s 안정 창 충족을 확인한다.
+
 ### 4.9 시간 예산(M0 임시)
 
 planner의 `time_budget`이 생기기 전까지 WAIT_CAP 예산은 `orchestrator_node`가 conveyor_frame에서 계산한다: `t_available = (x_exit − x_cap) / v`, `t_required = Σ budget 성분`(설정 `budget:` 절). 실제 planner가 계약 시험을 통과하면 planner 결과로 바꾼다.
+
+### 4.10 포트 대기와 미확정 action
+
+수락 future가 미완료인 action은 취소 확인으로 간주하지 않는다. 늦게 수락한 goal에도 cancel을 보내고 terminal result(status 4·5·6)를 확인한다. 이전 모션 종료가 미확정이면 대체 모션을 보내지 않는다. feedback은 goal별 token으로 격리한다. 포트 대기의 steady 예산은 진입 시 남은 ROS deadline 시간 × `watchdog.cycle_steady_factor_ratio`(기본 2.0)다(deadline 없는 호출은 1 s × 배율). ROS deadline 자체는 계속 검사한다. 포트 대기는 이 steady 예산, 사이클 steady 상한, 사용자 cancel, context 종료를 검사한다. 해제 뒤 비하드 장애의 후퇴·검증 규칙(REQ-ORC-010)은 유지한다.
 
 ## 5. 시간 제약(주기·제한시간)
 
@@ -202,14 +214,16 @@ planner의 `time_budget`이 생기기 전까지 WAIT_CAP 예산은 `orchestrator
 | RETREAT | 3 |
 | VERIFY | 3 |
 
+해제 뒤 RETREAT·VERIFY에는 단계 진입 ROS 시각 + 각 단계 제한시간(각 3 s 제안값)을 주며 원 사이클·동적 deadline으로 자르지 않는다. 하드 이상·실제 후퇴 실패의 L4 우선순위는 유지한다. 포트는 context 종료·cancel·하드 이상·guard 확인 뒤 이미 준비된 응답을 steady 상한보다 먼저 인정한다. 응답이 없으면 남은 ROS 시간 × 기존 배율의 유한 steady 상한과 ROS deadline을 검사한다.
+
 `TaskStatus`는 10 Hz로 발행한다. 실제 deadline 계산은 SPEC-110 5절을 따른다.
 
 ## 6. 실패 모드와 응답(중단 등급)
 
 - REQ-ORC-001: 모든 판정이 OK면 모드별 상태 열이 4.1절과 정확히 같다(MODE_STATIC은 PLAN_INTERCEPT·SYNCHRONIZE 없이 WAIT_CAP에서 `DetectObjects(REGION_BELT, CLASS_CAP)` 1회 이상 호출, MODE_PREDICTED는 SYNCHRONIZE 판정 입력이 진입 시각 오차·속도 오차).
-- REQ-ORC-002: 어느 단계든 판정이 OK가 아니면 그 다음 단계의 skill을 0회 호출한다.
+- REQ-ORC-002: 최종 실패 판정 뒤에는 정상 작업 경로의 다음 skill을 호출하지 않는다. 단 WAIT 재관측, 허용된 L1 재시도, 대기 자세의 통과 보내기 및 해제 후 RETREAT→VERIFY 정리 경로는 각 규정에 따른다. 하드 이상과 RETREAT 실패는 L4가 우선한다.
 - REQ-ORC-003: 단계 판정은 3절 임계값으로 4.3절 이유 코드를 낸다. 경계값은 `TEST_SPEC.md` TC-ORC-003-01~14의 세 점(직전·경계·직후)에서 기대값과 일치한다.
-- REQ-ORC-004: `Judgement.metrics`의 키 집합은 4.4절 표와 같고 `StepRecord.metric_keys`·`metric_values`에 순서대로 그대로 복사된다(누락 0건).
+- REQ-ORC-004: 관측값을 받은 judge 최종 판정의 `Judgement.metrics` 키 집합은 4.4절의 해당 모드 표와 같고 `StepRecord.metric_keys`·`metric_values`에 순서대로 그대로 복사된다(누락 0건). 관측 응답이 없는 TIMEOUT/PRECONDITION은 `metrics={}`를 허용하고 `reason_code`로 구별한다.
 - REQ-ORC-005: 선행조건이 성립하지 않으면 결과 `PRECONDITION`, 해당 skill 호출 0회다(예: PICK_STONE에서 검출 시각이 1.01 s 전).
 - REQ-ORC-006: DETECT_STONE은 최대 2회 재시도한다(3번째 시도 OK면 진행, 3회 모두 실패면 L2). 재시도는 선행조건부터 다시 본다.
 - REQ-ORC-007: 통과 보내기는 `max_passes`회까지 한다. 소진하면 L3, `SafeRetreat(keep_sync=false, place_back=true)`, 결과 `NOT_ATTEMPTED`, `passes_skipped`를 기록한다.

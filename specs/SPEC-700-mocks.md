@@ -1,6 +1,6 @@
 # SPEC-700 mocks
 
-- 버전: v0.3
+- 버전: v0.4
 - 근거: PLAN.md 7절
 - REQ 영역: MCK, INT
 
@@ -8,6 +8,7 @@
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
+| v0.4 | 2026-11-09 | M0 검증 범위·게이트 및 독립 계약 기대값 정합성 |
 | v0.1 | 2026-11-07 | 시나리오 YAML 형식, `ScenarioEngine` 세계 모델, 이벤트 10종, `mock_world_node`·`mock_robot_controller_node` 동작, 가정값 표기 |
 | v0.2 | 2026-11-07 | SPEC-010 v0.2 반영: `mock_robot_controller_node`의 `robot/status`(`RobotStatus`, 10 Hz) 발행, `PlaceStone`·`DynamicPlace` phase별 feedback `phase_done`·`metric_keys`·`metric_values` 및 `phase_metrics` 대본 덮어쓰기 |
 | v0.3 | 2026-11-09 | 동시 기동 금지의 기동 뒤 감시(4.7절), heartbeat·`robot/status` 타이머의 steady 시계(5절) |
@@ -16,11 +17,11 @@
 
 `drop_mocks` 패키지의 시나리오 엔진(`scenario_engine.py`)과 ROS 대역 2종(`mock_world_node`, `mock_robot_controller_node`)을 정한다. 대역은 I0·C 시험에서 vision·tracker·robot_controller를 대신한다. 대역 결과로 정확도·성공률을 보고하지 않는다(PLAN.md 7.4절).
 
-범위 밖(v0.1): `mock_world_node`의 임시 plan 발행(`publish_plan`)과 `ComputeIntercept` 응답, TCP 1차 지연 모델(G5), 계약 테스트 틀(`test/contract/`). 9절 참고.
+M0 planner 대역은 등속 해석해·`publish_plan`·`ComputeIntercept`를 제공하며 실제 planner가 계약 시험을 통과하면 사용하지 않는다. `time_insufficient` 시나리오, `test/contract/`의 역할별 계약 시험과 trial 가정값 복사는 M0 범위다. TCP 1차 지연 모델은 G5 범위다.
 
 ## 2. 입력·출력(interface 버전)
 
-SPEC-010 v0.2(`src/drop_interfaces/`) 기준. 이름은 PLAN.md 3.3절의 상대명이다.
+SPEC-010 wire schema v0.2 / runtime contract v0.4(`src/drop_interfaces/`) 기준. 이름은 PLAN.md 3.3절의 상대명이다.
 
 | 노드 | role | 발행 | 서비스·액션 서버 | Heartbeat `node_name` |
 |---|---|---|---|---|
@@ -177,7 +178,7 @@ measured: {<키 경로>: <출처>}
 - REQ-MCK-002: `role:=vision`과 `role:=tracking`을 별도 프로세스로 띄우면 같은 stamp의 병뚜껑 위치(검출을 conveyor_frame으로 바꾼 값과 track 값) 차가 1e-9 m 이하이다.
 - REQ-MCK-003: `mock_world_node`는 vision·tracker 계약 시험을 통과한다.
 - REQ-MCK-004: `mock_robot_controller_node`는 robot_controller 계약 시험을 통과한다.
-- REQ-MCK-005: 이벤트 10종은 지정 시각 ± 1 프레임(1/`frame_rate_hz` s)에 효과가 나타난다.
+- REQ-MCK-005: 이벤트 10종은 엔진·30 Hz 데이터에서는 지정 시각 이후 첫 프레임(지연 ≤ 1/`frame_rate_hz` s)에 효과가 나타난다. 10 Hz heartbeat는 주입 이후 첫 발행 주기(≤ 0.1 s), skill은 주입 이후 첫 검사 주기에 효과가 나타난다. 각 측정은 주입 위상과 수신 steady 시각을 기록하며 ROS 전송 관측 지연 허용 상한은 0.2 s다.
 - REQ-MCK-006: 시나리오의 `world`·`robot` 수치 값은 100% `assumed` 또는 `measured`로 분류되고(중복 0), `assumed`로 분류된 키 목록이 trial 기록 `assumed_params`로 복사된다.
 - REQ-MCK-007: 같은 역할의 실제 노드와 대역을 동시에 지정하면 bringup이 기동을 거부한다.
 
@@ -187,7 +188,8 @@ TC-MCK-001-01, 002-01, 003-01, 004-01, 005-01, 005-02, 006-01, 006-02, 007-01, 0
 
 ## 9. 미결 사항
 
-- `publish_plan`·`ComputeIntercept` 대역: planner 없이 I0를 돌릴 때 필요. `orchestrator_node` 작성 시 결정.
-- `time_insufficient` 시나리오: 시간 예산 판정이 `orchestrator_node`·planner 입력에 달려 있어 그 뒤에 만든다.
-- 계약 테스트 틀(TC-MCK-003-01, 004-01)과 trial 기록 복사(TC-MCK-006-02)는 각각 `test/contract/`, `record_logger_node` 작성 시 통과시킨다.
 - 대역 지연·소요시간: TBD(측정 G0).
+
+### 관측용 진단 파라미터
+
+`mock_robot_controller_node`의 `cancel_count`·`cancel_received_steady_s`는 cancel 수신 횟수·최근 수신 단조 시각이며 `stop_history_json`은 requester·reason_code·수신 steady 시각을 요청마다 보존한다. 이 값은 시험에서 읽는 관측 정보이며 지령 판정에는 쓰지 않는다.

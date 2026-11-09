@@ -2,7 +2,8 @@
 """REQ ↔ TC ↔ 테스트 추적 행렬(PLAN.md 8.3절, TC-REC-006-01).
 
   python3 tools/spec/trace.py                  # specs/TRACE.md 갱신, 누락이 있으면 종료 코드 1
-  python3 tools/spec/trace.py --area ORC,ABT   # 영역 제한(게이트별 확인)
+  python3 tools/spec/trace.py --area ORC,ABT   # 영역 제한
+  python3 tools/spec/trace.py --gate M0 --check # M0 필수 시험만 검사
   python3 tools/spec/trace.py --check          # 파일을 쓰지 않고 검사만
 
 입력:
@@ -63,6 +64,69 @@ def load_tcs(repo: str, path: str = "TEST_SPEC.md") -> dict[str, str]:
     return tcs
 
 
+def _select_numbers(area: str, expression: str, tcs: dict[str, str]) -> set[str]:
+    selected = set()
+    for item in expression.split("·"):
+        item = item.strip()
+        if re.fullmatch(r"\d{3}~\d{3}", item):
+            first, last = map(int, item.split("~"))
+            if first > last:
+                raise ValueError(f"역순 범위: {item}")
+            selectors = [f"{n:03d}" for n in range(first, last + 1)]
+        elif re.fullmatch(r"(?:\d{3}|G\d|CMP)(?:-\d{2})?", item):
+            selectors = [item]
+        else:
+            raise ValueError(f"해석할 수 없는 번호: {item!r}")
+        for selector in selectors:
+            prefix = f"TC-{area}-{selector}"
+            matches = {t for t in tcs if t == prefix or t.startswith(prefix + "-")}
+            if not matches:
+                raise ValueError(f"TC가 없는 선택: {area}-{selector}")
+            selected.update(matches)
+    return selected
+
+
+def select_tcs(expression: str, tcs: dict[str, str]) -> set[str]:
+    """쉼표 구분 영역 선택: 전부, REQ 목록·범위, TC 순번, (번호 목록 제외)."""
+    if expression.strip() == "—":
+        return set()
+    selected = set()
+    for term in expression.split(","):
+        match = re.fullmatch(
+            r"\s*([A-Z]{2,4})(?:\s+(전부)|-([^()]+?))(?:\(([^()]+?)\s*제외\))?\s*", term)
+        if not match:
+            raise ValueError(f"해석할 수 없는 게이트 항목: {term!r}")
+        area, all_area, numbers, exclusions = match.groups()
+        if all_area:
+            current = {t for t in tcs if area_of(t) == area}
+            if not current:
+                raise ValueError(f"TC가 없는 영역: {area}")
+        else:
+            current = _select_numbers(area, numbers, tcs)
+        if exclusions:
+            excluded = _select_numbers(area, exclusions, tcs)
+            if not excluded <= current:
+                raise ValueError(f"선택 범위 밖 제외 항목: {term!r}")
+            current -= excluded
+        selected.update(current)
+    return selected
+
+
+def load_gate(repo: str, gate: str, tcs: dict[str, str], path: str) -> set[str]:
+    rows = []
+    with open(os.path.join(repo, path), encoding="utf-8") as fh:
+        for line in fh:
+            cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+            if line.startswith("|") and cells[0] == gate:
+                rows.append(cells)
+    if len(rows) != 1 or len(rows[0]) < 4:
+        raise ValueError(f"게이트 행은 정확히 하나여야 함: {gate}")
+    selected = set()
+    for expression in rows[0][1:4]:
+        selected.update(select_tcs(expression, tcs))
+    return selected
+
+
 def _mark_ids(dec) -> tuple[str, list[str]] | None:
     """@pytest.mark.tc("...") / req("...") 데코레이터면 (종류, ID 목록)."""
     if not isinstance(dec, ast.Call) or not isinstance(dec.func, ast.Attribute):
@@ -121,9 +185,17 @@ def load_tests(repo: str) -> list[tuple[str, list[str], list[str]]]:
     return out
 
 
-def build(repo: str, areas: set[str] | None = None, tc_file: str = "TEST_SPEC.md"):
+def build(repo: str, areas: set[str] | None = None, tc_file: str = "TEST_SPEC.md", gate: str | None = None):
     reqs, tcs, tests = load_reqs(repo), load_tcs(repo, tc_file), load_tests(repo)
-    keep = (lambda x: area_of(x) in areas) if areas else (lambda x: True)
+    gate_tcs = load_gate(repo, gate, tcs, tc_file) if gate else None
+    gate_reqs = {tc_req(t) for t in gate_tcs} if gate_tcs is not None else None
+
+    def keep(x):
+        if areas and area_of(x) not in areas:
+            return False
+        if gate_tcs is not None:
+            return x in (gate_tcs if x.startswith("TC-") else gate_reqs)
+        return True
     reqs = {k: v for k, v in reqs.items() if keep(k)}
     tcs = {k: v for k, v in tcs.items() if keep(k)}
     by_tc = defaultdict(list)
@@ -172,11 +244,15 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--repo", default=os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
     ap.add_argument("--area", default="", help="쉼표 구분 영역(예: ORC,ABT)")
+    ap.add_argument("--gate", help="TEST_SPEC.md 게이트 이름(예: M0, G3)")
     ap.add_argument("--check", action="store_true", help="specs/TRACE.md를 쓰지 않음")
     ap.add_argument("--tc-file", default="TEST_SPEC.md")
     a = ap.parse_args(argv)
     areas = {x.strip() for x in a.area.split(",") if x.strip()} or None
-    r = build(a.repo, areas, a.tc_file)
+    try:
+        r = build(a.repo, areas, a.tc_file, a.gate)
+    except ValueError as exc:
+        ap.error(str(exc))
     if not a.check:
         os.makedirs(os.path.join(a.repo, "specs"), exist_ok=True)
         with open(os.path.join(a.repo, "specs", "TRACE.md"), "w", encoding="utf-8") as fh:
