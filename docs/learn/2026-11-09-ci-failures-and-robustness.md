@@ -121,6 +121,8 @@ PYTHONPATH=src/orchestrator:tools/spec python3 -m pytest -q src/orchestrator/tes
 
 통합 커밋 74013cf 뒤 CI는 Git dubious ownership 때문에 eval 단계에서 실패했다. 정확한 checkout 경로를 일회성 컨테이너의 safe.directory에 등록한 6bf0307 이후 그 문제는 해소됐지만 run 42584786687 attempt 1·2는 TC-MCK-005-01에서 실패했다. occlusion 예정 3.00초에 대한 첫 COASTING stamp가 각각 3.10·3.20초로 1/30초 허용 오차를 넘었다. 프레임 누락·일정 지연·관측 경로 중 원인은 미확정이며 기준을 완화하지 않고 남겼다. 이 run의 후속 계약/I0·trace 단계는 미실행이다([worklog 17:17·17:24 절](../../records/worklog/2026-11-09.md)).
 
+학습 문서 커밋 9e2b03d의 CI run 42587515202에서도 같은 TC가 실패했다. 이번 실패 지점은 `stone_in_cap` 예정 6.20초 대비 첫 관측 6.26666665초로 약 66.7 ms 늦은 경우다. 같은 TC라도 실패한 이벤트와 관측값을 남겨야 진단 범위를 좁힐 수 있다. 문서 작성 과정에서 이 시험의 코드나 기준은 바꾸지 않았다([worklog W11 후속 절](../../records/worklog/2026-11-09.md)).
+
 배운 점: PC 전체 통과, REQ 연결률 100%, CI 성공은 별도 결과다. 최종 devlog의 SHA 47308d8은 시험 소스의 커밋 전 기준점이며 당시 미커밋 통합 변경이 포함됐다는 설명까지 함께 읽어야 한다.
 
 흔한 함정: skip·미실행을 성공에 더하거나, 과거 두 번의 green CI를 최신 커밋의 green으로 옮겨 쓰는 것이다. 최신 완료 조건은 [Progress](../../Progress.md)를 확인한다.
