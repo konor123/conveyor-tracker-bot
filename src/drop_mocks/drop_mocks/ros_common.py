@@ -46,9 +46,33 @@ def no_pub_events() -> PublisherEventCallbacks:
     return PublisherEventCallbacks(use_default_callbacks=False)
 
 
-def scenario_file(value: str) -> str:
-    if value.endswith('.yaml') or os.sep in value:
+def repo_path(value: str) -> str:
+    """상대 경로는 저장소 루트 기준(SPEC-000 REQ-SYS-005, 원본 구현 calibration.repo_paths와 같은 규칙).
+
+    루트: DROP_REPO_ROOT → 이 파일에서 위로 올라가며 src·records를 함께 가진 첫 폴더 → 현재 폴더.
+    """
+    value = os.path.expanduser(value)
+    if not value or os.path.isabs(value):
         return value
+    root = os.environ.get('DROP_REPO_ROOT')
+    if not root:
+        d = os.path.dirname(os.path.abspath(__file__))
+        while True:
+            if os.path.isdir(os.path.join(d, 'src')) and os.path.isdir(os.path.join(d, 'records')):
+                root = d
+                break
+            parent = os.path.dirname(d)
+            if parent == d:
+                root = os.getcwd()
+                break
+            d = parent
+    return os.path.normpath(os.path.join(os.path.expanduser(root), value))
+
+
+def scenario_file(value: str) -> str:
+    """시나리오 이름 → 설치된 scenarios/<이름>.yaml. 경로를 주면 상대 경로는 저장소 루트 기준(SPEC-000 REQ-SYS-005)."""
+    if value.endswith('.yaml') or os.sep in value:
+        return repo_path(value)
     from ament_index_python.packages import get_package_share_directory
     return os.path.join(get_package_share_directory('drop_mocks'), 'scenarios', value + '.yaml')
 

@@ -150,13 +150,37 @@ def _serialized(method):
     return guarded
 
 
+def repo_path(value: str) -> str:
+    """상대 경로는 저장소 루트 기준(SPEC-000 REQ-SYS-005, 원본 구현 calibration.repo_paths와 같은 규칙).
+
+    루트: DROP_REPO_ROOT → 이 파일에서 위로 올라가며 src·records를 함께 가진 첫 폴더 → 현재 폴더.
+    """
+    if not value:
+        return value
+    value = os.path.expanduser(value)
+    if os.path.isabs(value):
+        return value
+    root = os.environ.get('DROP_REPO_ROOT')
+    if not root:
+        d = os.path.dirname(os.path.abspath(__file__))
+        while True:
+            if os.path.isdir(os.path.join(d, 'src')) and os.path.isdir(os.path.join(d, 'records')):
+                root = d
+                break
+            parent = os.path.dirname(d)
+            if parent == d:
+                root = os.getcwd()
+                break
+            d = parent
+    return os.path.normpath(os.path.join(os.path.expanduser(root), value))
+
+
 class RecordLoggerNode(Node):
     def __init__(self, **kwargs):
         super().__init__('record_logger_node', **kwargs)
         self._io_lock = threading.RLock()
         self.storage_error = ''
-        default_dir = os.environ.get('DROP_RECORDS_DIR') or os.path.join(
-            os.getcwd(), 'records', 'trials')
+        default_dir = os.environ.get('DROP_RECORDS_DIR') or os.path.join('records', 'trials')
         self.declare_parameter('records_dir', default_dir)
         self.declare_parameter('date', '')
         self.declare_parameter('env', 'mock')
@@ -165,7 +189,7 @@ class RecordLoggerNode(Node):
         self.declare_parameter('scenario', 'nominal_20mms')
         self.declare_parameter('seed', 0)
         self.declare_parameter('mock_node', 'mock_world_node')
-        self._root = str(self.get_parameter('records_dir').value)
+        self._root = repo_path(str(self.get_parameter('records_dir').value))
         date = str(self.get_parameter('date').value)
         self._date = date or datetime.date.today().isoformat()
         self._env = str(self.get_parameter('env').value)

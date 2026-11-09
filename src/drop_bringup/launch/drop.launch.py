@@ -3,8 +3,10 @@
 대역은 기동할 때 같은 역할의 서버가 이미 있으면 스스로 종료하고(REQ-MCK-007), 이 launch는 그때 전체를 내린다.
 vision은 실제 lifecycle 노드 또는 대역을 선택한다. tracker·robot의 실제 경로는 별도 단계다.
 """
+import os
 import time
 
+from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, EmitEvent, LogInfo, OpaqueFunction, RegisterEventHandler
 from launch.event_handlers import OnProcessExit
@@ -15,6 +17,15 @@ from launch_ros.actions import Node
 ROLES = ('vision', 'tracking', 'robot')
 REAL_PENDING = {'tracking': 'tracking tracker_node',
                 'robot': 'robot_control robot_controller_node'}
+
+
+def _repo_path(value):
+    """상대 경로는 저장소 루트 기준(SPEC-000 REQ-SYS-005). calibration이 없으면 실행 위치 기준으로 둔다."""
+    try:
+        from calibration.repo_paths import resolve_path
+    except ImportError:
+        return os.path.abspath(os.path.expanduser(value)) if value else value
+    return resolve_path(value)
 
 
 def _flag(context, name):
@@ -56,8 +67,13 @@ def _nodes(context):
                         name='mock_robot_controller_node', output='screen', parameters=[common]))
     for r in ROLES:
         if r == 'vision' and not mock[r]:
+            # 기본 vision.yaml 위에 현장 파라미터 파일(보정·평면 경로, 실측 높이)을 덮어쓴다
+            params = [os.path.join(get_package_share_directory('vision'), 'config', 'vision.yaml')]
+            site = LaunchConfiguration('vision_params_file').perform(context)
+            if site:
+                params.append(_repo_path(site))
             out.append(Node(package='vision', executable='vision_node', name='vision_node',
-                            output='screen', parameters=[{'use_sim_time': sim_time}]))
+                            output='screen', parameters=[*params, {'use_sim_time': sim_time}]))
         elif not mock[r]:
             out.append(LogInfo(msg=f'{r}: 실제 노드({REAL_PENDING[r]})는 아직 없어 띄우지 않는다'))
     if _flag(context, 'launch_orchestrator'):
@@ -88,6 +104,8 @@ def generate_launch_description():
         DeclareLaunchArgument('use_sim_time', default_value='false', choices=['true', 'false']),
         DeclareLaunchArgument('launch_orchestrator', default_value='true', choices=['true', 'false']),
         DeclareLaunchArgument('records_dir', default_value=''),
+        DeclareLaunchArgument('vision_params_file', default_value='',
+                              description='실제 vision_node의 현장 파라미터 파일. 상대 경로는 저장소 루트 기준'),
         DeclareLaunchArgument('date', default_value=''),
         DeclareLaunchArgument('duration_scale_ratio', default_value='-1.0'),
         DeclareLaunchArgument('t0_offset_s', default_value='0.0'),

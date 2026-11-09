@@ -1,6 +1,6 @@
 # SPEC-000 system
 
-- 버전: v0.3
+- 버전: v0.4
 - 근거: PLAN.md 0.2, 1, 2.3~2.5절
 - REQ 영역: SYS
 
@@ -8,6 +8,7 @@
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
+| v0.4 | 2026-11-09 | 설정 파일 경로 규칙(상대 경로 = 저장소 루트 기준, 4.4절, REQ-SYS-005) |
 | v0.3 | 2026-11-09 | 현장 정지 pick-and-place 실행기 `static_pick_place` 추가(11개 패키지), 로봇 지령 주체 예외 범위 |
 | v0.2 | 2026-11-09 | M0 검증 범위·게이트 및 독립 계약 기대값 정합성 |
 | v0.1 | 2026-11-07 | 패키지 구성·이름 규칙(10개), TF 트리·좌표계, 시각·시계 규약, SI 단위·단위 변환 어댑터·설정 키 단위 접미사(10종) |
@@ -118,6 +119,15 @@ world
   - `InterceptPlan`은 계획 생성 시각(`header.stamp`), 입력 상태 시각(`source_state_stamp`), 목표 해제 시각(`release_time`), 계획 만료 시각(`valid_until`)을 별도 필드로 구분한다.
 - **시계 이원화:** 메시지 타임스탬프, `valid_until`, 관측 신선도(`t_now - t_last_obs`), 시간 예산, 단계·동적·사이클 `deadline`은 ROS 시각(`use_sim_time` 적용 대상)을 쓰고, heartbeat 감시·그리퍼 응답 시간·호출/취소/중단 경로 제한시간·사이클 steady 상한은 단조 증가(steady) 시계를 쓴다.
 
+### 4.4 설정 파일 경로 규칙
+
+노드 파라미터·launch 인자·실행기 설정에 들어가는 파일·폴더 경로(보정 파일, 평면 파일, 검출 설정, 기록 폴더, 시나리오 파일 등)가 상대 경로면 **저장소 루트 기준**이다. 실행 위치나 설정 YAML의 위치에 따라 달라지지 않는다. 저장소에 넣는 현장 설정은 절대 경로를 쓰지 않는다.
+
+- 저장소 루트: 환경 변수 `DROP_REPO_ROOT` → 모듈 위치에서 위로 올라가며 `src`와 `records` 폴더를 함께 가진 첫 폴더(소스 실행·colcon install 모두 워크스페이스 = 저장소 루트 아래) → 현재 작업 폴더 순으로 정한다.
+- `~`는 홈 폴더로, 절대 경로는 그대로, 빈 값은 "지정 안 함"으로 둔다.
+- 원본 구현은 `calibration.repo_paths`다. calibration에 의존하지 않는 `orchestrator`·`drop_mocks`는 같은 규칙의 `repo_path`를 두고 같은 시험으로 확인한다.
+- 명령줄 인자로 주는 설정 파일 자체의 경로(`--config`, `--params-file`)는 셸 관례대로 실행 위치 기준이다. launch 인자 `vision_params_file`은 이 규칙을 따른다.
+
 ## 5. 시간 제약(주기·제한시간)
 
 | 항목 | 주기 / 제한시간 | 시계 | 근거 |
@@ -139,6 +149,7 @@ M0는 감시 판정 함수와 이벤트 입력의 U 검증 범위다. ROS 관측
 - REQ-SYS-002: `src/*/config/*.yaml`과 `src/*/scenarios/*.yaml`의 모든 수치(스칼라·수치 리스트, `bool` 제외) 키는 파일 내 `unitless:` 목록(또는 `measured:` 출처 블록)에 명시된 경우를 제외하면 `_m`, `_s`, `_mps`, `_mps2`, `_rad`, `_hz`, `_ma`, `_pulse`, `_count`, `_ratio` 10종 중 하나로 끝나며 위반 건수는 0건이다.
 - REQ-SYS-003: 처리 지연(50~80 ms)이 주입되어도 `ObjectDetectionArray.header.stamp`는 입력 영상 노출 시각 `T`와 정확히 일치(오차 0 ns)하고, `TrackedObject.header.stamp`는 상태 시각 `t_state == T`와 정확히 일치(오차 0 ns)한다.
 - REQ-SYS-004: `src/**/*.py`(`build`·`install`·`test` 제외)에서 단위 변환 토큰 패턴(`* 1000`, `/ 1000`, `*= 1000`, `/= 1000`, `1000 *`, `math.degrees`, `math.radians`)은 `motion_adapter.py`와 `gripper_adapter.py` 두 파일에만 존재하며 그 외 파일에서의 검출 건수는 0건이다.
+- REQ-SYS-005: 설정 파일 경로의 상대 경로는 4.4절 규칙으로 저장소 루트 기준 절대 경로가 되며, 실행 위치를 바꿔도 같은 파일을 가리킨다. `DROP_REPO_ROOT`가 있으면 그 폴더를 루트로 쓴다.
 
 ## 8. 검증 방법(`TEST_SPEC.md` TC ID, 게이트)
 

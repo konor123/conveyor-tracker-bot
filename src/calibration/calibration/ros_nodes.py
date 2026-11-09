@@ -21,6 +21,7 @@ from sensor_msgs.msg import CameraInfo
 from tf2_ros import Buffer, StaticTransformBroadcaster, TransformListener
 
 from .calibration_file import load_extrinsics
+from .repo_paths import resolve_path
 from .camera_intrinsics_check import compare_camera_info
 from .cli import DEFAULT_PROFILE
 from .geometry import R_from_quat, base_to_camera_link, make_T, quat_from_R
@@ -37,7 +38,7 @@ class CameraTfPublisher(Node):
         self.declare_parameter('extrinsics_file', '')
         self.declare_parameter('camera_link_frame', 'camera_link')
         self.declare_parameter('wait_s', 10.0)
-        path = self.get_parameter('extrinsics_file').value
+        path = resolve_path(self.get_parameter('extrinsics_file').value)   # 상대 경로는 저장소 루트 기준
         if not path:
             raise RuntimeError('extrinsics_file 파라미터가 비었다')
         self.cal = load_extrinsics(path)

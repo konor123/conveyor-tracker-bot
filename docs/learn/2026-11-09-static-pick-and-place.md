@@ -24,7 +24,7 @@ source /opt/ros/jazzy/setup.bash && source ~/doosan_ws/install/setup.bash
 export ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST \
        FASTRTPS_DEFAULT_PROFILES_FILE=$PWD/src/drop_bringup/config/fastdds_large_shm.xml \
        PYTHONPATH=$PWD/src/static_pick_place:$PWD/src/vision:$PWD/src/robot_control:$PWD/src/calibration:$PYTHONPATH
-SITE=records/calib/2026-11-09-planes/site.yaml   # 보정·평면 파일 경로. 파일 안 경로는 이 YAML 기준 상대 경로
+SITE=records/calib/2026-11-09-planes/site.yaml   # 보정·평면 파일 경로. 파일 안 경로는 저장소 루트 기준 상대 경로
 
 python3 -m static_pick_place.pick_place --config $SITE                       # 계획만(로봇 지령 없음)
 python3 -m static_pick_place.pick_place --config $SITE --image frame.png     # 저장된 영상으로 계획만
@@ -51,7 +51,7 @@ TCP(공구 끝)를 제어기에 등록하지 않았으므로, 로봇이 보고�
 | 닫기 750 pulse·150 mA, 열기 600 pulse | 750은 11-07 사용자 지정 닫힘 끝점. 150 mA·600 pulse는 오늘 사용자 지시(작은 대상이라 많이 열지 않음) |
 | 속도 수평 100 mm/s, 수직 50 mm/s | 처음 20/10 mm/s로 성공을 확인한 뒤 사용자 지시로 5배 |
 
-매트 평면은 매트 위에 둔 ChArUco 보드의 PnP 자세로 구했다. depth는 좌표에 쓰지 않는다(같은 매트를 보드 PnP 618.6 mm, depth 598 mm로 재 3% 차이). 벨트 평면은 매트와 평행하다고 보고 실측 높이 차만 더했다. 평면 파일과 현장 설정은 [records/calib/2026-11-09-planes](../../records/calib/2026-11-09-planes/README.md)에 있다. `--config`로 준 YAML 안의 파일 경로가 상대 경로면 그 YAML이 있는 폴더 기준으로 푼다(`load_config`). 둘 다 **잠정값**이고, 외부 보정도 후보값이다. 그래서 첫 좌표는 높은 곳에서 XY만 맞추고 사람이 눈과 자로 확인한 뒤(1점, 2 mm 이하) 내려갔다.
+매트 평면은 매트 위에 둔 ChArUco 보드의 PnP 자세로 구했다. depth는 좌표에 쓰지 않는다(같은 매트를 보드 PnP 618.6 mm, depth 598 mm로 재 3% 차이). 벨트 평면은 매트와 평행하다고 보고 실측 높이 차만 더했다. 평면 파일과 현장 설정은 [records/calib/2026-11-09-planes](../../records/calib/2026-11-09-planes/README.md)에 있다. 설정 안의 파일 경로가 상대 경로면 저장소 루트 기준으로 푼다(SPEC-000 4.4절). `vision_node`, `camera_tf_publisher`, 기록 폴더, 시나리오 경로도 같은 규칙이다. 둘 다 **잠정값**이고, 외부 보정도 후보값이다. 그래서 첫 좌표는 높은 곳에서 XY만 맞추고 사람이 눈과 자로 확인한 뒤(1점, 2 mm 이하) 내려갔다.
 
 ## 4. 팔이 닿는지는 미리 계산한다
 

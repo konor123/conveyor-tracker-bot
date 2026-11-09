@@ -221,6 +221,7 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-SYS-003-01 | 관측 메시지 stamp는 영상 노출 시각이다 | C | `[ON]` | `vision_node`에 stamp T인 합성 영상 입력, 처리 지연 50 ms 주입 | `ObjectDetectionArray.header.stamp == T`(정확히 일치) |
 | TC-SYS-003-02 | track stamp는 상태 시각이다 | C | `[ON]` | `tracker_node`에 stamp T 검출 입력, 수신은 T+80 ms | `TrackedObject.header.stamp == t_state == T` |
 | TC-SYS-004-01 | 단위 변환은 adapter 두 곳에만 있다 | U | `[ON]` | 소스 정적 검사: `* 1000`, `math.degrees`, `/ 1000` 패턴 | `motion_adapter.py`, `gripper_adapter.py`, 테스트 외에는 0건 |
+| TC-SYS-005-01 | 설정 파일 상대 경로는 저장소 루트 기준 | U | `[ON]` | 다른 작업 폴더에서 상대·절대·`~`·빈 경로 해석, 설치 트리 모양의 모듈 위치에서 루트 찾기, `DROP_REPO_ROOT` 지정 | 상대 경로 = 저장소 루트 + 경로, 절대·빈 값 그대로, `~` 확장, 설치 트리에서도 같은 루트, 환경 변수 우선 |
 
 ### 3.2 IF — 인터페이스
 

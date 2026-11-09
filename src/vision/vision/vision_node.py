@@ -27,8 +27,11 @@ from sensor_msgs.msg import Image
 from std_msgs.msg import Header
 
 from .detector import Roi, REGION_MAT, REGION_BELT, ColorModel, DetectParams, InsideParams
-from .localizer import CameraModel, Plane, HeightParams
-from .pipeline import SceneConfig, Geometry, process_frame
+from calibration.repo_paths import resolve_path
+
+from .geometry_files import load_geometry
+from .localizer import HeightParams
+from .pipeline import SceneConfig, process_frame
 from .stable_window import DetectionWindow, WindowParams
 
 
@@ -97,7 +100,8 @@ class VisionNode(LifecycleNode):
 
     def on_configure(self, state):
         try:
-            detector_path = self.value('detector_config_file') or str(
+            # 상대 경로는 저장소 루트 기준(SPEC-000 REQ-SYS-005)
+            detector_path = resolve_path(self.value('detector_config_file')) or str(
                 Path(get_package_share_directory('vision')) / 'config' / 'detector.yaml')
             detector = yaml.safe_load(Path(detector_path).read_text())
             def roi(key, region):
@@ -136,22 +140,10 @@ class VisionNode(LifecycleNode):
         return TransitionCallbackReturn.SUCCESS
 
     def _load_geometry(self):
-        paths = [self.value(k) for k in ('calibration_file', 'mat_plane_file', 'belt_plane_file')]
-        if not all(paths) or not all(Path(p).is_file() for p in paths):
-            return None
-        from calibration.calibration_file import load_extrinsics
-        extr = load_extrinsics(paths[0])
-        if extr.parent_frame != 'robot_base':
-            raise ValueError('calibration parent must be robot_base')
-        planes = []
-        for path in paths[1:]:
-            data = yaml.safe_load(Path(path).read_text())
-            if data.get('frame') != 'robot_base' or data.get('calibration_id') != extr.calibration_id:
-                raise ValueError('plane frame/calibration_id mismatch')
-            planes.append(Plane(np.asarray(data['normal']), data['offset_m']))
-        return Geometry(extr.calibration_id, CameraModel(extr.K, extr.dist), extr.T, *planes,
-            HeightParams(self.value('h_stone_offset_m'), self.value('h_rim_m'),
-                         self.value('floor_thickness_m')))
+        return load_geometry(self.value('calibration_file'), self.value('mat_plane_file'),
+                             self.value('belt_plane_file'),
+                             HeightParams(self.value('h_stone_offset_m'), self.value('h_rim_m'),
+                                          self.value('floor_thickness_m')))
 
     def on_activate(self, state):
         with self._condition:

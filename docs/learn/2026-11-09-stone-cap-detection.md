@@ -116,7 +116,7 @@ D455(1280×800)를 작업대 약 0.6 m 위에서 내려다본다. 매트는 검�
 
 설정은 두 파일이다. 표준 ROS 파라미터 파일 `config/vision.yaml`에는 경로·m 단위 값, 일반 YAML `config/detector.yaml`에는 픽셀·색 값을 둔다. ROS 파라미터 파일은 최상위에 노드 이름만 허용해 `unitless:` 목록을 넣을 수 없는데, 저장소 규약(TC-SYS-002)은 픽셀 값을 `unitless`에 적게 하기 때문이다.
 
-**주의**: `vision.yaml`의 높이 기본값은 아직 가정값(`h_stone_offset_m` 0.008, `h_rim_m` 0.006)이다. 오늘 실측값(0.015, 0.022)은 `static_pick_place` 설정에만 들어 있다. 실측값으로 바꿀 때는 `records/param_changes.csv`와 SPEC-200 3절 표를 함께 고친다.
+**주의**: `vision.yaml`의 높이 기본값은 아직 가정값(`h_stone_offset_m` 0.008, `h_rim_m` 0.006)이다. 오늘 실측값(0.015, 0.022)과 보정·평면 경로는 현장 파라미터 파일 `records/calib/2026-11-09-planes/vision_node.yaml`에 있고, `drop.launch.py use_mock_vision:=false vision_params_file:=<그 파일>`로 기본값 위에 덮어쓴다. 파일 경로의 상대 경로는 저장소 루트 기준이다(SPEC-000 4.4절). 외부 변환의 parent frame은 `robot_base`와 Doosan 이름 `base_link`를 모두 받는다. 보정 파일을 지정했는데 파일이 없거나 평면이 비면 configure가 실패한다(경로 오타를 조용히 넘기지 않음). 기본값 자체를 실측값으로 바꿀 때는 `records/param_changes.csv`와 SPEC-200 3절 표를 함께 고친다.
 
 ## 9. 직접 돌려 보기
 

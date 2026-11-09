@@ -25,6 +25,9 @@ _PATH_KEYS = ('calibration_file', 'mat_plane_file', 'belt_plane_file')
 
 
 def load_config(paths) -> dict:
+    """패키지 기본 설정 위에 `--config` 파일들을 차례로 덮어쓴다. `--config`의 상대 경로는 실행 위치 기준이고,
+    설정 안 파일 경로 값의 상대 경로는 저장소 루트 기준이다(SPEC-000 REQ-SYS-005)."""
+    from calibration.repo_paths import resolve_path
     here = os.path.join(os.path.dirname(__file__), os.pardir, 'config', 'static_pick_place.yaml')
     try:
         from ament_index_python.packages import get_package_share_directory
@@ -34,14 +37,9 @@ def load_config(paths) -> dict:
     cfg = {}
     for path in [here, *paths]:
         with open(path) as fh:
-            doc = yaml.safe_load(fh) or {}
-        # 파일 경로 값이 상대 경로면 그 값을 적은 YAML 파일의 폴더 기준으로 푼다(저장소 안 현장 설정을 어디서든 쓰게)
-        base = os.path.dirname(os.path.abspath(path))
-        for key in _PATH_KEYS:
-            if doc.get(key):
-                value = os.path.expanduser(doc[key])
-                doc[key] = value if os.path.isabs(value) else os.path.normpath(os.path.join(base, value))
-        cfg.update(doc)
+            cfg.update(yaml.safe_load(fh) or {})
+    for key in _PATH_KEYS:
+        cfg[key] = resolve_path(cfg.get(key))
     return cfg
 
 
@@ -50,21 +48,17 @@ def make_params(cfg: dict) -> PickPlaceParams:
 
 
 def load_geometry(cfg: dict):
-    from calibration.calibration_file import load_extrinsics
-    from vision.localizer import CameraModel, HeightParams, Plane
-    from vision.pipeline import Geometry
-    if not cfg.get('calibration_file'):
-        raise PlanError('NO_CALIBRATION', 'calibration_file이 비었다')
-    ext = load_extrinsics(cfg['calibration_file'])
-    planes = []
-    for key in ('mat_plane_file', 'belt_plane_file'):
-        with open(cfg[key]) as fh:
-            d = yaml.safe_load(fh)
-        if d.get('frame') != 'robot_base' or d.get('calibration_id') != ext.calibration_id:
-            raise PlanError('PLANE_MISMATCH', f'{key}: frame/calibration_id')
-        planes.append(Plane(np.asarray(d['normal'], float), float(d['offset_m'])))
+    from vision.geometry_files import load_geometry as load_files
+    from vision.localizer import HeightParams
     heights = HeightParams(float(cfg['h_stone_offset_m']), float(cfg['h_rim_m']), float(cfg['floor_thickness_m']))
-    return Geometry(ext.calibration_id, CameraModel(ext.K, ext.dist), ext.T, *planes, heights)
+    try:
+        geom = load_files(cfg.get('calibration_file', ''), cfg.get('mat_plane_file', ''),
+                          cfg.get('belt_plane_file', ''), heights)
+    except ValueError as exc:
+        raise PlanError('BAD_CALIBRATION', str(exc)) from exc
+    if geom is None:
+        raise PlanError('NO_CALIBRATION', 'calibration_file·mat_plane_file·belt_plane_file이 비었다')
+    return geom
 
 
 def grab_frame(node, topic: str, n_skip: int = 3, timeout_s: float = 5.0) -> np.ndarray:

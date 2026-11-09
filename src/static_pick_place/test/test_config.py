@@ -1,4 +1,4 @@
-"""pick_place 설정 읽기: 파일 경로 값은 그 값을 적은 YAML 기준 상대 경로로 푼다."""
+"""pick_place 설정 읽기: 설정 안 파일 경로의 상대 경로는 저장소 루트 기준(SPEC-000 REQ-SYS-005)."""
 import os
 from pathlib import Path
 
@@ -12,13 +12,13 @@ SITE = REPO / 'records' / 'calib' / '2026-11-09-planes' / 'site.yaml'
 
 
 @pytest.mark.level('U')
-def test_relative_paths_resolve_against_the_yaml_that_sets_them(tmp_path, monkeypatch):
-    (tmp_path / 'sub').mkdir()
-    (tmp_path / 'sub' / 'a.yaml').write_text(yaml.safe_dump({
+def test_relative_paths_resolve_against_repo_root(tmp_path, monkeypatch):
+    monkeypatch.delenv('DROP_REPO_ROOT', raising=False)
+    (tmp_path / 'a.yaml').write_text(yaml.safe_dump({
         'mat_plane_file': 'planes/mat.yaml', 'belt_plane_file': '/abs/belt.yaml', 'calibration_file': ''}))
     monkeypatch.chdir('/')                                   # 실행 위치와 무관해야 한다
-    cfg = load_config([str(tmp_path / 'sub' / 'a.yaml')])
-    assert cfg['mat_plane_file'] == str(tmp_path / 'sub' / 'planes' / 'mat.yaml')
+    cfg = load_config([str(tmp_path / 'a.yaml')])
+    assert cfg['mat_plane_file'] == str(REPO / 'planes' / 'mat.yaml')
     assert cfg['belt_plane_file'] == '/abs/belt.yaml'
     assert cfg['calibration_file'] == ''
 

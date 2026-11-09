@@ -18,7 +18,7 @@
 
 SPEC-010 wire schema v0.2 기준.
 
-- 입력: 컬러 영상(D455 1280×800, bgr8/rgb8, header.stamp = 노출 시각), `camera_extrinsics.yaml`(robot_base ← camera_color_optical_frame), `mat_plane.yaml`·`belt_plane.yaml`(SPEC-600 2절), 로봇 마스크(0/1 영상, 선택).
+- 입력: 컬러 영상(D455 1280×800, bgr8/rgb8, header.stamp = 노출 시각), `camera_extrinsics.yaml`(robot_base ← camera_color_optical_frame, parent 이름은 `robot_base` 또는 Doosan 드라이버 이름 `base_link`), `mat_plane.yaml`·`belt_plane.yaml`(SPEC-600 2절), 로봇 마스크(0/1 영상, 선택).
 - 출력: `objects/detections`(`ObjectDetectionArray`), `vision/detect_objects`(`DetectObjects`).
 - 좌표: 픽셀은 왜곡 보정 전 (u 오른쪽, v 아래). 위치는 robot_base [m].
 
