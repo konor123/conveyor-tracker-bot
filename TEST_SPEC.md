@@ -232,6 +232,7 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-IF-004-01 | 발행 QoS가 3.3절 표와 같다 | C | `[ON]` | 노드별 실행 후 `get_publishers_info_by_topic` | reliability·durability·depth 일치 |
 | TC-IF-004-02 | QoS가 맞지 않는 구독은 계약 시험에서 실패로 잡힌다 | C | `[ON]` | best effort 발행자 + reliable 구독자 구성 | 계약 시험이 `QOS_MISMATCH`로 실패(오류 없는 무수신을 놓치지 않음) |
 | TC-IF-005-01 | PlaceStone·DynamicPlace의 각 phase 끝 feedback은 `phase_done=true`이고 지정 키를 모두 가진다 | C | `[ON]` | robot_controller 계약 시험에서 PlaceStone·DynamicPlace phase 끝 feedback 키 | 누락 0 |
+| TC-IF-006-01 | 실행 노드에 기본 QoS 이벤트 핸들러가 없다 | C | `[ON]` | orchestrator·safety_supervisor·record_logger·robot_controller(활성화 뒤)·`mock_world_node`·`mock_robot_controller_node` 생성 | 직접 만든 구독·발행(`/parameter_events`·`/rosout` 발행자 제외)의 `event_handlers` 0개 |
 
 ### 3.3 ORC — 상태 머신·단계 판정
 

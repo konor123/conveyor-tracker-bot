@@ -10,6 +10,7 @@ from lifecycle_msgs.msg import State
 from rcl_interfaces.msg import ParameterDescriptor, ParameterType, SetParametersResult
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 from rclpy.clock import Clock, ClockType
+from rclpy.event_handler import PublisherEventCallbacks
 from rclpy.executors import ExternalShutdownException, MultiThreadedExecutor
 from rclpy.lifecycle import LifecycleNode, TransitionCallbackReturn
 from rclpy.logging import get_logger
@@ -38,6 +39,11 @@ def from_time(t: Time) -> float:
 def steady_clock() -> Clock:
     """heartbeat·상태 발행 타이머용 steady 시계(SPEC-110 REQ-ABT-009). ROS 시각 정지·역행과 무관하게 돈다."""
     return Clock(clock_type=ClockType.STEADY_TIME)
+
+
+def no_pub_events() -> PublisherEventCallbacks:
+    """기본 QoS 이벤트 핸들러를 붙이지 않는다(SPEC-010 6절: QoS 불일치는 계약 시험으로 검출, 핸들러는 executor 부하)."""
+    return PublisherEventCallbacks(use_default_callbacks=False)
 
 
 def scenario_file(value: str) -> str:

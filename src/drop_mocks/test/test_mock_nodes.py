@@ -15,7 +15,7 @@ from drop_interfaces.srv import DetectObjects, ResetTracking, SelectTarget, Stop
 from rclpy.parameter import Parameter  # noqa: E402
 
 from conftest import scenario_path  # noqa: E402
-from drop_ros import DOMAIN, Harness, wait_future  # noqa: E402
+from drop_ros import DOMAIN, Harness, own_qos_event_handlers, wait_future  # noqa: E402
 from drop_mocks.mock_robot_controller_node import MockRobotControllerNode  # noqa: E402
 from drop_mocks.mock_world_node import MockWorldNode  # noqa: E402
 from drop_mocks.ros_common import ERROR_PROTECTIVE_STOP, from_time, to_time  # noqa: E402
@@ -352,3 +352,19 @@ def test_mock_exits_when_real_provider_appears_after_start(ros, service):
         h.close()
         if real is not None:
             real.destroy_node()
+
+
+# ------------------------------------------------------------------ TC-IF-006-01
+@pytest.mark.req('REQ-IF-006')
+@pytest.mark.tc('TC-IF-006-01')
+@pytest.mark.level('C')
+def test_mock_nodes_have_no_qos_event_handlers(ros):
+    world = MockWorldNode(parameter_overrides=_params('nominal_20mms', 0.0))
+    robot = MockRobotControllerNode(parameter_overrides=_params('nominal_20mms', 0.0))
+    try:
+        for n in (world, robot):
+            assert len(list(n.publishers)) >= 3              # heartbeat·상태/데이터 + rclpy 내부
+            assert own_qos_event_handlers(n) == [], n.get_name()
+    finally:
+        world.destroy_node()
+        robot.destroy_node()

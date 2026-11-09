@@ -9,8 +9,8 @@ from drop_interfaces.srv import ComputeIntercept, DetectObjects, ResetTracking, 
 from geometry_msgs.msg import Point, Pose, Quaternion, Vector3
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 
-from .ros_common import (DATA_QOS, HEARTBEAT_PERIOD_S, HEARTBEAT_QOS, MockLifecycleNode, spin_mock,
-                         steady_clock, to_time)
+from .ros_common import (DATA_QOS, HEARTBEAT_PERIOD_S, HEARTBEAT_QOS, MockLifecycleNode, no_pub_events,
+                         spin_mock, steady_clock, to_time)
 from .scenario_engine import CLASS_CAP, RESULT
 
 ROLE_NODE = {'vision': 'vision_node', 'tracking': 'tracker_node'}
@@ -44,18 +44,23 @@ class MockWorldNode(MockLifecycleNode):
         self._seq = {r: 0 for r in self.roles}
 
         self.refuse_if_provided([n for r in self.roles for n in ROLE_SERVICES[r]])
-        self.hb_pub = self.create_publisher(Heartbeat, 'system/heartbeat', HEARTBEAT_QOS)
+        self.hb_pub = self.create_publisher(Heartbeat, 'system/heartbeat', HEARTBEAT_QOS,
+                                            event_callbacks=no_pub_events())
         if 'vision' in self.roles:
-            self.det_pub = self.create_publisher(ObjectDetectionArray, 'objects/detections', DATA_QOS)
+            self.det_pub = self.create_publisher(ObjectDetectionArray, 'objects/detections', DATA_QOS,
+                                                 event_callbacks=no_pub_events())
             self.create_service(DetectObjects, 'vision/detect_objects', self._detect)
             self.create_service(VerifyDrop, 'vision/verify_drop', self._verify)
         if 'tracking' in self.roles:
-            self.trk_pub = self.create_publisher(TrackedObjectArray, 'objects/tracked', DATA_QOS)
-            self.belt_pub = self.create_publisher(BeltMotion, 'belt/measured_motion', DATA_QOS)
+            self.trk_pub = self.create_publisher(TrackedObjectArray, 'objects/tracked', DATA_QOS,
+                                                 event_callbacks=no_pub_events())
+            self.belt_pub = self.create_publisher(BeltMotion, 'belt/measured_motion', DATA_QOS,
+                                                  event_callbacks=no_pub_events())
             self.create_service(ResetTracking, 'tracking/reset', self._reset)
             self.create_service(SelectTarget, 'tracking/select_target', self._select)
         if self.publish_plan:
-            self.plan_pub = self.create_publisher(InterceptPlan, 'drop/intercept_plan', DATA_QOS)
+            self.plan_pub = self.create_publisher(InterceptPlan, 'drop/intercept_plan', DATA_QOS,
+                                                  event_callbacks=no_pub_events())
             self.create_service(ComputeIntercept, 'planner/compute_intercept', self._compute_intercept)
         self.create_timer(1.0 / self.engine.rate, self._on_frame)
         # heartbeat는 프레임·서비스 콜백과 다른 그룹에 둬서 그쪽이 늦어도 끊기지 않게 하고,

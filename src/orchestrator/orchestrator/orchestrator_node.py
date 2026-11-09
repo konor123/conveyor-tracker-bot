@@ -30,6 +30,7 @@ from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 
 from . import step_judges as sj
 from .abort_policy import HARD_FAULTS, Event
+from .ros_qos import no_pub_events, no_sub_events
 from .common import AbortLevel, Mode, State
 from .cycle_runner import CapObservation, CycleRunner, DetectResult, DropGoal, OrchestratorCfg
 from .watchdogs import HeartbeatMonitor
@@ -451,13 +452,16 @@ class OrchestratorNode(Node):
         self.lifecycle: dict[str, int] = {}
         self.robot_status = self.belt = self.tracked = self.detections = None
         self.tracked_seq = 0
-        self.create_subscription(Heartbeat, 'system/heartbeat', self._on_hb, HB_QOS, callback_group=self.hb_group)
-        self.create_subscription(RobotStatus, 'robot/status', self._on_status, DATA_QOS, callback_group=self.hb_group)
+        self.create_subscription(Heartbeat, 'system/heartbeat', self._on_hb, HB_QOS, callback_group=self.hb_group,
+                                 event_callbacks=no_sub_events())
+        self.create_subscription(RobotStatus, 'robot/status', self._on_status, DATA_QOS, callback_group=self.hb_group,
+                                 event_callbacks=no_sub_events())
         self.create_subscription(BeltMotion, 'belt/measured_motion', lambda m: setattr(self, 'belt', m),
-                                 DATA_QOS)
-        self.create_subscription(TrackedObjectArray, 'objects/tracked', self._on_tracked, DATA_QOS)
+                                 DATA_QOS, event_callbacks=no_sub_events())
+        self.create_subscription(TrackedObjectArray, 'objects/tracked', self._on_tracked, DATA_QOS,
+                                 event_callbacks=no_sub_events())
         self.create_subscription(ObjectDetectionArray, 'objects/detections',
-                                 lambda m: setattr(self, 'detections', m), DATA_QOS)
+                                 lambda m: setattr(self, 'detections', m), DATA_QOS, event_callbacks=no_sub_events())
         self.srv_clients = {name: self.create_client(typ, name) for name, typ in (
             ('vision/detect_objects', DetectObjects), ('vision/verify_drop', VerifyDrop),
             ('tracking/select_target', SelectTarget), ('planner/compute_intercept', ComputeIntercept),
@@ -465,8 +469,8 @@ class OrchestratorNode(Node):
         self.actions = {name: ActionClient(self, typ, name) for name, typ in (
             ('robot/pick_stone', PickStone), ('robot/move_to_pose', MoveToPose), ('robot/place_stone', PlaceStone),
             ('robot/dynamic_place', DynamicPlace), ('robot/safe_retreat', SafeRetreat))}
-        self.status_pub = self.create_publisher(TaskStatus, 'task/status', STATUS_QOS)
-        self.step_pub = self.create_publisher(StepRecord, 'task/step_record', STEP_QOS)
+        self.status_pub = self.create_publisher(TaskStatus, 'task/status', STATUS_QOS, event_callbacks=no_pub_events())
+        self.step_pub = self.create_publisher(StepRecord, 'task/step_record', STEP_QOS, event_callbacks=no_pub_events())
         self.port = RosSkillPort(self)
         self.runner = CycleRunner(self.port, self.clock, self.cfg, on_state=self._on_state,
                                   on_record=self._on_record)

@@ -1,6 +1,8 @@
 """계약 시험 공통 검사(PLAN.md 7.4절, SPEC-010 v0.1): heartbeat·QoS·deadline·lifecycle 비활성."""
 from __future__ import annotations
 
+import time
+
 import pytest
 from drop_interfaces.msg import Heartbeat
 from lifecycle_msgs.msg import State
@@ -18,7 +20,7 @@ def started(target: drop_ros.Target, ready_service: str, timeout=15.0):
     rclpy.init(domain_id=drop_ros.DOMAIN)
     proc = drop_ros.spawn(target)
     h = drop_ros.Harness()
-    h.heartbeats = h.record(Heartbeat, 'system/heartbeat')
+    h.heartbeats = h.record(Heartbeat, 'system/heartbeat', steady=True)
     try:
         h.wait_for(lambda: any(n == ready_service for n in h.service_types()), timeout, ready_service)
         h.wait_for(lambda: _state(h, target.node) == State.PRIMARY_STATE_ACTIVE, timeout, 'ACTIVE')
@@ -46,14 +48,19 @@ def finished(proc, h) -> None:
 
 
 def check_heartbeat(h, node_name: str, window=1.5) -> None:
-    """발행 stamp 기준 주기 10 Hz ± 20%, 간격 최대 < 0.3 s(SPEC-110 손실 기준), ACTIVE, seq 증가."""
-    t0 = h.now()
-    h.sleep(window + 0.05)
-    got = [m for t, m in h.heartbeats if t0 <= t < t0 + window and m.node_name == node_name]
+    """주기 10 Hz ± 20%, 간격 최대 < 0.3 s(SPEC-110 손실 기준), ACTIVE, seq 증가.
+
+    주기·간격은 수신 steady 시각으로 잰다. heartbeat는 steady 타이머로 발행되고(REQ-ABT-009) stamp는 ROS 시각이라,
+    시스템 시계가 점프하면 stamp 간격은 실제 발행 간격과 달라진다.
+    """
+    t0 = time.monotonic()
+    time.sleep(window + 0.05)
+    rows = [(t, m) for t, m in h.heartbeats if t0 <= t < t0 + window and m.node_name == node_name]
+    got = [m for _, m in rows]
     assert len(got) >= 3, len(got)
-    stamps = [drop_ros.from_time(m.header.stamp) for m in got]
-    gaps = [b - a for a, b in zip(stamps, stamps[1:])]
-    rate = (len(stamps) - 1) / (stamps[-1] - stamps[0])
+    recv = [t for t, _ in rows]
+    gaps = [b - a for a, b in zip(recv, recv[1:])]
+    rate = (len(recv) - 1) / (recv[-1] - recv[0])
     assert 0.8 * HEARTBEAT_HZ <= rate <= 1.2 * HEARTBEAT_HZ, rate
     assert max(gaps) < 0.3, max(gaps)
     assert all(m.lifecycle_state == State.PRIMARY_STATE_ACTIVE for m in got)

@@ -2,8 +2,8 @@
 
 `tools/spec/trace.py`가 생성한다. 손으로 고치지 않는다.
 
-- REQ 82개 중 TC 연결 82개
-- pytest 대상 TC 172개 중 테스트 연결 124개
+- REQ 83개 중 TC 연결 83개
+- pytest 대상 TC 173개 중 테스트 연결 125개
 
 | TC | 수준 | REQ | 테스트 |
 |---|---|---|---|
@@ -86,6 +86,7 @@
 | TC-IF-004-01 | C | REQ-IF-004 | `tools/spec/test_qos_contract.py::test_publisher_qos_matches_spec_table` |
 | TC-IF-004-02 | C | REQ-IF-004 | `tools/spec/test_qos_contract.py::test_qos_mismatch_best_effort_pub_reliable_sub_detected` |
 | TC-IF-005-01 | C | REQ-IF-005 | `src/drop_mocks/test/contract/test_mock_robot_controller_contract.py::<module>` |
+| TC-IF-006-01 | C | REQ-IF-006 | `src/drop_mocks/test/test_mock_nodes.py::test_mock_nodes_have_no_qos_event_handlers`<br>`src/orchestrator/test/test_watch_timers_ros.py::test_orchestrator_nodes_have_no_qos_event_handlers`<br>`src/robot_control/test/test_robot_controller_heartbeat.py::test_robot_controller_has_no_qos_event_handlers` |
 | TC-INT-001-01 | I0 | REQ-INT-001(SPEC 없음) | `src/drop_bringup/test/test_i0_integration.py::test_i0_nominal_20_cycles_and_records` |
 | TC-INT-002-01 | I0 | REQ-INT-002(SPEC 없음) | `src/drop_bringup/test/test_i0_integration.py::test_i0_robot_hang_escalates_and_stops` |
 | TC-INT-003-01 | I0 | REQ-INT-003(SPEC 없음) | `src/drop_bringup/test/test_i0_integration.py::test_i0_protective_stop_waits_for_operator_resume`<br>`src/orchestrator/test/test_safety_supervisor.py::test_safety_supervisor_node_calls_stop_only` |

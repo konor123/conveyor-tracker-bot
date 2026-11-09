@@ -60,6 +60,8 @@ python3 tools/spec/trace.py
 
 colcon이 없으면 시스템을 바꾸지 않고 venv에 설치해 쓴다: `python3 -m venv --system-site-packages ~/.venvs/colcon && ~/.venvs/colcon/bin/pip install colcon-common-extensions`.
 
+실행 장소: GCE 중앙 작업 공간은 자원이 작아 편집·순수 Python 단위 시험·조정에만 쓴다. ROS 빌드·통합 시험·반복 측정은 PC에서 한다. 실제 구동 장비는 LEGION(`academylegion` 런타임, 로봇·카메라·그리퍼 연결)이고, 꺼져 있으면 사무실 PC WSL(`officepc`)을 쓴다. LEGION에서는 현장 저장소 사본과 분리된 임시 폴더와 시험용 `ROS_DOMAIN_ID`로 mock 시험만 돌리고 로봇 지령 경로는 건드리지 않는다. 결과 기록에는 실행 장소를 적는다.
+
 ## 장비·안전
 
 - 실제 로봇·그리퍼에 지령을 보내는 일은 `[OFF]`다. 원격 접속은 온라인 작업이 아니다(`PLAN.md` 11.4절).

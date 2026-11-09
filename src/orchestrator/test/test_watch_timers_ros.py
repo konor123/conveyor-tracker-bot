@@ -11,7 +11,7 @@ rclpy = pytest.importorskip('rclpy')
 
 from drop_interfaces.msg import Heartbeat  # noqa: E402
 from drop_interfaces.srv import Stop  # noqa: E402
-from drop_ros import DOMAIN, Harness  # noqa: E402
+from drop_ros import DOMAIN, Harness, own_qos_event_handlers  # noqa: E402
 from rclpy.clock import ClockType  # noqa: E402
 from rclpy.parameter import Parameter  # noqa: E402
 
@@ -76,3 +76,19 @@ def test_supervisor_detects_heartbeat_loss_when_ros_time_frozen(ros):
         assert 0.3 - 0.05 <= stops[0][0] - t_last <= 0.3 + 0.2
     finally:
         h.close()
+
+
+# ------------------------------------------------------------------ TC-IF-006-01
+@pytest.mark.req('REQ-IF-006')
+@pytest.mark.tc('TC-IF-006-01')
+@pytest.mark.level('C')
+def test_orchestrator_nodes_have_no_qos_event_handlers(ros):
+    from orchestrator.record_logger_node import RecordLoggerNode
+    nodes = [OrchestratorNode(), SafetySupervisorNode(), RecordLoggerNode()]
+    try:
+        for n in nodes:
+            assert list(n.subscriptions)
+            assert own_qos_event_handlers(n) == [], n.get_name()
+    finally:
+        for n in nodes:
+            n.destroy_node()

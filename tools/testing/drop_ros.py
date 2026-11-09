@@ -17,6 +17,7 @@ from builtin_interfaces.msg import Time
 from lifecycle_msgs.msg import Transition
 from lifecycle_msgs.srv import ChangeState, GetState
 from rclpy.action import ActionClient
+from rclpy.event_handler import SubscriptionEventCallbacks
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.qos import QoSProfile, ReliabilityPolicy
 
@@ -49,6 +50,15 @@ def from_time(t: Time) -> float:
     return t.sec + t.nanosec * 1e-9
 
 
+RCLPY_INTERNAL_TOPICS = ('/parameter_events', '/rosout')
+
+
+def own_qos_event_handlers(node) -> list[tuple[str, int]]:
+    """노드가 직접 만든 구독·발행 중 QoS 이벤트 핸들러가 붙은 것(토픽, 개수). rclpy 내부 발행자는 뺀다(REQ-IF-006)."""
+    pubs = [p for p in node.publishers if p.topic_name not in RCLPY_INTERNAL_TOPICS]
+    return [(e.topic_name, len(e.event_handlers)) for e in pubs + list(node.subscriptions) if e.event_handlers]
+
+
 def wait_future(fut, timeout: float):
     end = time.monotonic() + timeout
     while not fut.done():
@@ -73,10 +83,15 @@ class Harness:
     def now(self) -> float:
         return self.client.get_clock().now().nanoseconds * 1e-9
 
-    def record(self, typ, topic):
-        """수신 (수신 시각, 메시지) 목록. 목록은 계속 채워진다."""
+    def record(self, typ, topic, steady: bool = False):
+        """수신 (수신 시각, 메시지) 목록. 목록은 계속 채워진다.
+
+        수신 시각은 ROS 시각이다. `steady=True`면 `time.monotonic()`으로 남긴다(시계 점프와 무관한 주기 측정용).
+        """
         box = []
-        self.client.create_subscription(typ, topic, lambda m: box.append((self.now(), m)), RECORD_QOS)
+        clock = time.monotonic if steady else self.now
+        self.client.create_subscription(typ, topic, lambda m: box.append((clock(), m)), RECORD_QOS,
+                                       event_callbacks=SubscriptionEventCallbacks(use_default_callbacks=False))
         return box
 
     def call(self, typ, name, timeout=5.0, **fields):

@@ -20,6 +20,8 @@ from rclpy.executors import ExternalShutdownException, MultiThreadedExecutor
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 
+from .ros_qos import no_sub_events
+
 
 def _time_to_s(t) -> float:
     return t.sec + t.nanosec * 1e-9
@@ -162,9 +164,9 @@ class RecordLoggerNode(Node):
         self._mock_cli = self.create_client(GetParameters, f'/{mock_node}/get_parameters',
                                             callback_group=group)
         self.create_subscription(StepRecord, 'task/step_record', self._on_step_record, qos,
-                                 callback_group=group)
+                                 callback_group=group, event_callbacks=no_sub_events())
         self.create_subscription(ParameterEvent, '/parameter_events', self._on_param_event, qos,
-                                 callback_group=group)
+                                 callback_group=group, event_callbacks=no_sub_events())
         self.create_timer(0.1, self._poll_mock_params, callback_group=group)
 
     def _poll_mock_params(self) -> None:

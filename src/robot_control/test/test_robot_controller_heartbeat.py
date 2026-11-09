@@ -6,7 +6,7 @@ import pytest
 rclpy = pytest.importorskip('rclpy')
 
 from drop_interfaces.msg import Heartbeat, RobotStatus  # noqa: E402
-from drop_ros import DOMAIN, Harness  # noqa: E402
+from drop_ros import DOMAIN, Harness, own_qos_event_handlers  # noqa: E402
 from rclpy.parameter import Parameter  # noqa: E402
 
 from robot_control.robot_controller_node import RobotControllerNode  # noqa: E402
@@ -39,3 +39,17 @@ def test_heartbeat_and_status_keep_publishing_when_ros_time_frozen(ros):
         assert len(statuses) - s0 >= 7
     finally:
         h.close()
+
+
+@pytest.mark.req('REQ-IF-006')
+@pytest.mark.tc('TC-IF-006-01')
+@pytest.mark.level('C')
+def test_robot_controller_has_no_qos_event_handlers(ros):
+    node = RobotControllerNode()
+    try:
+        node.trigger_configure()
+        node.trigger_activate()
+        assert node.status_pub is not None and node.hb_pub is not None
+        assert own_qos_event_handlers(node) == []
+    finally:
+        node.destroy_node()

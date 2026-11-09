@@ -14,7 +14,7 @@ from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.parameter import Parameter
 
 from .ros_common import (ERROR_PROTECTIVE_STOP, HEARTBEAT_PERIOD_S, HEARTBEAT_QOS,
-                         MockLifecycleNode, from_time, spin_mock, steady_clock)
+                         MockLifecycleNode, from_time, no_pub_events, spin_mock, steady_clock)
 from .scenario_engine import GRIPPER_SKILLS, MODE_PREDICTED, RESULT
 
 ACTIONS = {
@@ -56,8 +56,10 @@ class MockRobotControllerNode(MockLifecycleNode):
                          callback_group=group)
             for name, (typ, topic, _) in ACTIONS.items()]
         self.create_service(Stop, 'robot/stop', self._on_stop, callback_group=group)
-        self.status_pub = self.create_publisher(RobotStatus, 'robot/status', HEARTBEAT_QOS)
-        self.hb_pub = self.create_publisher(Heartbeat, 'system/heartbeat', HEARTBEAT_QOS)
+        self.status_pub = self.create_publisher(RobotStatus, 'robot/status', HEARTBEAT_QOS,
+                                                event_callbacks=no_pub_events())
+        self.hb_pub = self.create_publisher(Heartbeat, 'system/heartbeat', HEARTBEAT_QOS,
+                                            event_callbacks=no_pub_events())
         # 상태·heartbeat는 steady 시계로 발행한다(REQ-ABT-009)
         self.create_timer(HEARTBEAT_PERIOD_S, self._on_status, clock=steady_clock())
         self.create_timer(HEARTBEAT_PERIOD_S, self._on_heartbeat, clock=steady_clock())

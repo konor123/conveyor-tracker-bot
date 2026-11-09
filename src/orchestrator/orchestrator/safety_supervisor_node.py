@@ -15,6 +15,7 @@ from drop_interfaces.msg import Heartbeat, RobotStatus, TaskStatus
 from drop_interfaces.srv import Stop
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.clock import Clock, ClockType
+from .ros_qos import no_sub_events
 from rclpy.executors import ExternalShutdownException, MultiThreadedExecutor
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
@@ -88,9 +89,10 @@ class SafetySupervisorNode(Node):
         self.task_status: TaskStatus | None = None
         self.stop_calls: list[tuple[str, float]] = []
         self._stop_cli = self.create_client(Stop, 'robot/stop')
-        self.create_subscription(Heartbeat, 'system/heartbeat', self._on_hb, HB_QOS)
-        self.create_subscription(RobotStatus, 'robot/status', self._on_status, DATA_QOS)
-        self.create_subscription(TaskStatus, 'task/status', self._on_task, STATUS_QOS)
+        self.create_subscription(Heartbeat, 'system/heartbeat', self._on_hb, HB_QOS, event_callbacks=no_sub_events())
+        self.create_subscription(RobotStatus, 'robot/status', self._on_status, DATA_QOS,
+                                 event_callbacks=no_sub_events())
+        self.create_subscription(TaskStatus, 'task/status', self._on_task, STATUS_QOS, event_callbacks=no_sub_events())
         # 감시 타이머는 steady 시계(REQ-ABT-009)
         self.create_timer(0.05, self._tick, clock=Clock(clock_type=ClockType.STEADY_TIME))
 

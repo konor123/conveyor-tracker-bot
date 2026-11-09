@@ -1,6 +1,6 @@
 # SPEC-010 interfaces
 
-- 버전: v0.2
+- 버전: v0.3
 - 근거: PLAN.md 2.2, 3, 7.4절, `src/drop_interfaces/`
 - REQ 영역: IF
 
@@ -10,6 +10,7 @@
 |---|---|---|
 | v0.1 | 2026-11-07 | msg 9종·srv 6종·action 6종 규약, 공통 요청 필드·결과 코드·상수 표, QoS 표, revision·epoch 규칙, lifecycle 비활성 응답, Heartbeat 오류 코드, 스냅샷 버전 규칙 |
 | v0.2 | 2026-11-07 | `RobotStatus` msg 신설(`robot/status`, 10 Hz), `PlaceStone`·`DynamicPlace` feedback에 `phase_done`·`metric_keys`·`metric_values` 추가 및 phase별 측정값 키 규약(REQ-IF-005) |
+| v0.3 | 2026-11-09 | 실행 노드의 구독·발행에 기본 QoS 이벤트 핸들러를 붙이지 않음(6절, REQ-IF-006), heartbeat 주기의 계약 측정 기준을 수신 steady 시각으로 정함 |
 
 ## 1. 목적·범위
 
@@ -178,14 +179,14 @@
 
 ## 5. 시간 제약(주기·제한시간)
 
-- `system/heartbeat` 및 `robot/status`: 10 Hz 발행(계약 시험 기준 `10 Hz ± 20%`, 즉 `8.0 ~ 12.0 Hz`, 인접 메시지 간격 `< 0.3 s`, heartbeat `seq` 엄격 단조 증가).
+- `system/heartbeat` 및 `robot/status`: 10 Hz 발행(계약 시험 기준 `10 Hz ± 20%`, 즉 `8.0 ~ 12.0 Hz`, 인접 메시지 간격 `< 0.3 s`, heartbeat `seq` 엄격 단조 증가). 주기·간격은 수신 steady 시각으로 잰다(발행 타이머가 steady이고 `header.stamp`는 ROS 시각이라 시계 점프 때 stamp 간격은 발행 간격과 다르다).
 - `DynamicPlace` `SYNCHRONIZE` 중 feedback: 20 Hz 이상 발행.
 - `robot_controller_node` 액션 취소(`cancel_goal_async`) 응답 시간: 요청 후 `0.5 s` 이내 `CANCELED` 종료.
 - `robot_controller_node` `deadline` 자체 중단 지연: `deadline` 시각 경과 후 `0.15 s` 이내 `TIMEOUT` 종료.
 
 ## 6. 실패 모드와 응답(중단 등급)
 
-- **QoS 불일치(`QOS_MISMATCH`):** Best Effort 발행자와 Reliable 구독자가 연결되면 ROS 2 / DDS는 예외를 던지지 않고 메시지를 조용히 폐기한다. 계약 시험 도구(`common.check_data_qos`, `common.check_qos_compatible`)는 토픽 그래프의 발행자 QoS를 조회해 `QOS_MISMATCH`로 즉시 실패시킨다.
+- **QoS 불일치(`QOS_MISMATCH`):** Best Effort 발행자와 Reliable 구독자가 연결되면 ROS 2 / DDS는 예외를 던지지 않고 메시지를 조용히 폐기한다. 계약 시험 도구(`common.check_data_qos`, `common.check_qos_compatible`)는 토픽 그래프의 발행자 QoS를 조회해 `QOS_MISMATCH`로 즉시 실패시킨다. 실행 노드(orchestrator·safety_supervisor·record_logger·robot_controller·대역 2종)는 구독·발행에 rclpy 기본 QoS 이벤트 핸들러를 붙이지 않는다. 이 핸들러는 waitable로 붙어 MultiThreadedExecutor가 이벤트마다 대기 집합을 다시 만들 때 모두 순회되며, I0에서 orchestrator CPU를 한 코어의 약 40%에서 약 13%로, 감시 타이머 100 ms 초과 지연을 회당 10여 회에서 0회로 바꾼 원인이었다(2026-11-09, officepc WSL 각 3회). QoS 불일치는 위 계약 시험으로 검출한다.
 - **스냅샷 불일치:** 승인되지 않은 인터페이스 변경은 `TC-IF-001-01`(`snapshot_interfaces.sh --check`)에서 실패한다.
 - **런타임 오류 전파:** `NODE_INACTIVE`(`PRECONDITION`), `DEADLINE`(`TIMEOUT`), `PLAN_INVALID`(`FAILED`), `PROTECTIVE_STOP`(`FAULT` 및 `Heartbeat.error_code = 100`, `RobotStatus.protective_stop = true`)은 오케스트레이터와 안전 감시 노드로 전달되어 SPEC-110 중단 등급(L1~L4)을 구동한다.
 
@@ -196,12 +197,14 @@
 - REQ-IF-003: `ObjectDetection`, `TrackedObject`, `BeltMotion`, `InterceptPlan`, `VerifyDrop`, `Stop`, `DropTask` 및 공통 결과 코드(`OK=0` ~ `FAULT=5`)의 모든 상수 값이 3.2~3.3절(`TEST_SPEC.md` 3.2절) 명세와 100% 일치한다.
 - REQ-IF-004: 데이터 토픽 발행자의 QoS는 3.5절 표(`Reliability=RELIABLE`, `Durability=VOLATILE`, `History depth=5` 또는 `1`)와 일치하며, 호환되지 않는 QoS 조합(Best Effort 발행자 + Reliable 구독자)은 계약 시험 검사(`check_qos_compatible`)에서 `QOS_MISMATCH` 오류로 100% 검출된다.
 - REQ-IF-005: `PlaceStone`·`DynamicPlace`의 각 phase 끝 feedback은 `phase_done=true`이고 2.3.1절 표의 키를 모두 가진다(누락 0).
+- REQ-IF-006: 실행 노드(orchestrator·safety_supervisor·record_logger·robot_controller·대역 2종)가 직접 만든 구독·발행의 QoS 이벤트 핸들러는 0개다(rclpy가 노드마다 만드는 `/parameter_events`·`/rosout` 발행자는 제외).
 
 ## 8. 검증 방법(`TEST_SPEC.md` TC ID, 게이트)
 
 - `TC-IF-001-01`, `TC-IF-002-01`, `TC-IF-003-01`: 수준 U, 게이트 M0 (`tools/spec/test_interfaces.py`).
 - `TC-IF-004-01`, `TC-IF-004-02`: 수준 C, 게이트 M0 (`tools/spec/test_qos_contract.py` 및 `src/*/test/contract/`).
 - `TC-IF-005-01`: 수준 C, 게이트 M0 (`tools/testing/contracts/robot_controller_contract.py` 및 `src/drop_mocks/test/contract/test_mock_robot_controller_contract.py`).
+- `TC-IF-006-01`: 수준 C, 게이트 M0 (각 패키지 `test/`의 노드 생성 시험).
 
 ## 9. 미결 사항
 
