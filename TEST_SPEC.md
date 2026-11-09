@@ -265,12 +265,15 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-ORC-007-02 | 통과 보내기 소진 | U | `[ON]` | max_passes = 2, 세 통과 모두 부족 | L3, `SafeRetreat(keep_sync=false, place_back_pose=매트)` 호출, 결과 `NOT_ATTEMPTED` |
 | TC-ORC-008-01 | 대기 자세에서 계획 실패는 다음 통과로 넘긴다 | U | `[ON]` | PLAN_INTERCEPT가 동적 deadline까지 실패, 남은 통과 있음 | APPROACH 호출 0회, WAIT_CAP 복귀 |
 | TC-ORC-009-01 | WAIT_OPERATOR 재개 | U | `[ON]` | `resume` 사유 없음 / 사유 있음 | 거부 / PRECHECK부터 재시작, 진입 시각·사유 기록 |
+| TC-ORC-010-01 | 포트 대기와 비동기 장애 latch | U | `[ON]` | 해제 전 비하드 장애 / RELEASE 응답 뒤 비하드 장애 / 해제 뒤 비하드 latch 중 하드 이상 / 하드 latch 중 비하드 / `reset` 뒤 | 대기 종료 / 대기 계속·latch 유지 / 대기 종료·하드로 교체 / 하드 유지 / 해제 표시 초기화 |
 
 ### 3.4 ABT — 중단·제한시간·감시
 
 | TC | 검증 내용(REQ 초안) | 수준 | 장소 | 조건 | 기대 결과 |
 |---|---|---|---|---|---|
 | TC-ABT-001-01 | `decide()` 판정 순서 전수 | U | `[ON]` | 모든 상태 × {HARD_FAULT, 단계 실패, cancel} × holding {T,F} × released {T,F} × 재시도 {남음, 없음} | `PLAN.md` 5.2절 순서와 일치(기대표는 `test/data/decide_table.csv`, 이 표가 명세) |
+| TC-ABT-001-02 | 모든 상태·이벤트의 중단 등급과 전이 | U | `[ON]` | State 전부 × Event 전부 × holding/released {T,F} × 재시도 {남음, 없음}; 모드 3종 | SPEC-110 4.1 순서의 등급; L2/L3/L4는 중단 상태, CONTINUE는 RETREAT → VERIFY → DONE, ValueError 0건 |
+| TC-ABT-001-03 | 해제 후 비동기 장애의 후퇴·검증과 하드 이상 우선순위 | U | `[ON]` | RELEASE 응답 뒤 및 RETREAT/VERIFY 전·직후에 모든 Event 주입; 비하드 장애 latch 중 RETREAT 실패·무응답 및 L4 주입 | 비하드 장애에도 RETREAT·VERIFY 호출, 하드 이상·RETREAT 실패는 L4·Stop·WAIT_OPERATOR |
 | TC-ABT-002-01 | 높은 등급이 낮은 등급을 덮어쓴다 | U | `[ON]` | L3 진행 중 L4 / L4 진행 중 L2 | L4 / L4 유지 |
 | TC-ABT-003-01 | L2 중단 경로 제한시간 | U | `[ON]` | steady 10.000 / 10.001 s 경과 | 유지 / L4 |
 | TC-ABT-003-02 | L3 중단 경로 제한시간 | U | `[ON]` | steady 15.000 / 15.001 s 경과 | 유지 / L4 |
@@ -280,6 +283,7 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-ABT-007-01 | 측정 기반 단계 제한시간 | U | `[ON]` | (p95, p99) = (1.0, 1.2) / (2.0, 2.1) | 2.0 / 4.0(`max(ceil(1.5·p99), p95+0.5)`) |
 | TC-ABT-008-01 | `/clock`이 멈춰도 사이클은 끝난다 | U | `[ON]` | `freeze_ros()`, steady만 `goal.timeout × 2` 진행 | 사이클 중단(L2, 들고 있으면 L3) |
 | TC-ABT-009-01 | 감시 타이머는 steady 시계를 쓴다 | U | `[ON]` | `jump_ros(−5 s)` 후 heartbeat 정상 / `freeze_ros()` 후 heartbeat 0.3 s 끊김 | 오검출 없음 / 검출 |
+| TC-ABT-009-02 | heartbeat·상태 발행 및 감시 ROS 타이머가 steady 시계 | C | `[ON]` | `use_sim_time:=true`, `/clock` 없음(ROS 시각 정지): `mock_world_node`·`mock_robot_controller_node`·`robot_controller_node` 1 s, `safety_supervisor_node`에 controller heartbeat 1회 후 끊김, `orchestrator_node._watch` 타이머 시계 | heartbeat·`robot/status` 각 7회 이상 / 0.5 s 안에 `Stop(CONTROLLER_HEARTBEAT_LOST)` / `STEADY_TIME` |
 | TC-ABT-010-01 | heartbeat 3회 누락 | U | `[ON]` | 누락 0.299 / 0.300 s, 대상 vision(동적 구간) / vision(비동적) / robot_controller | 유지 / 검출 → L3 / L2 / L4 |
 | TC-ABT-011-01 | 동적 구간 관측 신선도 | U | `[ON]` | `t_now − t_last_obs` = 0.300 / 0.301 s, 해제 전 | 유지 / L3 |
 | TC-ABT-012-01 | ROS 시각 역행 | U | `[ON]` | 역행 1회 | track·plan 무효화, 들고 있으면 L3 아니면 L2 |
@@ -427,6 +431,7 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-MCK-006-01 | 가정값 표기 | U | `[ON]` | `scenarios/*.yaml` | `world`·`robot` 수치 값이 모두 `assumed:` 또는 `measured:` 중 하나로 분류(중복 0), 엔진 `assumed_params`가 분류 결과와 같음 |
 | TC-MCK-006-02 | 가정값 기록 복사 | I0 | `[ON]` | mock 1사이클 | trial 기록 `assumed_params` == 대역 노드 `assumed_params` 파라미터 |
 | TC-MCK-007-01 | 실제·대역 동시 기동 금지 | I0 | `[ON]` | `use_mock_vision:=true`와 실제 vision 동시 지정 | bringup이 기동 거부 |
+| TC-MCK-007-02 | 기동 뒤 실제 노드 등장 시 대역 종료 | C | `[ON]` | `mock_world_node role:=vision` heartbeat 확인 뒤 대역 밖에서 `vision/detect_objects` 서버 생성 / 대역을 `vision/detect_objects:=camera/detect_objects`로 remap하고 `camera/detect_objects` 서버 생성 | 10 s 안에 종료 코드 1, 출력에 `REAL_NODE_PRESENT` |
 
 ### 3.12 REC — 기록·분석
 

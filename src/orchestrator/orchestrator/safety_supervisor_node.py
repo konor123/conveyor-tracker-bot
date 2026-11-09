@@ -14,6 +14,7 @@ import yaml
 from drop_interfaces.msg import Heartbeat, RobotStatus, TaskStatus
 from drop_interfaces.srv import Stop
 from rclpy.callback_groups import ReentrantCallbackGroup
+from rclpy.clock import Clock, ClockType
 from rclpy.executors import ExternalShutdownException, MultiThreadedExecutor
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
@@ -90,7 +91,8 @@ class SafetySupervisorNode(Node):
         self.create_subscription(Heartbeat, 'system/heartbeat', self._on_hb, HB_QOS)
         self.create_subscription(RobotStatus, 'robot/status', self._on_status, DATA_QOS)
         self.create_subscription(TaskStatus, 'task/status', self._on_task, STATUS_QOS)
-        self.create_timer(0.05, self._tick)
+        # 감시 타이머는 steady 시계(REQ-ABT-009)
+        self.create_timer(0.05, self._tick, clock=Clock(clock_type=ClockType.STEADY_TIME))
 
     @staticmethod
     def _default_config() -> str:

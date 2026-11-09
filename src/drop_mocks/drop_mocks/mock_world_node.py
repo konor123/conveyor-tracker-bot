@@ -3,16 +3,14 @@ from __future__ import annotations
 
 import math
 
-import rclpy
-from rclpy.logging import get_logger
 from drop_interfaces.msg import (BeltMotion, Heartbeat, InterceptPlan, ObjectDetection,
                                  ObjectDetectionArray, TrackedObject, TrackedObjectArray)
 from drop_interfaces.srv import ComputeIntercept, DetectObjects, ResetTracking, SelectTarget, VerifyDrop
 from geometry_msgs.msg import Point, Pose, Quaternion, Vector3
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
-from rclpy.executors import MultiThreadedExecutor
 
-from .ros_common import DATA_QOS, HEARTBEAT_PERIOD_S, HEARTBEAT_QOS, MockLifecycleNode, to_time
+from .ros_common import (DATA_QOS, HEARTBEAT_PERIOD_S, HEARTBEAT_QOS, MockLifecycleNode, spin_mock,
+                         steady_clock, to_time)
 from .scenario_engine import CLASS_CAP, RESULT
 
 ROLE_NODE = {'vision': 'vision_node', 'tracking': 'tracker_node'}
@@ -60,8 +58,10 @@ class MockWorldNode(MockLifecycleNode):
             self.plan_pub = self.create_publisher(InterceptPlan, 'drop/intercept_plan', DATA_QOS)
             self.create_service(ComputeIntercept, 'planner/compute_intercept', self._compute_intercept)
         self.create_timer(1.0 / self.engine.rate, self._on_frame)
-        # heartbeat는 프레임·서비스 콜백과 다른 그룹에 둬서 그쪽이 늦어도 끊기지 않게 한다
-        self.create_timer(HEARTBEAT_PERIOD_S, self._on_heartbeat, callback_group=MutuallyExclusiveCallbackGroup())
+        # heartbeat는 프레임·서비스 콜백과 다른 그룹에 둬서 그쪽이 늦어도 끊기지 않게 하고,
+        # steady 시계로 돌려 ROS 시각 정지·역행(NTP 보정 포함)에도 끊기지 않게 한다(REQ-ABT-009)
+        self.create_timer(HEARTBEAT_PERIOD_S, self._on_heartbeat, callback_group=MutuallyExclusiveCallbackGroup(),
+                          clock=steady_clock())
         self.autostart()
 
     # ------------------------------------------------------------ 발행
@@ -197,22 +197,7 @@ class MockWorldNode(MockLifecycleNode):
 
 
 def main(args=None):
-    rclpy.init(args=args)
-    try:
-        node = MockWorldNode()
-    except RuntimeError as e:
-        get_logger('mock_world_node').error(str(e))
-        rclpy.try_shutdown()
-        raise SystemExit(1)
-    executor = MultiThreadedExecutor(num_threads=2)
-    executor.add_node(node)
-    try:
-        executor.spin()
-    except (KeyboardInterrupt, rclpy.executors.ExternalShutdownException):
-        pass
-    finally:
-        node.destroy_node()
-        rclpy.try_shutdown()
+    spin_mock(MockWorldNode, 'mock_world_node', num_threads=2, args=args)
 
 
 if __name__ == '__main__':

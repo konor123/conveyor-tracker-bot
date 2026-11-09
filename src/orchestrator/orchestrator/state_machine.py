@@ -33,8 +33,8 @@ def next_state(state: State, mode: Mode, j: Judgement | None, abort: AbortLevel,
         return S.WAIT_OPERATOR
     if state is S.WAIT_OPERATOR:
         return S.WAIT_OPERATOR
-    if abort is AbortLevel.CONTINUE_TO_RETREAT_VERIFY and state not in (S.RETREAT, S.VERIFY):
-        return S.RETREAT
+    if abort is AbortLevel.CONTINUE_TO_RETREAT_VERIFY:
+        return {S.RETREAT: S.VERIFY, S.VERIFY: S.DONE}.get(state, S.RETREAT)
     if state is S.VERIFY:
         return S.DONE
     if j is None:

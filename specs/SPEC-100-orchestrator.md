@@ -1,6 +1,6 @@
 # SPEC-100 orchestrator
 
-- 버전: v0.2
+- 버전: v0.3
 - 근거: PLAN.md 4절
 - REQ 영역: ORC
 
@@ -10,6 +10,7 @@
 |---|---|---|
 | v0.1 | 2026-11-07 | 상태 열(모드 3종), 단계별 skill·선행조건·판정·기록 키, 재시도·통과 보내기, WAIT_OPERATOR 재개 |
 | v0.2 | 2026-11-07 | 비동기 장애(`SkillPort.pending_fault`), 진행 알림 콜백(`on_state`·`on_record`), `orchestrator_node`의 ROS 대응(4.8절) |
+| v0.3 | 2026-11-09 | 해제 뒤 비하드 장애의 포트 대기 처리와 latch 교체 규칙(4.7절, REQ-ORC-010) |
 
 ## 1. 목적·범위
 
@@ -152,7 +153,7 @@ SPEC-010 v0.1 기준.
 - PLAN_INTERCEPT는 실제 deadline(`min(now + 0.5 s, 동적 deadline, 사이클 deadline)`)까지 재계산하고, 통과마다 최종 판정 1건을 기록한다.
 - PICK_STONE 선행조건(검출 나이)이 깨지면 `PRECONDITION`을 기록하고 DETECT_STONE으로 돌아간다. 이 재검출은 `retry.pick_stone_count`번까지이고 넘으면 L2다.
 - holding은 PICK_STONE OK부터 RELEASE 응답까지 참으로 둔다(MOVE_STANDBY의 `DROPPED`도 L3로 처리해 매트 쪽으로 정리한다).
-- 비동기 장애: 포트의 `pending_fault()`가 SPEC-110 이벤트(보호정지, controller heartbeat 손실, vision·tracker heartbeat 손실, 그리퍼 이상 등)를 돌려주면 실행기는 단계 실행 전과 직후에 그 이벤트로 중단 등급을 정한다(판정 `FAULT`, 이유 = 이벤트 이름). 포트는 장애가 생기면 진행 중인 대기를 바로 끝내고 `None`을 돌려준다. 장애는 사이클이 끝날 때까지 유지된다(포트가 latch).
+- 비동기 장애: 포트의 `pending_fault()`가 SPEC-110 이벤트(보호정지, controller heartbeat 손실, vision·tracker heartbeat 손실, 그리퍼 이상 등)를 돌려주면 실행기는 단계 실행 전과 직후에 그 이벤트로 중단 등급을 정한다(판정 `FAULT`, 이유 = 이벤트 이름). 포트는 장애가 생기면 진행 중인 대기를 바로 끝내고 `None`을 돌려준다. 단, RELEASE 응답을 받은 뒤에는 하드 이상(SPEC-110 4.1절)만 대기를 끝내고, 비하드 장애가 latch된 동안에도 RETREAT·VERIFY 응답을 기다린다(해제 뒤 비하드 장애는 `CONTINUE_TO_RETREAT_VERIFY`). 장애는 사이클이 끝날 때까지 유지된다(포트가 latch). latch된 비하드 장애는 하드 이상이 오면 그것으로 바뀌고, 하드 이상은 다른 장애로 바뀌지 않는다.
 - 진행 알림: `CycleRunner(..., on_state=f, on_record=g)`이면 상태가 바뀔 때 `f(state)`, 단계 기록이 생길 때 `g(StepRec)`를 부른다(TaskStatus·StepRecord 발행용). 결과 열은 콜백 유무와 같다.
 
 | 끝난 방식 | `DropTask.result` |
@@ -214,6 +215,7 @@ planner의 `time_budget`이 생기기 전까지 WAIT_CAP 예산은 `orchestrator
 - REQ-ORC-007: 통과 보내기는 `max_passes`회까지 한다. 소진하면 L3, `SafeRetreat(keep_sync=false, place_back=true)`, 결과 `NOT_ATTEMPTED`, `passes_skipped`를 기록한다.
 - REQ-ORC-008: PLAN_INTERCEPT가 동적 deadline까지 OK가 아니면 APPROACH를 0회 호출하고, 남은 통과가 있으면 WAIT_CAP으로 돌아간다.
 - REQ-ORC-009: WAIT_OPERATOR에서 사유 없는 `resume`은 거부하고, 사유 있는 `resume`은 PRECHECK부터 다시 시작하며 진입 시각·사유를 기록한다.
+- REQ-ORC-010: 포트 대기는 해제 전에는 latch된 모든 장애로, RELEASE 응답 뒤에는 하드 이상으로만 끝난다. latch된 비하드 장애는 하드 이상으로 바뀌고, 하드 이상은 비하드 장애로 바뀌지 않는다.
 
 ## 7. 성공 판정(측정 가능)
 
@@ -223,7 +225,7 @@ planner의 `time_budget`이 생기기 전까지 WAIT_CAP 예산은 `orchestrator
 
 ## 8. 검증 방법(`TEST_SPEC.md` TC ID, 게이트)
 
-TC-ORC-001-01 ~ TC-ORC-009-01(U, M0). ROS 수준은 TC-INT-001-01, TC-INT-005-01, TC-INT-006-01.
+TC-ORC-001-01 ~ TC-ORC-010-01(U, M0). ROS 수준은 TC-INT-001-01, TC-INT-005-01, TC-INT-006-01.
 
 ## 9. 미결 사항
 

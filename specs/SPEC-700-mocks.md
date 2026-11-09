@@ -1,6 +1,6 @@
 # SPEC-700 mocks
 
-- 버전: v0.2
+- 버전: v0.3
 - 근거: PLAN.md 7절
 - REQ 영역: MCK, INT
 
@@ -10,6 +10,7 @@
 |---|---|---|
 | v0.1 | 2026-11-07 | 시나리오 YAML 형식, `ScenarioEngine` 세계 모델, 이벤트 10종, `mock_world_node`·`mock_robot_controller_node` 동작, 가정값 표기 |
 | v0.2 | 2026-11-07 | SPEC-010 v0.2 반영: `mock_robot_controller_node`의 `robot/status`(`RobotStatus`, 10 Hz) 발행, `PlaceStone`·`DynamicPlace` phase별 feedback `phase_done`·`metric_keys`·`metric_values` 및 `phase_metrics` 대본 덮어쓰기 |
+| v0.3 | 2026-11-09 | 동시 기동 금지의 기동 뒤 감시(4.7절), heartbeat·`robot/status` 타이머의 steady 시계(5절) |
 
 ## 1. 목적·범위
 
@@ -154,9 +155,15 @@ measured: {<키 경로>: <출처>}
 - 노드는 lifecycle 노드다. `autostart`면 configure·activate까지 진행한다.
 - ACTIVE가 아닐 때: 데이터·상태 topic(`objects/*`, `belt/*`, `robot/status`)을 발행하지 않고, 서비스는 PRECONDITION `NODE_INACTIVE`로 응답하며, action goal은 거부한다. Heartbeat는 계속 발행하고 `lifecycle_state`에 현재 상태 ID(`lifecycle_msgs/State`)를 넣는다(SPEC-010 4.3절).
 
+### 4.7 동시 기동 금지(REQ-MCK-007)
+
+- 기동할 때 `exclusive_check_s`(기본 1.0 s) 동안 같은 역할의 서버(vision: `vision/detect_objects`·`vision/verify_drop`, tracking: `tracking/reset`·`tracking/select_target`, robot: `robot/stop`)가 그래프에 있는지 본다. 있으면 `REAL_NODE_PRESENT`를 기록하고 종료 코드 1로 끝난다.
+- 서버 이름은 namespace·remap을 푼 이름으로 센다. 기동 뒤에도 0.5 s(steady)마다 같은 서버의 제공자 수를 본다. 자기 외의 제공자가 생기면 `REAL_NODE_PRESENT`를 기록하고 종료 코드 1로 끝난다. DDS discovery는 수 s 걸릴 수 있으므로(실측 최대 약 2.6 s) 기동 확인 창에서 놓친 서버도 이 감시로 잡는다.
+- bringup은 대역이 0이 아닌 코드로 끝나면 전체를 내린다.
+
 ## 5. 시간 제약(주기·제한시간)
 
-- 데이터 topic: `frame_rate_hz`(기본 30 Hz). Heartbeat 및 `robot/status`: 10 Hz.
+- 데이터 topic: `frame_rate_hz`(기본 30 Hz). Heartbeat 및 `robot/status`: 10 Hz, steady 시계 타이머(ROS 시각이 멈추거나 역행해도 발행, SPEC-110 REQ-ABT-009).
 - 요청의 `deadline`(0이면 없음)이 지났으면 서비스는 TIMEOUT `DEADLINE`으로 응답하고, action은 deadline에 이르면 스스로 TIMEOUT `DEADLINE`으로 끝낸다(`hang` 제외).
 - 지연·지터·소요시간은 G0 측정 전까지 가정값이다(`assumed`).
 
@@ -176,7 +183,7 @@ measured: {<키 경로>: <출처>}
 
 ## 8. 검증 방법(`TEST_SPEC.md` TC ID, 게이트)
 
-TC-MCK-001-01, 002-01, 003-01, 004-01, 005-01, 005-02, 006-01, 006-02, 007-01(M0).
+TC-MCK-001-01, 002-01, 003-01, 004-01, 005-01, 005-02, 006-01, 006-02, 007-01, 007-02(M0).
 
 ## 9. 미결 사항
 

@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Protocol
 
 from . import step_judges as sj
-from .abort_policy import AbortCtx, AbortParams, AbortTracker, Event
+from .abort_policy import AbortCtx, AbortParams, AbortTracker, Event, HARD_FAULTS
 from .common import (DYNAMIC_STATES, AbortLevel, Clock, Judgement, Mode, Result, State, le,
                      metrics_to_record)
 from .deadlines import effective_deadline
@@ -236,20 +236,24 @@ class CycleRunner:
                 self._waiting = WaitOperatorEntry(clock.ros_now(), reason or state.name, c.tracker.level)
                 break
             event = self._pending_event(c, state)
-            if event is not None:
+            # 해제 후 비하드 장애는 후퇴·검증을 생략하지 않는다(SPEC-110 4.1).
+            pending = event
+            continue_cleanup = c.released and event not in HARD_FAULTS
+            if event is not None and not continue_cleanup:
                 j = Judgement(self._event_result(event), event.name, {})
                 level = self._level(c, state, event, j)
-                if event is Event.USER_CANCEL:
-                    result = 'CANCELED'
             else:
                 t_start = clock.ros_now()
                 j, event = self._execute(c, state)
-                fault = self._fault()
-                if fault is not None:                 # 단계 중 생긴 비동기 장애가 판정보다 우선
+                fault = self._fault() or pending
+                # RETREAT 실패 등 하드 이상은 latch된 비하드 장애보다 우선한다.
+                if fault is not None and (event not in HARD_FAULTS or fault in HARD_FAULTS):
                     j, event = Judgement(Result.FAULT, fault.name, j.metrics), fault
                 level = self._level(c, state, event, j) if event is not None else L.NONE
                 if j.reason_code != sj.WAIT:
                     self._record(records, c, state, j, t_start, level)
+            if event is Event.USER_CANCEL:
+                result = 'CANCELED'
             if state is S.PRECHECK and j.result is not Result.OK:
                 result, reason = 'NOT_ATTEMPTED', j.reason_code
             elif level in (L.L2, L.L3, L.L4) and not result:

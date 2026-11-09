@@ -101,7 +101,7 @@
 
 ## 8. 검증 방법(`TEST_SPEC.md` TC ID, 게이트)
 
-TC-ABT-001-01 ~ TC-ABT-016-01(U, M0). ROS 수준은 TC-INT-002-01(cancel 0.5 s), TC-INT-003-01(`Stop`), TC-INT-004-01(heartbeat 300 ms).
+TC-ABT-001-01 ~ TC-ABT-016-01(U, M0). ROS 수준은 TC-ABT-009-02(heartbeat·감시 타이머 시계), TC-INT-002-01(cancel 0.5 s), TC-INT-003-01(`Stop`), TC-INT-004-01(heartbeat 300 ms).
 
 ## 9. 미결 사항
 

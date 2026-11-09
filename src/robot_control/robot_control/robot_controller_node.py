@@ -20,6 +20,7 @@ from geometry_msgs.msg import Point, Pose, Quaternion
 from lifecycle_msgs.msg import State
 from rclpy.action import ActionServer, CancelResponse, GoalResponse
 from rclpy.callback_groups import ReentrantCallbackGroup
+from rclpy.clock import Clock, ClockType
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.lifecycle import LifecycleNode, TransitionCallbackReturn
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
@@ -177,8 +178,10 @@ class RobotControllerNode(LifecycleNode):
                                                 callback_group=group)
         self.status_pub = self.create_publisher(RobotStatus, 'robot/status', DATA_QOS)
         self.hb_pub = self.create_publisher(Heartbeat, 'system/heartbeat', HB_QOS)
-        self._timers = [self.create_timer(HEARTBEAT_PERIOD_S, self._on_status),
-                        self.create_timer(HEARTBEAT_PERIOD_S, self._on_heartbeat)]
+        # 상태·heartbeat는 steady 시계로 발행한다(REQ-ABT-009): ROS 시각 정지·역행에도 끊기지 않는다
+        steady = Clock(clock_type=ClockType.STEADY_TIME)
+        self._timers = [self.create_timer(HEARTBEAT_PERIOD_S, self._on_status, clock=steady),
+                        self.create_timer(HEARTBEAT_PERIOD_S, self._on_heartbeat, clock=steady)]
         return TransitionCallbackReturn.SUCCESS
 
     def on_deactivate(self, state):

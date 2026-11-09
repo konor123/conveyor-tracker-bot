@@ -6,6 +6,7 @@ import pytest
 from fakes import measures as M
 from fakes.skills import FakeSkillPort, Reply
 from orchestrator import step_judges as sj
+from orchestrator.abort_policy import Event, HARD_FAULTS
 from orchestrator.common import AbortLevel, Mode, Result, State
 from orchestrator.cycle_runner import (CapObservation, CycleRunner, DetectResult, DropGoal,
                                        OrchestratorCfg)
@@ -371,3 +372,68 @@ def test_progress_callbacks_match_outcome(fake_clock, cfg):
                       on_record=seen_records.append).run(goal())
     assert seen_states == out.states[1:]           # IDLE은 시작 상태라 알리지 않는다
     assert seen_records == out.records
+
+
+@pytest.mark.req("REQ-ABT-001")
+@pytest.mark.tc("TC-ABT-001-03")
+@pytest.mark.level("U")
+@pytest.mark.parametrize('event', list(Event))
+@pytest.mark.parametrize('point', ['after_release', 'before_retreat', 'after_retreat',
+                                  'before_verify', 'after_verify'])
+def test_released_fault_executes_cleanup(fake_clock, cfg, event, point):
+    trigger = {'after_release': 'feedback.RELEASE', 'after_retreat': 'result.RETREAT',
+               'after_verify': 'VerifyDrop'}.get(point)
+    port = FaultAfter(fake_clock, event, trigger)
+
+    def on_state(state):
+        if (point == 'before_retreat' and state is S.RETREAT
+                or point == 'before_verify' and state is S.VERIFY):
+            port.fault = event
+
+    out = CycleRunner(port, fake_clock, cfg, on_state=on_state).run(goal())
+    if event in HARD_FAULTS:
+        assert out.abort_level is AbortLevel.L4
+        assert out.result == 'PROTECTIVE_STOP'
+        assert out.states[-2:] == [S.PROTECTIVE_STOP, S.WAIT_OPERATOR]
+        assert 'Stop' in port.names()
+    else:
+        assert out.abort_level is AbortLevel.CONTINUE_TO_RETREAT_VERIFY
+        assert out.states[-3:] == [S.RETREAT, S.VERIFY, S.DONE]
+        assert port.names().count('result.RETREAT') == 1
+        assert port.names().count('VerifyDrop') == 1
+        assert out.result == ('CANCELED' if event is Event.USER_CANCEL else 'SUCCESS')
+        assert 'Stop' not in port.names()
+
+
+@pytest.mark.req("REQ-ABT-001")
+@pytest.mark.tc("TC-ABT-001-03")
+@pytest.mark.level("U")
+@pytest.mark.parametrize('retreat_reply', [Reply(None, hang=True),
+                                         Reply(replace(M.OK_RET, tcp_z_m=0.05), 1.0)])
+def test_retreat_failure_overrides_latched_soft_fault(fake_clock, cfg, retreat_reply):
+    port = FaultAfter(fake_clock, Event.HEARTBEAT_LOST, 'feedback.RELEASE')
+    port.script['result.RETREAT'] = [retreat_reply]
+    out = CycleRunner(port, fake_clock, cfg).run(goal())
+    assert out.abort_level is AbortLevel.L4
+    assert out.result == 'PROTECTIVE_STOP'
+    assert port.names().count('result.RETREAT') == 1
+    assert 'VerifyDrop' not in port.names()
+    assert 'Stop' in port.names()
+    assert out.records[-1].reason_code in ('STEP_TIMEOUT', 'Z_LOW')
+
+
+@pytest.mark.req("REQ-ABT-002")
+@pytest.mark.tc("TC-ABT-002-01")
+@pytest.mark.level("U")
+def test_released_soft_fault_escalates_to_hard_fault(fake_clock, cfg):
+    port = FaultAfter(fake_clock, Event.HEARTBEAT_LOST, 'feedback.RELEASE')
+
+    def on_state(state):
+        if state is S.VERIFY:
+            port.fault = Event.CONTROLLER_HEARTBEAT_LOST
+
+    out = CycleRunner(port, fake_clock, cfg, on_state=on_state).run(goal())
+    assert out.abort_level is AbortLevel.L4
+    assert 'result.RETREAT' in port.names()
+    assert 'VerifyDrop' not in port.names()
+    assert 'Stop' in port.names()

@@ -4,10 +4,15 @@ from __future__ import annotations
 import os
 import time
 
+import rclpy
 from builtin_interfaces.msg import Time
 from lifecycle_msgs.msg import State
 from rcl_interfaces.msg import ParameterDescriptor, ParameterType, SetParametersResult
+from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
+from rclpy.clock import Clock, ClockType
+from rclpy.executors import ExternalShutdownException, MultiThreadedExecutor
 from rclpy.lifecycle import LifecycleNode, TransitionCallbackReturn
+from rclpy.logging import get_logger
 from rclpy.parameter import Parameter
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 
@@ -17,6 +22,7 @@ DATA_QOS = QoSProfile(depth=5, reliability=ReliabilityPolicy.RELIABLE, durabilit
 HEARTBEAT_QOS = QoSProfile(depth=10, reliability=ReliabilityPolicy.RELIABLE,
                            durability=DurabilityPolicy.VOLATILE)
 HEARTBEAT_PERIOD_S = 0.1
+EXCLUSIVE_WATCH_PERIOD_S = 0.5     # 기동 뒤 같은 역할 서버 감시 주기(REQ-MCK-007)
 ERROR_PROTECTIVE_STOP = 100        # SPEC-010 코드 표 확정 전 임시값(SPEC-700 4.5절)
 
 
@@ -27,6 +33,11 @@ def to_time(sec: float) -> Time:
 
 def from_time(t: Time) -> float:
     return t.sec + t.nanosec * 1e-9
+
+
+def steady_clock() -> Clock:
+    """heartbeat·상태 발행 타이머용 steady 시계(SPEC-110 REQ-ABT-009). ROS 시각 정지·역행과 무관하게 돈다."""
+    return Clock(clock_type=ClockType.STEADY_TIME)
 
 
 def scenario_file(value: str) -> str:
@@ -49,6 +60,7 @@ class MockLifecycleNode(LifecycleNode):
         self.declare_parameter('drop_at_s', -1.0)
         self.declare_parameter('autostart', True)
         self.declare_parameter('exclusive_check_s', 1.0)
+        self.conflict: str | None = None
         path = scenario_file(self.get_parameter('scenario').value)
         self.engine = ScenarioEngine.from_file(path, int(self.get_parameter('seed').value))
         scale = float(self.get_parameter('duration_scale_ratio').value)
@@ -116,18 +128,33 @@ class MockLifecycleNode(LifecycleNode):
         return SetParametersResult(successful=True)
 
     def refuse_if_provided(self, services: list[str]) -> None:
-        """같은 역할의 서버가 이미 있으면 기동을 거부한다(REQ-MCK-007, 실제 노드와 동시 기동 금지).
+        """같은 역할의 서버가 있으면 기동을 거부하고, 기동 뒤에도 감시한다(REQ-MCK-007, 실제 노드와 동시 기동 금지).
 
-        discovery가 끝날 시간을 주려고 `exclusive_check_s` 동안 그래프를 본다.
+        기동할 때 `exclusive_check_s` 동안 그래프를 보고, 그 뒤에는 `EXCLUSIVE_WATCH_PERIOD_S`마다 자기 서버 외의
+        서버가 생겼는지 본다. discovery 지연(수 s)으로 기동 확인 창에서 놓친 서버도 이 감시로 잡는다.
+        발견하면 `conflict`를 남긴다. `spin_mock`은 이를 보고 executor를 멈춘 뒤 종료 코드 1로 끝낸다.
         """
+        # count_services는 remap을 반영하지 않으므로 remap까지 푼 이름으로 센다
+        services = [self.resolve_service_name(s) for s in services]
         end = time.monotonic() + float(self.get_parameter('exclusive_check_s').value)
         while True:
             found = [s for s in services if self.count_services(s) > 0]
             if found:
                 raise RuntimeError(f'REAL_NODE_PRESENT: 이미 제공 중인 서비스 {found}')
             if time.monotonic() >= end:
-                return
+                break
             time.sleep(0.05)
+        self._exclusive_services = list(services)
+        self.create_timer(EXCLUSIVE_WATCH_PERIOD_S, self._watch_exclusive,
+                          callback_group=MutuallyExclusiveCallbackGroup(), clock=steady_clock())
+
+    def _watch_exclusive(self) -> None:
+        if self.conflict is not None:
+            return
+        found = [s for s in self._exclusive_services if self.count_services(s) > 1]
+        if found:
+            self.conflict = f'REAL_NODE_PRESENT: 기동 뒤 같은 역할 서버 발견 {found}'
+            self.get_logger().error(self.conflict)
 
     def autostart(self) -> None:
         if self.get_parameter('autostart').value:
@@ -169,3 +196,27 @@ class MockLifecycleNode(LifecycleNode):
     def on_shutdown(self, state):
         self.state_id = State.PRIMARY_STATE_FINALIZED
         return TransitionCallbackReturn.SUCCESS
+
+
+def spin_mock(node_cls, name: str, num_threads: int, args=None) -> None:
+    """대역 노드 실행 공통. 동시 기동 거부(기동 시·기동 뒤 모두)는 종료 코드 1로 끝낸다(REQ-MCK-007)."""
+    rclpy.init(args=args)
+    try:
+        node = node_cls()
+    except RuntimeError as e:
+        get_logger(name).error(str(e))
+        rclpy.try_shutdown()
+        raise SystemExit(1)
+    executor = MultiThreadedExecutor(num_threads=num_threads)
+    executor.add_node(node)
+    try:
+        while rclpy.ok() and node.conflict is None:
+            executor.spin_once(timeout_sec=0.1)
+    except (KeyboardInterrupt, ExternalShutdownException):
+        pass
+    finally:
+        conflict = node.conflict
+        node.destroy_node()
+        rclpy.try_shutdown()
+    if conflict is not None:
+        raise SystemExit(1)

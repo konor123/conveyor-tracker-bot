@@ -22,13 +22,14 @@ from lifecycle_msgs.msg import State as LcState
 from rcl_interfaces.msg import SetParametersResult
 from rclpy.action import ActionClient, ActionServer, CancelResponse, GoalResponse
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup, ReentrantCallbackGroup
+from rclpy.clock import Clock, ClockType
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 from rclpy.parameter import Parameter
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 
 from . import step_judges as sj
-from .abort_policy import Event
+from .abort_policy import HARD_FAULTS, Event
 from .common import AbortLevel, Mode, State
 from .cycle_runner import CapObservation, CycleRunner, DetectResult, DropGoal, OrchestratorCfg
 from .watchdogs import HeartbeatMonitor
@@ -91,8 +92,11 @@ class RosSkillPort:
         self._result_future = None
         self._feedback: list = []
         self._mode = Mode.STATIC
+        # 장애 latch는 감시 타이머 스레드(_watch)와 실행 스레드(pending_fault)가 함께 건드리므로 lock으로 묶는다
+        self._fault_lock = threading.Lock()
         self._fault: Event | None = None
         self._triggered_faults: set[Event] = set()
+        self._released = False         # RELEASE 응답을 받았는가(REQ-ORC-010)
         self.drop_goal_handle = None
         self.target = None             # (track_id, epoch)
         self._skipped_tracks: set[int] = set()
@@ -103,28 +107,41 @@ class RosSkillPort:
     def reset(self, goal_handle) -> None:
         self._goal = self._result_future = None
         self._feedback = []
-        self._fault = None
-        self._triggered_faults = set()
-        self.drop_goal_handle = goal_handle
+        with self._fault_lock:
+            self._fault = None
+            self._triggered_faults = set()
+            self._released = False
+            self.drop_goal_handle = goal_handle
         self.target = self.static_cap = None
         self._skipped_tracks = set()
 
     def raise_fault(self, event: Event) -> None:
-        if self._fault is None and self.drop_goal_handle is not None and event not in self._triggered_faults:
+        """사이클 중 비동기 장애를 latch한다. latch된 비하드 장애는 하드 이상으로만 바뀐다(REQ-ORC-010)."""
+        with self._fault_lock:
+            if self.drop_goal_handle is None or event in self._triggered_faults:
+                return
+            if self._fault is not None and not (event in HARD_FAULTS and self._fault not in HARD_FAULTS):
+                return
             self._triggered_faults.add(event)
             self._fault = event
-            self.n.get_logger().warning(f'비동기 장애: {event.name}')
+        self.n.get_logger().warning(f'비동기 장애: {event.name}')
+
+    def _interrupting(self) -> bool:
+        """latch된 장애가 진행 중인 대기를 끝내는가. 해제 뒤에는 하드 이상만 끝낸다(후퇴·판정은 계속, SPEC-110 4.1)."""
+        with self._fault_lock:
+            return self._fault is not None and (self._fault in HARD_FAULTS or not self._released)
 
     def pending_fault(self) -> Event | None:
         self.n._watch()
-        ev, self._fault = self._fault, None
+        with self._fault_lock:
+            ev, self._fault = self._fault, None
         return ev
 
     def _wait(self, pred, deadline: float | None) -> bool:
         while True:
             if pred():
                 return True
-            if self._fault is not None:
+            if self._interrupting():
                 return False
             if deadline is not None and self.clock.ros_now() >= deadline:
                 return False
@@ -264,7 +281,7 @@ class RosSkillPort:
                 self.target = (r.track_id, r.epoch)
                 return self._cap_obs()
             if not self._wait(lambda: False, min(deadline, self.clock.ros_now() + retry)) and \
-                    (self._fault is not None or self.clock.ros_now() >= deadline):
+                    (self._interrupting() or self.clock.ros_now() >= deadline):
                 return None
 
     def observe_cap(self, deadline):
@@ -292,7 +309,7 @@ class RosSkillPort:
                     t_available_s=math.inf, t_required_s=0.0)
                 return CapObservation(meas, None)
             self._wait(lambda: False, min(deadline, self.clock.ros_now() + retry))
-            if self._fault is not None or self.clock.ros_now() >= deadline:
+            if self._interrupting() or self.clock.ros_now() >= deadline:
                 return None
 
     def compute_intercept(self, deadline):
@@ -357,6 +374,8 @@ class RosSkillPort:
         if phase == 'DESCEND':
             return meas_from_metrics(sj.StaticPlaceMeas if self._mode is Mode.STATIC else sj.DescendMeas, m)
         if phase == 'RELEASE':
+            with self._fault_lock:
+                self._released = True
             return meas_from_metrics(sj.ReleaseMeas, m)
         if phase == 'RETREAT':
             r = self._result(deadline)
@@ -462,7 +481,9 @@ class OrchestratorNode(Node):
         ActionServer(self, DropTask, 'drop_task', execute_callback=self._execute, goal_callback=self._on_goal,
                      cancel_callback=lambda _: CancelResponse.ACCEPT, callback_group=self.group)
         self.create_timer(float(self.node_cfg['status_period_s']), self._publish_status)
-        self.create_timer(0.05, self._watch, callback_group=self.hb_group)
+        # 감시 타이머는 steady 시계(REQ-ABT-009): ROS 시각이 멈추거나 NTP 보정으로 역행해도 돈다
+        self.create_timer(0.05, self._watch, callback_group=self.hb_group,
+                          clock=Clock(clock_type=ClockType.STEADY_TIME))
 
     def _on_params(self, params):
         for p in params:

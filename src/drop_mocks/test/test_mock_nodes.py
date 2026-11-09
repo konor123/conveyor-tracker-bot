@@ -9,7 +9,7 @@ import pytest
 rclpy = pytest.importorskip('rclpy')
 
 from drop_interfaces.action import MoveToPose, PickStone, SafeRetreat  # noqa: E402
-from drop_interfaces.msg import (BeltMotion, Heartbeat, ObjectDetectionArray,  # noqa: E402
+from drop_interfaces.msg import (BeltMotion, Heartbeat, ObjectDetectionArray, RobotStatus,  # noqa: E402
                                  TrackedObjectArray)
 from drop_interfaces.srv import DetectObjects, ResetTracking, SelectTarget, Stop  # noqa: E402
 from rclpy.parameter import Parameter  # noqa: E402
@@ -283,3 +283,72 @@ def test_robot_status_holding_workspace_and_heartbeat_stop(ros, tmp_path):
         assert dict(zip(desc_done.metric_keys, desc_done.metric_values))['rim_clearance_m'] == pytest.approx(0.001)
     finally:
         h.close()
+
+
+# ------------------------------------------------------------------ TC-ABT-009-02
+def _count_hb(hbs, name):
+    return sum(1 for _, m in hbs if m.node_name == name)
+
+
+@pytest.mark.req('REQ-ABT-009')
+@pytest.mark.tc('TC-ABT-009-02')
+@pytest.mark.level('C')
+def test_heartbeat_and_status_keep_publishing_when_ros_time_frozen(ros):
+    """use_sim_time인데 /clock이 없으면 ROS 시각이 멈춘다. heartbeat·robot/status 타이머는 steady라 10 Hz를 유지한다."""
+    sim = [Parameter('use_sim_time', value=True)]
+    world = MockWorldNode(parameter_overrides=_params('nominal_20mms', 0.0) + sim)
+    robot = MockRobotControllerNode(parameter_overrides=_params('nominal_20mms', 0.0) + sim)
+    h = Harness(world, robot)
+    try:
+        hbs = h.record(Heartbeat, 'system/heartbeat')
+        statuses = h.record(RobotStatus, 'robot/status')
+        names = ('vision_node', 'tracker_node', 'robot_controller_node')
+        h.wait_for(lambda: statuses and all(_count_hb(hbs, n) for n in names), timeout=10.0,
+                   what='첫 heartbeat·robot/status 수신')            # discovery
+        n0 = {n: _count_hb(hbs, n) for n in names}
+        s0 = len(statuses)
+        time.sleep(1.0)
+        assert world.get_clock().now().nanoseconds == 0           # ROS 시각이 실제로 멈춰 있다
+        for name, before in n0.items():
+            assert _count_hb(hbs, name) - before >= 7, f'{name} heartbeat 부족'
+        assert len(statuses) - s0 >= 7
+    finally:
+        h.close()
+
+
+# ------------------------------------------------------------------ TC-MCK-007-02
+@pytest.mark.req('REQ-MCK-007')
+@pytest.mark.tc('TC-MCK-007-02')
+@pytest.mark.level('C')
+@pytest.mark.parametrize('service', ['vision/detect_objects', 'camera/detect_objects'])
+def test_mock_exits_when_real_provider_appears_after_start(ros, service):
+    """기동 확인 창이 지난 뒤 같은 역할의 서버가 나타나도 대역은 REAL_NODE_PRESENT로 종료(코드 1)한다.
+
+    `camera/detect_objects`는 대역의 서비스를 remap해 띄운 경우다(감시가 remap된 이름을 봐야 한다).
+    """
+    env = dict(os.environ, ROS_DOMAIN_ID=str(DOMAIN))
+    remap = [] if service == 'vision/detect_objects' else ['-r', f'vision/detect_objects:={service}']
+    proc = subprocess.Popen(
+        [sys.executable, '-m', 'drop_mocks.mock_world_node', '--ros-args', '-p', 'role:=vision',
+         '-p', f'scenario:={scenario_path("nominal_20mms")}', *remap],
+        env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    h = Harness()
+    real = None
+    try:
+        hbs = h.record(Heartbeat, 'system/heartbeat')
+        h.wait_for(lambda: _count_hb(hbs, 'vision_node') > 0, timeout=10.0, what='대역 vision heartbeat')
+        assert proc.poll() is None
+        real = rclpy.create_node('vision_node_real')
+        real.create_service(DetectObjects, service, lambda req, res: res)
+        h.exec.add_node(real)
+        rc = proc.wait(timeout=10.0)
+        out = proc.stdout.read()
+        assert rc == 1, out[-2000:]
+        assert 'REAL_NODE_PRESENT' in out
+    finally:
+        if proc.poll() is None:
+            proc.kill()
+            proc.wait(timeout=5)
+        h.close()
+        if real is not None:
+            real.destroy_node()

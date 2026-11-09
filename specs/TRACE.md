@@ -2,13 +2,15 @@
 
 `tools/spec/trace.py`가 생성한다. 손으로 고치지 않는다.
 
-- REQ 81개 중 TC 연결 81개
-- pytest 대상 TC 167개 중 테스트 연결 119개
+- REQ 82개 중 TC 연결 82개
+- pytest 대상 TC 172개 중 테스트 연결 124개
 
 | TC | 수준 | REQ | 테스트 |
 |---|---|---|---|
 | TC-ABT-001-01 | U | REQ-ABT-001 | `src/orchestrator/test/test_abort_policy.py::test_decide_matches_table`<br>`src/orchestrator/test/test_abort_policy.py::test_every_hard_fault_is_l4_even_after_release`<br>`src/orchestrator/test/test_abort_policy.py::test_retry_needs_time_before_deadline`<br>`src/orchestrator/test/test_abort_policy.py::test_non_retryable_failure_is_l2`<br>`src/orchestrator/test/test_safety_supervisor.py::test_supervisor_monitor_detects_heartbeat_error_code` |
-| TC-ABT-002-01 | U | REQ-ABT-002 | `src/orchestrator/test/test_abort_policy.py::test_escalate_keeps_higher` |
+| TC-ABT-001-02 | U | REQ-ABT-001 | `src/orchestrator/test/test_fault_transitions.py::test_all_state_event_transitions` |
+| TC-ABT-001-03 | U | REQ-ABT-001 | `src/orchestrator/test/test_cycle_runner.py::test_released_fault_executes_cleanup`<br>`src/orchestrator/test/test_cycle_runner.py::test_retreat_failure_overrides_latched_soft_fault` |
+| TC-ABT-002-01 | U | REQ-ABT-002 | `src/orchestrator/test/test_abort_policy.py::test_escalate_keeps_higher`<br>`src/orchestrator/test/test_cycle_runner.py::test_released_soft_fault_escalates_to_hard_fault` |
 | TC-ABT-003-01 | U | REQ-ABT-003 | `src/orchestrator/test/test_abort_policy.py::test_l2_path_timeout` |
 | TC-ABT-003-02 | U | REQ-ABT-003 | `src/orchestrator/test/test_abort_policy.py::test_l3_path_timeout`<br>`src/orchestrator/test/test_abort_policy.py::test_path_done_stops_path_timer`<br>`src/orchestrator/test/test_cycle_runner.py::test_abort_path_hang_escalates_to_stop` |
 | TC-ABT-004-01 | U | REQ-ABT-004 | `src/orchestrator/test/test_abort_policy.py::test_cancel_without_response_escalates_one_level`<br>`src/orchestrator/test/test_abort_policy.py::test_cancel_ack_prevents_escalation`<br>`src/orchestrator/test/test_cycle_runner.py::test_pick_hang_cancel_escalation` |
@@ -17,6 +19,7 @@
 | TC-ABT-007-01 | U | REQ-ABT-007 | `src/orchestrator/test/test_deadlines.py::test_derive_step_timeout`<br>`src/orchestrator/test/test_deadlines.py::test_derive_step_timeout_floor_is_p95_plus_half` |
 | TC-ABT-008-01 | U | REQ-ABT-008 | `src/orchestrator/test/test_watchdogs.py::test_cycle_ends_when_ros_clock_frozen`<br>`src/orchestrator/test/test_watchdogs.py::test_cycle_timer_uses_ros_deadline_when_clock_runs` |
 | TC-ABT-009-01 | U | REQ-ABT-009 | `src/orchestrator/test/test_watchdogs.py::test_heartbeat_ignores_ros_jump`<br>`src/orchestrator/test/test_watchdogs.py::test_heartbeat_detected_with_frozen_ros` |
+| TC-ABT-009-02 | C | REQ-ABT-009 | `src/drop_mocks/test/test_mock_nodes.py::test_heartbeat_and_status_keep_publishing_when_ros_time_frozen`<br>`src/orchestrator/test/test_watch_timers_ros.py::test_orchestrator_watch_timer_uses_steady_clock`<br>`src/orchestrator/test/test_watch_timers_ros.py::test_supervisor_detects_heartbeat_loss_when_ros_time_frozen`<br>`src/robot_control/test/test_robot_controller_heartbeat.py::test_heartbeat_and_status_keep_publishing_when_ros_time_frozen` |
 | TC-ABT-010-01 | U | REQ-ABT-010 | `src/orchestrator/test/test_safety_supervisor.py::test_supervisor_monitor_detects_protective_stop_and_heartbeat_loss`<br>`src/orchestrator/test/test_watchdogs.py::test_heartbeat_boundary`<br>`src/orchestrator/test/test_watchdogs.py::test_heartbeat_unknown_node_is_lost`<br>`src/orchestrator/test/test_watchdogs.py::test_heartbeat_loss_levels` |
 | TC-ABT-011-01 | U | REQ-ABT-011 | `src/orchestrator/test/test_watchdogs.py::test_observation_freshness` |
 | TC-ABT-012-01 | U | REQ-ABT-012 | `src/orchestrator/test/test_watchdogs.py::test_clock_regression` |
@@ -101,6 +104,7 @@
 | TC-MCK-006-01 | U | REQ-MCK-006 | `src/drop_mocks/test/test_scenario_engine.py::test_every_value_is_assumed_or_measured`<br>`src/drop_mocks/test/test_scenario_engine.py::test_unclassified_or_double_classified_value_is_rejected` |
 | TC-MCK-006-02 | I0 | REQ-MCK-006 | `src/drop_bringup/test/test_i0_integration.py::test_i0_nominal_20_cycles_and_records` |
 | TC-MCK-007-01 | I0 | REQ-MCK-007 | `src/drop_bringup/test/test_mock_bringup.py::test_mock_refuses_when_real_provider_is_running` |
+| TC-MCK-007-02 | C | REQ-MCK-007 | `src/drop_mocks/test/test_mock_nodes.py::test_mock_exits_when_real_provider_appears_after_start` |
 | TC-ORC-001-01 | U | REQ-ORC-001 | `src/orchestrator/test/test_cycle_runner.py::test_synchronized_nominal_sequence` |
 | TC-ORC-001-02 | U | REQ-ORC-001 | `src/orchestrator/test/test_cycle_runner.py::test_static_skips_synchronize_and_detects_cap`<br>`src/orchestrator/test/test_step_judges.py::test_static_place` |
 | TC-ORC-001-03 | U | REQ-ORC-001 | `src/orchestrator/test/test_cycle_runner.py::test_predicted_uses_entry_judgement`<br>`src/orchestrator/test/test_step_judges.py::test_predicted_entry` |
@@ -127,6 +131,7 @@
 | TC-ORC-007-02 | U | REQ-ORC-007 | `src/orchestrator/test/test_cycle_runner.py::test_passes_exhausted_is_not_attempted` |
 | TC-ORC-008-01 | U | REQ-ORC-008 | `src/orchestrator/test/test_cycle_runner.py::test_plan_failure_goes_to_next_pass` |
 | TC-ORC-009-01 | U | REQ-ORC-009 | `src/orchestrator/test/test_cycle_runner.py::test_resume_requires_reason`<br>`src/orchestrator/test/test_cycle_runner.py::test_precheck_failure_returns_to_idle_without_wait_operator` |
+| TC-ORC-010-01 | U | REQ-ORC-010 | `src/orchestrator/test/test_ros_skill_port.py::test_soft_fault_ends_wait_before_release`<br>`src/orchestrator/test/test_ros_skill_port.py::test_soft_fault_does_not_end_wait_after_release`<br>`src/orchestrator/test/test_ros_skill_port.py::test_hard_fault_ends_wait_after_release_and_overrides_soft`<br>`src/orchestrator/test/test_ros_skill_port.py::test_soft_fault_does_not_override_hard`<br>`src/orchestrator/test/test_ros_skill_port.py::test_reset_clears_release`<br>`src/orchestrator/test/test_ros_skill_port.py::test_concurrent_soft_and_hard_raise_keeps_hard`<br>`src/orchestrator/test/test_ros_skill_port.py::test_concurrent_consume_and_hard_raise_loses_nothing` |
 | TC-PLN-001-01 | U | REQ-PLN-001(SPEC 없음) | — |
 | TC-PLN-001-02 | U | REQ-PLN-001(SPEC 없음) | — |
 | TC-PLN-001-03 | U | REQ-PLN-001(SPEC 없음) | — |

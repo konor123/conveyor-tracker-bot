@@ -11,12 +11,10 @@ from drop_interfaces.srv import Stop
 from geometry_msgs.msg import Point, Pose, Quaternion
 from rclpy.action import ActionServer, CancelResponse, GoalResponse
 from rclpy.callback_groups import ReentrantCallbackGroup
-from rclpy.executors import MultiThreadedExecutor
-from rclpy.logging import get_logger
 from rclpy.parameter import Parameter
 
 from .ros_common import (ERROR_PROTECTIVE_STOP, HEARTBEAT_PERIOD_S, HEARTBEAT_QOS,
-                         MockLifecycleNode, from_time)
+                         MockLifecycleNode, from_time, spin_mock, steady_clock)
 from .scenario_engine import GRIPPER_SKILLS, MODE_PREDICTED, RESULT
 
 ACTIONS = {
@@ -60,8 +58,9 @@ class MockRobotControllerNode(MockLifecycleNode):
         self.create_service(Stop, 'robot/stop', self._on_stop, callback_group=group)
         self.status_pub = self.create_publisher(RobotStatus, 'robot/status', HEARTBEAT_QOS)
         self.hb_pub = self.create_publisher(Heartbeat, 'system/heartbeat', HEARTBEAT_QOS)
-        self.create_timer(HEARTBEAT_PERIOD_S, self._on_status)
-        self.create_timer(HEARTBEAT_PERIOD_S, self._on_heartbeat)
+        # 상태·heartbeat는 steady 시계로 발행한다(REQ-ABT-009)
+        self.create_timer(HEARTBEAT_PERIOD_S, self._on_status, clock=steady_clock())
+        self.create_timer(HEARTBEAT_PERIOD_S, self._on_heartbeat, clock=steady_clock())
         self.autostart()
 
     def protective_stop(self) -> bool:
@@ -278,22 +277,7 @@ class MockRobotControllerNode(MockLifecycleNode):
 
 
 def main(args=None):
-    rclpy.init(args=args)
-    try:
-        node = MockRobotControllerNode()
-    except RuntimeError as e:
-        get_logger('mock_robot_controller_node').error(str(e))
-        rclpy.try_shutdown()
-        raise SystemExit(1)
-    executor = MultiThreadedExecutor(num_threads=3)
-    executor.add_node(node)
-    try:
-        executor.spin()
-    except (KeyboardInterrupt, rclpy.executors.ExternalShutdownException):
-        pass
-    finally:
-        node.destroy_node()
-        rclpy.try_shutdown()
+    spin_mock(MockRobotControllerNode, 'mock_robot_controller_node', num_threads=3, args=args)
 
 
 if __name__ == '__main__':
