@@ -69,12 +69,12 @@ def test_events_take_effect_at_scheduled_frame(load_scenario):
     eng = ScenarioEngine(s)
     assert sorted(e['type'] for e in s['events']) == sorted(_effects(eng, 75))  # 10종 모두
     for e in s['events']:
-        k = eng.frame_index(e['t_s'])
-        before = _effects(eng, k - 2)[e['type']]
-        after = [_effects(eng, k + d)[e['type']] for d in (-1, 0, 1)]
+        k = math.ceil(e['t_s'] * eng.rate)
+        before = _effects(eng, k - 1)[e['type']]
+        after = _effects(eng, k)[e['type']]
         assert not before, e['type']
-        assert any(after), e['type']
-        assert _effects(eng, k + 1)[e['type']], e['type']
+        assert after, e['type']
+        assert 0 <= eng.frame_time(k) - e['t_s'] <= DT + 1e-9
 
 
 @pytest.mark.req('REQ-MCK-006')

@@ -1,8 +1,10 @@
 """mock 노드 C 시험(SPEC-700 4절, TEST_SPEC.md 3.11절). rclpy로 노드를 같은 프로세스 또는 별도 프로세스로 띄운다."""
+import math
 import os
 import subprocess
 import sys
 import time
+from types import SimpleNamespace
 
 import pytest
 
@@ -15,6 +17,7 @@ from drop_interfaces.srv import DetectObjects, ResetTracking, SelectTarget, Stop
 from rclpy.parameter import Parameter  # noqa: E402
 
 from conftest import scenario_path  # noqa: E402
+from frame_timing import assert_event_phase  # noqa: E402
 from drop_ros import DOMAIN, Harness, SteadyRosClock, own_qos_event_handlers, wait_future  # noqa: E402
 from drop_mocks.mock_robot_controller_node import MockRobotControllerNode  # noqa: E402
 from drop_mocks.mock_world_node import MockWorldNode  # noqa: E402
@@ -41,8 +44,106 @@ def _params(scenario, t0, **extra):
 
 
 # ------------------------------------------------------------------ TC-MCK-005-01
-def _first(seq, pred):
-    return next((x for x in seq if pred(x)), None)
+class TimingWorld(MockWorldNode):
+    """Test-only evidence: callback ROS frame vs publication vs DDS receipt."""
+
+    def __init__(self, **kwargs):
+        self.frame_wakes = []
+        super().__init__(**kwargs)
+        self.published = []
+        publish = self.det_pub.publish
+        def observed_publish(msg):
+            self.published.append((msg.image_seq, from_time(msg.header.stamp), time.monotonic()))
+            publish(msg)
+        self.det_pub.publish = observed_publish
+
+    def _on_frame(self):
+        t = self.scenario_t()
+        self.frame_wakes.append((t, self.engine.frame_index(t), self._last_k,
+                                 self.det_pub.get_subscription_count(), time.monotonic()))
+        super()._on_frame()
+
+
+@pytest.mark.req('REQ-MCK-005')
+@pytest.mark.tc('TC-MCK-005-01')
+@pytest.mark.level('U')
+@pytest.mark.parametrize('start,wake', [(3.0, 3.1), (3.0, 3.2), (6.2, 188 / 30)])
+def test_frame_callback_delayed_wake_skips_to_latest(start, wake):
+    """Exercise the real callback with a fake ROS clock and recording publishers."""
+    engine = ScenarioEngine.from_file(scenario_path('all_events'))
+    emitted = []
+    world = SimpleNamespace(engine=engine, resets=0, active=True, _last_k=None,
+                            roles=('vision', 'tracking'),
+                            det_pub=SimpleNamespace(publish=emitted.append),
+                            trk_pub=SimpleNamespace(publish=lambda msg: None),
+                            belt_pub=SimpleNamespace(publish=lambda msg: None),
+                            _stamp=lambda t, offset: to_time(1000 + t + offset))
+    for now in (start - FRAME, wake):
+        world.scenario_t = lambda: now
+        MockWorldNode._on_frame(world)
+    assert [m.image_seq for m in emitted] == [engine.frame_index(start - FRAME), engine.frame_index(wake)]
+    assert from_time(emitted[-1].header.stamp) - 1000 == pytest.approx(wake, abs=1e-6)
+    with pytest.raises(AssertionError):
+        assert abs(from_time(emitted[-1].header.stamp) - 1000 - start) <= FRAME + 1e-6
+
+
+@pytest.mark.req('REQ-MCK-005')
+@pytest.mark.tc('TC-MCK-005-01')
+@pytest.mark.level('C')
+def test_controlled_clock_publishes_first_event_frame(ros):
+    """Advance only after each frame is processed and received.
+
+    Covers both edges of all data events, without asking the host scheduler to
+    deliver every 30 Hz wake. A stopped ROS clock cannot skip a frame.
+    """
+    from rosgraph_msgs.msg import Clock
+    t0 = 1000.0
+    world = MockWorldNode(parameter_overrides=_params(
+        'all_events', t0, use_sim_time=True, exclusive_check_s=0.0))
+    h = Harness(world, use_sim_time=True)
+    pub = h.client.create_publisher(Clock, '/clock', 10)
+    dets = h.record(ObjectDetectionArray, 'objects/detections', steady=True)
+    trks = h.record(TrackedObjectArray, 'objects/tracked', steady=True)
+    belt = h.record(BeltMotion, 'belt/measured_motion', steady=True)
+    engine = world.engine
+    events = [e for e in engine.events if e['type'] in (
+        'occlusion', 'track_lost', 'epoch_increment', 'speed_change',
+        'frame_drop', 'stone_in_cap', 'clock_jump')]
+    indices = set()
+    for ev in events:
+        for edge in [ev['t_s']] + ([ev['t_s'] + ev['duration_s']] if 'duration_s' in ev else []):
+            k = math.ceil(edge * engine.rate)
+            indices.update([k - 1, k, k + 1])
+    indices = range(max(indices) + 1)
+    try:
+        h.wait_for(lambda: pub.get_subscription_count() >= 2 and
+                   all(p.get_subscription_count() for p in
+                       (world.det_pub, world.trk_pub, world.belt_pub)), what='clock/data matching')
+        for k in sorted(indices):
+            fr = engine.frame(k)
+            counts = tuple(map(len, (dets, trks, belt)))
+            pub.publish(Clock(clock=to_time(t0 + (k + 0.5) / engine.rate)))
+            h.wait_for(lambda: world._last_k == k, what=f'frame callback {k}')
+            if fr.dropped:
+                continue
+            h.wait_for(lambda: all(len(rows) > count for rows, count in
+                                   zip((dets, trks, belt), counts)), what=f'frame receipt {k}')
+            d, tr, b = dets[-1][1], trks[-1][1], belt[-1][1]
+            assert d.image_seq == k
+            stamp = t0 + fr.t + fr.stamp_offset
+            assert all(from_time(m.header.stamp) == pytest.approx(stamp, abs=1e-6) for m in (d, tr, b))
+            assert [(x.track_id, x.status, x.epoch) for x in tr.tracks] == [
+                (x.track_id, x.status, x.epoch) for x in fr.tracks]
+            assert [(x.object_class, x.stone_inside) for x in d.detections] == [
+                (x.object_class, x.stone_inside) for x in fr.detections]
+            assert b.speed == pytest.approx(fr.belt.speed) and b.steady == fr.belt.steady
+        received = {m.image_seq for _, m in dets}
+        assert received == {k for k in indices if not engine.frame(k).dropped}
+        for ev in events:
+            k = math.ceil(ev['t_s'] * engine.rate)
+            assert 0 <= engine.frame_time(k) - ev['t_s'] <= FRAME + 1e-6
+    finally:
+        h.close()
 
 
 @pytest.mark.req('REQ-MCK-005')
@@ -57,7 +158,7 @@ def test_injected_events_appear_at_scheduled_time(ros):
     eng = ScenarioEngine.from_file(scenario_path('all_events'))
     ev = {e['type']: e for e in eng.events}
     sim = [Parameter('use_sim_time', value=True)]
-    world = MockWorldNode(parameter_overrides=_params('all_events', t0) + sim)
+    world = TimingWorld(parameter_overrides=_params('all_events', t0) + sim)
     robot = MockRobotControllerNode(parameter_overrides=_params('all_events', t0) + sim)
     h = Harness(world, robot, use_sim_time=True)
     try:
@@ -78,30 +179,51 @@ def test_injected_events_appear_at_scheduled_time(ros):
     finally:
         h.close()
         clock.close()
+        received = [(m.image_seq, from_time(m.header.stamp), t) for t, m in dets]
+        seqs = {row[0] for row in received}
+        missing = sorted(set(range(min(seqs), max(seqs) + 1)) - seqs) if seqs else []
+        print({'frame_wakes_ros_k_previous_matches_steady': world.frame_wakes,
+               'published_seq_stamp_steady': world.published,
+               'received_seq_stamp_steady': received, 'missing_sequences': missing})
 
     def scen(stamp):                 # stamp → 시나리오 시각(clock_jump 전)
         return from_time(stamp) - t0
 
-    def near(t_seen, t_event):
-        assert t_seen is not None
-        assert abs(t_seen - t_event) <= FRAME + 1e-6, (t_seen, t_event)
+    # Invert clock_jump using independent receive time (offset is 5 s, transport
+    # bound is 0.2 s). This also checks post-jump frames without stamp ambiguity.
+    def frame_t(received_at, msg):
+        raw = scen(msg.header.stamp)
+        candidates = [raw, raw - ev['clock_jump']['offset_s']]
+        valid = [t for t in candidates if -0.01 <= received_at - steady_t0 - t <= 0.2]
+        assert len(valid) == 1, (raw, received_at - steady_t0, candidates)
+        return valid[0]
 
-    trk = [(scen(m.header.stamp), m) for _, m in trks if m.tracks]
-    near(_first(trk, lambda x: x[1].tracks[0].status == COASTING)[0], ev['occlusion']['t_s'])
-    near(_first(trk, lambda x: x[1].tracks[0].status == LOST)[0], ev['track_lost']['t_s'])
-    near(_first(trk, lambda x: x[1].tracks[0].epoch == 1)[0], ev['epoch_increment']['t_s'])
-    bm = [(scen(m.header.stamp), m) for _, m in belt]
-    near(_first(bm, lambda x: abs(x[1].speed - 0.030) < 1e-9 and not x[1].steady)[0], ev['speed_change']['t_s'])
-    caps = [(scen(m.header.stamp), m) for _, m in dets]
-    near(_first(caps, lambda x: any(d.stone_inside for d in x[1].detections))[0], ev['stone_in_cap']['t_s'])
+    def phase(rows, name, predicate):
+        event = ev[name]
+        assert_event_phase([(frame_t(t, m), predicate(m)) for t, m in rows],
+                           event['t_s'], event['t_s'] + event.get('duration_s', float('inf')))
+
+    trk = [(t, m) for t, m in trks if m.tracks]
+    phase(trk, 'occlusion', lambda m: m.tracks[0].status == COASTING)
+    phase(trk, 'track_lost', lambda m: m.tracks[0].status == LOST)
+    phase(trk, 'epoch_increment', lambda m: m.tracks[0].epoch == 1)
+    # steady recovers after unsteady_hold_s; speed itself remains changed.
+    phase(belt, 'speed_change', lambda m: abs(m.speed - 0.030) < 1e-9)
+    for t, msg in belt:
+        expected = eng.frame(round(frame_t(t, msg) * eng.rate)).belt
+        assert msg.steady == expected.steady
+    phase(dets, 'stone_in_cap', lambda m: any(d.stone_inside for d in m.detections))
     seqs = {m.image_seq for _, m in dets}                                  # frame_drop: 구간 프레임 미발행
     t_drop = ev['frame_drop']
     k0 = eng.frame_index(t_drop['t_s'])
     k1 = eng.frame_index(t_drop['t_s'] + t_drop['duration_s'])
     assert not seqs & set(range(k0, k1)), sorted(seqs & set(range(k0, k1)))
     assert seqs & set(range(k0 - 6, k0)) and seqs & set(range(k1, k1 + 6))   # 구간 앞뒤 0.2 s는 발행
-    jumped = _first(dets, lambda x: from_time(x[1].header.stamp) - (t0 + x[1].image_seq * FRAME) < -4.9)
-    near(jumped[1].image_seq * FRAME, ev['clock_jump']['t_s'])
+    phase(dets, 'clock_jump', lambda m: from_time(m.header.stamp) -
+          (t0 + m.image_seq * FRAME) < -4.9)
+    for _, msg in dets:
+        fr = eng.frame(msg.image_seq)
+        assert scen(msg.header.stamp) == pytest.approx(fr.t + fr.stamp_offset, abs=1e-6)
 
     # Preserve injection phase and measure receive delay independently of ROS stamp.
     assert all(-0.01 <= t - steady_t0 - m.image_seq * FRAME <= 0.2 for t, m in dets if t >= steady_t0)
