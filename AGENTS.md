@@ -11,6 +11,16 @@
 - rosbag은 저장소 밖에 둔다. 경로와 SHA-256만 `records/bags.csv`에 남긴다(`tools/eval/record_trial.sh`).
 - GitHub에 공유할 영상은 ffmpeg로 압축한 RGB·깊이 미리보기와 원래 프레임 시각 CSV를 `records/media/<date>/`에 둔다. 원본 rosbag은 보존하며, 압축 영상의 크기·프레임 수·SHA-256 및 원본 대응표를 함께 기록한다.
 
+## 작업 단계 기록·보고
+
+작업 단계(Progress.md 항목 하나, 버그 수정 하나, 현장 측정 묶음 하나처럼 검증해서 끝낼 수 있는 단위)가 끝날 때마다 다음 세 가지를 남긴 뒤 다음 단계로 넘어간다. 실패하거나 중단한 단계도 같은 방법으로 남긴다.
+
+1. **저장소 기록**: `records/worklog/<YYYY-MM-DD>.md`에 단계마다 한 절을 덧붙인다. 항목은 시각(KST), 수행자(사람 또는 에이전트·모델), 실행 장소(GCE / PC 이름 / CI), 단계 이름과 관련 Progress.md 항목, 바꾼 파일, 검증 명령과 결과(통과·실패 개수, CI run ID), 실패·미검증 사항, 남은 일, 커밋 SHA다. 현장 세션은 `records/sessions/OFF-<n>-<date>.md`를 함께 쓴다.
+2. **진행표·커밋**: 검증 근거에 맞춰 `Progress.md`를 갱신하고 코드·시험·기록과 함께 커밋해 푸시한다(위 저장소 규칙). 푸시 뒤 CI 결과를 확인해 기록에 남긴다.
+3. **보고**: 사용자에게 단계 보고를 보낸다. 내용은 한 일, 검증 결과(실행 장소 포함), 실패·미검증 사항, 다음 단계다. 보고 내용은 `PLAN.md`·`Progress.md`·`TEST_SPEC.md`·`specs/`에 넣지 않는다.
+
+GCE 중앙 작업 공간에서 일하는 에이전트는 같은 내용을 `/srv/cloud-workspace/memory/projects/conveyor-tracker-bot/`에도 남긴다(사용량 확인·작업 배정 근거 포함). 인증 정보와 비밀 값은 어느 기록에도 쓰지 않는다.
+
 ## 문서
 
 - `PLAN.md`·`Progress.md`·`TEST_SPEC.md`·`specs/`에는 최종 내용만 쓴다. "반영했다/변경/추가/아직/TODO" 같은 진행 보고, 조언 반영표, 사용자에게 묻는 질문 목록은 넣지 않는다. 그런 내용은 대화나 작업 보고로 전한다.
