@@ -5,6 +5,7 @@
 ## 저장소
 
 - 저장소 루트가 colcon 워크스페이스(`drop_ws`)다. 패키지는 `src/`, 명세는 `specs/`, 기록은 `records/`, 도구는 `tools/`.
+- 커밋·푸시는 사용자의 별도 지시가 없는 한 coordinator가 검수 뒤 직접 한다. worker 에이전트는 파일을 작업 트리에만 쓰고 `git commit`·`git push`를 하지 않는다(작업 지시서에도 이 제약을 적는다).
 - `main`에 직접 커밋한다. 작업 브랜치를 만들지 않는다. 푸시 전에 `git fetch`로 원격을 확인하고, 새 커밋이 있으면 `git rebase origin/main` 후 푸시한다.
 - 작업 단계가 완료되면 검증 근거에 맞춰 `Progress.md`의 완료 여부와 남은 조건을 갱신하고, 해당 단계의 코드·시험·기록과 함께 커밋하여 GitHub에 푸시한다. 부분 수행이나 실패한 시험을 완료로 표시하지 않는다.
 - `deliverables/`는 `.gitignore` 대상이다. 커밋하지 않고 `git add -f`로 강제 추가하지 않는다.
