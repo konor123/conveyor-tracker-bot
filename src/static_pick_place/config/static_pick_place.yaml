@@ -13,15 +13,17 @@ inner_diameter_ratio: 0.80    # TBD(D_in)
 # 경유점(플랜지 높이)
 travel_z_m: 0.2844
 grasp_above_stone_top_m: 0.1620
-release_above_rim_m: 0.1606
-travel_v_mps: 0.020
-vertical_v_mps: 0.010
-travel_a_mps2: 0.040
-vertical_a_mps2: 0.020
+release_above_rim_m: 0.1656      # 투입 성공 0.1606에서 5 mm 올림(사용자 지시)
+travel_v_mps: 0.100
+vertical_v_mps: 0.050
+travel_a_mps2: 0.300
+vertical_a_mps2: 0.150
 # 그리퍼(하드웨어 pulse)
 open_pulse: 600
 close_pulse: 750
 grip_current_ma: 150
+gripper_read_timeout_s: 0.5    # 응답 대기. 0.25 s는 가끔, 0.15 s 이하는 항상 놓침. 왕복은 약 0.58 s 고정(2026-11-09)
+gripper_timeout_s: 15.0
 # 작업 공간·도달 여유
 x_min_m: 0.30
 x_max_m: 0.75

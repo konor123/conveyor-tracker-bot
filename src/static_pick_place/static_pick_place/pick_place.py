@@ -17,6 +17,7 @@ import time
 import numpy as np
 import yaml
 
+from .doosan_client import DoosanClient, RobotError
 from .plan import DOWN_QUAT_XYZW, PickPlaceParams, PlanError, choose_cap, choose_stone, plan_pick_place
 
 _PARAM_KEYS = {f for f in PickPlaceParams.__dataclass_fields__}
@@ -103,6 +104,8 @@ def main(argv=None):
     ap.add_argument('--resume-from', help='중단된 실행을 이 단계부터 잇는다. --stone-xyz·--cap-xyz(앞 실행 로그의 targets)와 함께 쓴다')
     ap.add_argument('--stone-xyz', type=float, nargs=3, help='공깃돌 윗면 [m](--resume-from 전용)')
     ap.add_argument('--cap-xyz', type=float, nargs=3, help='뚜껑 테두리 윗면 [m](--resume-from 전용)')
+    ap.add_argument('--cycles', type=int, default=1, help='반복 횟수. 2회째부터는 빈 뚜껑·매트 공깃돌이 보일 때까지 기다린다')
+    ap.add_argument('--wait-s', type=float, default=120.0, help='다음 주기 대상을 기다리는 최대 시간 [s]')
     ap.add_argument('--image', help='카메라 대신 저장된 BGR 영상으로 계획만 한다(--execute와 함께 쓸 수 없다)')
     args = ap.parse_args(argv)
     if args.image and args.execute:
@@ -117,6 +120,25 @@ def main(argv=None):
         geom = load_geometry(cfg)
         if args.resume_from:
             return _resume(node, cfg, p, geom, args)
+        robot = DoosanClient(node, cfg['robot_namespace'])
+        for k in range(max(1, args.cycles)):
+            log('cycle', index=k + 1, of=args.cycles)
+            code = _cycle(node, cfg, p, geom, args, robot, wait_s=args.wait_s if k else 0.0)
+            if code:
+                return code
+        return 0
+    except (PlanError, RobotError) as exc:
+        log('abort', reason=getattr(exc, 'reason', 'ERROR'), detail=str(exc))
+        return 2
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
+
+
+def _targets(node, cfg, p, geom, args, wait_s: float):
+    """검출해서 (공깃돌, 뚜껑)을 고른다. 없으면 wait_s 동안 1 s 간격으로 다시 본다."""
+    deadline = time.monotonic() + wait_s
+    while True:
         if args.image:
             import cv2
             image = cv2.imread(args.image)
@@ -124,45 +146,46 @@ def main(argv=None):
                 raise PlanError('NO_IMAGE', args.image)
         else:
             image = grab_frame(node, cfg['image_topic'])
-        if args.save_image:
-            import cv2
-            cv2.imwrite(args.save_image, image)
         dets = detect(image, cfg, geom)
-        log('detections', calibration_id=geom.calibration_id, items=[describe(d) for d in dets])
         stone, cap = choose_stone(dets, p), choose_cap(dets, p)
-        if stone is None or cap is None:
-            log('abort', reason='NO_TARGET', stone=stone is not None, cap=cap is not None)
-            return 2
-        steps = plan_pick_place(stone.position, cap.position, p)
-        log('targets', stone=describe(stone), cap=describe(cap))
+        if (stone is not None and cap is not None) or time.monotonic() >= deadline:
+            break
+        time.sleep(1.0)
+    if args.save_image:
+        import cv2
+        cv2.imwrite(args.save_image, image)
+    log('detections', calibration_id=geom.calibration_id, items=[describe(d) for d in dets])
+    return stone, cap
 
-        from .doosan_client import DoosanClient, RobotError
-        robot = DoosanClient(node, cfg['robot_namespace'])
-        for s in steps:
-            if s.kind == 'move':
-                j = robot.ik_joints(s.pos_m, DOWN_QUAT_XYZW)
-                log('plan', step=s.name, pos_m=[round(x, 4) for x in s.pos_m], v_mps=s.v_mps,
-                    j3_rad=round(float(j[2]), 4))
-                if abs(j[2]) < p.j3_min_rad:
-                    log('abort', reason='NEAR_REACH_LIMIT', step=s.name, j3_rad=float(j[2]))
-                    return 2
-            else:
-                log('plan', step=s.name, pulse=s.pulse, current_ma=s.current_ma, grasp=s.grasp)
-        if not args.execute:
-            log('dry_run_done')
-            return 0
 
-        log('ready', status=robot.check_ready())
-        code = _run_steps(robot, steps, p, args.confirm)
-        if code:
-            return code
-        return _verify(node, cfg, geom, cap.position)
-    except (PlanError, RobotError) as exc:
-        log('abort', reason=getattr(exc, 'reason', 'ERROR'), detail=str(exc))
+def _cycle(node, cfg, p, geom, args, robot, wait_s: float) -> int:
+    stone, cap = _targets(node, cfg, p, geom, args, wait_s)
+    if stone is None or cap is None:
+        log('abort', reason='NO_TARGET', stone=stone is not None, cap=cap is not None)
         return 2
-    finally:
-        node.destroy_node()
-        rclpy.shutdown()
+    steps = plan_pick_place(stone.position, cap.position, p)
+    log('targets', stone=describe(stone), cap=describe(cap))
+    for s in steps:
+        if s.kind == 'move':
+            j = robot.ik_joints(s.pos_m, DOWN_QUAT_XYZW)
+            log('plan', step=s.name, pos_m=[round(x, 4) for x in s.pos_m], v_mps=s.v_mps,
+                j3_rad=round(float(j[2]), 4))
+            if abs(j[2]) < p.j3_min_rad:
+                log('abort', reason='NEAR_REACH_LIMIT', step=s.name, j3_rad=float(j[2]))
+                return 2
+        else:
+            log('plan', step=s.name, pulse=s.pulse, current_ma=s.current_ma, grasp=s.grasp)
+    if not args.execute:
+        log('dry_run_done')
+        return 0
+    t0 = time.monotonic()
+    log('ready', status=robot.check_ready())
+    code = _run_steps(robot, steps, p, args.confirm)
+    if code:
+        return code
+    code = _verify(node, cfg, geom, cap.position)
+    log('cycle_done', elapsed_s=round(time.monotonic() - t0, 2), result='SUCCESS' if code == 0 else 'NOT_VERIFIED')
+    return code
 
 
 def _run_steps(robot, steps, p, confirm: bool) -> int:
@@ -174,7 +197,8 @@ def _run_steps(robot, steps, p, confirm: bool) -> int:
             reached = robot.move_line(s.pos_m, DOWN_QUAT_XYZW, s.v_mps, s.a_mps2)
             log('done', step=s.name, reached_m=[round(float(x), 4) for x in reached])
         else:
-            g = robot.gripper(s.pulse, s.current_ma, grasp=s.grasp)
+            g = robot.gripper(s.pulse, s.current_ma, grasp=s.grasp, timeout_s=p.gripper_timeout_s,
+                              read_timeout_s=p.gripper_read_timeout_s)
             log('done', step=s.name, position_pulse=g.position_pulse, current_ma=g.current_ma, status=g.status)
             if s.grasp and g.status != 2:
                 # 목표(닫힘 끝점)까지 닫혔다 = 손가락 사이에 돌이 없다
@@ -193,7 +217,6 @@ def _verify(node, cfg, geom, cap_pos) -> int:
 
 
 def _resume(node, cfg, p, geom, args) -> int:
-    from .doosan_client import DoosanClient
     if not (args.execute and args.stone_xyz and args.cap_xyz):
         raise PlanError('BAD_RESUME', '--resume-from은 --execute, --stone-xyz, --cap-xyz가 필요하다')
     steps = plan_pick_place(args.stone_xyz, args.cap_xyz, p)

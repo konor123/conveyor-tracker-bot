@@ -108,3 +108,13 @@ def test_gripper_returns_only_after_drl_program_stopped():
     g = robot.gripper(600, 100, timeout_s=2.0)
     assert g.status == 1
     assert robot.drl_state == [1]                      # 시작 전 1회 + 종료 확인 때 0, 0, 1을 모두 소비
+
+
+@pytest.mark.level('U')
+def test_drl_read_timeout_and_grasp_needs_motion():
+    code = dc.render_gripper_drl(750, 150, True, 0.05)
+    assert 'READ_TIMEOUT = 0.25' in dc.render_gripper_drl(750, 150, True, 0.25)
+    assert 'abs(pos - last) <= 2 and (abs(pos - start) > 10 or signed * 5 >= CURRENT * 4)' in code
+    for bad in (0.001, 1.0):
+        with pytest.raises(ValueError):
+            dc.render_gripper_drl(600, 100, False, bad)

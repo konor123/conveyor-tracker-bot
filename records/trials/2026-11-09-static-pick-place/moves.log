@@ -90,3 +90,40 @@ success=True
 success=True
 21:49:38 static_pick_place --execute run 1
 21:51:19 static_pick_place resume run1 from lift_stone
+21:56:09 gripper-only test new DRL read 0.05 s (open 600)
+{'robot_state': 1, 'robot_mode': 1, 'drl_state': 1, 'alarm': (1, 1, 2007, ['', '', ''])}
+Traceback (most recent call last):
+  File "<stdin>", line 6, in <module>
+  File "/home/umm/conveyor-tracker-bot/src/static_pick_place/static_pick_place/doosan_client.py", line 160, in gripper
+    raise RobotError(DRL_FAILURES[marker], f'marker={marker}')
+static_pick_place.doosan_client.RobotError: GRIPPER_NO_RESPONSE: marker=241
+read_timeout 0.15 FAIL elapsed_s 1.09 GRIPPER_MODE_NOT_5: marker=247
+read_timeout 0.25 FAIL elapsed_s 0.48 GRIPPER_MODEL_MISMATCH: marker=246
+read_timeout 0.5 FAIL elapsed_s 0.81 GRIPPER_MODE_NOT_5: marker=247
+21:56:35 gripper-only timing with input flush
+read_timeout 0.5 OK elapsed_s 8.25 GripperOutcome(target_pulse=600, position_pulse=600, current_ma=6, status=1)
+read_timeout 0.5 OK elapsed_s 7.35 GripperOutcome(target_pulse=600, position_pulse=600, current_ma=5, status=1)
+read_timeout 0.25 OK elapsed_s 7.16 GripperOutcome(target_pulse=600, position_pulse=600, current_ma=7, status=1)
+read_timeout 0.15 FAIL elapsed_s 0.58 GRIPPER_NO_RESPONSE: marker=241
+read_timeout 0.1 FAIL elapsed_s 0.42 GRIPPER_NO_RESPONSE: marker=241
+('pre_reg', 241, 0.26)
+('drl_start_returned', None, 0.28)
+('reg15,drl', (241, 0), 0.29)
+('reg15,drl', (0, 0), 0.33)
+('reg15,drl', (250, 0), 6.98)
+('reg15,drl', (250, 1), 7.12)
+('10 reg calls_s', 0.05, None)
+21:57:42 read-only DRL timing probe
+[(250, 0.28), (2, 0.31), (0, 0.63), (2, 0.66), (3, 0.84), (4, 3.78), (6, 6.67)]
+21:58:40 gripper-only test slim DRL
+slim open OK elapsed_s 5.5 GripperOutcome(target_pulse=600, position_pulse=600, current_ma=6, status=1)
+slim open FAIL elapsed_s 4.78 GRIPPER_NO_RESPONSE: marker=241
+slim open 0.5 OK 5.16 GripperOutcome(target_pulse=600, position_pulse=600, current_ma=6, status=1)
+slim open 0.5 OK 5.32 GripperOutcome(target_pulse=600, position_pulse=600, current_ma=7, status=1)
+slim open 0.5 OK 5.33 GripperOutcome(target_pulse=600, position_pulse=600, current_ma=6, status=1)
+22:00:11 static_pick_place --execute run 2 (optimized)
+22:01:15 re-close at grasp height to confirm grasp detection
+re-close GripperOutcome(target_pulse=750, position_pulse=661, current_ma=149, status=2) 8.49
+22:01:33 resume run2 from lift_stone
+22:02:30 static_pick_place --execute run 3
+22:05:29 driver disconnect (user instructed)

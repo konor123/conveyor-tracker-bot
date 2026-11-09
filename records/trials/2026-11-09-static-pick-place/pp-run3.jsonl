@@ -1,0 +1,24 @@
+{"t": 1794229351.188, "event": "detections", "calibration_id": "cal-2026-11-07-handeye-01", "items": [{"class": 1, "region": 1, "uv_px": [530.3, 108.7], "position_m": [0.5772, -0.0384, -0.0165], "stone_inside": false, "stone_inside_valid": false}, {"class": 1, "region": 1, "uv_px": [467.3, 137.0], "position_m": [0.6026, -0.0984, -0.0172], "stone_inside": false, "stone_inside_valid": false}, {"class": 1, "region": 1, "uv_px": [516.2, 152.7], "position_m": [0.6183, -0.0524, -0.0172], "stone_inside": false, "stone_inside_valid": false}, {"class": 1, "region": 1, "uv_px": [568.4, 170.2], "position_m": [0.6357, -0.0034, -0.0171], "stone_inside": false, "stone_inside_valid": false}, {"class": 1, "region": 1, "uv_px": [464.6, 186.8], "position_m": [0.6494, -0.1018, -0.0179], "stone_inside": false, "stone_inside_valid": false}, {"class": 1, "region": 1, "uv_px": [557.4, 231.3], "position_m": [0.6929, -0.0148, -0.018], "stone_inside": false, "stone_inside_valid": false}, {"class": 1, "region": 1, "uv_px": [504.8, 240.8], "position_m": [0.7009, -0.0646, -0.0184], "stone_inside": false, "stone_inside_valid": false}, {"class": 2, "region": 2, "uv_px": [672.5, 63.6], "position_m": [0.5878, 0.0895, 0.0841], "stone_inside": false, "stone_inside_valid": true}]}
+{"t": 1794229351.188, "event": "targets", "stone": {"class": 1, "region": 1, "uv_px": [530.3, 108.7], "position_m": [0.5772, -0.0384, -0.0165], "stone_inside": false, "stone_inside_valid": false}, "cap": {"class": 2, "region": 2, "uv_px": [672.5, 63.6], "position_m": [0.5878, 0.0895, 0.0841], "stone_inside": false, "stone_inside_valid": true}}
+{"t": 1794229351.19, "event": "plan", "step": "open_before_pick", "pulse": 600, "current_ma": 150, "grasp": false}
+{"t": 1794229351.239, "event": "plan", "step": "over_stone", "pos_m": [0.5772, -0.0384, 0.2844], "v_mps": 0.1, "j3_rad": 1.1244}
+{"t": 1794229351.243, "event": "plan", "step": "descend_grasp", "pos_m": [0.5772, -0.0384, 0.1455], "v_mps": 0.05, "j3_rad": 1.3191}
+{"t": 1794229351.243, "event": "plan", "step": "close_grasp", "pulse": 750, "current_ma": 150, "grasp": true}
+{"t": 1794229351.248, "event": "plan", "step": "lift_stone", "pos_m": [0.5772, -0.0384, 0.2844], "v_mps": 0.05, "j3_rad": 1.1244}
+{"t": 1794229351.254, "event": "plan", "step": "over_cap", "pos_m": [0.5878, 0.0895, 0.2844], "v_mps": 0.1, "j3_rad": 1.0478}
+{"t": 1794229351.258, "event": "plan", "step": "descend_release", "pos_m": [0.5878, 0.0895, 0.2497], "v_mps": 0.05, "j3_rad": 1.1142}
+{"t": 1794229351.258, "event": "plan", "step": "open_release", "pulse": 600, "current_ma": 150, "grasp": false}
+{"t": 1794229351.264, "event": "plan", "step": "retreat", "pos_m": [0.5878, 0.0895, 0.2844], "v_mps": 0.05, "j3_rad": 1.0478}
+{"t": 1794229351.268, "event": "plan", "step": "park", "pos_m": [0.373, 0.0, 0.405], "v_mps": 0.1, "j3_rad": 1.5708}
+{"t": 1794229351.359, "event": "ready", "status": {"robot_state": 1, "robot_mode": 1, "drl_state": 1, "alarm": [1, 1, 2007, ["", "", ""]]}}
+{"t": 1794229357.401, "event": "done", "step": "open_before_pick", "position_pulse": 600, "current_ma": 6, "status": 1}
+{"t": 1794229360.284, "event": "done", "step": "over_stone", "reached_m": [0.5773, -0.0384, 0.2843]}
+{"t": 1794229363.539, "event": "done", "step": "descend_grasp", "reached_m": [0.5772, -0.0384, 0.1454]}
+{"t": 1794229370.43, "event": "done", "step": "close_grasp", "position_pulse": 659, "current_ma": 149, "status": 2}
+{"t": 1794229373.684, "event": "done", "step": "lift_stone", "reached_m": [0.5773, -0.0384, 0.2844]}
+{"t": 1794229375.444, "event": "done", "step": "over_cap", "reached_m": [0.5878, 0.0895, 0.2843]}
+{"t": 1794229376.613, "event": "done", "step": "descend_release", "reached_m": [0.5878, 0.0895, 0.2496]}
+{"t": 1794229383.44, "event": "done", "step": "open_release", "position_pulse": 600, "current_ma": 6, "status": 1}
+{"t": 1794229384.613, "event": "done", "step": "retreat", "reached_m": [0.5878, 0.0895, 0.2844]}
+{"t": 1794229387.711, "event": "done", "step": "park", "reached_m": [0.373, -0.0, 0.405]}
+{"t": 1794229388.037, "event": "verify", "cap": [{"class": 2, "region": 2, "uv_px": [672.4, 64.5], "position_m": [0.5885, 0.0894, 0.0841], "stone_inside": true, "stone_inside_valid": true}]}

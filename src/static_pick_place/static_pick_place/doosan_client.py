@@ -36,13 +36,15 @@ class GripperOutcome:
     status: int                      # 1 목표 도달, 2 막혀 멈춤(파지)
 
 
-def render_gripper_drl(pulse: int, current_ma: int, grasp: bool) -> str:
+def render_gripper_drl(pulse: int, current_ma: int, grasp: bool, read_timeout_s: float = 0.5) -> str:
     if type(pulse) is not int or not 0 <= pulse <= 750:
         raise ValueError('pulse must be an integer in 0..750 (현장 닫힘 끝점 750)')
     if type(current_ma) is not int or not 1 <= current_ma <= 150:
         raise ValueError('current must be an integer in 1..150 mA (2026-11-09 사용자 승인 상한)')
+    if not 0.01 <= read_timeout_s <= 0.5:
+        raise ValueError('read_timeout_s must be in 0.01..0.5 s')
     return (_DRL.read_text().replace('__PULSE__', str(pulse)).replace('__CURRENT__', str(current_ma))
-            .replace('__GRASP__', 'True' if grasp else 'False'))
+            .replace('__GRASP__', 'True' if grasp else 'False').replace('__READ_TIMEOUT__', repr(float(read_timeout_s))))
 
 
 def decode_register_byte(value: int) -> int:
@@ -124,9 +126,10 @@ class DoosanClient:
             raise RobotError('MOVE_NOT_REACHED', f'목표 {np.round(target, 4)} 실제 {np.round(reached, 4)}')
         return reached
 
-    def gripper(self, pulse: int, current_ma: int, grasp: bool = False, timeout_s: float = 25.0) -> GripperOutcome:
+    def gripper(self, pulse: int, current_ma: int, grasp: bool = False, timeout_s: float = 15.0,
+                read_timeout_s: float = 0.5) -> GripperOutcome:
         from dsr_msgs2.srv import DrlStart, GetDrlState, GetOutputRegisterInt
-        code = render_gripper_drl(pulse, current_ma, grasp)
+        code = render_gripper_drl(pulse, current_ma, grasp, read_timeout_s)
         state = self._call(GetDrlState, 'drl/get_drl_state').drl_state
         if state not in (DRL_STATE_STOP, DRL_STATE_LAST):
             raise RobotError('DRL_BUSY', f'drl_state={state}')

@@ -27,16 +27,18 @@ class PickPlaceParams:
     # 높이(플랜지) — 2026-11-09 실측
     travel_z_m: float = 0.2844                    # 매트·벨트 위 이동 높이. 11-07 Hand-Eye·11-09 시험에서 도달 확인
     grasp_above_stone_top_m: float = 0.1620       # 플랜지 z − 공깃돌 윗면 z. 파지 성공 높이 144.4 mm − 돌 윗면 −17.6 mm
-    release_above_rim_m: float = 0.1606           # 플랜지 z − 뚜껑 테두리 z. 투입 성공 높이 244.4 mm − 테두리 83.8 mm
+    release_above_rim_m: float = 0.1656           # 플랜지 z − 뚜껑 테두리 z. 투입 성공 160.6 mm(244.4 − 83.8)에서 사용자 지시로 5 mm 올림
     # 속도
-    travel_v_mps: float = 0.020
-    vertical_v_mps: float = 0.010
-    travel_a_mps2: float = 0.040
-    vertical_a_mps2: float = 0.020
+    travel_v_mps: float = 0.100
+    vertical_v_mps: float = 0.050
+    travel_a_mps2: float = 0.300
+    vertical_a_mps2: float = 0.150
     # 그리퍼(하드웨어 pulse, 0 = 완전 열림). 현장 닫힘 끝점 750, 작은 대상이라 600까지만 연다
     open_pulse: int = 600
     close_pulse: int = 750
     grip_current_ma: int = 150
+    gripper_read_timeout_s: float = 0.5           # DRL 플랜지 RS-485 응답 대기. 0.25 s는 가끔, 0.15 s 이하는 항상 응답을 놓침(11-09)
+    gripper_timeout_s: float = 15.0
     # 대기 자세(끝난 뒤 카메라 시야에서 비킨다). 2026-11-09 드라이버 연결 시 자세
     park_x_m: float = 0.373
     park_y_m: float = 0.0
@@ -114,8 +116,7 @@ def plan_pick_place(stone_top_m, rim_top_m, p: PickPlaceParams) -> list[Step]:
         move('descend_release', c[0], c[1], z_release, True),
         Step('open_release', 'gripper', pulse=p.open_pulse, current_ma=p.grip_current_ma),
         move('retreat', c[0], c[1], p.travel_z_m, True),
-        move('to_park', p.park_x_m, p.park_y_m, p.travel_z_m, False),
-        move('park', p.park_x_m, p.park_y_m, p.park_z_m, True),
+        move('park', p.park_x_m, p.park_y_m, p.park_z_m, False),        # z가 오르기만 하는 대각선
     ]
 
 

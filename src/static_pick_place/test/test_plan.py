@@ -16,16 +16,18 @@ def test_plan_reproduces_site_heights_and_order():
     steps = plan_pick_place(STONE_TOP, RIM_TOP, P)
     assert [s.name for s in steps] == ['open_before_pick', 'over_stone', 'descend_grasp', 'close_grasp',
                                        'lift_stone', 'over_cap', 'descend_release', 'open_release', 'retreat',
-                                       'to_park', 'park']
+                                       'park']
     by = {s.name: s for s in steps}
     assert by['descend_grasp'].pos_m == pytest.approx((0.6795, -0.0161, 0.1444), abs=1e-4)
-    assert by['descend_release'].pos_m == pytest.approx((0.6122, 0.0868, 0.2444), abs=1e-4)
+    # 투입 성공 높이 244.4 mm에서 사용자 지시로 5 mm 올림
+    assert by['descend_release'].pos_m == pytest.approx((0.6122, 0.0868, 0.2494), abs=1e-4)
+    assert by['park'].pos_m == (P.park_x_m, P.park_y_m, P.park_z_m)
     assert by['over_stone'].pos_m[2] == by['over_cap'].pos_m[2] == P.travel_z_m
     assert by['close_grasp'].grasp and by['close_grasp'].pulse == 750 and by['close_grasp'].current_ma == 150
     assert by['open_before_pick'].pulse == by['open_release'].pulse == 600
     # 수직 구간만 느린 속도
     assert {s.v_mps for s in steps if s.name.startswith(('descend', 'lift', 'retreat'))} == {P.vertical_v_mps}
-    assert {s.v_mps for s in steps if s.name.startswith('over')} == {P.travel_v_mps}
+    assert {s.v_mps for s in steps if s.name.startswith(('over', 'park'))} == {P.travel_v_mps}
 
 
 @pytest.mark.level('U')
