@@ -1,0 +1,12 @@
+calibration_id: cal-2026-11-07-handeye-01
+date: '2026-11-09'
+frame: robot_base
+normal:
+- 0.013813263541005713
+- -0.0061989533712096395
+- 0.9998853767944845
+offset_m: 0.06969835183990725
+residuals:
+  status: PROVISIONAL_USER_MEASURED
+  method: 'mat plane + 93 mm along +z (user: belt 100 mm from table, mat 7 mm thick),
+    parallel to mat assumed'

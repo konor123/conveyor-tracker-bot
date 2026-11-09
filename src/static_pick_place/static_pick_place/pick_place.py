@@ -21,6 +21,7 @@ from .doosan_client import DoosanClient, RobotError
 from .plan import DOWN_QUAT_XYZW, PickPlaceParams, PlanError, choose_cap, choose_stone, plan_pick_place
 
 _PARAM_KEYS = {f for f in PickPlaceParams.__dataclass_fields__}
+_PATH_KEYS = ('calibration_file', 'mat_plane_file', 'belt_plane_file')
 
 
 def load_config(paths) -> dict:
@@ -33,7 +34,14 @@ def load_config(paths) -> dict:
     cfg = {}
     for path in [here, *paths]:
         with open(path) as fh:
-            cfg.update(yaml.safe_load(fh) or {})
+            doc = yaml.safe_load(fh) or {}
+        # 파일 경로 값이 상대 경로면 그 값을 적은 YAML 파일의 폴더 기준으로 푼다(저장소 안 현장 설정을 어디서든 쓰게)
+        base = os.path.dirname(os.path.abspath(path))
+        for key in _PATH_KEYS:
+            if doc.get(key):
+                value = os.path.expanduser(doc[key])
+                doc[key] = value if os.path.isabs(value) else os.path.normpath(os.path.join(base, value))
+        cfg.update(doc)
     return cfg
 
 

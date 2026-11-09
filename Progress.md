@@ -150,7 +150,7 @@
 - [ ] `[OFF]` OFF-3: Calibration Target(ChArUco 5x7) 배치, 카메라-로봇 대응점 취득(로봇 TCP 포인터로 보드 코너 접촉, 면마다 4장면 + verify 5장면, 기록 양식 `records/templates/calib-session.yaml`, SPEC-600 4.4절). 2026-11-07 보드 검출 예비 확인 완료(로봇 접촉 전)
 - [x] `[ON*]` eye-to-hand 후보 행렬·프로파일·잔차·원시 자료 보존: ArUco ID25, 40 mm, 30 FIT + 20 holdout, 250장. holdout RMS 1.1473 px. 독립 TCP 접촉 정확도와 운용 보정 채택은 별도 판정(`records/calib/2026-11-07-final-layout/`).
 - [ ] `[OFF]` OFF-3: 매트·벨트 평면 높이 및 **벨트 진행 방향 벡터** 측정(벨트에 붙인 병뚜껑을 이동시키며 추적)
-    - 잠정: 매트 평면 = ChArUco 1위치 PnP × 후보 외부 변환(재투영 0.13 px, offset 표준편차 0.57 mm), 벨트 평면 = 매트면 + 93 mm(사용자 실측, 평행 가정). 파일은 저장소 밖 `drop_data/planes-2026-11-09/`. 2026-11-09 컨베이어·매트 재배치 뒤 재측정 대상.
+    - 잠정: 매트 평면 = ChArUco 1위치 PnP × 후보 외부 변환(재투영 0.13 px, offset 표준편차 0.57 mm), 벨트 평면 = 매트면 + 93 mm(사용자 실측, 평행 가정). 파일 `records/calib/2026-11-09-planes/`. 2026-11-09 컨베이어·매트 재배치 뒤 재측정 대상.
 - [ ] `[OFF]` OFF-3: 보정에 쓰지 않은 20개 이상 위치에서 좌표 변환 오차 평가
 - [ ] `[OFF]` OFF-3: Depth는 평면 확인·이상 감시에만 사용(설치 높이에서 평면 ROI의 유효 픽셀 비율·편향·표준편차 기록)
 

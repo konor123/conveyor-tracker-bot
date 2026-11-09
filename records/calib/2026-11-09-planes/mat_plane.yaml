@@ -1,0 +1,16 @@
+calibration_id: cal-2026-11-07-handeye-01
+date: '2026-11-09'
+frame: robot_base
+normal:
+- 0.013813263541005713
+- -0.0061989533712096395
+- 0.9998853767944845
+offset_m: -0.023290988201979817
+residuals:
+  status: PROVISIONAL_UNVERIFIED_EXTRINSICS
+  method: ChArUco PnP (single board position) x camera_extrinsics_candidate cal-2026-11-07-handeye-01
+  frames_count: 40
+  offset_std_m: 0.0005700412125038676
+  reproj_rms_px_median: 0.13030800681431695
+  source_bag: 2026-11-09_194454_off1-plane-ref-mat-pos1
+  note: robot_base = Doosan base_link (extrinsics parent_frame)
