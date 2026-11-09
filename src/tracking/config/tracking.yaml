@@ -1,2 +1,25 @@
-# tracking 파라미터. 수치 키는 단위 접미사(_m, _s, _mps, _mps2, _rad, _hz, _ma, _pulse, _count, _ratio)를 붙인다.
-{}
+# SPEC-300 v0.1, SI units. Dimensionless exceptions are declared explicitly.
+unitless: [gate_chi2, cusum_k, cusum_h]
+kf:
+  sigma_accel_mps2: 0.001
+  meas_std_default_m: 0.0003
+  init_vel_std_mps: 0.05
+assoc:
+  gate_chi2: 100.0
+coast:
+  max_s: 1.0
+region:
+  x_obs_min_m: -0.35
+  x_obs_max_m: 0.35
+  exit_margin_m: 0.01
+speed_change:
+  cusum_k: 1.0
+  cusum_h: 8.0
+  recover_s: 2.0
+belt:
+  window_max_s: 2.0
+  v_min_mps: 0.002
+select:
+  x_reach_start_m: -0.05
+clock:
+  backstep_tol_s: 0.0

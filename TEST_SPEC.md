@@ -149,9 +149,9 @@ def classify_params(scenario: dict) -> tuple[dict[str, str], list[str]]   # (키
 
 # ---------- intercept_planner ----------
 @dataclass(frozen=True)
-class Budget: t_available: float; t_required: float; ok: bool; components: dict[str, float]
+class Budget: t_available: float; t_required: float; ok: bool; components: dict[str, float]; reason: str  # 통과 시 ""
 def evaluate_budget(x_cap: float, v_cap: float, x_exit: float,
-                    components: dict[str, float], margin: float) -> Budget
+                    components: dict[str, float], margin: float, *, v_min: float = 0.0) -> Budget
 def predict(track: TrackState, t: float) -> tuple[np.ndarray, np.ndarray]   # (pos[2], cov[2x2])
 def compute_plan(track: TrackState, now: float, req: PlanRequest, p: PlannerParams) -> Plan
 def tau_max(e_allow: float, e_pos: float, dv: float, a: float, v: float, dt: float) -> float

@@ -193,13 +193,18 @@
 
 ## 7. 컨베이어 위 이동 병뚜껑 추적 → G3 (트랙 B)
 
-- [ ] `[ON]` 벨트 좌표계 등속 칼만 필터 `[x, y, vx, vy]`(진행 방향 성분이 주, 횡방향은 작음) 합성 궤적으로 단위 테스트(TC-TRK-*)
-- [ ] `[ON]` 상태 `OBSERVED / COASTING / LOST`, 가림 중 공분산 증가, 재획득 시 게이팅, 통과마다 새 track
-- [ ] `[ON]` 다이얼 조작에 따른 속도 변화 검출(혁신값 누적) → `BeltMotion.steady = false`
+- [x] `[ON]` 벨트 좌표계 등속 칼만 필터 `[x, y, vx, vy]`(진행 방향 성분이 주, 횡방향은 작음) 합성 궤적으로 단위 테스트(TC-TRK-*)
+  - SPEC-300 v0.1, `tracking/kalman.py`. TC-TRK-001-01·02: 60 s × seed 20에서 위치 p95 최대 0.204 mm, 속도 p95 최대 0.214 mm/s, 평균 NEES 4.92(χ²(80)/20 95% 구간 안). 파라미터는 합성 시험 값이며 OFF-5 bag으로 다시 정한다.
+- [x] `[ON]` 상태 `OBSERVED / COASTING / LOST`, 가림 중 공분산 증가, 재획득 시 게이팅, 통과마다 새 track
+  - `tracking/track_manager.py`·`association.py`, TC-TRK-002~005 U.
+- [x] `[ON]` 다이얼 조작에 따른 속도 변화 검출(혁신값 누적) → `BeltMotion.steady = false`
+  - 양쪽 CUSUM(`tracking/speed_change.py`). TC-TRK-006: 20 → 30 mm/s 검출 지연 최대 0.167 s, 60 s 등속 오검출 0(seed 20).
 - [ ] `[ON]` `ResetTracking`, `SelectTarget`(도달 구간에 들어오기 전 가장 가까운 병뚜껑 선택, 진입 시각 예측) 서비스, Heartbeat, 계약 테스트
+  - 판단 로직은 순수 모듈(`select_target.py`, `belt_motion.py`, `TrackManager.reset`)과 U 보조 시험. `tracker_node`와 계약 시험 TC-TRK-009~012가 완료 조건이다.
 - [ ] `[ON*]` OFF-1 bag으로 실데이터 추적 확인, 병뚜껑 검출 시각은 노출 시각 기준
 - [ ] `[ON*]` rosbag 회귀 자료(정상·가림·프레임 누락·속도 변화) 정리 → I1 CI 자료. 프레임을 뺀 편집 bag으로 `frame_drop_10pct` 시험
-- [ ] `[ON]` `occlusion_long`·`speed_change`·`frame_drop_10pct`·`clock_jump` 단위 테스트(`PLAN.md` 7.3절)
+- [x] `[ON]` `occlusion_long`·`speed_change`·`frame_drop_10pct`·`clock_jump` 단위 테스트(`PLAN.md` 7.3절)
+  - TC-TRK-004-01(가림 초과 LOST), 006-01, 007-01(10% 누락: 유효 추적 100%, 위치 p95 최대 0.209 mm), 008-01.
 - [ ] `[OFF]` OFF-5: 독립 GT로 오차 측정. 실기는 벨트 길이 ÷ 한 바퀴 시간, 또는 별도 영상(같은 카메라 결과끼리 비교하지 않음). sim GT는 `[ON]`
 - [ ] `[OFF]` OFF-5: 그리퍼·공깃돌이 병뚜껑을 가리는 시간 측정(대기·접근·하강 중) → τ_max 근거
 - [ ] `[OFF]` OFF-5: 영상 처리 지연, 프레임 누락, 추적 손실 조건 확인
@@ -218,14 +223,19 @@
 
 ## 9. 이동 목표 위치 예측 → G4 (트랙 C)
 
-- [ ] `[ON]` 예측 `p(t_release) = p(t_state) + v·(t_release − t_state)`와 공분산 전파 단위 테스트(TC-PLN-*)
-- [ ] `[ON]` 이미 `t_now − t_obs`에 포함된 지연은 중복 보상하지 않음(단위 테스트로 고정)
+- [x] `[ON]` 예측 `p(t_release) = p(t_state) + v·(t_release − t_state)`와 공분산 전파 단위 테스트(TC-PLN-*)
+  - SPEC-400 v0.1, `intercept_planner/prediction.py`, TC-PLN-003-01.
+- [x] `[ON]` 이미 `t_now − t_obs`에 포함된 지연은 중복 보상하지 않음(단위 테스트로 고정)
+  - TC-PLN-002-01.
 - [ ] `[ON]` 시간 예산 판정(`PLAN.md` 9절) `time_budget.py` 구현, `deadlines.py` 연동, 통과 보내기(`max_passes`) 판정
+  - `time_budget.py`와 TC-PLN-001(식·경계·정지·역방향). `deadlines.py`·WAIT_CAP 연동이 완료 조건이다.
 - [ ] `[ON]` 벨트 속도 변화 시 예측 갱신(revision 증가), 계획 만료 처리
+  - `plan_session.py`(plan_id·revision·해제 시각 고정·EXPIRED 닫기) U 보조 시험. 노드 발행과 TC-PLN-006-01 계약 시험이 완료 조건이다.
 - [ ] `[ON]` `ComputeIntercept` 서비스, 계약 테스트, I2(합성 tracked fixture 또는 replay → 실제 tracker 입력으로 예측·시간 예산 CI: 정상, `time_insufficient`, `UNCERTAIN`, 만료·epoch 불일치·clock reset)
 - [ ] `[ON]` 실제 planner가 계약 테스트를 통과하면 `mock_world_node`의 임시 plan 발행(`publish_plan`)을 쓰지 않음
 - [ ] `[OFF]` OFF-5: 지연 구성 측정: 노출→수신→검출 완료→상태→계획→지령 송신→TCP 응답→그리퍼 개방 명령→개방 시작→공깃돌 이탈
 - [ ] `[ON*]` 가림 허용 시간 τ_max 산출: `e_pred ≤ e_pos + |δv|·τ + ½·a·τ² + |v|·δt` → 해제 게이트 값(`PLAN.md` 4.4절). 측정한 가림 시간보다 짧으면 벨트 표식 관측을 도입
+  - 계산 함수 `tau.py`(TC-PLN-010-01). G3·G4 측정값(e_pos·δv·a·δt)과 OFF-5 가림 시간이 완료 조건이다.
 - [ ] `[ON*]` OFF-5 bag으로 50/100/200 ms horizon별 예측 오차를 이후 실제 관측과 대조
 
 ## 10. Moving Frame 기반 로봇 추종 제어 → G5 (트랙 A)

@@ -2,8 +2,8 @@
 
 `tools/spec/trace.py`가 생성한다. 손으로 고치지 않는다.
 
-- REQ 84개 중 TC 연결 84개
-- pytest 대상 TC 187개 중 테스트 연결 135개
+- REQ 117개 중 TC 연결 117개
+- pytest 대상 TC 192개 중 테스트 연결 171개
 
 | TC | 수준 | REQ | 테스트 |
 |---|---|---|---|
@@ -13,7 +13,7 @@
 | TC-ABT-002-01 | U | REQ-ABT-002 | `src/orchestrator/test/test_abort_policy.py::test_escalate_keeps_higher`<br>`src/orchestrator/test/test_cycle_runner.py::test_released_soft_fault_escalates_to_hard_fault` |
 | TC-ABT-003-01 | U | REQ-ABT-003 | `src/orchestrator/test/test_abort_policy.py::test_l2_path_timeout` |
 | TC-ABT-003-02 | U | REQ-ABT-003 | `src/orchestrator/test/test_abort_policy.py::test_l3_path_timeout`<br>`src/orchestrator/test/test_abort_policy.py::test_path_done_stops_path_timer`<br>`src/orchestrator/test/test_cycle_runner.py::test_abort_path_hang_escalates_to_stop` |
-| TC-ABT-003-03 | U | REQ-ABT-003 | `src/orchestrator/test/test_node_failure_regressions.py::test_wait_cancel_and_steady_guard`<br>`src/orchestrator/test/test_node_failure_regressions.py::test_wait_frozen_clock_shutdown_and_cleanup` |
+| TC-ABT-003-03 | U | REQ-ABT-003 | `src/orchestrator/test/test_node_failure_regressions.py::test_wait_cancel_and_steady_guard`<br>`src/orchestrator/test/test_node_failure_regressions.py::test_wait_frozen_clock_shutdown_and_cleanup`<br>`src/orchestrator/test/test_node_failure_regressions.py::test_wait_backward_ros_clock_uses_scaled_steady_budget` |
 | TC-ABT-004-01 | U | REQ-ABT-004 | `src/orchestrator/test/test_abort_policy.py::test_cancel_without_response_escalates_one_level`<br>`src/orchestrator/test/test_abort_policy.py::test_cancel_ack_prevents_escalation`<br>`src/orchestrator/test/test_cycle_runner.py::test_pick_hang_cancel_escalation`<br>`src/orchestrator/test/test_cycle_runner.py::test_cancel_escalation_timeline` |
 | TC-ABT-004-02 | U | REQ-ABT-004 | `src/orchestrator/test/test_node_failure_regressions.py::test_pending_acceptance_is_not_cancel_ack_and_late_handle_is_cancelled`<br>`src/orchestrator/test/test_node_failure_regressions.py::test_late_acceptance_callback_cancels_without_another_poll`<br>`src/orchestrator/test/test_node_failure_regressions.py::test_failed_terminal_future_is_not_confirmation` |
 | TC-ABT-005-01 | U | REQ-ABT-005 | `src/orchestrator/test/test_abort_policy.py::test_user_cancel_while_holding_is_l3` |
@@ -47,6 +47,7 @@
 | TC-BEN-011-01 | B | REQ-BEN-011(SPEC 없음) | 절차 시험 |
 | TC-BEN-012-01 | B | REQ-BEN-012(SPEC 없음) | 절차 시험 |
 | TC-CAL-001-01 | U | REQ-CAL-001 | `src/calibration/test/test_plane_calibration.py::test_fit_plane_with_outliers`<br>`src/calibration/test/test_plane_calibration.py::test_fit_plane_rejects_collinear_points` |
+| TC-CAL-001-91 | U | REQ-CAL-001 | `src/calibration/test/test_plane_calibration.py::test_fit_plane_and_direction_use_thin_svd` |
 | TC-CAL-002-01 | U | REQ-CAL-002 | `src/calibration/test/test_plane_calibration.py::test_fit_direction_straight_track`<br>`src/calibration/test/test_plane_calibration.py::test_fit_direction_projects_onto_plane` |
 | TC-CAL-002-02 | U | REQ-CAL-002 | `src/calibration/test/test_board_session.py::test_belt_direction_from_board_track` |
 | TC-CAL-003-01 | U | REQ-CAL-003 | `src/calibration/test/test_eye_to_hand_calibration.py::test_rigid_known_transform` |
@@ -75,7 +76,7 @@
 | TC-GRP-002-01 | U | REQ-GRP-002 | `src/robot_control/test/test_gripper_adapter.py::test_startup_checks_model_firmware_and_error` |
 | TC-GRP-003-01 | U | REQ-GRP-003 | `src/robot_control/test/test_gripper_adapter.py::test_protocol_separated_address_tables` |
 | TC-GRP-003-02 | U | REQ-GRP-003 | `src/robot_control/test/test_gripper_adapter.py::test_eeprom_write_requires_torque_off` |
-| TC-GRP-004-01 | U | REQ-GRP-004 | `src/robot_control/test/test_gripper_adapter.py::test_close_order_and_current_limit`<br>`src/robot_control/test/test_gripper_adapter.py::test_no_inverse_convention_and_hardware_range_beyond_cli_envelope`<br>`src/robot_control/test/test_gripper_adapter.py::test_transport_write_failure_closes_as_fault`<br>`tools/bench/test_gripper_once.py::test_reject_outside_approved_envelope`<br>`tools/bench/test_gripper_once.py::test_site_endpoint_and_close_default`<br>`tools/bench/test_gripper_once.py::test_all_commands_default_100_and_reject_101`<br>`tools/bench/test_gripper_once.py::test_legacy_transports_reject_101_before_io` |
+| TC-GRP-004-01 | U | REQ-GRP-004 | `src/robot_control/test/test_gripper_adapter.py::test_close_order_and_current_limit`<br>`src/robot_control/test/test_gripper_adapter.py::test_no_inverse_convention_and_hardware_range_beyond_cli_envelope`<br>`src/robot_control/test/test_gripper_adapter.py::test_transport_write_failure_closes_as_fault`<br>`tools/bench/test_gripper_once.py::test_reject_outside_approved_envelope`<br>`tools/bench/test_gripper_once.py::test_site_endpoint_and_close_default`<br>`tools/bench/test_gripper_once.py::test_all_commands_default_100_and_reject_151`<br>`tools/bench/test_gripper_once.py::test_legacy_transports_reject_101_before_io` |
 | TC-GRP-005-01 | U | REQ-GRP-005 | `src/robot_control/test/test_gripper_adapter.py::test_partial_open_uses_measured_table` |
 | TC-GRP-006-01 | U | REQ-GRP-006 | `src/robot_control/test/test_gripper_adapter.py::test_holding_boundaries_three_points` |
 | TC-GRP-007-01 | U | REQ-GRP-007 | `src/robot_control/test/test_gripper_adapter.py::test_response_timeout_boundary_and_no_response` |
@@ -107,8 +108,8 @@
 | TC-MCK-002-01 | C | REQ-MCK-002 | `src/drop_mocks/test/test_mock_nodes.py::test_role_split_processes_see_same_world` |
 | TC-MCK-003-01 | C | REQ-MCK-003 | `src/drop_mocks/test/contract/test_mock_world_tracker_contract.py::<module>`<br>`src/drop_mocks/test/contract/test_mock_world_vision_contract.py::<module>` |
 | TC-MCK-004-01 | C | REQ-MCK-004 | `src/drop_mocks/test/contract/test_mock_robot_controller_contract.py::<module>` |
-| TC-MCK-005-01 | C | REQ-MCK-005 | `src/drop_mocks/test/test_mock_nodes.py::test_injected_events_appear_at_scheduled_time` |
-| TC-MCK-005-02 | U | REQ-MCK-005 | `src/drop_mocks/test/test_scenario_engine.py::test_events_take_effect_at_scheduled_frame` |
+| TC-MCK-005-01 | C | REQ-MCK-005 | `src/drop_mocks/test/test_frame_timing.py::test_latest_frame_after_delayed_wake_preserves_event_phase`<br>`src/drop_mocks/test/test_frame_timing.py::test_phase_oracle_rejects_early_late_and_stuck_effects`<br>`src/drop_mocks/test/test_mock_nodes.py::test_frame_callback_delayed_wake_skips_to_latest`<br>`src/drop_mocks/test/test_mock_nodes.py::test_controlled_clock_publishes_first_event_frame`<br>`src/drop_mocks/test/test_mock_nodes.py::test_injected_events_appear_at_scheduled_time` |
+| TC-MCK-005-02 | U | REQ-MCK-005 | `src/drop_mocks/test/test_frame_timing.py::test_first_scheduled_frame_straddles_event_exactly`<br>`src/drop_mocks/test/test_scenario_engine.py::test_events_take_effect_at_scheduled_frame` |
 | TC-MCK-006-01 | U | REQ-MCK-006 | `src/drop_mocks/test/test_scenario_engine.py::test_every_value_is_assumed_or_measured`<br>`src/drop_mocks/test/test_scenario_engine.py::test_unclassified_or_double_classified_value_is_rejected` |
 | TC-MCK-006-02 | I0 | REQ-MCK-006 | `src/drop_bringup/test/test_i0_integration.py::test_i0_nominal_20_cycles_and_records` |
 | TC-MCK-007-01 | I0 | REQ-MCK-007 | `src/drop_bringup/test/test_mock_bringup.py::test_mock_refuses_when_real_provider_is_running` |
@@ -141,27 +142,30 @@
 | TC-ORC-008-01 | U | REQ-ORC-008 | `src/orchestrator/test/test_cycle_runner.py::test_plan_failure_goes_to_next_pass` |
 | TC-ORC-009-01 | U | REQ-ORC-009 | `src/orchestrator/test/test_cycle_runner.py::test_resume_requires_reason`<br>`src/orchestrator/test/test_cycle_runner.py::test_precheck_failure_returns_to_idle_without_wait_operator` |
 | TC-ORC-010-01 | U | REQ-ORC-010 | `src/orchestrator/test/test_ros_skill_port.py::test_soft_fault_ends_wait_before_release`<br>`src/orchestrator/test/test_ros_skill_port.py::test_soft_fault_does_not_end_wait_after_release`<br>`src/orchestrator/test/test_ros_skill_port.py::test_hard_fault_ends_wait_after_release_and_overrides_soft`<br>`src/orchestrator/test/test_ros_skill_port.py::test_soft_fault_does_not_override_hard`<br>`src/orchestrator/test/test_ros_skill_port.py::test_reset_clears_release`<br>`src/orchestrator/test/test_ros_skill_port.py::test_concurrent_soft_and_hard_raise_keeps_hard`<br>`src/orchestrator/test/test_ros_skill_port.py::test_concurrent_consume_and_hard_raise_loses_nothing` |
-| TC-PLN-001-01 | U | REQ-PLN-001(SPEC 없음) | — |
-| TC-PLN-001-02 | U | REQ-PLN-001(SPEC 없음) | — |
-| TC-PLN-001-03 | U | REQ-PLN-001(SPEC 없음) | — |
-| TC-PLN-002-01 | U | REQ-PLN-002(SPEC 없음) | — |
-| TC-PLN-003-01 | U | REQ-PLN-003(SPEC 없음) | — |
-| TC-PLN-004-01 | U | REQ-PLN-004(SPEC 없음) | — |
-| TC-PLN-005-01 | U | REQ-PLN-005(SPEC 없음) | — |
-| TC-PLN-006-01 | C | REQ-PLN-006(SPEC 없음) | — |
-| TC-PLN-007-01 | C | REQ-PLN-007(SPEC 없음) | — |
-| TC-PLN-008-01 | U | REQ-PLN-008(SPEC 없음) | — |
-| TC-PLN-009-01 | U | REQ-PLN-009(SPEC 없음) | — |
-| TC-PLN-010-01 | U | REQ-PLN-010(SPEC 없음) | — |
-| TC-PLN-011-01 | I2 | REQ-PLN-011(SPEC 없음) | — |
+| TC-ORC-010-02 | U | REQ-ORC-010 | `src/orchestrator/test/test_cycle_runner.py::test_cleanup_after_real_cycle_deadline`<br>`src/orchestrator/test/test_node_failure_regressions.py::test_ready_cleanup_result_after_original_deadline`<br>`src/orchestrator/test/test_node_failure_regressions.py::test_runner_cleanup_with_production_ros_port`<br>`src/orchestrator/test/test_node_failure_regressions.py::test_released_cleanup_frozen_clock_is_still_bounded`<br>`src/orchestrator/test/test_ros_skill_port.py::test_ready_response_after_original_cycle_deadline` |
+| TC-PLN-001-01 | U | REQ-PLN-001 | `src/intercept_planner/test/test_planner.py::test_budget_formula` |
+| TC-PLN-001-02 | U | REQ-PLN-001 | `src/intercept_planner/test/test_planner.py::test_budget_boundary` |
+| TC-PLN-001-03 | U | REQ-PLN-001 | `src/intercept_planner/test/test_planner.py::test_belt_boundary` |
+| TC-PLN-002-01 | U | REQ-PLN-002 | `src/intercept_planner/test/test_planner.py::test_prediction_state_time` |
+| TC-PLN-003-01 | U | REQ-PLN-003 | `src/intercept_planner/test/test_planner.py::test_covariance` |
+| TC-PLN-004-01 | U | REQ-PLN-004 | `src/intercept_planner/test/test_planner.py::test_target_offset_transform` |
+| TC-PLN-005-01 | U | REQ-PLN-005 | `src/intercept_planner/test/test_planner.py::test_workspace_boundary` |
+| TC-PLN-006-01 | C | REQ-PLN-006 | — |
+| TC-PLN-007-01 | C | REQ-PLN-007 | — |
+| TC-PLN-008-01 | U | REQ-PLN-008 | `src/intercept_planner/test/test_planner.py::test_uncertainty` |
+| TC-PLN-009-01 | U | REQ-PLN-009 | `src/intercept_planner/test/test_planner.py::test_earliest_release` |
+| TC-PLN-010-01 | U | REQ-PLN-010 | `src/intercept_planner/test/test_planner.py::test_tau` |
+| TC-PLN-011-01 | I2 | REQ-PLN-011 | — |
 | TC-REC-001-01 | U | REQ-REC-001 | `src/orchestrator/test/test_record_logger.py::test_schema_validation_from_external_symlink_build`<br>`tools/eval/test_trial_schema.py::test_schema_is_valid`<br>`tools/eval/test_trial_schema.py::test_plan_example_passes`<br>`tools/eval/test_trial_schema.py::test_missing_required_field_fails`<br>`tools/eval/test_trial_schema.py::test_out_of_range_value_fails`<br>`tools/eval/test_trial_schema.py::test_scenario_seed_required`<br>`tools/eval/test_trial_schema.py::test_mock_trial_passes` |
 | TC-REC-002-01 | I0 | REQ-REC-002 | `src/drop_bringup/test/test_i0_integration.py::test_i0_time_insufficient_pass_skip_and_not_attempted_record`<br>`src/orchestrator/test/test_record_logger.py::test_build_and_validate_trial_record` |
 | TC-REC-002-02 | U | REQ-REC-002 | `src/orchestrator/test/test_node_failure_regressions.py::test_logger_invalid_root_and_io_recovery`<br>`src/orchestrator/test/test_node_failure_regressions.py::test_missing_schema_fails_closed`<br>`src/orchestrator/test/test_node_failure_regressions.py::test_logger_serializes_callbacks_and_surfaces_write_failure`<br>`src/orchestrator/test/test_node_failure_regressions.py::test_actual_step_callbacks_preserve_writer_order`<br>`src/orchestrator/test/test_node_failure_regressions.py::test_trial_open_and_flush_failures_do_not_commit_dedup` |
-| TC-REC-003-01 | I0 | REQ-REC-003 | `src/drop_bringup/test/test_i0_integration.py::test_i0_nominal_20_cycles_and_records` |
+| TC-REC-002-03 | U | REQ-REC-002 | `src/orchestrator/test/test_node_failure_regressions.py::test_schema_found_from_installed_share` |
+| TC-REC-003-01 | I0 | REQ-REC-003 | `src/drop_bringup/test/test_i0_integration.py::test_i0_nominal_20_cycles_and_records`<br>`src/orchestrator/test/test_node_failure_regressions.py::test_step_record_preserves_backward_ros_stamps` |
 | TC-REC-004-01 | U | REQ-REC-004 | `tools/eval/test_stats.py::test_wilson_interval`<br>`tools/eval/test_stats.py::test_wilson_interval_empty`<br>`tools/eval/test_stats.py::test_wilson_interval_invalid` |
 | TC-REC-004-02 | U | REQ-REC-004 | `tools/eval/test_stats.py::test_success_rate_unknown_in_denominator`<br>`tools/eval/test_stats.py::test_success_rate_invalid` |
 | TC-REC-005-01 | U | REQ-REC-005 | `tools/eval/test_stats.py::test_quantiles_random_sample`<br>`tools/eval/test_stats.py::test_quantiles_small_sample`<br>`tools/eval/test_stats.py::test_quantiles_empty` |
 | TC-REC-006-01 | U | REQ-REC-006 | `tools/spec/test_trace.py::test_reports_missing_and_nonzero_exit` |
+| TC-REC-006-02 | U | REQ-REC-006 | `tools/spec/test_trace.py::test_gate_expression`<br>`tools/spec/test_trace.py::test_gate_rejects_invalid_expression`<br>`tools/spec/test_trace.py::test_gate_scopes_requirements_and_unknown_marks`<br>`tools/spec/test_trace.py::test_repository_m0_gate`<br>`tools/spec/test_trace.py::test_gate_malformed_row_fails_without_writing` |
 | TC-REC-007-01 | U | REQ-REC-007 | `tools/eval/test_devlog.py::test_multiple_reports_and_unmeasured` |
 | TC-REC-007-02 | U | REQ-REC-007 | `tools/eval/test_devlog.py::test_replace_all_same_day_preserves_other_days` |
 | TC-REC-007-03 | U | REQ-REC-007 | `tools/eval/test_devlog.py::test_cli_identity_trace_and_values`<br>`tools/eval/test_devlog.py::test_cli_unmeasured_defaults` |
@@ -190,32 +194,33 @@
 | TC-SYS-003-01 | C | REQ-SYS-003 | — |
 | TC-SYS-003-02 | C | REQ-SYS-003 | — |
 | TC-SYS-004-01 | U | REQ-SYS-004 | `tools/spec/test_sys_conventions.py::test_unit_conversions_only_in_adapters` |
-| TC-TRK-001-01 | U | REQ-TRK-001(SPEC 없음) | — |
-| TC-TRK-001-02 | U | REQ-TRK-001(SPEC 없음) | — |
-| TC-TRK-002-01 | U | REQ-TRK-002(SPEC 없음) | — |
-| TC-TRK-003-01 | U | REQ-TRK-003(SPEC 없음) | — |
-| TC-TRK-003-02 | U | REQ-TRK-003(SPEC 없음) | — |
-| TC-TRK-004-01 | U | REQ-TRK-004(SPEC 없음) | — |
-| TC-TRK-005-01 | U | REQ-TRK-005(SPEC 없음) | — |
-| TC-TRK-006-01 | U | REQ-TRK-006(SPEC 없음) | — |
-| TC-TRK-006-02 | U | REQ-TRK-006(SPEC 없음) | — |
-| TC-TRK-007-01 | U | REQ-TRK-007(SPEC 없음) | — |
-| TC-TRK-008-01 | U | REQ-TRK-008(SPEC 없음) | — |
-| TC-TRK-009-01 | C | REQ-TRK-009(SPEC 없음) | — |
-| TC-TRK-010-01 | C | REQ-TRK-010(SPEC 없음) | — |
-| TC-TRK-011-01 | C | REQ-TRK-011(SPEC 없음) | — |
-| TC-TRK-012-01 | C | REQ-TRK-012(SPEC 없음) | — |
-| TC-TRK-013-01 | I1 | REQ-TRK-013(SPEC 없음) | — |
-| TC-VIS-001-01 | U | REQ-VIS-001(SPEC 없음) | — |
-| TC-VIS-001-02 | U | REQ-VIS-001(SPEC 없음) | — |
-| TC-VIS-002-01 | U | REQ-VIS-002(SPEC 없음) | — |
-| TC-VIS-003-01 | U | REQ-VIS-003(SPEC 없음) | — |
-| TC-VIS-004-01 | U | REQ-VIS-004(SPEC 없음) | — |
-| TC-VIS-005-01 | U | REQ-VIS-005(SPEC 없음) | — |
-| TC-VIS-006-01 | U | REQ-VIS-006(SPEC 없음) | — |
-| TC-VIS-007-01 | U | REQ-VIS-007(SPEC 없음) | — |
-| TC-VIS-008-01 | C | REQ-VIS-008(SPEC 없음) | — |
-| TC-VIS-008-02 | C | REQ-VIS-008(SPEC 없음) | — |
+| TC-SYS-005-01 | U | REQ-SYS-005 | `src/calibration/test/test_repo_paths.py::test_relative_paths_resolve_against_repo_root_regardless_of_cwd`<br>`src/calibration/test/test_repo_paths.py::test_repo_root_from_install_tree_and_env_override`<br>`src/drop_mocks/test/test_repo_path.py::test_repo_path_rule`<br>`src/orchestrator/test/test_repo_path.py::test_repo_path_rule` |
+| TC-TRK-001-01 | U | REQ-TRK-001 | `src/tracking/test/test_tracking.py::test_constant_accuracy` |
+| TC-TRK-001-02 | U | REQ-TRK-001 | `src/tracking/test/test_tracking.py::test_nees` |
+| TC-TRK-002-01 | U | REQ-TRK-002 | `src/tracking/test/test_tracking.py::test_reverse_stamp` |
+| TC-TRK-003-01 | U | REQ-TRK-003 | `src/tracking/test/test_tracking.py::test_coasting` |
+| TC-TRK-003-02 | U | REQ-TRK-003 | `src/tracking/test/test_tracking.py::test_reacquire` |
+| TC-TRK-004-01 | U | REQ-TRK-004 | `src/tracking/test/test_tracking.py::test_lost_once` |
+| TC-TRK-005-01 | U | REQ-TRK-005 | `src/tracking/test/test_tracking.py::test_pass_new_id` |
+| TC-TRK-006-01 | U | REQ-TRK-006 | `src/tracking/test/test_tracking.py::test_speed_step` |
+| TC-TRK-006-02 | U | REQ-TRK-006 | `src/tracking/test/test_tracking.py::test_no_false_alarm` |
+| TC-TRK-007-01 | U | REQ-TRK-007 | `src/tracking/test/test_tracking.py::test_dropped_frames` |
+| TC-TRK-008-01 | U | REQ-TRK-008 | `src/tracking/test/test_tracking.py::test_clock_reset` |
+| TC-TRK-009-01 | C | REQ-TRK-009 | — |
+| TC-TRK-010-01 | C | REQ-TRK-010 | — |
+| TC-TRK-011-01 | C | REQ-TRK-011 | — |
+| TC-TRK-012-01 | C | REQ-TRK-012 | — |
+| TC-TRK-013-01 | I1 | REQ-TRK-013 | — |
+| TC-VIS-001-01 | U | REQ-VIS-001 | `src/vision/test/test_detector.py::test_stone_center_accuracy_on_mat` |
+| TC-VIS-001-02 | U | REQ-VIS-001 | `src/vision/test/test_detector.py::test_cap_center_accuracy_on_belt` |
+| TC-VIS-002-01 | U | REQ-VIS-002 | `src/vision/test/test_detector.py::test_mixed_scene_classification` |
+| TC-VIS-003-01 | U | REQ-VIS-003 | `src/vision/test/test_detector.py::test_stone_inside` |
+| TC-VIS-004-01 | U | REQ-VIS-004 | `src/vision/test/test_localizer.py::test_round_trip`<br>`src/vision/test/test_localizer.py::test_factory_defaults_match_shared_config`<br>`src/vision/test/test_localizer.py::test_parallel_or_nonforward_ray_rejected` |
+| TC-VIS-005-01 | U | REQ-VIS-005 | `src/vision/test/test_localizer.py::test_object_planes`<br>`src/vision/test/test_localizer.py::test_unknown_class_and_cap_inside_context_rejected` |
+| TC-VIS-006-01 | U | REQ-VIS-006 | `src/vision/test/test_localizer.py::test_covariance_matches_independent_finite_difference`<br>`src/vision/test/test_localizer.py::test_default_covariance`<br>`src/vision/test/test_localizer.py::test_invalid_pixel_covariance_rejected` |
+| TC-VIS-007-01 | U | REQ-VIS-007 | `src/vision/test/test_detector.py::test_robot_mask_overlap_marks_occluded_and_is_not_counted` |
+| TC-VIS-008-01 | C | REQ-VIS-008 | `src/vision/test/contract/test_vision_node_contract.py::test_stable_window` |
+| TC-VIS-008-02 | C | REQ-VIS-008 | `src/vision/test/contract/test_vision_node_contract.py::test_deadlines` |
 | TC-VIS-009-01 | U | REQ-VIS-009(SPEC 없음) | — |
 | TC-VIS-009-02 | U | REQ-VIS-009(SPEC 없음) | — |
 | TC-VIS-010-01 | I1 | REQ-VIS-010(SPEC 없음) | — |
@@ -232,49 +237,18 @@
 - TC-ABT-014-02
 - TC-CAL-005-02
 - TC-INT-007-01
-- TC-PLN-001-01
-- TC-PLN-001-02
-- TC-PLN-001-03
-- TC-PLN-002-01
-- TC-PLN-003-01
-- TC-PLN-004-01
-- TC-PLN-005-01
 - TC-PLN-006-01
 - TC-PLN-007-01
-- TC-PLN-008-01
-- TC-PLN-009-01
-- TC-PLN-010-01
 - TC-PLN-011-01
 - TC-ROB-011-01
 - TC-ROB-012-01
 - TC-SYS-003-01
 - TC-SYS-003-02
-- TC-TRK-001-01
-- TC-TRK-001-02
-- TC-TRK-002-01
-- TC-TRK-003-01
-- TC-TRK-003-02
-- TC-TRK-004-01
-- TC-TRK-005-01
-- TC-TRK-006-01
-- TC-TRK-006-02
-- TC-TRK-007-01
-- TC-TRK-008-01
 - TC-TRK-009-01
 - TC-TRK-010-01
 - TC-TRK-011-01
 - TC-TRK-012-01
 - TC-TRK-013-01
-- TC-VIS-001-01
-- TC-VIS-001-02
-- TC-VIS-002-01
-- TC-VIS-003-01
-- TC-VIS-004-01
-- TC-VIS-005-01
-- TC-VIS-006-01
-- TC-VIS-007-01
-- TC-VIS-008-01
-- TC-VIS-008-02
 - TC-VIS-009-01
 - TC-VIS-009-02
 - TC-VIS-010-01
