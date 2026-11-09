@@ -10,6 +10,7 @@
 | 2026-11-07 | [OFF-1·OFF-2 현장 세션](2026-11-07-site-session-off1-off2.md) | 카메라·보정·벨트 영상·로봇·그리퍼 측정의 의미를 읽는다. |
 | 2026-11-09 | [CI 실패와 견고성](2026-11-09-ci-failures-and-robustness.md) | discovery·시계·executor·경쟁 조건을 재현하고 검증한 과정을 배운다. |
 | 2026-11-09 | [카메라 QoS와 이벤트 위상 시험](2026-11-09-camera-qos-and-event-phase-test.md) | 영상 누락 원인(QoS depth)과 "최신 프레임만" 정책에서 시험 기준을 나누는 법을 배운다. |
+| 2026-11-09 | [공깃돌·병뚜껑 검출과 좌표](2026-11-09-stone-cap-detection.md) | 색이 다른 공깃돌을 배경 거리로 찾고, 서브픽셀 중심과 평면 교차로 좌표를 얻는 법, 큰 SVD 함정을 배운다. |
 | 2026-11-09 | [용어집](glossary.md) | ROS 2와 프로젝트 시험·안전 용어를 예로 익힌다. |
 
 설계의 원본은 [PLAN](../../PLAN.md), 현재 완료 조건은 [Progress](../../Progress.md), 시험 기대값은 [TEST_SPEC](../../TEST_SPEC.md), 요구사항은 [specs](../../specs/)다. 이 문서는 원본을 대체하지 않는다. 특히 PC 시험 통과·CI 통과·실장비 게이트 통과는 서로 다른 증거다. 실행 결과는 [11월 9일 worklog](../../records/worklog/2026-11-09.md)에 있으며 미실행·skip은 통과로 세지 않는다.

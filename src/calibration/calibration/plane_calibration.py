@@ -35,7 +35,7 @@ class Plane:
 
 def _lsq_plane(points: np.ndarray):
     c = points.mean(axis=0)
-    _, _, vt = np.linalg.svd(points - c)
+    _, _, vt = np.linalg.svd(points - c, full_matrices=False)
     n = vt[2]
     return n, float(n @ c)
 
@@ -82,7 +82,7 @@ def fit_direction(points: np.ndarray, plane: Plane | None = None) -> np.ndarray:
     if plane is not None:
         pts = plane.project(pts)
     c = pts.mean(axis=0)
-    _, s, vt = np.linalg.svd(pts - c)
+    _, s, vt = np.linalg.svd(pts - c, full_matrices=False)
     if s[0] <= 1e-9:
         raise CalibrationError('DEGENERATE', 'fit_direction: 점이 움직이지 않았다')
     d = vt[0]

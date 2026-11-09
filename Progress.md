@@ -152,7 +152,7 @@
 - [x] `[OFF]` OFF-1: D455 ROS 2 연결, RGB 1280×800/30 fps, CameraInfo 확인. realsense-ros 4.58.4, FastDDS SHM 확대 프로파일, 고정 K(`records/bench/d455-check-2026-11-07-161256.txt`, SPEC-600 4.8절)
 - [ ] `[OFF]` OFF-1: 자동 노출·화이트밸런스 고정, 노출 시간 ≤ 10 ms 목표(50 mm/s에서 흐림 0.5 mm)
 - [ ] `[OFF]` OFF-1: RealSense 헤더의 global_time·호스트 offset·장시간 drift 검증. 초기 수신−stamp p50 약22 ms. 속도 자료의 retained 선두 프레임·전송 누락·최대 지연은 bag별 integrity JSON으로 구분한다.
-- [ ] `[ON]` 왜곡 보정·광선-평면 교차 모듈(`localizer.py`) 합성 카메라로 단위 테스트(TC-VIS-*)
+- [x] `[ON]` 왜곡 보정·광선-평면 교차 모듈(`localizer.py`) 합성 카메라로 단위 테스트(TC-VIS-*)
 - [x] `[ON]` 보정 도구(`plane_calibration`, `eye_to_hand_calibration`, `tcp_offset`, `charuco`, 보정 파일, `calibrate_camera`·`charuco_view`) 합성 대응점·합성 영상으로 단위 테스트(TC-CAL-001~007, 2026-11-07, SPEC-600 v0.1). 내부 파라미터는 D455 공장값(`records/bench/d455-intrinsics-2026-11-07.txt`), 현장 촬영은 `tools/bench/capture_d455.py`
 - [ ] `[OFF]` OFF-3: Calibration Target(ChArUco 5x7) 배치, 카메라-로봇 대응점 취득(로봇 TCP 포인터로 보드 코너 접촉, 면마다 4장면 + verify 5장면, 기록 양식 `records/templates/calib-session.yaml`, SPEC-600 4.4절). 2026-11-07 보드 검출 예비 확인 완료(로봇 접촉 전)
 - [x] `[ON*]` eye-to-hand 후보 행렬·프로파일·잔차·원시 자료 보존: ArUco ID25, 40 mm, 30 FIT + 20 holdout, 250장. holdout RMS 1.1473 px. 독립 TCP 접촉 정확도와 운용 보정 채택은 별도 판정(`records/calib/2026-11-07-final-layout/`).
@@ -162,10 +162,10 @@
 
 ## 5. 공깃돌·병뚜껑 인식 및 파지 → G1(검출), G2(파지)
 
-- [ ] `[ON]` 검출기 구현: 매트(검정) ROI 공깃돌, 벨트(녹색) ROI 병뚜껑·뚜껑 안 공깃돌·뚜껑 밖 공깃돌(색 마스크 + 원 적합). 합성 영상으로 단위 테스트(TC-VIS-*)
+- [x] `[ON]` 검출기 구현: 매트(검정) ROI 공깃돌, 벨트(녹색) ROI 병뚜껑·뚜껑 안 공깃돌·뚜껑 밖 공깃돌(색 마스크 + 원 적합). 합성 영상으로 단위 테스트(TC-VIS-*)
 - [ ] `[ON*]` OFF-1 영상으로 색 임계값·원 적합 조정, 하이라이트·그림자·부분 가림 사례 테스트 영상 세트 구성
 - [ ] `[ON]` 중심 좌표 + 공분산 계산
-- [ ] `[ON]` 광선-평면 교차: 공깃돌 = 매트 + 높이 오프셋, 병뚜껑 = 벨트 + 테두리 높이, 뚜껑 안 공깃돌 = 벨트 + 바닥 두께 + 높이 오프셋
+- [x] `[ON]` 광선-평면 교차: 공깃돌 = 매트 + 높이 오프셋, 병뚜껑 = 벨트 + 테두리 높이, 뚜껑 안 공깃돌 = 벨트 + 바닥 두께 + 높이 오프셋
 - [ ] `[ON]` `vision_node`의 `DetectObjects` 서비스(안정 창·최소 개수·deadline), Heartbeat, 계약 테스트
 - [ ] `[ON*]` I1: OFF-1 rosbag replay로 실데이터 검출 회귀 시험
 - [ ] `[OFF]` OFF-3: 실시간 검출 recall·오선택률 확인

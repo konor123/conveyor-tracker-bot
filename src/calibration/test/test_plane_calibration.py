@@ -77,3 +77,24 @@ def test_fit_direction_projects_onto_plane():
     est = fit_direction(pts, plane=plane)
     assert abs(est[2]) < 1e-12
     assert np.degrees(np.arccos(est[0])) <= 0.1
+
+
+@pytest.mark.level('U')
+@pytest.mark.req('REQ-CAL-001')
+@pytest.mark.tc('TC-CAL-001-91')
+def test_fit_plane_and_direction_use_thin_svd(monkeypatch):
+    """영상 평면 점(수만 개)에서 전체 SVD는 N×N 행렬(3만 점 7 GB)을 만든다(2026-11-09 LEGION 메모리 부족)."""
+    calls = []
+    svd = np.linalg.svd
+
+    def thin_only(a, *args, **kwargs):
+        if kwargs.get('compute_uv', True):
+            calls.append(kwargs.get('full_matrices', True))
+        return svd(a, *args, **kwargs)
+
+    monkeypatch.setattr(np.linalg, 'svd', thin_only)
+    rng = np.random.default_rng(0)
+    pts = np.column_stack([rng.uniform(0, 0.3, 5000), rng.uniform(0, 0.3, 5000), np.full(5000, 0.05)])
+    fit_plane(pts, 0.001, rng=rng)
+    fit_direction(pts)
+    assert calls and not any(calls)
