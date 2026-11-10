@@ -74,9 +74,17 @@ class SteadyRosClock:
 
     The injected clock_jump scenario still changes message stamps; this clock only
     supplies a stable scenario timeline. Close after all subscribing nodes stop.
+
+    Every node with use_sim_time handles each /clock message as a Python callback in
+    the shared executor. At 200 Hz with three nodes this saturated 2~4 vCPU CI runners
+    (frame timer woke at about 6 Hz and ROS time lagged steady time by up to 0.4 s,
+    CI run 42762185513). 50 Hz keeps the quantization (20 ms) below one 30 Hz frame.
     """
 
-    def __init__(self):
+    PERIOD_S = 0.02
+
+    def __init__(self, period_s: float = PERIOD_S):
+        self.period_s = period_s
         from rosgraph_msgs.msg import Clock
         self._message = Clock
         self.node = rclpy.create_node(f'drop_test_clock_{os.getpid()}')
@@ -93,7 +101,7 @@ class SteadyRosClock:
     def _run(self):
         while not self._stop.is_set():
             self.pub.publish(self._message(clock=to_time(self.now())))
-            self._stop.wait(0.005)
+            self._stop.wait(self.period_s)
 
     def close(self):
         self._stop.set()

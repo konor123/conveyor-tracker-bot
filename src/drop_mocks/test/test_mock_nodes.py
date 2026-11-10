@@ -182,7 +182,9 @@ def test_injected_events_appear_at_scheduled_time(ros):
         received = [(m.image_seq, from_time(m.header.stamp), t) for t, m in dets]
         seqs = {row[0] for row in received}
         missing = sorted(set(range(min(seqs), max(seqs) + 1)) - seqs) if seqs else []
-        print({'frame_wakes_ros_k_previous_matches_steady': world.frame_wakes,
+        print({'cpu_count': os.cpu_count(), 'executor_threads': getattr(getattr(h.exec, '_executor', None), '_max_workers', None),
+               'clock_period_s': clock.period_s,
+               'frame_wakes_ros_k_previous_matches_steady': world.frame_wakes,
                'published_seq_stamp_steady': world.published,
                'received_seq_stamp_steady': received, 'missing_sequences': missing})
 
