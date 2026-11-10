@@ -396,7 +396,7 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-GRP-002-01 | 시작 확인 | U | `[ON]` | Model Number 35074 / 다른 값 / Hardware Error ≠ 0 | 통과 / 예외(구형 펌웨어 표 사용 방지) / 예외 |
 | TC-GRP-003-01 | 레지스터 주소(프로토콜별) | U | `[ON]` | config 주소표, protocol = dynamixel2 / modbus | dynamixel2: Torque Enable 512, Hardware Error Status 518, Goal Current 550, Profile Velocity 560, Goal Position 564, Present Current 574, Present Position 580 / modbus: Torque Enable 256, Hardware Error Status 259(하위 바이트), Goal Current 275, Goal Position 282, Present Current 287, Present Position 290. 두 표를 섞어 쓰면 로드 실패 |
 | TC-GRP-003-02 | EEPROM 쓰기는 토크 꺼진 상태에서만 | U | `[ON]` | 토크 켜진 상태에서 Operating Mode 쓰기 요청 | 쓰기 0건, 예외 |
-| TC-GRP-004-01 | 닫기 순서 | U | `[ON]` | `close(current_limit_ma)` | 쓰기 순서: (필요 시) 모드 5 확인 → Goal Current → Goal Position. 한도(config 최대) 초과 전류는 거부. 현장 일회성 CLI는 `open=0`, `close=750` pulse이며 기본 전류는 100 mA이며, 0~750 범위 밖 목표와 100 mA 초과 전류를 거부(개폐·위치·측정 도구 공통) |
+| TC-GRP-004-01 | 닫기 순서 | U | `[ON]` | `close(current_limit_ma)` | 쓰기 순서: (필요 시) 모드 5 확인 → Goal Current → Goal Position. 한도(config 최대) 초과 전류는 거부. 현장 일회성 CLI는 `open=0`, `close=750` pulse이며 기본 전류는 100 mA이며, 0~750 범위 밖 목표와 150 mA 초과 전류를 거부 |
 | TC-GRP-005-01 | 부분 개방 | U | `[ON]` | `open(0.019)` | Goal Position = `width_to_pulse(0.019)`, Present Position이 허용오차 안에 들면 OK |
 | TC-GRP-006-01 | 파지 판정 | U | `[ON]` | 간격·전류 조합(경계 3점씩) | TC-ORC-003-04·05와 같은 결과 |
 | TC-GRP-007-01 | 응답 제한시간 | U | `[ON]` | 응답 0.500 / 0.501 s, 무응답 | OK / `FAULT`(`GRIPPER_TIMEOUT`) / `FAULT`. steady 시계 사용 |
@@ -408,6 +408,13 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-GRP-012-02 | 트리거 순서 | U | `[ON]` | `open()` 호출 | 목표값 레지스터 쓰기가 모두 끝난 뒤 트리거(seq) 레지스터를 마지막에 1회 씀. RELEASE 전에 목표값을 미리 쓴 경우 해제 순간 쓰기는 트리거 1회뿐 |
 | TC-GRP-013-01 | 상주 루프 생존 확인 | U | `[ON]` | 생존 카운터가 0.100 / 0.101 s 동안 변하지 않음 | 유지 / `FAULT`(`GRIPPER_LOOP_DEAD`) |
 | TC-GRP-013-02 | 루프 기동 조건 | U | `[ON]` | 로봇 상태 STANDBY 아님에서 기동 요청 | `drl_start` 호출 0회, `PRECONDITION` |
+| TC-GRP-014-01 | 세션 1회 시작 | U | `[ON]` | 시작 전 지령 4종 / STANDBY 아님 / `start` 2회 | `PRECONDITION`(`SESSION_NOT_STARTED`), 쓰기·트리거 0회 / 루프 기동 0회 / 루프 기동·시작 확인 각 1회 |
+| TC-GRP-014-02 | 이미 목표 폭이면 생략 | U | `[ON]` | 현재 폭 = 목표 / 다른 폭 / 같은 폭 재요청 | 쓰기·트리거 0회 / 지령 1회 / 추가 쓰기·트리거 0회 |
+| TC-GRP-014-03 | 예약 뒤 트리거 | U | `[ON]` | `arm_open` → `fire_open` / 예약 없이 `fire_open` / `arm_open` → `grasp` → `fire_open` / adapter에서 prewrite → close → `open(prewritten)` | 예약 때 트리거 0회, 해제 때 트리거 1회·쓰기 0회 / `NOT_ARMED` / `NOT_ARMED`, 트리거는 닫기 1회뿐 / 열림 목표를 다시 써서 열림 |
+| TC-GRP-015-01 | 막힘 파지 판정 | U | `[ON]` | 가짜 제어기, 공깃돌이 659 pulse에서 막음 / 손가락 사이 빔(닫힘 목표 750) | `STALLED`·`holding = true`, 위치 659 / `REACHED_END`·`holding = false`, 위치 750 |
+| TC-GRP-016-01 | 상주 루프 transport 레지스터 계약 | U | `[ON]` | 세션 시작 / 루프가 올리지 않는 주소 읽기 / Operating Mode 쓰기 / 예약 / 시작 상태 246 / DRL 본문 | 루프 기동 1회·위치·모드 읽기 일치 / 예외 / 거부 / 7비트 분할 값(0~127)·예약 1·seq 불변 / `FAULT`(`RESIDENT_INIT`) / 자리표시 없음·레지스터 번호 일치 |
+| TC-GRP-016-02 | 예약 뒤 트리거 지연 | U | `[ON]` | 가짜 제어기 왕복 0.58 s, 쓰기 도달 0.58 s / 0.01 s, 예약 뒤 3 s 대기 후 트리거 | 그리퍼가 목표를 받기까지 ≤ spin + 쓰기 도달 시간, 추가 왕복 ≤ 3회 |
+| TC-GRP-016-03 | 공통 순서의 정적 사이클 시간(모델) | U | `[ON]` | 가짜 제어기 왕복 0.58 s, 이동은 2026-11-09 3회차 측정 시간 | 첫 열기 0 s(생략), 파지 유지, 그리퍼 합계 < 측정 19.76 s의 30%, 사이클 = 이동 합 + 그리퍼 합 |
 
 ### 3.10 CAL — 보정
 

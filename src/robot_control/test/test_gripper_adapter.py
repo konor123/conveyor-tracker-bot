@@ -138,11 +138,11 @@ def test_eeprom_write_requires_torque_off():
 def test_close_order_and_current_limit():
     adapter, transport, _ = build()
     adapter.startup_check()
-    adapter.close(100)
+    adapter.close(150)
     kinds = [(a, v) for a, v in transport.writes
              if a in (MODBUS.goal_current, MODBUS.goal_position)]
     assert kinds[0][0] == MODBUS.goal_current
-    assert kinds[0][1] == 100
+    assert kinds[0][1] == 150
     assert kinds[1][0] == MODBUS.goal_position
     assert kinds[1][1] == 1150
     assert transport.triggers == 1
@@ -151,7 +151,7 @@ def test_close_order_and_current_limit():
     adapter.startup_check()
     before = len(transport.writes)
     with pytest.raises(OutOfRange):
-        adapter.close(101)
+        adapter.close(151)
     assert len(transport.writes) == before
 
     adapter, transport, _ = build()

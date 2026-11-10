@@ -13,6 +13,7 @@ setup(
         ('share/' + package_name, ['package.xml']),
         ('share/robot_control/config', glob('config/*.yaml')),
     ],
+    package_data={'robot_control': ['drl/*.drl']},
     install_requires=['setuptools'],
     zip_safe=True,
     maintainer='konor123',

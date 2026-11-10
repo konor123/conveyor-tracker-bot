@@ -1,6 +1,6 @@
 # SPEC-500 robot-control
 
-- 버전: v0.2
+- 버전: v0.3
 - 근거: PLAN.md 1.1, 3.3, 5.1절
 - REQ 영역: ROB, GRP
 
@@ -8,6 +8,7 @@
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
+| v0.3 | 2026-11-10 | REQ-GRP-014 공통 그리퍼 순서(`GripperSession`), 예약(prewrite) 무효화 규칙, REQ-GRP-015 막힘 파지 판정, REQ-GRP-016 상주 루프 transport·DRL 레지스터 계약, 그리퍼 전류 상한 100 → 150 mA |
 | v0.2 | 2026-11-10 | REQ-ROB-007: Stop으로 선점된 goal은 `CANCELED`·`STOPPED`, cancel은 `CANCELED`·`CANCELED` |
 | v0.1 | 2026-11-07 | ROB·GRP REQ 정의, SI/Doosan·그리퍼 adapter·정적 skill 계약, 기본 backend disabled |
 | v0.0 | 2026-11-07 | 현장 일회성 그리퍼 CLI 요구(REQ-GRP-004·011) |
@@ -36,10 +37,10 @@ Doosan 스트림·move_line 계약, 그리퍼 상주 루프 경로, 추종 제�
 | `open_width_tolerance_m` | m | 부분 개방 폭 허용오차 |
 | `release_rim_clearance_m` | m | 해제 게이트 여유 |
 | `grip_min_width_m`·`grip_max_width_m` | m | 파지 폭 판정 범위 |
-| `grip_min_current_ma` | mA | 파지 전류 하한(허용 1~100) |
+| `grip_min_current_ma` | mA | 파지 전류 하한(허용 1~150) |
 | `move_v_mps`·`move_a_mps2` | m/s·m/s² | move_line·추종 한도 |
 
-그리퍼 어댑터 설정에는 pulse 표 경로, protocol(`dynamixel2`·`modbus`), slave ID, 응답 제한시간, 최대 전류(`100 mA`, 허용 `1~100`)가 있다. 현장 CLI 운용 범위 `0~750 pulse`는 어댑터의 하드웨어 능력 `0~1150 pulse`와 별개이며 반전 규약을 쓰지 않는다.
+그리퍼 어댑터 설정에는 pulse 표 경로, protocol(`dynamixel2`·`modbus`), slave ID, 응답 제한시간, 기본 전류 `100 mA`, 최대 전류 `150 mA`(허용 `1~150`, 2026-11-09 실기 파지에 쓴 값)가 있다. 현장 CLI 운용 범위 `0~750 pulse`는 어댑터의 하드웨어 능력 `0~1150 pulse`와 별개이며 반전 규약을 쓰지 않는다.
 
 ## 4. 동작(상태·알고리즘)
 
@@ -56,7 +57,7 @@ Doosan 스트림·move_line 계약, 그리퍼 상주 루프 경로, 추종 제�
 
 `gripper`는 기존 ROS 드라이버 `/dsr01/drl/drl_start`를 통해 플랜지 RS-485에서 일회성 DRL을 실행한다. 상주 루프를 요구하지 않는다. 현장 비상정지 담당자와 간섭 없는 작업 공간을 전제로 한다.
 
-- REQ-GRP-004: 일회성 CLI는 Model Number=35074, Operating Mode=5, Torque Enable=1, Hardware Error=0, 로봇 STANDBY와 DRL 정지 상태를 확인한 뒤 Goal Current, Goal Position 순서로 쓴다. 목표는 반전 없는 하드웨어 값이며 현장 운용 범위는 0~750 pulse, open 기본값 0, close 기본값 750이다. 개폐·위치 명령 및 측정 도구의 기본 전류와 상한은 모두 100 mA이며 허용 전류는 1~100 mA이다. 범위 밖 입력은 지령 전에 거부하고 EEPROM·펌웨어·통신 설정을 쓰지 않는다. 목표 위치 도달은 Present Position 허용오차 3 pulse로 판정하며 현장 관찰과 별도로 기록한다.
+- REQ-GRP-004: 일회성 CLI는 Model Number=35074, Operating Mode=5, Torque Enable=1, Hardware Error=0, 로봇 STANDBY와 DRL 정지 상태를 확인한 뒤 Goal Current, Goal Position 순서로 쓴다. 목표는 반전 없는 하드웨어 값이며 현장 운용 범위는 0~750 pulse, open 기본값 0, close 기본값 750이다. 개폐·위치 명령의 기본 전류는 100 mA, 상한은 150 mA이며 허용 전류는 1~150 mA이다. 범위 밖 입력은 지령 전에 거부하고 EEPROM·펌웨어·통신 설정을 쓰지 않는다. 목표 위치 도달은 Present Position 허용오차 3 pulse로 판정하며 현장 관찰과 별도로 기록한다.
 - REQ-GRP-011: Modbus-RTU FC03·FC06·FC16 프레임은 CRC16을 사용하고 응답 길이·ID·기능 코드·주소 또는 바이트 수·CRC를 검사한다. TC-GRP-011-01의 표준 벡터와 일치해야 한다.
 
 ### 4.3 그리퍼 adapter
@@ -72,6 +73,9 @@ Doosan 스트림·move_line 계약, 그리퍼 상주 루프 경로, 추종 제�
 - REQ-GRP-010: `GripperTransport` 구현은 adapter와 시험 외에서 import하지 않는다.
 - REQ-GRP-012: 7비트 분할 레지스터 인코딩은 0~16383 왕복이 일치하고 범위 밖은 예외다. 목표값 쓰기가 모두 끝난 뒤 트리거(seq)를 마지막에 1회 쓴다.
 - REQ-GRP-013: 상주 루프 생존 카운터가 2배 주기 넘게 변하지 않으면 `FAULT`(`GRIPPER_LOOP_DEAD`)다. 로봇 STANDBY가 아니면 `drl_start`를 호출하지 않고 `PRECONDITION`이다.
+- REQ-GRP-014: 정적·동적 투입은 같은 그리퍼 순서(`gripper_session.GripperSession`)를 쓴다. 상주 루프 기동과 시작 확인은 세션당 1회이고 시작 전 호출은 `PRECONDITION`(`SESSION_NOT_STARTED`)이다. `ensure_open`은 방금 읽은 폭이 목표 ± 허용오차이면 쓰기·트리거를 보내지 않는다. `arm_open`은 목표값만 쓰고, `fire_open`은 트리거 1회만 보내며 예약이 없으면 `PRECONDITION`(`NOT_ARMED`)이다. 다른 지령이 목표 레지스터를 덮어쓰면 앞선 예약은 무효이고, 무효가 된 예약으로는 트리거하지 않는다. 지령마다 시각과 생략 여부를 기록한다.
+- REQ-GRP-015: `grasp_stall_pulse`가 설정되면 닫기는 닫힘 목표 도달 또는 막힘으로 끝난다. 막힘은 상주 루프가 새로 올린 연속 두 표본의 위치 차가 `grasp_stall_pulse` 이하이고, 명령 전 위치에서 `grasp_min_travel_pulse` 넘게 움직였거나 전류가 한도의 `grasp_current_ratio` 이상일 때다. 막힘이면 `holding = true`(`STALLED`), 닫힘 목표까지 갔으면 `holding = false`(`REACHED_END`)다. 생존 카운터가 같은 동안의 읽기는 같은 표본으로 본다.
+- REQ-GRP-016: 상주 루프 transport(`resident_transport.ResidentLoopTransport`)는 제어기 출력 레지스터로만 대화한다. PC → DRL은 0~127 값(10 seq, 11·12 목표 위치, 13·14 목표 전류의 7비트 분할, 24 예약, 25 종료), DRL → PC는 0~255 값(30 생존 카운터, 31·32 위치, 33·34 전류, 35 오류 비트, 36 시작 상태, 37 Operating Mode, 38 펌웨어, 39 실행한 seq)이다. 루프 기동은 시작 상태 1을 본 뒤에만 성공이고 그 밖의 값은 `FAULT`(`RESIDENT_INIT`), 무응답은 `RESIDENT_INIT_TIMEOUT`이다. 루프가 올리지 않는 레지스터 읽기는 값을 지어내지 않고 예외다. 예약 상태의 루프는 Modbus 읽기를 멈추고 seq만 지켜보아 트리거 뒤 그리퍼가 목표를 받기까지 지연이 `spin + 위치 쓰기 1회` 이하다. DRL 본문(`drl/gripper_resident.drl`)의 레지스터 번호는 `ResidentRegs`와 같다.
 
 ### 4.4 정적 skill과 추종
 
@@ -111,7 +115,7 @@ Doosan 스트림·move_line 계약, 그리퍼 상주 루프 경로, 추종 제�
 ## 8. 검증 방법(`TEST_SPEC.md` TC ID, 게이트)
 
 - `src/robot_control/test/test_motion_adapter.py`: TC-ROB-001~006.
-- `src/robot_control/test/test_gripper_adapter.py`: TC-GRP-001~013.
+- `src/robot_control/test/test_gripper_adapter.py`: TC-GRP-001~013. `test_gripper_session.py`: TC-GRP-014. `test_resident_transport.py`: TC-GRP-015·016(가짜 제어기 `test/fakes/resident.py`, 시간은 모델 값).
 - `src/robot_control/test/test_skill_logic.py`: TC-ROB-007~010.
 - `robot_controller_node` 계약: `tools/testing/contracts/robot_controller_contract.py`가 기대하는 feedback phase·metric, lifecycle, heartbeat, Stop.
 - `[ON]` 항목은 실행 전까지 완료로 표시하지 않는다.

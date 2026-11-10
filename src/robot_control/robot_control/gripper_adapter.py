@@ -18,7 +18,8 @@ from typing import Callable, Protocol, Sequence
 HARDWARE_PULSE_MIN = 0
 HARDWARE_PULSE_MAX = 1150
 CURRENT_MIN_MA = 1
-CURRENT_MAX_MA = 100
+CURRENT_MAX_MA = 150           # 2026-11-09 실기 파지(659 pulse·149 mA)에 쓴 값. 사용자 승인 상한
+CURRENT_DEFAULT_MA = 100
 POSITION_TOLERANCE_PULSE = 3
 EPS = 1e-12
 
@@ -336,7 +337,7 @@ class GripperTransport(Protocol):
 @dataclass(frozen=True)
 class GripperCfg:
     protocol: str = 'modbus'
-    default_current_ma: int = CURRENT_MAX_MA
+    default_current_ma: int = CURRENT_DEFAULT_MA
     current_min_ma: int = CURRENT_MIN_MA
     current_max_ma: int = CURRENT_MAX_MA
     response_timeout_s: float = 0.5
@@ -351,6 +352,10 @@ class GripperCfg:
     grip_min_width_m: float | None = None
     grip_max_width_m: float | None = None
     grip_min_current_ma: float | None = None
+    # 막힘 파지 판정(REQ-GRP-015). None이면 닫힘 목표 도달만 본다
+    grasp_stall_pulse: int | None = None       # 연속 두 표본의 위치 차가 이 값 이하면 멈춘 것
+    grasp_min_travel_pulse: int = 10           # 명령 전 위치에서 이만큼 넘게 움직였어야 한다
+    grasp_current_ratio: float = 0.8           # 또는 전류가 한도의 이 비율 이상(이미 쥔 상태)
     regs: RegisterMap = field(default_factory=RegisterMap)
 
 
@@ -461,6 +466,7 @@ class GripperAdapter:
         t_cmd = self.clock.steady_now()
         initial = self._read_present_pulse()
         if prewritten and self._prepared == (pulse, current):
+            self._prepared = None
             if not self.transport.trigger():
                 raise GripperFault('TRIGGER_FAILED')
         else:
@@ -492,6 +498,12 @@ class GripperAdapter:
         initial = self._read_present_pulse()
         self._send_goal(pulse, current)
         t_ack = self.clock.steady_now()
+        if self.cfg.grasp_stall_pulse is not None:
+            t_motion, present, t_done, state_current, stalled = self._wait_grasp(pulse, initial, t_cmd, current)
+            # 대상에 막혀 멈췄으면 쥔 것, 닫힘 끝점까지 갔으면 손가락 사이가 비었다
+            return GripResult(RESULT_OK, 'STALLED' if stalled else 'REACHED_END',
+                              self.table.pulse_to_width(present), float(state_current), stalled,
+                              t_cmd, t_ack, t_motion, t_done)
         t_motion, present, t_done = self._wait_position(pulse, initial, t_cmd)
         width = self.table.pulse_to_width(present)
         state_current = self._read_signed_word(self.addresses.present_current)
@@ -564,6 +576,7 @@ class GripperAdapter:
 
     def _send_goal(self, pulse: int, current: int) -> None:
         self._check_error()
+        self._prepared = None          # 목표 레지스터를 덮어쓰므로 앞선 예약(prewrite)은 무효다
         self._write_payload(pulse, current)
         if not self.transport.trigger():
             raise GripperFault('TRIGGER_FAILED')
@@ -609,6 +622,37 @@ class GripperAdapter:
             if abs(present - target) <= self.cfg.position_tolerance_pulse:
                 return motion_start, present, now
         raise GripperFault('GRIPPER_TIMEOUT', detail='position not reached')
+
+    def _wait_grasp(self, target: int, initial: int, t_cmd: float, limit_ma: int):
+        """닫힘 목표 도달 또는 막힘까지 기다린다. 막힘은 상주 루프가 새로 올린 표본끼리만 비교한다.
+
+        생존 카운터가 같은 동안에는 같은 표본이므로 멈춘 것으로 세지 않는다.
+        """
+        cfg = self.cfg
+        motion_start: float | None = None
+        last: int | None = None
+        last_counter: int | None = None
+        max_iters = int(cfg.response_timeout_s / max(cfg.read_period_s, EPS)) + 3
+        for _ in range(max_iters):
+            self._sleep(cfg.read_period_s)
+            now = self.clock.steady_now()
+            if now - t_cmd > cfg.response_timeout_s + EPS:
+                raise GripperFault('GRIPPER_TIMEOUT', detail=f'{now - t_cmd:.3f} s')
+            present = self._read_present_pulse()
+            current = self._read_signed_word(self.addresses.present_current)
+            self._check_error()
+            counter = self._observe_loop()
+            if motion_start is None and present != initial:
+                motion_start = now
+            if abs(present - target) <= cfg.position_tolerance_pulse:
+                return motion_start, present, now, current, False
+            if counter != last_counter:
+                blocked = (abs(present - initial) > cfg.grasp_min_travel_pulse
+                           or abs(current) >= cfg.grasp_current_ratio * limit_ma)
+                if last is not None and abs(present - last) <= cfg.grasp_stall_pulse and blocked:
+                    return motion_start, present, now, current, True
+                last, last_counter = present, counter
+        raise GripperFault('GRIPPER_TIMEOUT', detail='grasp not settled')
 
     def _holding(self, width_m: float, current_ma: float) -> bool | None:
         cfg = self.cfg

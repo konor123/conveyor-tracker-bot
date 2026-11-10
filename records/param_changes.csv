@@ -6,3 +6,4 @@ date,parameter,old_value,new_value,unit,evidence_file,evidence_n,evidence_stat,c
 2026-11-07,bench.gripper_once.close_endpoint,1150,750,pulse,records/sessions/gripper-takeover-2026-11-07.md,미측정(사용자 지정),현장 사용자: 750이 끝점이다. 수정해,codex,REQ-GRP-004
 2026-11-07,bench.gripper.current_default_and_max,200 (legacy max 400; direct default 250),100,mA,records/sessions/gripper-takeover-2026-11-07.md,미측정(사용자 지정),사용자 전부 100mA로 줄인다; 코드 25 tests pass; 실제 장비 갱신은 실행 중 DRL로 차단,codex,REQ-GRP-004
 2026-11-09,tracking.kf.sigma_accel_mps2,0.001,0.01,m/s^2,records/bench/belt-video-2026-11-07/replay-sigma-0.01.json,5 영상(9291 프레임·검출 4602),0.1 s 앞 예측 XY p95 2.6~3.4 mm(0.001: 3.1~3.8 mm); 합성 위치 p95 0.334 mm·속도 p95 1.16 mm/s,claude(사용자 결정),REQ-TRK-001
+2026-11-10,robot_control.gripper.current_max_ma,100,150,mA,records/trials/2026-11-09-static-pick-place/pp-run3.jsonl; records/worklog/2026-11-09.md,파지 4회,659~661 pulse에서 막힘·측정 149 mA·이동 중 낙하 0회(100 mA 파지 기록 없음),claude(사용자 결정),REQ-GRP-004
