@@ -13,10 +13,8 @@ DATA = os.path.join(os.path.dirname(__file__), 'data')
 L = AbortLevel
 
 
-def ctx(state=State.WAIT_CAP, holding=False, released=False, retry_left=0, retryable=True,
-        now=100.0, est_duration_s=1.0, deadline=200.0):
-    return AbortCtx(state=state, holding=holding, released=released, retry_left=retry_left,
-                    retryable=retryable, now=now, est_duration_s=est_duration_s, deadline=deadline)
+def ctx(state=State.WAIT_CAP, holding=False, released=False):
+    return AbortCtx(state=state, holding=holding, released=released)
 
 
 def params(cfg):
@@ -36,11 +34,10 @@ def test_decide_matches_table():
     event_of = {'HARD_FAULT': Event.PROTECTIVE_STOP, 'STEP_FAILED': Event.STEP_FAILED,
                 'USER_CANCEL': Event.USER_CANCEL}
     rows = _decide_rows()
-    assert len(rows) == 288
+    assert len(rows) == 144
     mismatches = []
     for r in rows:
-        c = ctx(state=State[r['state']], holding=r['holding'] == '1', released=r['released'] == '1',
-                retry_left=1 if r['retry'] == 'left' else 0)
+        c = ctx(state=State[r['state']], holding=r['holding'] == '1', released=r['released'] == '1')
         got = decide(event_of[r['event']], c)
         if got != L[r['expected']]:
             mismatches.append((r, got.name))
@@ -58,19 +55,11 @@ def test_every_hard_fault_is_l4_even_after_release(event):
 @pytest.mark.req("REQ-ABT-001")
 @pytest.mark.tc("TC-ABT-001-01")
 @pytest.mark.level("U")
-@pytest.mark.parametrize("est, expected", [(0.999, L.L1), (1.0, L.L2), (1.001, L.L2)])
-def test_retry_needs_time_before_deadline(est, expected):
-    # now + est < deadline 일 때만 재시도
-    c = ctx(state=State.DETECT_STONE, retry_left=1, now=100.0, est_duration_s=est, deadline=101.0)
-    assert decide(Event.STEP_FAILED, c) == expected
-
-
-@pytest.mark.req("REQ-ABT-001")
-@pytest.mark.tc("TC-ABT-001-01")
-@pytest.mark.level("U")
-def test_non_retryable_failure_is_l2():
-    c = ctx(state=State.PICK_STONE, retry_left=2, retryable=False)
-    assert decide(Event.STEP_FAILED, c) == L.L2
+@pytest.mark.parametrize("state", [State.DETECT_STONE, State.PICK_STONE])
+@pytest.mark.parametrize("event", [Event.STEP_FAILED, Event.STEP_TIMEOUT])
+def test_detect_and_pick_failures_are_l2_without_retry(state, event):
+    assert decide(event, ctx(state=state)) == L.L2
+    assert 1 not in {int(v) for v in L}
 
 
 @pytest.mark.req("REQ-ABT-002")
@@ -95,7 +84,7 @@ def test_escalate_keeps_higher(current, new, expected):
 @pytest.mark.parametrize("elapsed, expected", [(10.000, L.L2), (10.001, L.L4)])
 def test_l2_path_timeout(fake_clock, orch_cfg, elapsed, expected):
     t = AbortTracker(params(orch_cfg), fake_clock)
-    assert t.on_event(Event.STEP_FAILED, ctx(state=State.MOVE_STANDBY, retryable=False)) == L.L2
+    assert t.on_event(Event.STEP_FAILED, ctx(state=State.MOVE_STANDBY)) == L.L2
     fake_clock.advance(elapsed)
     assert t.tick() == expected
 
@@ -130,7 +119,7 @@ def test_path_done_stops_path_timer(fake_clock, orch_cfg):
 @pytest.mark.parametrize("start, after", [(L.L2, L.L3), (L.L3, L.L4)])
 def test_cancel_without_response_escalates_one_level(fake_clock, orch_cfg, start, after):
     t = AbortTracker(params(orch_cfg), fake_clock)
-    c = ctx(state=State.MOVE_STANDBY, retryable=False) if start == L.L2 else ctx(holding=True)
+    c = ctx(state=State.MOVE_STANDBY) if start == L.L2 else ctx(holding=True)
     assert t.on_event(Event.STEP_TIMEOUT, c) == start
     t.on_cancel_sent()
     fake_clock.advance(0.499)
@@ -144,7 +133,7 @@ def test_cancel_without_response_escalates_one_level(fake_clock, orch_cfg, start
 @pytest.mark.level("U")
 def test_cancel_ack_prevents_escalation(fake_clock, orch_cfg):
     t = AbortTracker(params(orch_cfg), fake_clock)
-    t.on_event(Event.STEP_TIMEOUT, ctx(state=State.MOVE_STANDBY, retryable=False))
+    t.on_event(Event.STEP_TIMEOUT, ctx(state=State.MOVE_STANDBY))
     t.on_cancel_sent()
     fake_clock.advance(0.2)
     t.on_cancel_ack()
@@ -175,7 +164,7 @@ def test_belt_unsteady(released, expected):
 @pytest.mark.level("U")
 def test_wait_operator_has_no_timeout(fake_clock, orch_cfg):
     t = AbortTracker(params(orch_cfg), fake_clock)
-    t.on_event(Event.STEP_FAILED, ctx(state=State.MOVE_STANDBY, retryable=False))
+    t.on_event(Event.STEP_FAILED, ctx(state=State.MOVE_STANDBY))
     t.on_path_done()
     fake_clock.advance(3600.0)
     assert t.tick() == L.L2
@@ -186,7 +175,7 @@ def test_wait_operator_has_no_timeout(fake_clock, orch_cfg):
 with open(os.path.join(DATA, 'fault_expectations.yaml')) as _fh:
     FAULTS = yaml.safe_load(_fh)
 
-CTX_KEYS = {'state', 'holding', 'released', 'retry_left', 'retryable'}
+CTX_KEYS = {'state', 'holding', 'released'}
 
 
 def _run_fault(spec, clock, cfg):
@@ -204,11 +193,7 @@ def _run_fault(spec, clock, cfg):
         clock.advance(t0 + step['t'] - clock.steady_now())
         cur = dict(base, **{k: v for k, v in step.items() if k in CTX_KEYS})
         now = clock.ros_now()
-        # deadline_s는 시나리오 시작 기준 [s]
-        deadline = now - step['t'] + step['deadline_s'] if 'deadline_s' in step else now + 1e6
-        c = AbortCtx(state=State[cur['state']], holding=cur['holding'], released=cur['released'],
-                     retry_left=cur['retry_left'], retryable=cur['retryable'], now=now,
-                     est_duration_s=step.get('est_duration_s', 1.0), deadline=deadline)
+        c = AbortCtx(state=State[cur['state']], holding=cur['holding'], released=cur['released'])
         level = tracker.level
         if 'event' in step:
             level = tracker.on_event(Event[step['event']], c)

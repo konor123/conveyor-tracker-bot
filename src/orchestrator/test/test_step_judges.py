@@ -328,8 +328,7 @@ def test_release_sync_lost():
 ])
 def test_retreat_failure_is_l4(change, reason):
     check(sj.judge_retreat(rep(OK_RET, **change), P_RET), Result.FAILED, reason)
-    c = AbortCtx(state=State.RETREAT, holding=False, released=True, retry_left=0, retryable=False,
-                 now=0.0, est_duration_s=0.0, deadline=1e9)
+    c = AbortCtx(state=State.RETREAT, holding=False, released=True)
     assert decide(Event.RETREAT_FAILED, c) == AbortLevel.L4
 
 

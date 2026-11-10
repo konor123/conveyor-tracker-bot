@@ -687,7 +687,7 @@ class OrchestratorNode(Node):
         out = self.runner.run(DropGoal(mode=Mode(g.mode), max_belt_speed_mps=g.max_belt_speed, timeout_s=g.timeout,
                                        max_passes=g.max_passes))
         self._t_cycle_end = math.inf
-        if out.abort_level in (AbortLevel.L1, AbortLevel.L2, AbortLevel.L3, AbortLevel.L4):
+        if out.abort_level in (AbortLevel.L2, AbortLevel.L3, AbortLevel.L4):
             self.abort_level = max(self.abort_level, int(out.abort_level))
         self.state = out.states[-1] if out.states else State.IDLE
         step_durs = {r.step_name: round(max(0.0, r.t_end - r.t_start), 6) for r in out.records}

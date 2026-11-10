@@ -1,6 +1,6 @@
 # SPEC-100 orchestrator
 
-- 버전: v0.7
+- 버전: v0.8
 - 근거: PLAN.md 4절
 - REQ 영역: ORC
 
@@ -8,6 +8,7 @@
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
+| v0.8 | 2026-11-10 | 재검출·재파지(L1) 제거: DETECT_STONE·PICK_STONE 실패와 검출 나이 초과는 L2 |
 | v0.7 | 2026-11-09 | 해제 후 RETREAT·VERIFY 독립 단계 예산과 준비된 응답 우선 |
 | v0.6 | 2026-11-09 | ROS 역행을 고려한 포트 steady 예산 배율 명시 |
 | v0.5 | 2026-11-09 | 미확정 action 수락 보존·취소 및 포트 대기 중단 계약 |
@@ -30,7 +31,7 @@ SPEC-010 wire schema v0.2 / runtime contract v0.4 기준.
 
 ## 3. 파라미터(단위·기본값·근거)
 
-`src/orchestrator/config/orchestrator.yaml`의 `judge:`·`step_timeout:`·`retry:` 절이 원본이다. 공깃돌·병뚜껑 치수는 OFF-1 실측 전 제안값이다.
+`src/orchestrator/config/orchestrator.yaml`의 `judge:`·`step_timeout:` 절이 원본이다. 공깃돌·병뚜껑 치수는 OFF-1 실측 전 제안값이다.
 
 | 키 | 기본값 | 근거 |
 |---|---|---|
@@ -52,7 +53,7 @@ SPEC-010 wire schema v0.2 / runtime contract v0.4 기준.
 | `plan.time_margin_min_s` | 1.0 | PLAN.md 4.3절 |
 | `plan.position_std_max_m` | 0.0005 | PLAN.md 4.3절 |
 | `plan.t_approach_s` | 1.0 | TBD(측정 G0) |
-| `sync.e_xy_max_m` | 0.00275 | `0.5 × (D_in − d_stone_max) / 2`, TBD(`D_in` 실측 OFF-1, G2 낙하 시험) |
+| `sync.e_xy_max_m` | 0.00275 | `0.5 × (D_in − d_stone_max) / 2`, TBD(`D_in` 실측 OFF-1) |
 | `sync.v_rel_max_mps` | 0.005 | PLAN.md 4.4절 |
 | `sync.hold_s` | 0.3 | PLAN.md 4.3절 |
 | `sync.timeout_s` | 2.0 | PLAN.md 4.3절 |
@@ -64,8 +65,6 @@ SPEC-010 wire schema v0.2 / runtime contract v0.4 기준.
 | `release.open_tol_m` | 0.001 | PLAN.md 4.3절 |
 | `retreat.safe_z_m` | 0.10 | TBD(현장 배치 OFF-1) |
 | `verify.timeout_s` | 3.0 | PLAN.md 4.3절 |
-| `retry.detect_stone_count` | 2 | PLAN.md 4.3절 |
-| `retry.pick_stone_count` | 2 | PLAN.md 4.3절 |
 
 `wait_cap.time_margin_s = t_available_s − t_required_s`이며 통과 조건은 `time_margin_s >= margin_s`다.
 
@@ -88,8 +87,8 @@ SPEC-010 wire schema v0.2 / runtime contract v0.4 기준.
 | 상태 | skill | 선행조건 | 판정 함수 | 실패 시 이벤트 |
 |---|---|---|---|---|
 | PRECHECK | 없음(상태 조회) | — | `judge_precheck` | 실패 시 시도하지 않고 IDLE(로봇 미동작) |
-| DETECT_STONE | `DetectObjects(REGION_MAT, CLASS_STONE)` | PRECHECK OK | `judge_detect_stone` | 단계 실패(재시도 가능) |
-| PICK_STONE | `PickStone` | 검출 시각이 `detection_age_max_s` 이내 | `judge_pick_stone` | `STONE_ON_MAT`만 재시도 가능 |
+| DETECT_STONE | `DetectObjects(REGION_MAT, CLASS_STONE)` | PRECHECK OK | `judge_detect_stone` | 단계 실패(L2) |
+| PICK_STONE | `PickStone` | 검출 시각이 `detection_age_max_s` 이내 | `judge_pick_stone` | 단계 실패(L2) |
 | MOVE_STANDBY | `MoveToPose(standby)` | holding | `judge_move_standby` | 단계 실패 |
 | WAIT_CAP | `SelectTarget`(STATIC: `DetectObjects(REGION_BELT, CLASS_CAP)`) | 대기 자세, holding | `judge_wait_cap` | `PASS_SKIP`이면 다음 통과, 소진 시 `PASSES_EXHAUSTED` |
 | PLAN_INTERCEPT | `ComputeIntercept`(STATIC: 상태 없음) | holding, track `OBSERVED`, epoch 일치 | `judge_plan_intercept` | 동적 deadline까지 재계획, 넘으면 다음 통과 |
@@ -140,9 +139,9 @@ SPEC-010 wire schema v0.2 / runtime contract v0.4 기준.
 
 불리언 값은 1.0/0.0으로 기록한다.
 
-### 4.5 재시도·통과 보내기
+### 4.5 재시도 없음·통과 보내기
 
-- 재시도(L1)는 DETECT_STONE(2회), PICK_STONE(`STONE_ON_MAT`일 때 2회)만 허용한다. 재시도는 그 단계의 선행조건부터 다시 본다. PICK_STONE 재시도 시 검출 시각이 `detection_age_max_s`를 넘었으면 DETECT_STONE부터 다시 실행한다.
+- 단계 실패는 재시도하지 않는다. DETECT_STONE·PICK_STONE 실패(`STONE_ON_MAT` 포함)는 L2이며 작업자가 확인한 뒤 `resume`으로 PRECHECK부터 다시 시작한다.
 - WAIT_CAP에서 `PASS_SKIP`이면 그 통과를 보내고 `passes_skipped`를 1 올린다. PLAN_INTERCEPT가 동적 deadline까지 OK를 내지 못해도 같다. `passes_skipped`가 `max_passes`를 넘으면 L3(`SafeRetreat(keep_sync=false, place_back=true, place_back_pose=매트)`), 결과 `NOT_ATTEMPTED`.
 - 통과 보내기는 로봇이 대기 자세에 있을 때만 한다. APPROACH 이후에는 통과 보내기를 하지 않는다.
 
@@ -157,7 +156,7 @@ SPEC-010 wire schema v0.2 / runtime contract v0.4 기준.
 - action(`PickStone`, `MoveToPose`, `DynamicPlace`, `PlaceStone`)이 응답하지 않으면 cancel을 보내고 SPEC-110 4.2절대로 승격한다. `DynamicPlace`·`PlaceStone` goal은 APPROACH부터 RETREAT 결과까지 이어진다.
 - WAIT_CAP은 통과마다 `SelectTarget`(STATIC: `DetectObjects(REGION_BELT, CLASS_CAP)`)으로 시작하고, `WAIT`이면 `observe_cap`으로 관측을 계속한다. 통과 시간이 `lap_s`를 넘으면 `PASS_SKIP`(detail `PASS_TIMEOUT`). 기록은 통과마다 최종 판정 1건이다.
 - PLAN_INTERCEPT는 실제 deadline(`min(now + 0.5 s, 동적 deadline, 사이클 deadline)`)까지 재계산하고, 통과마다 최종 판정 1건을 기록한다.
-- PICK_STONE 선행조건(검출 나이)이 깨지면 `PRECONDITION`을 기록하고 DETECT_STONE으로 돌아간다. 이 재검출은 `retry.pick_stone_count`번까지이고 넘으면 L2다.
+- PICK_STONE 선행조건(검출 나이)이 깨지면 `PRECONDITION`을 기록하고 재검출 없이 L2로 끝낸다.
 - holding은 PICK_STONE OK부터 RELEASE 응답까지 참으로 둔다(MOVE_STANDBY의 `DROPPED`도 L3로 처리해 매트 쪽으로 정리한다).
 - 비동기 장애: 포트의 `pending_fault()`가 SPEC-110 이벤트(보호정지, controller heartbeat 손실, vision·tracker heartbeat 손실, 그리퍼 이상 등)를 돌려주면 실행기는 단계 실행 전과 직후에 그 이벤트로 중단 등급을 정한다(판정 `FAULT`, 이유 = 이벤트 이름). 포트는 장애가 생기면 진행 중인 대기를 바로 끝내고 `None`을 돌려준다. 단, RELEASE 응답을 받은 뒤에는 하드 이상(SPEC-110 4.1절)만 대기를 끝내고, 비하드 장애가 latch된 동안에도 RETREAT·VERIFY 응답을 기다린다(해제 뒤 비하드 장애는 `CONTINUE_TO_RETREAT_VERIFY`). 장애는 사이클이 끝날 때까지 유지된다(포트가 latch). latch된 비하드 장애는 하드 이상이 오면 그것으로 바뀌고, 하드 이상은 다른 장애로 바뀌지 않는다.
 - 진행 알림: `CycleRunner(..., on_state=f, on_record=g)`이면 상태가 바뀔 때 `f(state)`, 단계 기록이 생길 때 `g(StepRec)`를 부른다(TaskStatus·StepRecord 발행용). 결과 열은 콜백 유무와 같다.
@@ -221,11 +220,11 @@ planner의 `time_budget`이 생기기 전까지 WAIT_CAP 예산은 `orchestrator
 ## 6. 실패 모드와 응답(중단 등급)
 
 - REQ-ORC-001: 모든 판정이 OK면 모드별 상태 열이 4.1절과 정확히 같다(MODE_STATIC은 PLAN_INTERCEPT·SYNCHRONIZE 없이 WAIT_CAP에서 `DetectObjects(REGION_BELT, CLASS_CAP)` 1회 이상 호출, MODE_PREDICTED는 SYNCHRONIZE 판정 입력이 진입 시각 오차·속도 오차).
-- REQ-ORC-002: 최종 실패 판정 뒤에는 정상 작업 경로의 다음 skill을 호출하지 않는다. 단 WAIT 재관측, 허용된 L1 재시도, 대기 자세의 통과 보내기 및 해제 후 RETREAT→VERIFY 정리 경로는 각 규정에 따른다. 하드 이상과 RETREAT 실패는 L4가 우선한다.
+- REQ-ORC-002: 최종 실패 판정 뒤에는 정상 작업 경로의 다음 skill을 호출하지 않는다. 단 WAIT 재관측, 대기 자세의 통과 보내기 및 해제 후 RETREAT→VERIFY 정리 경로는 각 규정에 따른다. 하드 이상과 RETREAT 실패는 L4가 우선한다.
 - REQ-ORC-003: 단계 판정은 3절 임계값으로 4.3절 이유 코드를 낸다. 경계값은 `TEST_SPEC.md` TC-ORC-003-01~14의 세 점(직전·경계·직후)에서 기대값과 일치한다.
 - REQ-ORC-004: 관측값을 받은 judge 최종 판정의 `Judgement.metrics` 키 집합은 4.4절의 해당 모드 표와 같고 `StepRecord.metric_keys`·`metric_values`에 순서대로 그대로 복사된다(누락 0건). 관측 응답이 없는 TIMEOUT/PRECONDITION은 `metrics={}`를 허용하고 `reason_code`로 구별한다.
 - REQ-ORC-005: 선행조건이 성립하지 않으면 결과 `PRECONDITION`, 해당 skill 호출 0회다(예: PICK_STONE에서 검출 시각이 1.01 s 전).
-- REQ-ORC-006: DETECT_STONE은 최대 2회 재시도한다(3번째 시도 OK면 진행, 3회 모두 실패면 L2). 재시도는 선행조건부터 다시 본다.
+- REQ-ORC-006: DETECT_STONE·PICK_STONE은 재시도하지 않는다. 첫 실패(PICK_STONE `STONE_ON_MAT`·선행조건 불충족 포함)에서 같은 skill과 DETECT_STONE을 다시 부르지 않고 L2다.
 - REQ-ORC-007: 통과 보내기는 `max_passes`회까지 한다. 소진하면 L3, `SafeRetreat(keep_sync=false, place_back=true)`, 결과 `NOT_ATTEMPTED`, `passes_skipped`를 기록한다.
 - REQ-ORC-008: PLAN_INTERCEPT가 동적 deadline까지 OK가 아니면 APPROACH를 0회 호출하고, 남은 통과가 있으면 WAIT_CAP으로 돌아간다.
 - REQ-ORC-009: WAIT_OPERATOR에서 사유 없는 `resume`은 거부하고, 사유 있는 `resume`은 PRECHECK부터 다시 시작하며 진입 시각·사유를 기록한다.

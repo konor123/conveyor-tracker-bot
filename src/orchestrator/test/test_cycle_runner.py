@@ -142,7 +142,8 @@ def test_stale_detection_blocks_pick(fake_clock, cfg):
     _, port, out = run(fake_clock, cfg, {'DetectObjects.MAT': [stale]})
     assert 'PickStone' not in port.names()
     picks = [r for r in out.records if r.step_name == 'PICK_STONE']
-    assert picks and all(r.result == Result.PRECONDITION for r in picks)
+    assert len(picks) == 1 and picks[0].result == Result.PRECONDITION
+    assert port.names().count('DetectObjects.MAT') == 1       # 재검출하지 않는다
     assert out.abort_level == AbortLevel.L2
 
 
@@ -156,7 +157,7 @@ def test_detection_at_age_limit_allows_pick(fake_clock, cfg):
     assert out.result == 'SUCCESS'
 
 
-# ---------------------------------------------------------------- 재시도
+# ---------------------------------------------------------------- 재시도 없음
 def _detect(count):
     return Reply(lambda p: DetectResult(replace(M.OK_DET, stone_count=count), p.clock.ros_now(),
                                         (0.3, 0.0, 0.0)), 0.3)
@@ -165,43 +166,27 @@ def _detect(count):
 @pytest.mark.req("REQ-ORC-006")
 @pytest.mark.tc("TC-ORC-006-01")
 @pytest.mark.level("U")
-def test_detect_retries_then_succeeds(fake_clock, cfg):
-    _, port, out = run(fake_clock, cfg, {'DetectObjects.MAT': [_detect(0), _detect(0), _detect(1)]})
+def test_detect_failure_is_l2_without_retry(fake_clock, cfg):
+    _, port, out = run(fake_clock, cfg, {'DetectObjects.MAT': [_detect(0), _detect(1)]})
+    assert port.names().count('DetectObjects.MAT') == 1
     detects = [r for r in out.records if r.step_name == 'DETECT_STONE']
-    assert [r.attempt for r in detects] == [1, 2, 3]
-    assert [r.abort_level for r in detects] == [1, 1, 0]
-    assert out.result == 'SUCCESS'
-
-
-@pytest.mark.req("REQ-ORC-006")
-@pytest.mark.tc("TC-ORC-006-01")
-@pytest.mark.level("U")
-def test_detect_three_failures_is_l2(fake_clock, cfg):
-    _, port, out = run(fake_clock, cfg, {'DetectObjects.MAT': [_detect(0)]})
-    assert port.names().count('DetectObjects.MAT') == 3
+    assert [(r.attempt, r.abort_level) for r in detects] == [(1, 2)]
     assert out.abort_level == AbortLevel.L2
     assert out.result == 'FAILURE'
-    assert 'MoveToPose.safe' in port.names()
+    assert 'MoveToPose.safe' in port.names() and 'PickStone' not in port.names()
 
 
 @pytest.mark.req("REQ-ORC-006")
 @pytest.mark.tc("TC-ORC-006-02")
 @pytest.mark.level("U")
-def test_pick_retry_rechecks_detection_age(fake_clock, cfg):
-    script = {'PickStone': [Reply(replace(M.OK_PICK, stone_on_mat=True), 4.0), Reply(M.OK_PICK, 4.0)]}
+@pytest.mark.parametrize('change', [{'stone_on_mat': True}, {'grip_current_ma': 10}])
+def test_pick_failure_is_l2_without_regrasp_or_redetect(fake_clock, cfg, change):
+    script = {'PickStone': [Reply(replace(M.OK_PICK, **change), 4.0), Reply(M.OK_PICK, 4.0)]}
     _, port, out = run(fake_clock, cfg, script)
     seq = [n for n in port.names() if n in ('DetectObjects.MAT', 'PickStone')]
-    assert seq == ['DetectObjects.MAT', 'PickStone', 'DetectObjects.MAT', 'PickStone']
-    assert out.result == 'SUCCESS'
-
-
-@pytest.mark.req("REQ-ORC-006")
-@pytest.mark.tc("TC-ORC-006-02")
-@pytest.mark.level("U")
-def test_pick_non_retryable_failure_is_not_retried(fake_clock, cfg):
-    script = {'PickStone': [Reply(replace(M.OK_PICK, grip_current_ma=10), 4.0)]}
-    _, port, out = run(fake_clock, cfg, script)
-    assert port.names().count('PickStone') == 1
+    assert seq == ['DetectObjects.MAT', 'PickStone']
+    assert out.abort_level == AbortLevel.L2
+    assert out.result == 'FAILURE'
 
 
 # ---------------------------------------------------------------- 통과 보내기
@@ -268,8 +253,7 @@ def test_plan_failure_goes_to_next_pass(fake_clock, cfg):
 @pytest.mark.tc("TC-ORC-009-01")
 @pytest.mark.level("U")
 def test_resume_requires_reason(fake_clock, cfg):
-    runner, port, out = run(fake_clock, cfg, {'DetectObjects.MAT': [_detect(0), _detect(0), _detect(0),
-                                                                    _detect(1)]})
+    runner, port, out = run(fake_clock, cfg, {'DetectObjects.MAT': [_detect(0), _detect(1)]})
     assert out.states[-1] is S.WAIT_OPERATOR
     assert out.wait_operator is not None and out.wait_operator.reason
     t_enter = out.wait_operator.t_enter

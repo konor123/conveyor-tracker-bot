@@ -1,6 +1,6 @@
 # SPEC-110 abort-timeout
 
-- 버전: v0.5
+- 버전: v0.6
 - 근거: PLAN.md 5, 6절
 - REQ 영역: ABT
 
@@ -8,6 +8,7 @@
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
+| v0.6 | 2026-11-10 | L1(재시도) 제거, `AbortCtx`를 상태·holding·released로 축소 |
 | v0.5 | 2026-11-09 | 해제 후 cleanup deadline 예외 |
 | v0.4 | 2026-11-09 | 포트 대기 steady 배율과 독립 중단 상한 정합화 |
 | v0.3 | 2026-11-09 | 포트 대기 steady 상한·Stop 전달 확인과 재시도 계약 |
@@ -22,8 +23,8 @@ M0는 감시 판정 함수와 이벤트 입력의 U 검증 범위다. ROS 관측
 
 ## 2. 입력·출력(interface 버전)
 
-- 입력: 이벤트(`Event`)와 중단 문맥(`AbortCtx`: 상태, holding, released, 남은 재시도, 재시도 가능 여부, 현재 ROS 시각, 단계 예상 소요시간, 실제 deadline), steady 시각, ROS 시각, `Heartbeat`(SPEC-010 wire schema v0.2 / runtime contract v0.4), 그리퍼 상태.
-- 출력: `AbortLevel`(`NONE=0`, `L1~L4`, `CONTINUE_TO_RETREAT_VERIFY=10`), `TaskStatus.abort_level`, `StepRecord.abort_level`(SPEC-010 wire schema v0.2 / runtime contract v0.4). `CONTINUE_TO_RETREAT_VERIFY`는 내부 값이며 메시지에는 0으로 쓴다.
+- 입력: 이벤트(`Event`)와 중단 문맥(`AbortCtx`: 상태, holding, released), steady 시각, ROS 시각, `Heartbeat`(SPEC-010 wire schema v0.2 / runtime contract v0.4), 그리퍼 상태.
+- 출력: `AbortLevel`(`NONE=0`, `L2~L4`, `CONTINUE_TO_RETREAT_VERIFY=10`. 값 1은 쓰지 않는다), `TaskStatus.abort_level`, `StepRecord.abort_level`(SPEC-010 wire schema v0.2 / runtime contract v0.4). `CONTINUE_TO_RETREAT_VERIFY`는 내부 값이며 메시지에는 0으로 쓴다.
 
 ## 3. 파라미터(단위·기본값·근거)
 
@@ -53,14 +54,13 @@ M0는 감시 판정 함수와 이벤트 입력의 U 검증 범위다. ROS 관측
 1. `HARD_FAULTS`(보호정지, 비상정지, 로봇 통신 단절, `robot_controller` heartbeat 손실, 중단 경로 제한시간 초과, RETREAT 실패) → L4
 2. `ctx.released` → `CONTINUE_TO_RETREAT_VERIFY`
 3. `ctx.holding` 또는 `ctx.state ∈ DYNAMIC_STATES`(APPROACH, SYNCHRONIZE, DESCEND, RELEASE) 또는 이벤트가 통과 보내기 소진 → L3
-4. 이벤트가 단계 실패이고 `ctx.retryable`이고 `ctx.retry_left > 0`이고 `ctx.now + ctx.est_duration < ctx.deadline` → L1
-5. 그 외 → L2
+4. 그 외 → L2(단계 실패는 재시도하지 않는다)
 
 ### 4.2 승격
 
-- 심각도 순서: `NONE < L1 < L2 < L3 < CONTINUE_TO_RETREAT_VERIFY < L4`. `escalate(current, new)`는 둘 중 심각한 쪽을 낸다.
+- 심각도 순서: `NONE < L2 < L3 < CONTINUE_TO_RETREAT_VERIFY < L4`. `escalate(current, new)`는 둘 중 심각한 쪽을 낸다.
 - 중단 경로가 시작되면(L2·L3) steady 시계로 경과를 잰다. 제한시간을 넘으면 L4.
-- cancel을 보낸 뒤 `cancel_response_s` 안에 응답이 없으면 한 단계 올린다(L1→L2, L2→L3, L3→L4).
+- cancel을 보낸 뒤 `cancel_response_s` 안에 응답이 없으면 한 단계 올린다(L2→L3, L3→L4).
 - WAIT_OPERATOR에는 제한시간이 없다.
 
 ### 4.3 감시

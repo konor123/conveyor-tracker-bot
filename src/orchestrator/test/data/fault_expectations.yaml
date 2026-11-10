@@ -1,7 +1,7 @@
 # PLAN.md 7.3절 장애 10종의 이벤트 열과 기대 중단 등급(TC-ABT-015-01, REQ-ABT-015). 이 파일이 명세다.
 #
 # 각 시나리오:
-#   ctx:      AbortCtx 기본값(state, holding, released, retry_left, retryable)
+#   ctx:      AbortCtx 기본값(state, holding, released)
 #   steps:    시각 순서의 동작. t = 시나리오 시작 기준 경과 [s](steady·ROS 함께 진행)
 #     event:          이미 판정된 이벤트(Event 이름). 같은 줄의 ctx 키로 문맥을 덮어쓴다
 #     beat:           heartbeat 수신(노드 이름)
@@ -16,7 +16,7 @@
 # 값은 SPEC-110 3절 제안값(heartbeat 0.3 s, τ_max 0.3 s, 그리퍼 응답 0.5 s, L2 10 s, L3 15 s, cancel 0.5 s) 기준이다.
 
 robot_hang:            # PICK_STONE action 무응답 → 단계 제한시간 → cancel 무응답 → 승격 → L3 경로 제한시간 → L4
-  ctx: {state: PICK_STONE, holding: false, released: false, retry_left: 2, retryable: false}
+  ctx: {state: PICK_STONE, holding: false, released: false}
   steps:
     - {t: 15.0, event: STEP_TIMEOUT, expect: L2}
     - {t: 15.0, cancel_sent: true}
@@ -27,13 +27,13 @@ robot_hang:            # PICK_STONE action 무응답 → 단계 제한시간 →
   expected: L4
 
 protective_stop:       # 하강 중 보호정지
-  ctx: {state: DESCEND, holding: true, released: false, retry_left: 0, retryable: false}
+  ctx: {state: DESCEND, holding: true, released: false}
   steps:
     - {t: 1.0, event: PROTECTIVE_STOP, expect: L4}
   expected: L4
 
 heartbeat_loss:        # 동기 추종 중 vision heartbeat 3회 누락
-  ctx: {state: SYNCHRONIZE, holding: true, released: false, retry_left: 0, retryable: false}
+  ctx: {state: SYNCHRONIZE, holding: true, released: false}
   steps:
     - {t: 0.0, beat: vision}
     - {t: 0.299, check_heartbeat: vision, expect: NONE}
@@ -41,39 +41,39 @@ heartbeat_loss:        # 동기 추종 중 vision heartbeat 3회 누락
   expected: L3
 
 time_insufficient:     # 모든 통과에서 시간 예산 부족 → 통과 보내기 소진
-  ctx: {state: WAIT_CAP, holding: true, released: false, retry_left: 0, retryable: false}
+  ctx: {state: WAIT_CAP, holding: true, released: false}
   steps:
     - {t: 90.0, event: PASSES_EXHAUSTED, expect: L3}
   expected: L3
 
-gripper_miss:          # 파지 실패, 공깃돌이 매트에 남음, 재시도 남음
-  ctx: {state: PICK_STONE, holding: false, released: false, retry_left: 2, retryable: true}
+gripper_miss:          # 파지 실패, 공깃돌이 매트에 남음. 재파지하지 않는다
+  ctx: {state: PICK_STONE, holding: false, released: false}
   steps:
-    - {t: 6.0, event: STEP_FAILED, est_duration_s: 6.0, deadline_s: 15.0, expect: L1}
-  expected: NONE       # L1은 재시도로 처리하고 진행 중 등급으로 남기지 않는다
+    - {t: 6.0, event: STEP_FAILED, expect: L2}
+  expected: L2
 
 gripper_cmd_delay:     # 하강 중 그리퍼 응답 지연(상주 루프)
-  ctx: {state: DESCEND, holding: true, released: false, retry_left: 0, retryable: false}
+  ctx: {state: DESCEND, holding: true, released: false}
   steps:
     - {t: 0.5, gripper: {error_bits: 0, response_s: 0.500}, expect: NONE}
     - {t: 0.6, gripper: {error_bits: 0, response_s: 0.501}, expect: L3}
   expected: L3
 
 occlusion_long:        # 하강 중 그리퍼 가림이 τ_max를 넘음
-  ctx: {state: DESCEND, holding: true, released: false, retry_left: 0, retryable: false}
+  ctx: {state: DESCEND, holding: true, released: false}
   steps:
     - {t: 0.3, obs: 0.300, expect: NONE}
     - {t: 0.4, obs: 0.301, expect: L3}
   expected: L3
 
 speed_change:          # 동기 추종 중 다이얼 변경
-  ctx: {state: SYNCHRONIZE, holding: true, released: false, retry_left: 0, retryable: false}
+  ctx: {state: SYNCHRONIZE, holding: true, released: false}
   steps:
     - {t: 1.0, event: BELT_UNSTEADY, expect: L3}
   expected: L3
 
 frame_drop_10pct:      # 10% 프레임 누락(최대 간격 2~3 프레임)은 신선도 기준 안
-  ctx: {state: SYNCHRONIZE, holding: true, released: false, retry_left: 0, retryable: false}
+  ctx: {state: SYNCHRONIZE, holding: true, released: false}
   steps:
     - {t: 0.1, obs: 0.033}
     - {t: 0.2, obs: 0.067}
@@ -82,7 +82,7 @@ frame_drop_10pct:      # 10% 프레임 누락(최대 간격 2~3 프레임)은 �
   expected: NONE
 
 clock_jump:            # 대기 자세에서 ROS 시각 역행
-  ctx: {state: WAIT_CAP, holding: true, released: false, retry_left: 0, retryable: false}
+  ctx: {state: WAIT_CAP, holding: true, released: false}
   steps:
     - {t: 1.0, ros_jump: 0.0, expect: NONE}
     - {t: 2.0, ros_jump: -5.0, expect: L3}

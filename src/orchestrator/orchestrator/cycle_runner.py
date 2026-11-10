@@ -13,7 +13,7 @@ from .abort_policy import AbortCtx, AbortParams, AbortTracker, Event, HARD_FAULT
 from .common import (DYNAMIC_STATES, AbortLevel, Clock, Judgement, Mode, Result, State, le,
                      metrics_to_record)
 from .deadlines import effective_deadline
-from .state_machine import CycleCtx, next_state
+from .state_machine import next_state
 from .watchdogs import CycleTimer
 
 S = State
@@ -121,7 +121,6 @@ class OrchestratorCfg:
     retreat: sj.RetreatParams
     verify: sj.VerifyParams
     step_timeout: dict
-    retry: dict
     abort: AbortParams
     watchdog: dict
 
@@ -144,7 +143,6 @@ class OrchestratorCfg:
             retreat=sj.RetreatParams.from_dict(j['retreat']),
             verify=sj.VerifyParams.from_dict(j['verify']),
             step_timeout=dict(d['step_timeout']),
-            retry=dict(d['retry']),
             abort=AbortParams.from_dict(d['abort']),
             watchdog=dict(d['watchdog']),
         )
@@ -174,9 +172,7 @@ class _Cycle:
     cap: CapObservation | None = None
     pass_index: int = 0
     passes_skipped: int = 0
-    precondition_count: int = 0
     attempts: dict = field(default_factory=dict)
-    retries_used: dict = field(default_factory=dict)
     verdict: str = 'UNKNOWN'
     active_goal: bool = False
 
@@ -262,8 +258,7 @@ class CycleRunner:
             elif level in (L.L2, L.L3, L.L4) and not result:
                 result = self._abort_result(level, event)
                 reason = j.reason_code
-            ctx = CycleCtx(detection_fresh=self._detection_fresh(c))
-            state = next_state(state, goal.mode, j, level, ctx)
+            state = next_state(state, goal.mode, j, level)
             if state is S.DONE:
                 reason = reason or j.reason_code
                 result = result or ('FAILURE' if c.release_failed and c.verdict == 'SUCCESS'
@@ -313,11 +308,8 @@ class CycleRunner:
 
     def _do_pick_stone(self, c):
         if not self._detection_fresh(c):
-            c.precondition_count += 1
-            j = Judgement(Result.PRECONDITION, 'DETECTION_STALE', {})
-            # 재검출은 retry.pick_stone_count번까지. 넘으면 재시도 불가 실패(L2)
-            over = c.precondition_count > self._cfg.retry['pick_stone_count']
-            return j, (Event.STEP_FAILED if over else None)
+            # 재검출하지 않는다. 선행조건 불충족은 단계 실패(L2)
+            return Judgement(Result.PRECONDITION, 'DETECTION_STALE', {}), Event.STEP_FAILED
         m = self._run_action(c, lambda d: self._port.pick_stone(c.detection.target, d), S.PICK_STONE)
         if m is None:
             return _timeout(), Event.STEP_TIMEOUT
@@ -465,18 +457,8 @@ class CycleRunner:
         return None
 
     def _level(self, c, state, event, j) -> AbortLevel:
-        retry_key = {S.DETECT_STONE: 'detect_stone_count', S.PICK_STONE: 'pick_stone_count'}.get(state)
-        retry_left = 0
-        if retry_key is not None:
-            retry_left = self._cfg.retry[retry_key] - c.retries_used.get(state, 0)
-        retryable = state is S.DETECT_STONE or (state is S.PICK_STONE and j.reason_code == 'STONE_ON_MAT')
-        ctx = AbortCtx(state=state, holding=c.holding, released=c.released, retry_left=retry_left,
-                       retryable=retryable, now=self._clock.ros_now(),
-                       est_duration_s=self._cfg.step_limit_s(state, c.goal.max_passes),
-                       deadline=c.deadline)
+        ctx = AbortCtx(state=state, holding=c.holding, released=c.released)
         level = c.tracker.on_event(event, ctx)
-        if level is L.L1:
-            c.retries_used[state] = c.retries_used.get(state, 0) + 1
         if event is Event.STEP_TIMEOUT and c.active_goal:
             # action 무응답: cancel 후 cancel_response_s 안에 응답이 없으면 한 단계 승격
             c.tracker.on_cancel_sent()
@@ -523,7 +505,7 @@ class CycleRunner:
 
     def _record(self, records, c, state, j, t_start, level) -> None:
         keys, values = metrics_to_record(j)
-        lv = int(level) if level in (L.L1, L.L2, L.L3, L.L4) else 0
+        lv = int(level) if level in (L.L2, L.L3, L.L4) else 0
         rec = StepRec(len(records) + 1, state.name, t_start, self._clock.ros_now(), j.result,
                       j.reason_code, c.attempts.get(state, 1), lv, keys, values, j.detail)
         records.append(rec)

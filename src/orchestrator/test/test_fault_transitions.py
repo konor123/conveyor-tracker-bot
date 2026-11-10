@@ -5,7 +5,7 @@ import pytest
 
 from orchestrator.abort_policy import AbortCtx, Event, decide
 from orchestrator.common import AbortLevel as L, Judgement, Mode, Result, State as S
-from orchestrator.state_machine import CycleCtx, next_state
+from orchestrator.state_machine import next_state
 
 # 명세의 하드 이상 목록을 독립적으로 둔다(구현의 집합을 기대값으로 쓰지 않는다).
 HARD = {Event.PROTECTIVE_STOP, Event.ESTOP, Event.ROBOT_COMM_LOST,
@@ -18,16 +18,14 @@ DYNAMIC = {S.APPROACH, S.SYNCHRONIZE, S.DESCEND, S.RELEASE}
 @pytest.mark.level("U")
 @pytest.mark.parametrize('state,event', list(product(S, Event)))
 def test_all_state_event_transitions(state, event):
-    for holding, released, retry in product((False, True), repeat=3):
-        c = AbortCtx(state, holding, released, int(retry), retry, 0.0, 1.0, 10.0)
+    for holding, released in product((False, True), repeat=2):
+        c = AbortCtx(state, holding, released)
         if event in HARD:
             expected = L.L4
         elif released:
             expected = L.CONTINUE_TO_RETREAT_VERIFY
         elif holding or state in DYNAMIC or event is Event.PASSES_EXHAUSTED:
             expected = L.L3
-        elif retry and event in {Event.STEP_FAILED, Event.STEP_TIMEOUT}:
-            expected = L.L1
         else:
             expected = L.L2
         level = decide(event, c)
@@ -47,4 +45,4 @@ def test_all_state_event_transitions(state, event):
             target = state
         for mode in Mode:
             assert next_state(state, mode, Judgement(Result.FAULT, event.name),
-                              level, CycleCtx()) is target
+                              level) is target

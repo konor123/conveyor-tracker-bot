@@ -30,8 +30,8 @@ class Result(IntEnum):
 
 
 class AbortLevel(IntEnum):
+    """값 1(재시도)은 쓰지 않는다. 단계 실패는 재시도 없이 L2 이상이다(SPEC-110 4.1절)."""
     NONE = 0
-    L1 = 1
     L2 = 2
     L3 = 3
     L4 = 4

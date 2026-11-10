@@ -35,11 +35,9 @@ class Event(Enum):
 HARD_FAULTS = frozenset({Event.PROTECTIVE_STOP, Event.ESTOP, Event.ROBOT_COMM_LOST,
                          Event.CONTROLLER_HEARTBEAT_LOST, Event.ABORT_PATH_TIMEOUT,
                          Event.RETREAT_FAILED})
-RETRYABLE_EVENTS = frozenset({Event.STEP_FAILED, Event.STEP_TIMEOUT})
-
-# 심각도 순서(SPEC-110 4.2절): NONE < L1 < L2 < L3 < CONTINUE_TO_RETREAT_VERIFY < L4
-_RANK = {L.NONE: 0, L.L1: 1, L.L2: 2, L.L3: 3, L.CONTINUE_TO_RETREAT_VERIFY: 4, L.L4: 5}
-_ONE_UP = {L.NONE: L.L2, L.L1: L.L2, L.L2: L.L3, L.L3: L.L4,
+# 심각도 순서(SPEC-110 4.2절): NONE < L2 < L3 < CONTINUE_TO_RETREAT_VERIFY < L4
+_RANK = {L.NONE: 0, L.L2: 2, L.L3: 3, L.CONTINUE_TO_RETREAT_VERIFY: 4, L.L4: 5}
+_ONE_UP = {L.NONE: L.L2, L.L2: L.L3, L.L3: L.L4,
            L.CONTINUE_TO_RETREAT_VERIFY: L.L4, L.L4: L.L4}
 
 
@@ -48,11 +46,6 @@ class AbortCtx:
     state: State
     holding: bool
     released: bool
-    retry_left: int          # 이 단계의 남은 재시도 횟수
-    retryable: bool          # 이 실패가 재시도 대상인지(예: PICK_STONE은 STONE_ON_MAT만)
-    now: float               # ROS 시각 [s]
-    est_duration_s: float    # 이 단계를 다시 하는 데 걸리는 예상 시간 [s]
-    deadline: float          # 실제 deadline(ROS 시각) [s]
 
 
 @dataclass(frozen=True)
@@ -71,9 +64,6 @@ def decide(event: Event, ctx: AbortCtx) -> AbortLevel:
         return L.CONTINUE_TO_RETREAT_VERIFY
     if ctx.holding or ctx.state in DYNAMIC_STATES or event is Event.PASSES_EXHAUSTED:
         return L.L3
-    if (event in RETRYABLE_EVENTS and ctx.retryable and ctx.retry_left > 0
-            and ctx.now + ctx.est_duration_s < ctx.deadline):
-        return L.L1
     return L.L2
 
 
@@ -93,11 +83,8 @@ class AbortTracker:
         self._cancel_sent: float | None = None
 
     def on_event(self, event: Event, ctx: AbortCtx) -> AbortLevel:
-        """판정한 등급을 돌려준다. L1은 재시도로 처리하므로 진행 중 등급으로 남기지 않는다."""
-        new = decide(event, ctx)
-        if new is L.L1:
-            return new if self.level is L.NONE else self.level
-        self._set(escalate(self.level, new))
+        """판정한 등급을 진행 중 등급에 반영해 돌려준다."""
+        self._set(escalate(self.level, decide(event, ctx)))
         return self.level
 
     def on_cancel_sent(self) -> None:

@@ -7,7 +7,7 @@
 
 | TC | 수준 | REQ | 테스트 |
 |---|---|---|---|
-| TC-ABT-001-01 | U | REQ-ABT-001 | `src/orchestrator/test/test_abort_policy.py::test_decide_matches_table`<br>`src/orchestrator/test/test_abort_policy.py::test_every_hard_fault_is_l4_even_after_release`<br>`src/orchestrator/test/test_abort_policy.py::test_retry_needs_time_before_deadline`<br>`src/orchestrator/test/test_abort_policy.py::test_non_retryable_failure_is_l2`<br>`src/orchestrator/test/test_safety_supervisor.py::test_supervisor_monitor_detects_heartbeat_error_code` |
+| TC-ABT-001-01 | U | REQ-ABT-001 | `src/orchestrator/test/test_abort_policy.py::test_decide_matches_table`<br>`src/orchestrator/test/test_abort_policy.py::test_every_hard_fault_is_l4_even_after_release`<br>`src/orchestrator/test/test_abort_policy.py::test_detect_and_pick_failures_are_l2_without_retry`<br>`src/orchestrator/test/test_safety_supervisor.py::test_supervisor_monitor_detects_heartbeat_error_code` |
 | TC-ABT-001-02 | U | REQ-ABT-001 | `src/orchestrator/test/test_fault_transitions.py::test_all_state_event_transitions` |
 | TC-ABT-001-03 | U | REQ-ABT-001 | `src/orchestrator/test/test_cycle_runner.py::test_released_fault_executes_cleanup`<br>`src/orchestrator/test/test_cycle_runner.py::test_retreat_failure_overrides_latched_soft_fault` |
 | TC-ABT-002-01 | U | REQ-ABT-002 | `src/orchestrator/test/test_abort_policy.py::test_escalate_keeps_higher`<br>`src/orchestrator/test/test_cycle_runner.py::test_released_soft_fault_escalates_to_hard_fault` |
@@ -42,7 +42,6 @@
 | TC-BEN-006-01 | B | REQ-BEN-006(SPEC 없음) | 절차 시험 |
 | TC-BEN-007-01 | B | REQ-BEN-007(SPEC 없음) | 절차 시험 |
 | TC-BEN-008-01 | B | REQ-BEN-008(SPEC 없음) | 절차 시험 |
-| TC-BEN-009-01 | B | REQ-BEN-009(SPEC 없음) | 절차 시험 |
 | TC-BEN-010-01 | B | REQ-BEN-010(SPEC 없음) | 절차 시험 |
 | TC-BEN-011-01 | B | REQ-BEN-011(SPEC 없음) | 절차 시험 |
 | TC-BEN-012-01 | B | REQ-BEN-012(SPEC 없음) | 절차 시험 |
@@ -135,8 +134,8 @@
 | TC-ORC-003-14 | U | REQ-ORC-003 | `src/orchestrator/test/test_cycle_runner.py::test_verify_deadline_and_final_outcome`<br>`src/orchestrator/test/test_step_judges.py::test_verify_no_response_is_unknown` |
 | TC-ORC-004-01 | U | REQ-ORC-004 | `src/orchestrator/test/test_step_judges.py::test_metric_keys_match_spec`<br>`src/orchestrator/test/test_step_judges.py::test_metric_keys_present_on_failure_too` |
 | TC-ORC-005-01 | U | REQ-ORC-005 | `src/orchestrator/test/test_cycle_runner.py::test_stale_detection_blocks_pick`<br>`src/orchestrator/test/test_cycle_runner.py::test_detection_at_age_limit_allows_pick` |
-| TC-ORC-006-01 | U | REQ-ORC-006 | `src/orchestrator/test/test_cycle_runner.py::test_detect_retries_then_succeeds`<br>`src/orchestrator/test/test_cycle_runner.py::test_detect_three_failures_is_l2` |
-| TC-ORC-006-02 | U | REQ-ORC-006 | `src/orchestrator/test/test_cycle_runner.py::test_pick_retry_rechecks_detection_age`<br>`src/orchestrator/test/test_cycle_runner.py::test_pick_non_retryable_failure_is_not_retried` |
+| TC-ORC-006-01 | U | REQ-ORC-006 | `src/orchestrator/test/test_cycle_runner.py::test_detect_failure_is_l2_without_retry` |
+| TC-ORC-006-02 | U | REQ-ORC-006 | `src/orchestrator/test/test_cycle_runner.py::test_pick_failure_is_l2_without_regrasp_or_redetect` |
 | TC-ORC-007-01 | U | REQ-ORC-007 | `src/orchestrator/test/test_cycle_runner.py::test_pass_skip_then_proceed`<br>`src/orchestrator/test/test_cycle_runner.py::test_wait_then_ok_within_pass` |
 | TC-ORC-007-02 | U | REQ-ORC-007 | `src/orchestrator/test/test_cycle_runner.py::test_passes_exhausted_is_not_attempted` |
 | TC-ORC-008-01 | U | REQ-ORC-008 | `src/orchestrator/test/test_cycle_runner.py::test_plan_failure_goes_to_next_pass` |

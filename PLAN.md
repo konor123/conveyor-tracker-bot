@@ -64,8 +64,8 @@
 ```
                      ┌──────────────────────────────┐
   사용자/시험 스크립트 ─▶│ orchestrator_node             │  DropTask 액션 서버
-                     │  - 상태 머신 / 단계 실행기       │  단계 성공 판정 · 제한시간 · 재시도
-                     │  - abort_policy (L1~L3)        │  StepRecord 발행
+                     │  - 상태 머신 / 단계 실행기       │  단계 성공 판정 · 제한시간
+                     │  - abort_policy (L2~L3)        │  StepRecord 발행
                      └──────┬───────────────┬────────┘
         skill 호출(action/srv) │               │ 상태 구독(topic)
    ┌──────────────┬─────────┴────┬──────────┴─────┬──────────────────┐
@@ -172,7 +172,7 @@ drop_ws/
 │   │   │   ├── deadlines.py                 # 단계/사이클/동적 구간 deadline(6절), time_budget 사용
 │   │   │   ├── safety_supervisor_node.py    # Heartbeat·로봇 상태 감시, L4
 │   │   │   └── record_logger_node.py        # StepRecord/TrialRecord → JSONL
-│   │   ├── config/orchestrator.yaml         # 제한시간·재시도·판정 임계값(전부 단위 포함)
+│   │   ├── config/orchestrator.yaml         # 제한시간·판정 임계값(전부 단위 포함)
 │   │   └── test/                            # fakes/(skill port·fake clock)로 전이·판정·중단·deadline 단위 테스트
 │   │
 │   ├── calibration/                         # ament_python
@@ -522,7 +522,6 @@ doosan-robot2 인터페이스는 공개 Jazzy 브랜치 커밋 `dade65d` 기준�
 - 각 단계는 **선행조건 → 실행 → 성공 판정** 순서로 진행한다. 판정 결과가 `OK`일 때만 다음 단계로 넘어간다. "skill이 오류 없이 끝났다"는 것만으로는 성공이 아니다. 판정은 반드시 **독립 관측**(영상, 그리퍼 핑거 간격·전류, TCP 피드백)으로 한다.
 - 판정 함수는 `step_judges.py`에 있는 순수 함수다. 입력은 측정값, 출력은 `(result, reason_code, metrics)`다. 판정에 쓴 값은 그대로 `StepRecord.metric_*`에 기록한다.
 - 선행조건이 성립하지 않으면 실행하지 않고 `PRECONDITION`으로 끝낸다. 이 경우 로봇은 움직이지 않는다.
-- 재시도할 때는 그 단계의 **선행조건부터 다시** 확인한다.
 
 ### 4.2 상태 흐름
 
@@ -546,15 +545,15 @@ IDLE
 중단 상태(5절): ABORT_CYCLE(L2), SAFE_ABORT(L3), PROTECTIVE_STOP(L4) → WAIT_OPERATOR
 ```
 
-자동 재시도는 매트 재검출, 재파지(4.3절 횟수), 병뚜껑 통과 보내기(`max_passes`)만 허용한다. 통과 보내기는 로봇이 대기 자세에 있을 때만 하므로 동적 구간을 되돌리지 않는다.
+매트 재검출·재파지는 하지 않는다. 검출·파지 실패는 L2로 끝내고 작업자가 확인한다. 자동으로 반복하는 것은 병뚜껑 통과 보내기(`max_passes`)뿐이다. 통과 보내기는 로봇이 대기 자세에 있을 때만 하므로 동적 구간을 되돌리지 않는다.
 
 ### 4.3 상태별 판정표 (초기 제안값)
 
 | 단계 | 선행조건 | 성공 판정(모두 만족) | 제한시간 | 실패 시 | 재시도 |
 |---|---|---|---|---|---|
 | PRECHECK | — | 모든 기능 노드 `ACTIVE`이고 heartbeat가 300 ms 이내 / calibration_id 일치·유효 / `robot_ready`이고 보호정지 아님 / 그리퍼 상주 루프 생존 카운터 증가 중, 응답 ≤ 0.5 s(G0 측정 후 확정), Hardware Error 없음, 개방 상태 / 벨트 `steady`, 속도 ≤ `max_belt_speed` | 5 s | 시도하지 않고 IDLE 복귀(로봇 미동작) | 0 |
-| DETECT_STONE | PRECHECK OK | 매트 ROI 공깃돌 ≥ 1, confidence ≥ 0.9, `position_valid`, 0.5 s 창 위치 표준편차 ≤ 0.5 mm, 주변 물체와 핑거 간섭 거리 이상 떨어짐 | 3 s | L1 재검출 | 2 |
-| PICK_STONE | 검출 시각이 1 s 이내 | 핑거 간격이 `[d_stone_min − 1, d_stone_max + 1] mm` 안(pulse 실측표 변환) / Present Current ≥ 파지 전류 하한 / 매트 ROI에서 해당 공깃돌 사라짐 / 로봇·그리퍼 오류 없음 | 15 s | 매트에 남아 있으면 L1, 그 외 L2 | 2 |
+| DETECT_STONE | PRECHECK OK | 매트 ROI 공깃돌 ≥ 1, confidence ≥ 0.9, `position_valid`, 0.5 s 창 위치 표준편차 ≤ 0.5 mm, 주변 물체와 핑거 간섭 거리 이상 떨어짐 | 3 s | L2 | 0 |
+| PICK_STONE | 검출 시각이 1 s 이내 | 핑거 간격이 `[d_stone_min − 1, d_stone_max + 1] mm` 안(pulse 실측표 변환) / Present Current ≥ 파지 전류 하한 / 매트 ROI에서 해당 공깃돌 사라짐 / 로봇·그리퍼 오류 없음 | 15 s | L2(선행조건 불충족도 재검출 없이 L2) | 0 |
 | MOVE_STANDBY | holding | 대기 자세 오차 ≤ 2 mm / holding 유지(핑거 간격·전류) | 10 s | L3 | 0 |
 | WAIT_CAP | 대기 자세, holding | `SelectTarget` 병뚜껑 track `OBSERVED`, `observation_count ≥ 30`, `speed_std ≤ 1 mm/s`, `steady` / 뚜껑 안에 공깃돌 없음(`stone_inside_valid == true`이고 `stone_inside == false`, 판정 불가는 통과 보내기) / `T_available − T_required ≥ margin` | `T_lap × (max_passes + 1)`(`T_lap` = 한 바퀴 주기, G0 측정) | 판정 실패한 통과는 보내고 다음 통과 대기. `max_passes`를 넘으면 L3(결과 `NOT_ATTEMPTED`) | `max_passes` |
 | PLAN_INTERCEPT | holding, track `OBSERVED`, epoch 일치 | `status == OK`, `time_margin ≥ 1.0 s`, `position_std ≤ 0.5 mm`, `valid_until > now + T_approach` | 0.5 s | 동적 deadline 안에서 재계획, 넘으면 이번 통과를 보내고 WAIT_CAP(남은 통과가 없으면 L3) | deadline까지 |
@@ -572,8 +571,8 @@ IDLE
 
 다음을 모두 만족해야 그리퍼를 연다. 하나라도 어긋나면 해제하지 않고 L3로 간다.
 
-- 공깃돌 중심(TCP + 파지 오프셋)과 뚜껑 중심 예측 사이 XY 오차 ≤ `e_xy_max`. 초기값은 `0.5 × (D_in − d_stone_max) / 2`로 계산하고, G2 낙하 시험에서 측정한 허용 오차로 바꾼다.
-- 상대 속도 ≤ `v_rel_max`(초기 5 mm/s, G2 낙하 시험과 G4 결과로 조정).
+- 공깃돌 중심(TCP + 파지 오프셋)과 뚜껑 중심 예측 사이 XY 오차 ≤ `e_xy_max`. 값은 `0.5 × (D_in − d_stone_max) / 2`로 계산한다(`D_in` 실측 OFF-1).
+- 상대 속도 ≤ `v_rel_max`(초기 5 mm/s, G4 결과로 조정).
 - 추적 상태 `OBSERVED`, 또는 `COASTING`이면서 `t_now − t_last_obs ≤ τ_max`. 컨베이어를 그리퍼가 뚜껑을 가리지 않는 위치에 두므로(1.1절) 해제 직전까지 관측을 유지하고, COASTING은 검출 누락 같은 짧은 구간에만 허용한다. 벨트 속도가 맥동하므로 예측만 쓰는 구간이 길면 오차가 빠르게 커진다(OFF-1 영상, `sigma_accel_mps2` 0.01: 0.1 s 앞 예측 XY p95 2.6~3.4 mm, `records/bench/belt-video-2026-11-07/README.md`). τ_max는 G3·G4 측정으로 정한다(초기 0.3 s).
 - 위치 예측 표준편차 ≤ 기준, `valid_until` 미경과, `epoch` 일치.
 - 핑거 끝 높이 ≥ 테두리 높이 + `h_clear`(초기 2 mm).
@@ -595,7 +594,6 @@ IDLE
 | 등급 | 이름 | 발생 조건(예) | 동작 | 판단 주체 |
 |---|---|---|---|---|
 | L0 | LOCAL_STOP | 지령 freshness 초과(2 주기), 지령 범위 초과 | 즉시 속도 0, 이후 지령 거부. supervisor에 `FAULT` 보고 | `robot_controller`(다른 노드와 무관하게 동작) |
-| L1 | RETRY | 재시도 가능한 단계 실패, 재시도 횟수와 시간이 남음 | 해당 단계 선행조건부터 재실행 | orchestrator |
 | L2 | ABORT_CYCLE | 공깃돌을 들고 있지 않고 동적 구간이 아님 / 시간 예산 부족 | 로봇을 안전 자세로 보냄 → WAIT_OPERATOR | orchestrator |
 | L3 | SAFE_ABORT | 공깃돌을 들고 있음 또는 동적 구간(APPROACH~DESCEND)에서 실패 / 통과 보내기 횟수 소진 | 동적 구간이면 동기 유지하며 상승(`SafeRetreat keep_sync`) → 안전 자세 → 공깃돌을 매트에 내려놓음 → WAIT_OPERATOR | orchestrator |
 | L4 | PROTECTIVE_STOP | 로봇 보호정지·비상정지 / 로봇 통신 단절 / `robot_controller` heartbeat 300 ms 끊김 / 중단 경로 자체의 제한시간 초과 / RETREAT 실패 | `Stop` 요청, 자동 리셋·원점 복귀 금지 → WAIT_OPERATOR | safety_supervisor(orchestrator도 요청 가능) |
@@ -613,9 +611,7 @@ def decide(event, ctx) -> AbortLevel:
     # 3) 공깃돌을 들고 있거나 동적 구간이면 제어된 후퇴
     if ctx.holding or ctx.state in DYNAMIC_STATES:
         return L3
-    # 4) 재시도 가능 여부: 횟수와 시간 모두 확인
-    if ctx.retry_left(ctx.state) > 0 and ctx.now + ctx.est_duration(ctx.state) < ctx.deadline:
-        return L1
+    # 4) 그 외 단계 실패는 재시도하지 않고 사이클 중단
     return L2
 ```
 
@@ -705,7 +701,7 @@ Isaac Sim은 대역으로 쓰지 않는다. 무겁고 결정적이지 않아 CI 
 | `protective_stop` | 장애 | I0: supervisor → `Stop` → WAIT_OPERATOR | 포함 |
 | `heartbeat_loss` | 장애 | I0: vision·tracker 누락 시 L2/L3, controller 누락 시 L4 | 포함 |
 | `time_insufficient` | 장애 | `time_budget`·`deadlines` 단위 테스트 + I0 2건(첫 통과 부족 → 다음 통과 시도 / 모든 통과 부족 → `NOT_ATTEMPTED`) | 포함 |
-| `gripper_miss` | 장애 | `step_judges`·`abort_policy` 단위 테스트(L1 재시도) | — |
+| `gripper_miss` | 장애 | `step_judges`·`abort_policy` 단위 테스트(재파지 없이 L2) | — |
 | `gripper_cmd_delay` | 장애 | fake gripper 단위 테스트(상주 루프 응답 지연·무응답·생존 카운터 정지 → 해제 전 L3, 그리퍼 감시 L2/L3) | — |
 | `occlusion_long` | 장애 | tracker 단위 테스트·rosbag / 오케스트레이터는 `COASTING`+`t_last_obs` 판정 단위 테스트 | — |
 | `speed_change` | 장애 | `speed_change_detector` 단위 테스트·rosbag / 오케스트레이터는 `steady=false` → L3 단위 테스트 | — |

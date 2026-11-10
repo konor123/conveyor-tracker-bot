@@ -77,7 +77,7 @@ def test_l2_path_timeout_escalates_to_l4(fake_clock): ...
 ```python
 # ---------- orchestrator ----------
 class Result(IntEnum): OK=0; FAILED=1; TIMEOUT=2; PRECONDITION=3; CANCELED=4; FAULT=5
-class AbortLevel(IntEnum): NONE=0; L1=1; L2=2; L3=3; L4=4; CONTINUE_TO_RETREAT_VERIFY=10
+class AbortLevel(IntEnum): NONE=0; L2=2; L3=3; L4=4; CONTINUE_TO_RETREAT_VERIFY=10
 @dataclass(frozen=True)
 class Judgement: result: Result; reason_code: str; metrics: dict[str, float]; detail: str = ""
 # 위 세 타입은 common.py. reason "WAIT" = 판정 보류(같은 단계에서 관측 계속), detail = 세부 원인
@@ -244,7 +244,7 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-ORC-001-01 | MODE_SYNCHRONIZED 정상 상태 열 | U | `[ON]` | 모든 판정 OK | `IDLE→PRECHECK→DETECT_STONE→PICK_STONE→MOVE_STANDBY→WAIT_CAP→PLAN_INTERCEPT→APPROACH→SYNCHRONIZE→DESCEND→RELEASE→RETREAT→VERIFY→DONE` |
 | TC-ORC-001-02 | MODE_STATIC은 PLAN_INTERCEPT·SYNCHRONIZE를 건너뛰고 WAIT_CAP을 정지 뚜껑 검출로 바꾼다 | U | `[ON]` | mode = STATIC, 모든 판정 OK | PLAN_INTERCEPT·SYNCHRONIZE 없음, WAIT_CAP 단계에서 `DetectObjects(REGION_BELT, CLASS_CAP)` 호출, `PlaceStone` 사용 |
 | TC-ORC-001-03 | MODE_PREDICTED는 SYNCHRONIZE를 계획 속도 일치 구간 진입 판정으로 바꾼다 | U | `[ON]` | mode = PREDICTED | SYNCHRONIZE 판정 입력이 계획 구간 진입 시각·속도 오차 |
-| TC-ORC-002-01 | 최종 실패 뒤 정상 경로의 다음 skill 차단(재관측·L1·통과 보내기·해제 뒤 정리 예외) | U | `[ON]` | 각 단계를 하나씩 FAILED로 대본 작성(단계 수만큼 parametrize) | `FakeSkillPort.calls`에 다음 단계 skill 없음 |
+| TC-ORC-002-01 | 최종 실패 뒤 정상 경로의 다음 skill 차단(재관측·통과 보내기·해제 뒤 정리 예외) | U | `[ON]` | 각 단계를 하나씩 FAILED로 대본 작성(단계 수만큼 parametrize) | `FakeSkillPort.calls`에 다음 단계 skill 없음 |
 | TC-ORC-002-02 | 해제 후 정리 경로 | U | `[ON]` | RELEASE 실패 | RETREAT→VERIFY, 최종 FAILURE; 하드 이상·RETREAT 실패는 L4 우선 |
 | TC-ORC-003-01 | PRECHECK heartbeat 나이 경계 | U | `[ON]` | 나이 0.299 / 0.300 / 0.301 s | OK / OK / FAILED(`HEARTBEAT_STALE`) |
 | TC-ORC-003-02 | PRECHECK 그리퍼 응답·상태 | U | `[ON]` | 응답 0.5 s / 0.501 s, error_bits ≠ 0, 개방 아님 | OK / FAILED(`GRIPPER_SLOW`) / FAILED(`GRIPPER_ERROR`) / FAILED(`GRIPPER_NOT_OPEN`) |
@@ -261,9 +261,9 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-ORC-003-13 | RETREAT 판정 | U | `[ON]` | z < 안전 높이 / 그리퍼에 공깃돌 보임 | FAILED → L4 / FAILED → L4 |
 | TC-ORC-003-14 | VERIFY 제한시간 | U | `[ON]` | fake clock·VerifyDrop 2.999 / 3.000 / 3.001 s 응답 및 hang | 직전·경계 응답 수용, 직후·hang은 3.000 s에 UNKNOWN·`VERIFY_TIMEOUT`, 추가 로봇 지령 0회 |
 | TC-ORC-004-01 | 판정에 쓴 값이 모두 StepRecord에 남는다 | U | `[ON]` | 각 judge 호출, 구현 상수와 독립인 SPEC 키 fixture | `Judgement.metrics` 키가 단계별 명세 키 집합과 같고, StepRecord `metric_keys`에 그대로 복사 |
-| TC-ORC-005-01 | 선행조건 불충족이면 실행하지 않는다 | U | `[ON]` | PICK_STONE 검출 시각 1.01 s 전 | `PRECONDITION`, skill 호출 0회, 로봇 미동작 |
-| TC-ORC-006-01 | 재시도 횟수 | U | `[ON]` | DETECT_STONE 2회 실패 후 OK / 3회 실패 | attempt 3에서 진행 / L2 |
-| TC-ORC-006-02 | 재시도는 선행조건부터 다시 본다 | U | `[ON]` | PICK_STONE 실패 후 재시도 시 검출 시각이 1 s 지남 | DETECT_STONE부터 다시 실행 |
+| TC-ORC-005-01 | 선행조건 불충족이면 실행하지 않는다 | U | `[ON]` | PICK_STONE 검출 시각 1.01 s 전 | `PRECONDITION`, skill 호출 0회, 로봇 미동작, 재검출 없이 L2 |
+| TC-ORC-006-01 | 검출 실패는 재시도하지 않는다 | U | `[ON]` | DETECT_STONE 1회 실패(다음 응답은 OK로 대본) | `DetectObjects` 1회, L2, `FAILURE`, 안전 자세 이동, `PickStone` 0회 |
+| TC-ORC-006-02 | 파지 실패는 재파지·재검출하지 않는다 | U | `[ON]` | PICK_STONE `STONE_ON_MAT` / 파지 전류 부족(다음 응답은 OK로 대본) | `DetectObjects`·`PickStone` 각 1회, L2, `FAILURE` |
 | TC-ORC-007-01 | 통과 보내기 | U | `[ON]` | max_passes = 2, 1번째 통과 margin 부족, 2번째 OK | `passes_skipped = 1`, PLAN_INTERCEPT 진행 |
 | TC-ORC-007-02 | 통과 보내기 소진 | U | `[ON]` | max_passes = 2, 세 통과 모두 부족 | L3, `SafeRetreat(keep_sync=false, place_back_pose=매트)` 호출, 결과 `NOT_ATTEMPTED` |
 | TC-ORC-008-01 | 대기 자세에서 계획 실패는 다음 통과로 넘긴다 | U | `[ON]` | PLAN_INTERCEPT가 동적 deadline까지 실패, 남은 통과 있음 | APPROACH 호출 0회, WAIT_CAP 복귀 |
@@ -275,8 +275,8 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 
 | TC | 검증 내용(REQ 초안) | 수준 | 장소 | 조건 | 기대 결과 |
 |---|---|---|---|---|---|
-| TC-ABT-001-01 | `decide()` 판정 순서 전수 | U | `[ON]` | 모든 상태 × {HARD_FAULT, 단계 실패, cancel} × holding {T,F} × released {T,F} × 재시도 {남음, 없음} | `PLAN.md` 5.2절 순서와 일치(기대표는 `test/data/decide_table.csv`, 이 표가 명세) |
-| TC-ABT-001-02 | 모든 상태·이벤트의 중단 등급과 전이 | U | `[ON]` | State 전부 × Event 전부 × holding/released {T,F} × 재시도 {남음, 없음}; 모드 3종 | SPEC-110 4.1 순서의 등급; L2/L3/L4는 중단 상태, CONTINUE는 RETREAT → VERIFY → DONE, ValueError 0건 |
+| TC-ABT-001-01 | `decide()` 판정 순서 전수 | U | `[ON]` | 모든 상태 × {HARD_FAULT, 단계 실패, cancel} × holding {T,F} × released {T,F} | `PLAN.md` 5.2절 순서와 일치(기대표는 `test/data/decide_table.csv`, 이 표가 명세) |
+| TC-ABT-001-02 | 모든 상태·이벤트의 중단 등급과 전이 | U | `[ON]` | State 전부 × Event 전부 × holding/released {T,F}; 모드 3종 | SPEC-110 4.1 순서의 등급; L2/L3/L4는 중단 상태, CONTINUE는 RETREAT → VERIFY → DONE, ValueError 0건 |
 | TC-ABT-001-03 | 해제 후 비동기 장애의 후퇴·검증과 하드 이상 우선순위 | U | `[ON]` | RELEASE 응답 뒤 및 RETREAT/VERIFY 전·직후에 모든 Event 주입; 비하드 장애 latch 중 RETREAT 실패·무응답 및 L4 주입 | 비하드 장애에도 RETREAT·VERIFY 호출, 하드 이상·RETREAT 실패는 L4·Stop·WAIT_OPERATOR |
 | TC-ABT-002-01 | 높은 등급이 낮은 등급을 덮어쓴다 | U | `[ON]` | L3 진행 중 L4 / L4 진행 중 L2 | L4 / L4 유지 |
 | TC-ABT-003-01 | L2 중단 경로 제한시간 | U | `[ON]` | steady 10.000 / 10.001 s 경과 | 유지 / L4 |
@@ -499,7 +499,6 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-BEN-006-01 | 그리퍼 지연(정지 상태) | OFF-2 | 개방(`Δ_open`)·닫기 각 100회 | `gripper-<date>.csv` | `t_cmd → t_motion_start`, `→ t_done` p50/p95/p99 보고 |
 | TC-BEN-007-01 | 상주 루프 + 스트림 동시 동작 | OFF-2 | 상주 루프를 띄운 상태에서 TC-BEN-004 조건 반복, 추종 중 개방 트리거 20회 | `gripper-stream-<date>.csv` | 스트림 지령 간격 최대값 변화, 추종 오차 p95 증가 ≤ 0.5 mm, 개방 지연이 정지 상태 p95의 1.2배 이내. 미달 시 `PLAN.md` 11.3절 |
 | TC-BEN-008-01 | 파지 전류 | OFF-2 | 전류를 단계적으로 올리며 계획 최대 가속으로 10회 왕복, 미끄러짐(TCP 오프셋 변화 > 0.5 mm) 확인 | `grip-current-<date>.csv` | 미끄러짐 0인 최소 전류 × 1.5를 설정값으로 |
-| TC-BEN-009-01 | 낙하 튕김 | OFF-1(예비), OFF-4 | 해제 높이 2~3단계 × 의도 오차 0/1/2/3 mm × 10회 이상, 정지 뚜껑 | `drop-matrix-<date>.csv` | 조건별 안착률·Wilson 구간, 안착률 ≥ 95%인 최대 오차로 `e_xy_max` 확정 |
 | TC-BEN-010-01 | 가림 없는 배치 확인 | OFF-5 | 대기·접근·하강·해제 자세를 뚜껑 위에서 재현, 자세별 병뚜껑 검출 기록 | `layout-check-<date>.csv` | 그리퍼·공깃돌 가림에 의한 병뚜껑 검출 누락 0회 |
 | TC-BEN-011-01 | 지연 구성 | OFF-5 | 단계별 시각 기록 + 고속 촬영(240 fps 이상)으로 공깃돌 이탈 시각 확인 | `latency-chain-<date>.csv` | 노출 → 공깃돌 이탈까지 구성 성분별 p50/p95 |
 | TC-BEN-012-01 | 보정 검증 | OFF-3 | 보정에 쓰지 않은 20개 이상 위치에 TCP 접촉 | `calib-verify-<date>.csv` | XY p95 ≤ 1 mm, 최대 ≤ 2 mm |
@@ -530,7 +529,7 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | M0 | SYS-001·002·004, IF 전부, ORC 전부, ABT 전부(011-02·012-02·013-02·014-02 제외), MCK 전부, REC 전부, INT-001~006 | — | — | — |
 | G0 | ABT-014-02, ROB-001~012, GRP 전부 | GRP-001 | BEN-001·003~008, INT-020 | GRP: 실측표 전에는 선형 표; `[ON*]` GRP-001은 OFF-1 실측표로 재실행 |
 | G1 | SYS-003-01, ORC-005, VIS-001~008, CAL 전부 | VIS-010 | BEN-012 | ORC-005: 실제 영상 freshness·안정 창 C/I |
-| G2 | ORC 전부, VIS-009-01 | — | BEN-009, EXP-G2 | ORC: MODE_STATIC 경로 |
+| G2 | ORC 전부, VIS-009-01 | — | EXP-G2 | ORC: MODE_STATIC 경로 |
 | G3 | SYS-003-02, ABT-011-02·012-02·013-02, TRK-001~012 | TRK-013 | BEN-002·010, INT-021, EXP-G3 | — |
 | G4 | ABT-011-02, PLN 전부 | — | BEN-011, EXP-G4 | — |
 | G5 | ROB-006·008~010 | — | EXP-G5 | — |

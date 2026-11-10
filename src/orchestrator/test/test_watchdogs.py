@@ -9,8 +9,7 @@ L = AbortLevel
 
 
 def ctx(state, holding=False, released=False):
-    return AbortCtx(state=state, holding=holding, released=released, retry_left=0, retryable=False,
-                    now=0.0, est_duration_s=0.0, deadline=1e9)
+    return AbortCtx(state=state, holding=holding, released=released)
 
 
 @pytest.mark.req("REQ-ABT-008")
