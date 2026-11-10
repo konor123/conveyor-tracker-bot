@@ -72,12 +72,13 @@
 - [x] `[ON]` 장애 10종을 `abort_policy`·`deadlines` 단위 테스트의 이벤트 열로 작성(`PLAN.md` 7.3절)
 - [ ] `[ON]` `orchestrator_node`, `safety_supervisor_node`, `record_logger_node`
   - F1~F8의 결함 처리 및 F4 감시 연결의 G0/G3/G4 게이트 조건, 해제 후 N1 정리 경로 시험. N1 수정 후 노드 묶음 독립 재검수가 완료 조건이다.
+  - `safety_supervisor_node`가 보낸 Stop(예: controller heartbeat 손실)으로 끝난 skill 결과를 오케스트레이터가 일반 단계 실패로 판정한다(CI run 42768394758 attempt 1, I0 `time_insufficient`: PICK_STONE `STONE_ON_MAT` → L2). 감시 노드 Stop을 하드 이상(L4)으로 받는 처리가 완료 조건에 포함된다.
 - [x] `[ON]` `drop_mocks`: `scenario_engine`, `mock_world_node`(`role:=vision|tracking|all`), `mock_robot_controller_node`(소요시간·결과 지정형). 정상 경로 우선, 지연·지터 값은 가정값으로 표기(TC-MCK-*)
 - [x] `[ON]` 계약 테스트 틀(`test/contract/`, 대상을 인자로 받음), `mock_world_node`의 vision·tracker 계약 통과
 - [x] `[ON]` `mock.launch.py`, `launch_testing` 기반 I0 통합 테스트(ROS I0 시나리오 5종)를 CI에 등록(TC-INT-*)
   - `drop.launch.py`·`mock.launch.py`·동시 기동 거부와 ROS I0 정상·장애 시험(pytest에서 launch를 띄우는 방식), GitHub Actions `CI (M0 Offline & I0 Mock Suite)`. TC-INT-001~006 시험 연결 100%, 커밋 `199e363`에서 CI run 42563966553 2회 연속 통과(`records/worklog/2026-11-09.md`).
-- [ ] `[ON]` `records/` 디렉터리, trial·step JSONL 기록, `devlog.csv`, `param_changes.csv`(TC-REC-*)
-  - JSON Schema·StepRecord/trial JSONL 및 2026-11-09 devlog: unit 793/793·contract 72/72·I0 8/8(officepc WSL). 통합 커밋 `74013cf`, CI 환경 수정 `6bf0307`의 run 42584786687 attempt 1·2는 TC-MCK-005-01 일정 경계 실패로 미통과. TC-MCK-005-01은 최신 프레임만 발행하는 정책(SPEC-700 4.1)과 "예정 시각 직후 첫 수신 프레임" 판정의 불일치로 2코어 CI에서 간헐 실패했다(3.10·3.20·6.27 s). 위상은 제어 시계 시험, 실시간은 stamp·상태 일치 시험으로 분리했다(SPEC-700 v0.5). 커밋 `763a792`의 CI run 42609669267은 attempt 1 통과, attempt 2 실패(실시간 시험의 수신 관측 지연 0.279 s > 상한 0.2 s, 2코어 CI에서 프로세스 정지 0.27~0.5 s로 낡은 ROS 시각의 프레임 발행). CI 연속 통과가 완료 조건이다.
+- [x] `[ON]` `records/` 디렉터리, trial·step JSONL 기록, `devlog.csv`, `param_changes.csv`(TC-REC-*)
+  - JSON Schema·StepRecord/trial JSONL 및 2026-11-09 devlog: unit 793/793·contract 72/72·I0 8/8(officepc WSL), 통합 커밋 `74013cf`. CI를 막던 TC-MCK-005-01은 시험용 `/clock` 200 Hz 콜백이 CI 러너에서 executor를 포화시켜 mock 프레임이 0.2 s 상한보다 늦게 나온 문제였고, 시험 시계를 50 Hz로 낮췄다(`0510dbe`). CI run 42768394758 attempt 2·3 전 단계 연속 통과(TC-MCK-005-01은 attempt 1~3 모두 통과).
 - [x] `[ON]` `tools/spec/trace.py` 추적 행렬 생성(REQ·TC 연결 검사)
 
 **M0 합격 기준(제안):** SPEC 6종 v0.1과 M0 대상 시험 케이스 리뷰 완료 / interface 빌드 / 단위 테스트에서 장애 10종 이벤트 열마다 기대 중단 등급 / I0 정상 시나리오 20/20, ROS I0 장애 시나리오 4종(`robot_hang`, `protective_stop`, `heartbeat_loss`, `time_insufficient`)마다 정의된 중단 등급 동작 / 오케스트레이터 REQ 연결률 100% / `records/`에 StepRecord·trial 기록 생성 확인.
