@@ -72,13 +72,13 @@
 - [x] `[ON]` 장애 10종을 `abort_policy`·`deadlines` 단위 테스트의 이벤트 열로 작성(`PLAN.md` 7.3절)
 - [ ] `[ON]` `orchestrator_node`, `safety_supervisor_node`, `record_logger_node`
   - F1~F8의 결함 처리 및 F4 감시 연결의 G0/G3/G4 게이트 조건, 해제 후 N1 정리 경로 시험. N1 수정 후 노드 묶음 독립 재검수가 완료 조건이다.
-  - 실행 중 skill이 `Stop`으로 끝나면(`STOPPED`) 하드 이상 L4로 처리한다(REQ-ORC-011, TC-ORC-011-01). 실행 중인 skill이 없을 때(검출 서비스 호출 중, 단계 사이, WAIT_CAP 대기) 감시 노드가 보낸 Stop은 오케스트레이터에 전달되지 않는다. 로봇 쪽에서 작업자 해제 전까지 정지 상태를 알리는 신호와 그 처리가 완료 조건에 포함된다.
+  - 실행 중 skill이 `Stop`으로 끝나면(`STOPPED`) 하드 이상 L4로 처리한다(REQ-ORC-011, TC-ORC-011-01, CI run 42781388215 attempt 2·3과 42784411464 attempt 3에서 계약·I0 포함 전 단계 통과). 실행 중인 skill이 없을 때(검출 서비스 호출 중, 단계 사이, WAIT_CAP 대기) 감시 노드가 보낸 Stop은 오케스트레이터에 전달되지 않는다. 로봇 쪽에서 작업자 해제 전까지 정지 상태를 알리는 신호와 그 처리가 완료 조건에 포함된다.
 - [x] `[ON]` `drop_mocks`: `scenario_engine`, `mock_world_node`(`role:=vision|tracking|all`), `mock_robot_controller_node`(소요시간·결과 지정형). 정상 경로 우선, 지연·지터 값은 가정값으로 표기(TC-MCK-*)
 - [x] `[ON]` 계약 테스트 틀(`test/contract/`, 대상을 인자로 받음), `mock_world_node`의 vision·tracker 계약 통과
 - [x] `[ON]` `mock.launch.py`, `launch_testing` 기반 I0 통합 테스트(ROS I0 시나리오 5종)를 CI에 등록(TC-INT-*)
   - `drop.launch.py`·`mock.launch.py`·동시 기동 거부와 ROS I0 정상·장애 시험(pytest에서 launch를 띄우는 방식), GitHub Actions `CI (M0 Offline & I0 Mock Suite)`. TC-INT-001~006 시험 연결 100%, 커밋 `199e363`에서 CI run 42563966553 2회 연속 통과(`records/worklog/2026-11-09.md`).
 - [ ] `[ON]` `records/` 디렉터리, trial·step JSONL 기록, `devlog.csv`, `param_changes.csv`(TC-REC-*)
-  - JSON Schema·StepRecord/trial JSONL 및 2026-11-09 devlog: unit 793/793·contract 72/72·I0 8/8(officepc WSL), 통합 커밋 `74013cf`. CI를 막는 TC-MCK-005-01은 시험 프로세스 안 executor에서 mock 세계 노드의 `/clock` 콜백이 밀려 ROS 시각이 낡은 채 프레임을 0.2 s 상한보다 늦게 낸 문제다. 시험 시계 50 Hz(`0510dbe`)로 지연이 줄었으나(최대 0.4 → 0.27 s) CI run 42775254280에서 2회 모두 실패했다. 세계 노드를 별도 프로세스로 띄운 뒤(`65896b7`)에도 CI run 42777439175에서 3회 모두 실패했다(지연 0.27~0.39 s, 수신 프레임 300개 중 25개). 측정 방법 결정과 CI 전체 실행 3회 연속 통과가 완료 조건이다.
+  - JSON Schema·StepRecord/trial JSONL 및 2026-11-09 devlog: unit 793/793·contract 72/72·I0 8/8(officepc WSL), 통합 커밋 `74013cf`. CI를 막는 TC-MCK-005-01: 시험 프로세스 안 `/clock` 발행 스레드가 CI 러너에서 멈춰 mock 세계 노드가 낡은 ROS 시각으로 프레임을 늦게 냈다. 수신 시각을 미들웨어 수신 시각으로 재고(SPEC-700 v0.6) `/clock`을 별도 프로세스에서 낸 뒤(`717a4fc`) CI 지연은 0.08 s 이하로 줄었으나, 실시간 실행에서 프레임 누락이 늘어 frame_drop 구간 앞뒤 6프레임 수신 확인이 실패한다(CI run 42784411464 3회 중 1회 통과). 실시간 커버리지 판정 방법 결정과 CI 전체 실행 3회 연속 통과가 완료 조건이다.
 - [x] `[ON]` `tools/spec/trace.py` 추적 행렬 생성(REQ·TC 연결 검사)
 
 **M0 합격 기준(제안):** SPEC 6종 v0.1과 M0 대상 시험 케이스 리뷰 완료 / interface 빌드 / 단위 테스트에서 장애 10종 이벤트 열마다 기대 중단 등급 / I0 정상 시나리오 20/20, ROS I0 장애 시나리오 4종(`robot_hang`, `protective_stop`, `heartbeat_loss`, `time_insufficient`)마다 정의된 중단 등급 동작 / 오케스트레이터 REQ 연결률 100% / `records/`에 StepRecord·trial 기록 생성 확인.
