@@ -26,4 +26,10 @@
 - 결과 레지스터를 지우지 않으면 일부만 실행한 결과가 지난 실행 값과 섞인다. 상태 값 0의 의미를 정해 두어야 한다.
 - 유예 2 s와 실제 상태 전이는 가짜 제어기 기준이다. 11-14 실기에서 확인한다.
 
+## 같은 생각을 상주 루프에도: 실패를 결과로 남기기
+
+상주 루프 DRL(`robot_control/drl/gripper_resident.drl`)은 PC가 seq를 바꾸면 그리퍼에 전류·위치를 쓰고 "실행한 seq"(레지스터 39)를 올린다. 전에는 Modbus 쓰기가 실패해도 39를 올렸기 때문에, PC는 "실행됐다"고 보고 위치가 안 바뀌는 것을 제한시간이 지나서야 알았다. 지금은 39를 쓰기 **전에** 그 seq의 결과(레지스터 40: 0 정상, 242 실패)를 쓴다. 순서가 중요하다. 39가 바뀐 것을 본 순간 40은 이미 그 seq의 결과다. transport는 마지막으로 트리거한 seq의 결과만 보고, 실패면 `RESIDENT_WRITE_FAILED`를 한 번 낸다. 앞 지령의 실패가 다음 지령까지 막지 않게 하기 위해서다.
+
+시험이 정말 그 동작을 보는지 확인하는 방법: 고친 코드의 핵심 조건을 잠시 지우고 시험이 실패하는지 본다. belt_sync의 "같은 revision 재수신" 시험은 원래 다른 감시(`LOOP_GAP`)만으로도 통과해서, 조건을 지워도 통과했다. ROS 시계를 멈추고 수신 감시만 남기도록 고친 뒤에는 조건을 지우면 실패한다.
+
 관련: [worklog 2026-11-11](../../records/worklog/2026-11-11.md), `src/static_pick_place/static_pick_place/doosan_client.py`(`run_cycle`), `src/static_pick_place/static_pick_place/drl/cycle.drl`.
