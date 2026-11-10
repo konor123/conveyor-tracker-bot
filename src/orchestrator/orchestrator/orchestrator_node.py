@@ -125,11 +125,15 @@ class RosSkillPort:
         self._skipped_tracks = set()
 
     def raise_fault(self, event: Event) -> None:
-        """사이클 중 비동기 장애를 latch한다. latch된 비하드 장애는 하드 이상으로만 바뀐다(REQ-ORC-010)."""
+        """사이클 중 비동기 장애를 latch한다. latch된 비하드 장애는 하드 이상으로만 바뀐다(REQ-ORC-010).
+
+        원인을 모르는 ROBOT_STOPPED는 뒤이어 확인된 구체적 하드 이상(보호정지·heartbeat 손실 등)으로 바뀐다(REQ-ORC-011).
+        """
         with self._fault_lock:
             if self.drop_goal_handle is None or event in self._triggered_faults:
                 return
-            if self._fault is not None and not (event in HARD_FAULTS and self._fault not in HARD_FAULTS):
+            generic = self._fault is Event.ROBOT_STOPPED and event in HARD_FAULTS
+            if self._fault is not None and not generic and not (event in HARD_FAULTS and self._fault not in HARD_FAULTS):
                 return
             self._triggered_faults.add(event)
             self._fault = event
@@ -248,7 +252,21 @@ class RosSkillPort:
             return None
         r = self._result_future.result().result
         self._goal = self._result_future = None
+        self._terminal_fault(r)
         return r
+
+    def _terminal_fault(self, r) -> None:
+        """skill 결과가 정지를 알리면 하드 이상을 latch한다(REQ-ORC-011).
+
+        `STOPPED`는 Stop 서비스로 끝났다는 뜻이다(보통 safety_supervisor). 같은 원인을 자체 감시가
+        이미 보고 있으면 그 구체적 장애가 남도록 감시를 먼저 돌린다.
+        """
+        reason = getattr(r, 'reason_code', '')
+        if reason == 'PROTECTIVE_STOP':
+            self.raise_fault(Event.PROTECTIVE_STOP)
+        elif reason == 'STOPPED':
+            self.n._watch()
+            self.raise_fault(Event.ROBOT_STOPPED)
 
     def _run_action(self, name, goal, deadline):
         gh = self._send(name, goal, deadline)
@@ -430,9 +448,7 @@ class RosSkillPort:
         fb = next((fb for _, fb in self._feedback if fb.phase == phase and fb.phase_done), None)
         if fb is None:
             if self._result_future is not None and self._result_future.done():
-                r = self._result_future.result().result
-                if getattr(r, 'reason_code', '') == 'PROTECTIVE_STOP':
-                    self.raise_fault(Event.PROTECTIVE_STOP)
+                self._terminal_fault(self._result_future.result().result)
             return None
         return metrics_of(fb)
 

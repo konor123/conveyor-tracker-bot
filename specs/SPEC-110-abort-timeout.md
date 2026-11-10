@@ -1,6 +1,6 @@
 # SPEC-110 abort-timeout
 
-- 버전: v0.7
+- 버전: v0.8
 - 근거: PLAN.md 5, 6절
 - REQ 영역: ABT
 
@@ -8,6 +8,7 @@
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
+| v0.8 | 2026-11-10 | 하드 이상에 `ROBOT_STOPPED`(실행 중 skill이 Stop으로 끝남) 추가 |
 | v0.7 | 2026-11-10 | G7 판정에서 실기 고장 주입 제외 |
 | v0.6 | 2026-11-10 | L1(재시도) 제거, `AbortCtx`를 상태·holding·released로 축소 |
 | v0.5 | 2026-11-09 | 해제 후 cleanup deadline 예외 |
@@ -52,7 +53,7 @@ M0는 감시 판정 함수와 이벤트 입력의 U 검증 범위다. ROS 관측
 
 `decide(event, ctx)`는 다음 순서로 첫 번째로 맞는 등급을 낸다.
 
-1. `HARD_FAULTS`(보호정지, 비상정지, 로봇 통신 단절, `robot_controller` heartbeat 손실, 중단 경로 제한시간 초과, RETREAT 실패) → L4
+1. `HARD_FAULTS`(보호정지, 비상정지, 로봇 통신 단절, `robot_controller` heartbeat 손실, 중단 경로 제한시간 초과, RETREAT 실패, 실행 중 skill이 `Stop`으로 끝남 `ROBOT_STOPPED`) → L4
 2. `ctx.released` → `CONTINUE_TO_RETREAT_VERIFY`
 3. `ctx.holding` 또는 `ctx.state ∈ DYNAMIC_STATES`(APPROACH, SYNCHRONIZE, DESCEND, RELEASE) 또는 이벤트가 통과 보내기 소진 → L3
 4. 그 외 → L2(단계 실패는 재시도하지 않는다)

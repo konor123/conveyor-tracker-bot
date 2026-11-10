@@ -72,7 +72,7 @@
 - [x] `[ON]` 장애 10종을 `abort_policy`·`deadlines` 단위 테스트의 이벤트 열로 작성(`PLAN.md` 7.3절)
 - [ ] `[ON]` `orchestrator_node`, `safety_supervisor_node`, `record_logger_node`
   - F1~F8의 결함 처리 및 F4 감시 연결의 G0/G3/G4 게이트 조건, 해제 후 N1 정리 경로 시험. N1 수정 후 노드 묶음 독립 재검수가 완료 조건이다.
-  - `safety_supervisor_node`가 보낸 Stop(예: controller heartbeat 손실)으로 끝난 skill 결과를 오케스트레이터가 일반 단계 실패로 판정한다(CI run 42768394758 attempt 1, I0 `time_insufficient`: PICK_STONE `STONE_ON_MAT` → L2). 감시 노드 Stop을 하드 이상(L4)으로 받는 처리가 완료 조건에 포함된다.
+  - 실행 중 skill이 `Stop`으로 끝나면(`STOPPED`) 하드 이상 L4로 처리한다(REQ-ORC-011, TC-ORC-011-01). 실행 중인 skill이 없을 때(검출 서비스 호출 중, 단계 사이, WAIT_CAP 대기) 감시 노드가 보낸 Stop은 오케스트레이터에 전달되지 않는다. 로봇 쪽에서 작업자 해제 전까지 정지 상태를 알리는 신호와 그 처리가 완료 조건에 포함된다.
 - [x] `[ON]` `drop_mocks`: `scenario_engine`, `mock_world_node`(`role:=vision|tracking|all`), `mock_robot_controller_node`(소요시간·결과 지정형). 정상 경로 우선, 지연·지터 값은 가정값으로 표기(TC-MCK-*)
 - [x] `[ON]` 계약 테스트 틀(`test/contract/`, 대상을 인자로 받음), `mock_world_node`의 vision·tracker 계약 통과
 - [x] `[ON]` `mock.launch.py`, `launch_testing` 기반 I0 통합 테스트(ROS I0 시나리오 5종)를 CI에 등록(TC-INT-*)

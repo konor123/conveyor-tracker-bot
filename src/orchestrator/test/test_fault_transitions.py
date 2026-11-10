@@ -9,7 +9,8 @@ from orchestrator.state_machine import next_state
 
 # 명세의 하드 이상 목록을 독립적으로 둔다(구현의 집합을 기대값으로 쓰지 않는다).
 HARD = {Event.PROTECTIVE_STOP, Event.ESTOP, Event.ROBOT_COMM_LOST,
-        Event.CONTROLLER_HEARTBEAT_LOST, Event.ABORT_PATH_TIMEOUT, Event.RETREAT_FAILED}
+        Event.CONTROLLER_HEARTBEAT_LOST, Event.ABORT_PATH_TIMEOUT, Event.RETREAT_FAILED,
+        Event.ROBOT_STOPPED}
 DYNAMIC = {S.APPROACH, S.SYNCHRONIZE, S.DESCEND, S.RELEASE}
 
 

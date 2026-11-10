@@ -472,3 +472,53 @@ def test_released_cleanup_frozen_clock_is_still_bounded():
     assert .006 <= time.monotonic() - start < .5
     p.raise_fault(Event.PROTECTIVE_STOP)
     assert not p._wait(lambda: True, 0.)
+
+
+# ---------------------------------------------------------------- TC-ORC-011-01
+def _finished(p, reason, result=4):
+    p._goal = object()
+    p._result_future = NS(done=lambda: True, result=lambda: NS(result=NS(result=result, reason_code=reason)))
+    p._wait = lambda pred, deadline: pred()
+
+
+@pytest.mark.req('REQ-ORC-011')
+@pytest.mark.tc('TC-ORC-011-01')
+@pytest.mark.level('U')
+@pytest.mark.parametrize('reason,expected', [('STOPPED', Event.ROBOT_STOPPED),
+                                             ('PROTECTIVE_STOP', Event.PROTECTIVE_STOP),
+                                             ('CANCELED', None), ('', None)])
+def test_stopped_skill_result_latches_hard_fault(reason, expected):
+    p = port()
+    _finished(p, reason)
+    assert p._result(1.).reason_code == reason
+    assert p.pending_fault() is expected
+    assert expected is None or expected in HARD_FAULTS
+
+
+@pytest.mark.req('REQ-ORC-011')
+@pytest.mark.tc('TC-ORC-011-01')
+@pytest.mark.level('U')
+def test_stopped_result_reported_by_phase_wait():
+    p = port()
+    _finished(p, 'STOPPED')
+    p._feedback = []
+    assert p._phase_done('APPROACH', 1.) is None
+    assert p.pending_fault() is Event.ROBOT_STOPPED
+
+
+@pytest.mark.req('REQ-ORC-011')
+@pytest.mark.tc('TC-ORC-011-01')
+@pytest.mark.level('U')
+def test_specific_cause_wins_over_generic_stop():
+    # 자체 감시가 이미 원인을 보고 있으면 그 원인이 남는다
+    p = port()
+    p.n._watch = lambda: p.raise_fault(Event.CONTROLLER_HEARTBEAT_LOST)
+    _finished(p, 'STOPPED')
+    p._result(1.)
+    assert p.pending_fault() is Event.CONTROLLER_HEARTBEAT_LOST
+    # 원인이 나중에 확인되면 일반 정지를 대체한다
+    q = port()
+    _finished(q, 'STOPPED')
+    q._result(1.)
+    q.raise_fault(Event.PROTECTIVE_STOP)
+    assert q.pending_fault() is Event.PROTECTIVE_STOP

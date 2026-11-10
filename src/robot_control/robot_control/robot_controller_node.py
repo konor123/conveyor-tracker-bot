@@ -9,6 +9,7 @@ from __future__ import annotations
 import math
 import threading
 import time
+from dataclasses import replace
 
 import numpy as np
 import rclpy
@@ -276,14 +277,17 @@ class RobotControllerNode(LifecycleNode):
             with self._lock:
                 self._active_goal = False
 
+        if self._stop_requested and res.result != Result.OK:
+            # Stop으로 선점된 goal은 cancel과 구분해 CANCELED·STOPPED로 끝낸다(SPEC-010 3.2절, REQ-ROB-007)
+            res = replace(res, result=Result.CANCELED, reason_code='STOPPED')
         result = typ.Result()
         result.result = int(res.result)
         result.reason_code = res.reason_code
         self._fill_result(name, result, res)
         if res.result == Result.OK:
             goal_handle.succeed()
-        elif res.result == Result.CANCELED:
-            goal_handle.canceled()
+        elif res.result == Result.CANCELED and goal_handle.is_cancel_requested:
+            goal_handle.canceled()        # rclpy는 cancel 요청을 받은 goal만 CANCELED로 끝낼 수 있다
         else:
             goal_handle.abort()
         return result

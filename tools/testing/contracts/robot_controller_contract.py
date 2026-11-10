@@ -171,6 +171,7 @@ class TestRobotControllerContract:
         res = _result(gh)
         assert res.status == GoalStatus.STATUS_CANCELED
         assert res.result.result == common.RESULT_CANCELED
+        assert res.result.reason_code == 'CANCELED'            # Stop(STOPPED)과 구분(SPEC-010 3.2절)
         assert time.monotonic() - t <= 0.5                     # SPEC-110 cancel 응답 0.5 s
 
     def test_robot_single_command_authority(self, robot_contract):
@@ -189,7 +190,7 @@ class TestRobotControllerContract:
         r = h.call(Stop, 'robot/stop', requester=Stop.Request.ORCHESTRATOR, reason_code='CONTRACT')
         assert r.stopped and r.result == common.RESULT_OK
         res = _result(gh)
-        assert res.result.result != common.RESULT_OK
+        assert (res.result.result, res.result.reason_code) == (common.RESULT_CANCELED, 'STOPPED')
         assert res.status in (GoalStatus.STATUS_ABORTED, GoalStatus.STATUS_CANCELED)
 
     def test_robot_inactive_rejects_goals(self, robot_contract):

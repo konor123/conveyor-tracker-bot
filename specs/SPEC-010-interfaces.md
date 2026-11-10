@@ -1,6 +1,6 @@
 # SPEC-010 interfaces
 
-- 버전: v0.4
+- 버전: v0.5
 - 근거: PLAN.md 2.2, 3, 7.4절, `src/drop_interfaces/`
 - REQ 영역: IF
 
@@ -8,6 +8,7 @@
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
+| v0.5 | 2026-11-10 | `CANCELED` 이유 코드 구분: 클라이언트 cancel은 `CANCELED`, 실행 중 `Stop` 선점은 `STOPPED` |
 | v0.4 | 2026-11-09 | M0 검증 범위·게이트 및 독립 계약 기대값 정합성 |
 | v0.1 | 2026-11-07 | msg 9종·srv 6종·action 6종 규약, 공통 요청 필드·결과 코드·상수 표, QoS 표, revision·epoch 규칙, lifecycle 비활성 응답, Heartbeat 오류 코드, 스냅샷 버전 규칙 |
 | v0.2 | 2026-11-07 | `RobotStatus` msg 신설(`robot/status`, 10 Hz), `PlaceStone`·`DynamicPlace` feedback에 `phase_done`·`metric_keys`·`metric_values` 추가 및 phase별 측정값 키 규약(REQ-IF-005) |
@@ -110,7 +111,7 @@ wire schema는 v0.2이며 v0.3·v0.4는 필드 선언을 바꾸지 않는 runtim
 | `FAILED` | 1 | 시도했으나 판정·실행 조건 미달 | `NOT_ENOUGH_OBJECTS`, `NO_TARGET`, `PLAN_INVALID` |
 | `TIMEOUT` | 2 | 요청 `deadline` 경과로 서버가 자체 중단 | `DEADLINE` |
 | `PRECONDITION` | 3 | 선행조건 불충족으로 시도하지 않음 | `NODE_INACTIVE` |
-| `CANCELED` | 4 | 클라이언트 cancel 또는 `Stop` 서비스로 중단 | `STOPPED`, `CANCELED` |
+| `CANCELED` | 4 | 클라이언트 cancel 또는 `Stop` 서비스로 중단 | 클라이언트 cancel은 `CANCELED`(goal 상태 CANCELED), 실행 중 `Stop` 선점은 `STOPPED`(cancel 요청이 없으면 goal 상태 ABORTED) |
 | `FAULT` | 5 | 하드웨어·통신 이상 또는 보호정지 | `PROTECTIVE_STOP` |
 
 ### 3.3 인터페이스 상수 정의표

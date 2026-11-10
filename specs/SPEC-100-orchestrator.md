@@ -1,6 +1,6 @@
 # SPEC-100 orchestrator
 
-- 버전: v0.8
+- 버전: v0.9
 - 근거: PLAN.md 4절
 - REQ 영역: ORC
 
@@ -8,6 +8,7 @@
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
+| v0.9 | 2026-11-10 | skill 결과 `STOPPED`·`PROTECTIVE_STOP`을 하드 이상으로 latch(REQ-ORC-011) |
 | v0.8 | 2026-11-10 | 재검출·재파지(L1) 제거: DETECT_STONE·PICK_STONE 실패와 검출 나이 초과는 L2 |
 | v0.7 | 2026-11-09 | 해제 후 RETREAT·VERIFY 독립 단계 예산과 준비된 응답 우선 |
 | v0.6 | 2026-11-09 | ROS 역행을 고려한 포트 steady 예산 배율 명시 |
@@ -185,6 +186,7 @@ SPEC-010 wire schema v0.2 / runtime contract v0.4 기준.
 | `verify` | `vision/verify_drop` | `verdict` |
 | `safe_retreat`·`stop`·`cancel_active` | `robot/safe_retreat`, `robot/stop`, goal cancel | — |
 | `pending_fault` | 구독 캐시 | `robot/status.protective_stop` → PROTECTIVE_STOP, `connected = false` → ROBOT_COMM_LOST, heartbeat 손실(SPEC-110) |
+| skill 결과(`_result`·phase 대기) | action 결과 `reason_code` | `PROTECTIVE_STOP` → PROTECTIVE_STOP. `STOPPED`(실행 중 `Stop` 선점, SPEC-010 3.2절) → 자체 감시를 먼저 돌려 구체 원인을 latch하고, 없으면 `ROBOT_STOPPED`. latch된 `ROBOT_STOPPED`는 뒤이어 확인된 다른 하드 이상으로 바뀐다 |
 
 검출의 실제 freshness 원점은 PLAN.md 4.3절·SPEC-000의 영상 노출 시각이다. 검출 안정 창은 `stable_window=0.5 s`로 요청한다. M0 서비스 응답에는 관측 stamp·image_seq가 없어 수신 시각을 임시 대용하며 실제 vision 경로에는 사용할 수 없다. G1 필수 C/I 시험은 응답과 영상 노출 stamp의 연결 계약, 지연 응답·오래된 cache의 PICK_STONE 거부, 0.5 s 안정 창 충족을 확인한다.
 
@@ -228,6 +230,7 @@ planner의 `time_budget`이 생기기 전까지 WAIT_CAP 예산은 `orchestrator
 - REQ-ORC-007: 통과 보내기는 `max_passes`회까지 한다. 소진하면 L3, `SafeRetreat(keep_sync=false, place_back=true)`, 결과 `NOT_ATTEMPTED`, `passes_skipped`를 기록한다.
 - REQ-ORC-008: PLAN_INTERCEPT가 동적 deadline까지 OK가 아니면 APPROACH를 0회 호출하고, 남은 통과가 있으면 WAIT_CAP으로 돌아간다.
 - REQ-ORC-009: WAIT_OPERATOR에서 사유 없는 `resume`은 거부하고, 사유 있는 `resume`은 PRECHECK부터 다시 시작하며 진입 시각·사유를 기록한다.
+- REQ-ORC-011: 실행 중 skill이 `STOPPED`로 끝나면 단계 판정 대신 하드 이상(L4)으로 처리한다. 같은 시점에 자체 감시가 보호정지·통신 단절·controller heartbeat 손실을 보고 있으면 그 사유를 남기고, 원인을 모르면 `ROBOT_STOPPED`를 남긴다. 클라이언트 cancel 결과(`CANCELED`)는 하드 이상이 아니다.
 - REQ-ORC-010: 포트 대기는 해제 전에는 latch된 모든 장애로, RELEASE 응답 뒤에는 하드 이상으로만 끝난다. latch된 비하드 장애는 하드 이상으로 바뀌고, 하드 이상은 비하드 장애로 바뀌지 않는다.
 
 ## 7. 성공 판정(측정 가능)

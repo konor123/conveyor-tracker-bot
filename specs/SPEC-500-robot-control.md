@@ -1,6 +1,6 @@
 # SPEC-500 robot-control
 
-- 버전: v0.1
+- 버전: v0.2
 - 근거: PLAN.md 1.1, 3.3, 5.1절
 - REQ 영역: ROB, GRP
 
@@ -8,6 +8,7 @@
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
+| v0.2 | 2026-11-10 | REQ-ROB-007: Stop으로 선점된 goal은 `CANCELED`·`STOPPED`, cancel은 `CANCELED`·`CANCELED` |
 | v0.1 | 2026-11-07 | ROB·GRP REQ 정의, SI/Doosan·그리퍼 adapter·정적 skill 계약, 기본 backend disabled |
 | v0.0 | 2026-11-07 | 현장 일회성 그리퍼 CLI 요구(REQ-GRP-004·011) |
 
@@ -74,7 +75,7 @@ Doosan 스트림·move_line 계약, 그리퍼 상주 루프 경로, 추종 제�
 
 ### 4.4 정적 skill과 추종
 
-- REQ-ROB-007: `MoveToPose`·`PickStone`·`PlaceStone`·`SafeRetreat`·`Stop`은 phase feedback과 결과 코드를 내고, cancel은 0.5 s 안 `CANCELED`, deadline 초과는 `TIMEOUT`, 실행 중 `Stop`은 goal 선점 후 정지 피드백 확인 뒤에만 `stopped=true`다. MoveToPose는 측정 자세 오차, PickStone은 측정 파지, PlaceStone은 측정 개방 폭으로 성공을 판정한다.
+- REQ-ROB-007: `MoveToPose`·`PickStone`·`PlaceStone`·`SafeRetreat`·`Stop`은 phase feedback과 결과 코드를 내고, cancel은 0.5 s 안 `CANCELED`(이유 `CANCELED`), 실행 중 `Stop`으로 선점된 goal은 `CANCELED`(이유 `STOPPED`, SPEC-010 3.2절), deadline 초과는 `TIMEOUT`, 실행 중 `Stop`은 goal 선점 후 정지 피드백 확인 뒤에만 `stopped=true`다. MoveToPose는 측정 자세 오차, PickStone은 측정 파지, PlaceStone은 측정 개방 폭으로 성공을 판정한다.
 - REQ-ROB-008: `DynamicPlace`는 plan revision·epoch·만료를 검사하고, 계획기·추종 제어가 준비되지 않은 동안 `PRECONDITION`(`PLANNER_NOT_READY`)으로 닫힌다.
 - REQ-ROB-009: 해제 게이트(높이·경사·폭·여유·정지) 중 하나라도 위반하면 그리퍼를 열지 않고 L3를 요청한다.
 - REQ-ROB-010: `SafeRetreat(keep_sync=true)`는 z가 안전 높이에 닿을 때까지 XY 속도를 계획 속도 ±1 mm/s로 유지한다. 동기 유지 또는 place-back을 지원하지 않는 경로는 성공으로 보고하지 않는다.

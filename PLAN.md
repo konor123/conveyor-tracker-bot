@@ -596,7 +596,7 @@ IDLE
 | L0 | LOCAL_STOP | 지령 freshness 초과(2 주기), 지령 범위 초과 | 즉시 속도 0, 이후 지령 거부. supervisor에 `FAULT` 보고 | `robot_controller`(다른 노드와 무관하게 동작) |
 | L2 | ABORT_CYCLE | 공깃돌을 들고 있지 않고 동적 구간이 아님 / 시간 예산 부족 | 로봇을 안전 자세로 보냄 → WAIT_OPERATOR | orchestrator |
 | L3 | SAFE_ABORT | 공깃돌을 들고 있음 또는 동적 구간(APPROACH~DESCEND)에서 실패 / 통과 보내기 횟수 소진 | 동적 구간이면 동기 유지하며 상승(`SafeRetreat keep_sync`) → 안전 자세 → 공깃돌을 매트에 내려놓음 → WAIT_OPERATOR | orchestrator |
-| L4 | PROTECTIVE_STOP | 로봇 보호정지·비상정지 / 로봇 통신 단절 / `robot_controller` heartbeat 300 ms 끊김 / 중단 경로 자체의 제한시간 초과 / RETREAT 실패 | `Stop` 요청, 자동 리셋·원점 복귀 금지 → WAIT_OPERATOR | safety_supervisor(orchestrator도 요청 가능) |
+| L4 | PROTECTIVE_STOP | 로봇 보호정지·비상정지 / 로봇 통신 단절 / `robot_controller` heartbeat 300 ms 끊김 / 중단 경로 자체의 제한시간 초과 / RETREAT 실패 / 실행 중 skill이 `Stop`으로 끝남(`STOPPED`, 감시 노드 정지) | `Stop` 요청, 자동 리셋·원점 복귀 금지 → WAIT_OPERATOR | safety_supervisor(orchestrator도 요청 가능) |
 
 ### 5.2 판정 순서
 

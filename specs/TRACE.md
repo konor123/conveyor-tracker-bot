@@ -2,8 +2,8 @@
 
 `tools/spec/trace.py`가 생성한다. 손으로 고치지 않는다.
 
-- REQ 117개 중 TC 연결 117개
-- pytest 대상 TC 191개 중 테스트 연결 178개
+- REQ 118개 중 TC 연결 118개
+- pytest 대상 TC 192개 중 테스트 연결 179개
 
 | TC | 수준 | REQ | 테스트 |
 |---|---|---|---|
@@ -142,6 +142,7 @@
 | TC-ORC-009-01 | U | REQ-ORC-009 | `src/orchestrator/test/test_cycle_runner.py::test_resume_requires_reason`<br>`src/orchestrator/test/test_cycle_runner.py::test_precheck_failure_returns_to_idle_without_wait_operator` |
 | TC-ORC-010-01 | U | REQ-ORC-010 | `src/orchestrator/test/test_ros_skill_port.py::test_soft_fault_ends_wait_before_release`<br>`src/orchestrator/test/test_ros_skill_port.py::test_soft_fault_does_not_end_wait_after_release`<br>`src/orchestrator/test/test_ros_skill_port.py::test_hard_fault_ends_wait_after_release_and_overrides_soft`<br>`src/orchestrator/test/test_ros_skill_port.py::test_soft_fault_does_not_override_hard`<br>`src/orchestrator/test/test_ros_skill_port.py::test_reset_clears_release`<br>`src/orchestrator/test/test_ros_skill_port.py::test_concurrent_soft_and_hard_raise_keeps_hard`<br>`src/orchestrator/test/test_ros_skill_port.py::test_concurrent_consume_and_hard_raise_loses_nothing` |
 | TC-ORC-010-02 | U | REQ-ORC-010 | `src/orchestrator/test/test_cycle_runner.py::test_cleanup_after_real_cycle_deadline`<br>`src/orchestrator/test/test_node_failure_regressions.py::test_ready_cleanup_result_after_original_deadline`<br>`src/orchestrator/test/test_node_failure_regressions.py::test_runner_cleanup_with_production_ros_port`<br>`src/orchestrator/test/test_node_failure_regressions.py::test_released_cleanup_frozen_clock_is_still_bounded`<br>`src/orchestrator/test/test_ros_skill_port.py::test_ready_response_after_original_cycle_deadline` |
+| TC-ORC-011-01 | U | REQ-ORC-011 | `src/orchestrator/test/test_node_failure_regressions.py::test_stopped_skill_result_latches_hard_fault`<br>`src/orchestrator/test/test_node_failure_regressions.py::test_stopped_result_reported_by_phase_wait`<br>`src/orchestrator/test/test_node_failure_regressions.py::test_specific_cause_wins_over_generic_stop` |
 | TC-PLN-001-01 | U | REQ-PLN-001 | `src/intercept_planner/test/test_planner.py::test_budget_formula` |
 | TC-PLN-001-02 | U | REQ-PLN-001 | `src/intercept_planner/test/test_planner.py::test_budget_boundary` |
 | TC-PLN-001-03 | U | REQ-PLN-001 | `src/intercept_planner/test/test_planner.py::test_belt_boundary` |
@@ -178,7 +179,7 @@
 | TC-ROB-005-01 | C | REQ-ROB-005 | `src/robot_control/test/test_motion_adapter.py::test_single_command_authority_owner`<br>`src/robot_control/test/test_skill_logic.py::test_concurrent_goal_rejected` |
 | TC-ROB-006-01 | U | REQ-ROB-006 | `src/robot_control/test/test_motion_adapter.py::test_tracking_command_law_and_limits`<br>`src/robot_control/test/test_motion_adapter.py::test_tracking_command_rejects_bad_inputs` |
 | TC-ROB-007-01 | C | REQ-ROB-007 | `src/robot_control/test/test_skill_logic.py::test_move_to_pose_uses_measured_pose_error`<br>`src/robot_control/test/test_skill_logic.py::test_named_pose_and_missing_config_precondition`<br>`src/robot_control/test/test_skill_logic.py::test_inactive_lifecycle_rejects_skills`<br>`src/robot_control/test/test_skill_logic.py::test_disabled_backend_never_reports_success`<br>`src/robot_control/test/test_skill_logic.py::test_pick_success_requires_measured_holding`<br>`src/robot_control/test/test_skill_logic.py::test_pick_missing_grip_criteria_precondition` |
-| TC-ROB-007-02 | C | REQ-ROB-007 | `src/robot_control/test/test_skill_logic.py::test_deadline_and_cancel_paths`<br>`src/robot_control/test/test_skill_logic.py::test_stop_requires_confirmed_feedback` |
+| TC-ROB-007-02 | C | REQ-ROB-007 | `src/robot_control/test/test_robot_controller_stop.py::test_stop_preempts_goal_with_stopped_reason`<br>`src/robot_control/test/test_robot_controller_stop.py::test_client_cancel_keeps_canceled_reason`<br>`src/robot_control/test/test_skill_logic.py::test_deadline_and_cancel_paths`<br>`src/robot_control/test/test_skill_logic.py::test_stop_requires_confirmed_feedback` |
 | TC-ROB-008-01 | U | REQ-ROB-008 | `src/robot_control/test/test_skill_logic.py::test_dynamic_place_fails_closed_until_ready` |
 | TC-ROB-009-01 | U | REQ-ROB-009 | `src/robot_control/test/test_skill_logic.py::test_place_reads_measured_open_width` |
 | TC-ROB-010-01 | U | REQ-ROB-010 | `src/robot_control/test/test_skill_logic.py::test_safe_retreat_unsupported_modes_fail_closed` |

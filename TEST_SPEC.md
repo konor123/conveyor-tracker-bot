@@ -270,6 +270,7 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-ORC-009-01 | WAIT_OPERATOR 재개 | U | `[ON]` | `resume` 사유 없음 / 사유 있음 | 거부 / PRECHECK부터 재시작, 진입 시각·사유 기록 |
 | TC-ORC-010-02 | 해제 뒤 독립 cleanup 예산 | U | `[ON]` | RELEASE 직후·RETREAT 도중·VERIFY 직전 실제 ROS 시각이 원 사이클 deadline 초과, 준비된 결과·지연 결과·실패·동결 시계 | RETREAT·VERIFY 각각 기존 단계 제한시간, 준비된 응답 우선, 실제 후퇴 실패·하드 이상 L4, steady 상한 유지 |
 | TC-ORC-010-01 | 포트 대기와 비동기 장애 latch | U | `[ON]` | 해제 전 비하드 장애 / RELEASE 응답 뒤 비하드 장애 / 해제 뒤 비하드 latch 중 하드 이상 / 하드 latch 중 비하드 / `reset` 뒤 | 대기 종료 / 대기 계속·latch 유지 / 대기 종료·하드로 교체 / 하드 유지 / 해제 표시 초기화 |
+| TC-ORC-011-01 | skill 결과의 정지 사유를 하드 이상으로 | U | `[ON]` | action 결과 `STOPPED` / `PROTECTIVE_STOP` / `CANCELED` / 빈 사유, phase 대기 중 `STOPPED`, 자체 감시가 controller heartbeat 손실을 먼저 봄, `ROBOT_STOPPED` latch 뒤 보호정지 확인 | `ROBOT_STOPPED` / `PROTECTIVE_STOP` / 장애 없음 / 장애 없음, `ROBOT_STOPPED`, `CONTROLLER_HEARTBEAT_LOST`, `PROTECTIVE_STOP` |
 
 ### 3.4 ABT — 중단·제한시간·감시
 
@@ -375,7 +376,7 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-ROB-005-01 | 지령 주체 단일 | C | `[ON]` | 전체 launch 후 그래프 조사 | 스트림 토픽·move_line·그리퍼 호출 경로의 클라이언트가 `robot_controller_node` 하나 |
 | TC-ROB-006-01 | 추종 지령 식과 제한 | U | `[ON]` | 오차 0 / 오차 큼 / 이전 속도와 차이 큼 | `v = v_ff` / `|v| = v_max` / `|Δv| ≤ a_max·dt` |
 | TC-ROB-007-01 | skill 계약 | C | `[ON]` | skill 5종 각각: 수락·feedback·결과 코드 | 3.2절 명세와 일치 |
-| TC-ROB-007-02 | cancel·deadline·Stop | C | `[ON]` | cancel / deadline 경과 / 실행 중 `Stop` | 0.5 s 안 CANCELED / `TIMEOUT` 자체 종료 / 실행 goal 선점, 정지 확인 뒤 `stopped = true` 응답 |
+| TC-ROB-007-02 | cancel·deadline·Stop | C | `[ON]` | cancel / deadline 경과 / 실행 중 `Stop` | 0.5 s 안 CANCELED·이유 `CANCELED`(goal 상태 CANCELED) / `TIMEOUT` 자체 종료 / 실행 goal 선점해 CANCELED·이유 `STOPPED`(goal 상태 ABORTED), 정지 확인 뒤 `stopped = true` 응답 |
 | TC-ROB-008-01 | DynamicPlace plan 추종 | U | `[ON]` | 낮은 revision / epoch 변경 / 만료 | 무시 / FAILED `PLAN_INVALID` / FAILED `PLAN_INVALID` |
 | TC-ROB-009-01 | 해제 게이트 미통과 시 그리퍼를 열지 않는다 | U | `[ON]` | 게이트 항목을 하나씩 위반(5항목) | `FakeGripper` open 호출 0회, 결과 L3 요청 |
 | TC-ROB-010-01 | 동기 유지 후퇴 | U | `[ON]` | `SafeRetreat(keep_sync=true)` | z가 안전 높이에 닿을 때까지 XY 지령 속도 = 계획 속도 ± 1 mm/s |

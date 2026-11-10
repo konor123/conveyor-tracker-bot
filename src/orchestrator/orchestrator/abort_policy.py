@@ -17,6 +17,7 @@ class Event(Enum):
     CONTROLLER_HEARTBEAT_LOST = auto()
     ABORT_PATH_TIMEOUT = auto()
     RETREAT_FAILED = auto()
+    ROBOT_STOPPED = auto()       # 실행 중 skill이 Stop 서비스로 끝남(STOPPED, 주로 safety_supervisor)
     # 단계 결과
     STEP_FAILED = auto()
     STEP_TIMEOUT = auto()
@@ -34,7 +35,7 @@ class Event(Enum):
 
 HARD_FAULTS = frozenset({Event.PROTECTIVE_STOP, Event.ESTOP, Event.ROBOT_COMM_LOST,
                          Event.CONTROLLER_HEARTBEAT_LOST, Event.ABORT_PATH_TIMEOUT,
-                         Event.RETREAT_FAILED})
+                         Event.RETREAT_FAILED, Event.ROBOT_STOPPED})
 # 심각도 순서(SPEC-110 4.2절): NONE < L2 < L3 < CONTINUE_TO_RETREAT_VERIFY < L4
 _RANK = {L.NONE: 0, L.L2: 2, L.L3: 3, L.CONTINUE_TO_RETREAT_VERIFY: 4, L.L4: 5}
 _ONE_UP = {L.NONE: L.L2, L.L2: L.L3, L.L3: L.L4,

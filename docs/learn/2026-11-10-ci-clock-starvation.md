@@ -25,3 +25,15 @@ TC-MCK-005-01(`test_injected_events_appear_at_scheduled_time`)은 mock 세계 �
 - **재시도가 결함을 가린다.** 같은 CI 실행의 첫 시도에서 다른 I0 시험이 실패했다. 감시 노드가 heartbeat 끊김으로 Stop을 보냈는데, 오케스트레이터는 중단된 파지를 일반 파지 실패로 판정했다. 예전에는 재파지(L1)가 이 실패를 덮었다. L1을 지우자 드러났다([성공 경로 정리](2026-11-10-scope-trim-success-path.md)). 이 문제는 [Progress](../../Progress.md) 1절 노드 항목에 남아 있다.
 
 관련 기록: [11월 10일 worklog](../../records/worklog/2026-11-10.md), [11월 9일 QoS·위상 시험](2026-11-09-camera-qos-and-event-phase-test.md).
+
+## 이어서: 감시 노드의 Stop을 오케스트레이터가 알아차리게 하기
+
+위 CI 실패에서 드러난 문제를 같은 날 고쳤다.
+
+- **무엇이 빠져 있었나:** 안전 감시 노드(`safety_supervisor_node`)와 오케스트레이터는 heartbeat를 각자 감시한다. 감시 노드만 끊김을 보고 `Stop`을 보내면, 오케스트레이터에게 남는 단서는 "진행 중이던 skill이 끝났다"는 결과뿐이다. 그 결과를 일반 파지 실패로 읽어 L2로 끝냈다.
+- **신호를 구분하기:** SPEC-010은 원래 `CANCELED`의 이유 코드를 `STOPPED`(Stop 선점)와 `CANCELED`(클라이언트 cancel)로 나눠 두었다. mock 로봇은 이를 지켰지만 실제 로봇 노드는 둘 다 `CANCELED`로 냈다. 계약 시험이 이유 코드를 확인하지 않아서 몰랐다. 이번에 계약에 이유 코드 확인을 넣었다(`tools/testing/contracts/robot_controller_contract.py`). "명세에 적혀 있다"와 "시험이 확인한다"는 다르다.
+- **원인 순서:** 결과에서 `STOPPED`를 보면 바로 일반 이상(`ROBOT_STOPPED`)을 올리지 않고, 자체 감시(`_watch`)를 먼저 한 번 돌린다. 감시가 보호정지·heartbeat 손실을 이미 보고 있으면 그 구체적 원인이 기록에 남는다. 일반 이상이 먼저 latch됐더라도 뒤이어 구체 원인이 오면 바꾼다. 작업자가 기록을 보고 원인을 바로 알 수 있게 하려는 것이다.
+- **rclpy 함정:** action 서버에서 `goal_handle.canceled()`는 클라이언트가 cancel을 요청한 goal에만 쓸 수 있다. Stop처럼 서버 쪽 이유로 끝내는 goal은 `abort()`로 끝내고, 결과 코드(`CANCELED`·`STOPPED`)로 이유를 알린다.
+- **아직 남은 빈틈:** 실행 중인 skill이 없을 때(검출 서비스 호출 중, 단계 사이, WAIT_CAP 대기) 감시 노드가 보낸 Stop은 오케스트레이터에 전달되지 않는다. 로봇 쪽에서 "작업자가 풀 때까지 정지 중"을 알리는 신호가 필요하며 인터페이스 결정이 필요하다.
+
+확인: `python3 -m pytest src/orchestrator/test/test_node_failure_regressions.py -k stopped`(GCE, ROS 없이), `python3 -m pytest src/robot_control/test/test_robot_controller_stop.py`(ROS 필요, PC).
