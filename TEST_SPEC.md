@@ -519,7 +519,7 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-EXP-G4-01 | G4 | MODE_PREDICTED, 저속 | 30 | `Progress.md` G4 |
 | TC-EXP-G5-01 | G5 | 비접촉 추종, 속도 3종 × 60 s | 조건당 1회 이상 | `Progress.md` G5 |
 | TC-EXP-G6-01 | G6 | MODE_SYNCHRONIZED, 저·중·고 | 속도당 50 | `Progress.md` G6 |
-| TC-EXP-G7-01 | G7 | 통합 + 고장 주입 | 100 사이클 | `Progress.md` G7 |
+| TC-EXP-G7-01 | G7 | 통합 | 100 사이클 | `Progress.md` G7 |
 | TC-EXP-CMP-01 | 13절 | Static Target / Predicted / Moving Frame, 같은 속도·조명 | 방식당 30 이상 | 같은 실패 정의로 성공률·Wilson 구간·해제 오차 분포 비교 |
 
 ## 4. 게이트별 필수 시험 묶음
