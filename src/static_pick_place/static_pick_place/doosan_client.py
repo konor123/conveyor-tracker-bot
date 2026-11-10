@@ -17,6 +17,7 @@ ROBOT_STATE_STANDBY = 1
 ROBOT_MODE_AUTONOMOUS = 1
 DRL_STATE_PLAY, DRL_STATE_STOP, DRL_STATE_LAST = 0, 1, 3
 DRL_DONE = 250
+DRL_START_GRACE_S = 2.0          # drl_start 뒤 PLAY가 보여야 하는 시간
 DRL_FAILURES = {241: 'GRIPPER_NO_RESPONSE', 242: 'GRIPPER_WRITE_FAILED', 244: 'GRIPPER_HARDWARE_ERROR',
                 245: 'GRIPPER_NOT_SETTLED', 246: 'GRIPPER_MODEL_MISMATCH', 247: 'GRIPPER_MODE_NOT_5',
                 248: 'GRASP_EMPTY', 249: 'MOVE_FAILED'}
@@ -53,9 +54,9 @@ def render_gripper_drl(pulse: int, current_ma: int, grasp: bool, read_timeout_s:
 class CycleOutcome:
     grasp_pulse: int
     grasp_current_ma: int
-    grasp_status: int              # 2 = 막힘(쥠)
+    grasp_status: int              # 0 = 이번 실행에서 파지 없음, 1 = 끝점 도달(빈 손), 2 = 막힘(쥠)
     open_pulse: int
-    open_status: int               # 1 = 도달, 3 = 이미 그 위치라 생략
+    open_status: int               # 0 = 이번 실행에서 열기 없음, 1 = 도달, 3 = 이미 그 위치라 생략
     step_times_s: tuple            # (단계 이름, 그 단계가 시작된 뒤 다음 단계 시작까지 PC에서 본 시간)
 
 
@@ -237,6 +238,8 @@ class DoosanClient:
                 current += 1
                 t_step = now
 
+        started_at = time.monotonic()
+        seen_play = stop_seen = False
         while time.monotonic() < deadline:
             marker = byte(15)
             if marker == 0:
@@ -257,5 +260,19 @@ class DoosanClient:
                 if marker in DRL_FAILURES:
                     step = steps[current - 1].name if 1 <= current <= len(steps) else 'init'
                     raise RobotError(DRL_FAILURES[marker], f'marker={marker} step={step}')
+            # 결과 표지 없이 프로그램이 멈추면(예외 정지 등) 제한시간까지 기다리지 않는다.
+            # 시작 직후에는 지난 실행의 STOP이 보일 수 있으므로 PLAY를 한 번 본 뒤에만 STOP을 판정한다.
+            drl_state = self._call(GetDrlState, 'drl/get_drl_state').drl_state
+            if drl_state == DRL_STATE_PLAY:
+                seen_play = True
+            elif drl_state in (DRL_STATE_STOP, DRL_STATE_LAST):
+                if seen_play:
+                    if stop_seen:            # 마지막 문장인 결과 쓰기를 한 번 더 읽은 뒤에도 없다
+                        step = steps[current - 1].name if 1 <= current <= len(steps) else 'init'
+                        raise RobotError('DRL_STOPPED_NO_RESULT', f'marker={marker} step={step}')
+                    stop_seen = True
+                    continue
+                if time.monotonic() - started_at > DRL_START_GRACE_S:
+                    raise RobotError('DRL_NOT_STARTED', f'no PLAY within {DRL_START_GRACE_S} s')
             time.sleep(0.05)
         raise RobotError('CYCLE_DRL_TIMEOUT', f'{timeout_s} s')

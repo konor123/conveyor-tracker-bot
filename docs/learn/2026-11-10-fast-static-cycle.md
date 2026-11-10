@@ -46,6 +46,7 @@ DRL은 Python 문법이라, 시험에서 `flange_serial_*`·`movel`·레지스�
 
 - 예약(prewrite)해 둔 목표는 다른 명령이 레지스터를 덮어쓰면 무효다. 그대로 트리거하면 엉뚱한 값이 실행된다(`gripper_adapter`에서 고침).
 - 상주 루프가 올린 위치는 0.6 s마다 바뀐다. 같은 표본을 두 번 읽고 "멈췄다"고 판정하면 안 되므로 생존 카운터가 바뀐 표본끼리만 비교한다.
+- 한 프로그램이 결과를 쓰기 전에 멈추면 결과 레지스터는 0으로 남는다. 상태(PLAY → STOP)도 함께 봐야 제한시간까지 헛기다리지 않는다([2026-11-11 설명](2026-11-11-drl-stop-without-result.md)).
 - 가짜 제어기의 시간은 모델이다. 왕복 0.58 s가 한 프로그램 안에서도 같은지, `movel`과 플랜지 시리얼을 한 프로그램에서 같이 쓸 수 있는지는 실기에서만 알 수 있다.
 
 관련: [worklog](../../records/worklog/2026-11-10.md), `specs/SPEC-500-robot-control.md` REQ-GRP-014~016, `src/static_pick_place/static_pick_place/drl/cycle.drl`.

@@ -228,7 +228,7 @@ def test_run_cycle_reports_each_step_and_waits_for_program_stop(monkeypatch):
     monkeypatch.setattr(dc.time, 'sleep', lambda s: None)
     plan = steps()
     payload = [2, 147, 0, 149, 2, 2, 88, 1]                   # 파지 659·149 mA·막힘, 열기 600·도달
-    robot = _FakeRobot([250, 0, 0, 0, 0, 250], [0, 1, 4, 10, 10], payload, drl_state=[1, 0, 1])
+    robot = _FakeRobot([250, 0, 0, 0, 0, 250], [0, 1, 4, 10, 10], payload, drl_state=[1, 0, 0, 0, 0, 1])
     seen = []
     out = robot.run_cycle(plan, DOWN_QUAT_XYZW, timeout_s=5.0, on_step=lambda n, s: seen.append(n))
     assert (out.grasp_pulse, out.grasp_current_ma, out.grasp_status, out.open_pulse, out.open_status) \
@@ -268,3 +268,59 @@ def test_stop_after_runs_only_the_leading_steps():
     assert ctrl.run(dc.render_cycle_drl(truncate_steps(plan, 'close_grasp'), DOWN_QUAT_XYZW)) == 250
     assert len(ctrl.moves) == 2 and ctrl.reg[20] == 2
     assert cycle_timeout_s(plan, PickPlaceParams()) > 60.0
+
+
+class _FakeTime:
+    """sleep만큼 가는 monotonic 시계(run_cycle의 대기·유예 시간 시험용)."""
+
+    def __init__(self):
+        self.t = 0.0
+
+    def monotonic(self):
+        return self.t
+
+    def sleep(self, s):
+        self.t += s
+
+
+@pytest.mark.level('U')
+def test_run_cycle_fails_fast_when_the_program_stops_without_a_result(monkeypatch):
+    monkeypatch.setattr(dc, 'time', _FakeTime())
+    plan = steps()
+    # 실행(PLAY)을 본 뒤 결과 표지 없이 STOP: 제한시간까지 기다리지 않고 멈춘 단계를 알린다
+    robot = _FakeRobot([0], [0, 2], [0] * 8, drl_state=[1, 0, 1])
+    with pytest.raises(dc.RobotError) as e:
+        robot.run_cycle(plan, DOWN_QUAT_XYZW, timeout_s=60.0)
+    assert e.value.reason == 'DRL_STOPPED_NO_RESULT' and 'over_stone' in str(e.value)
+    assert dc.time.t < 1.0
+
+
+@pytest.mark.level('U')
+def test_run_cycle_reports_a_program_that_never_runs(monkeypatch):
+    monkeypatch.setattr(dc, 'time', _FakeTime())
+    robot = _FakeRobot([0], [0], [0] * 8, drl_state=1)            # 시작 뒤에도 PLAY가 한 번도 보이지 않는다
+    with pytest.raises(dc.RobotError) as e:
+        robot.run_cycle(steps(), DOWN_QUAT_XYZW, timeout_s=60.0)
+    assert e.value.reason == 'DRL_NOT_STARTED'
+    assert dc.time.t < 5.0
+
+
+@pytest.mark.level('U')
+def test_run_cycle_rereads_the_result_written_just_before_stop(monkeypatch):
+    monkeypatch.setattr(dc, 'time', _FakeTime())
+    plan = steps()
+    payload = [2, 147, 0, 149, 2, 2, 88, 1]
+    # 결과 레지스터는 프로그램의 마지막 문장이다. STOP을 본 직후 다시 읽으면 250이 있다
+    robot = _FakeRobot([0, 0, 0, 250], [0, 10], payload, drl_state=[1, 0, 1])
+    out = robot.run_cycle(plan, DOWN_QUAT_XYZW, timeout_s=60.0)
+    assert out.grasp_status == 2
+
+
+@pytest.mark.level('U')
+def test_result_registers_from_an_earlier_run_are_cleared():
+    from static_pick_place.pick_place import truncate_steps
+    ctrl = FakeController()
+    ctrl.reg.update({a: 99 for a in range(16, 24)})            # 지난 실행이 남긴 파지·열기 결과
+    assert ctrl.run(dc.render_cycle_drl(truncate_steps(steps(), 'open_before_pick'), DOWN_QUAT_XYZW)) == 250
+    assert [ctrl.reg[a] for a in range(16, 21)] == [0, 0, 0, 0, 0]   # 파지 미실행 = 0
+    assert ctrl.reg[23] == 3                                   # 첫 열기는 이미 열려 있어 생략

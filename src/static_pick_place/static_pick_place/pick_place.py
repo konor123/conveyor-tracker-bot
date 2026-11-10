@@ -245,8 +245,13 @@ def _run_one_drl(robot, steps, p) -> int:
     except RobotError as exc:
         log('abort', reason=exc.reason, detail=str(exc))
         return 4 if exc.reason == 'GRASP_EMPTY' else 2
-    log('one_drl_done', grasp_pulse=out.grasp_pulse, grasp_current_ma=out.grasp_current_ma,
-        grasp_status=out.grasp_status, open_pulse=out.open_pulse, open_status=out.open_status)
+    result = {}
+    if out.grasp_status:                         # 0이면 이번 실행에 파지가 없었다(--stop-after)
+        result.update(grasp_pulse=out.grasp_pulse, grasp_current_ma=out.grasp_current_ma,
+                      grasp_status=out.grasp_status)
+    if out.open_status:
+        result.update(open_pulse=out.open_pulse, open_status=out.open_status)
+    log('one_drl_done', **result)
     moves = [s for s in steps if s.kind == 'move']
     if moves:                                    # 마지막 이동 목표에 실제로 와 있는지 확인한다
         reached, _ = robot.tcp_pose()

@@ -27,8 +27,8 @@ def run():
         tcp += actual_v*dt
         cap += v*dt
     p95 = float(np.percentile(errors,95))
-    print(f'SYNTHETIC ONLY: XY error p95 after 1 s = {p95*1000:.4f} mm')
-    print('10 s simulation; belt 20 -> 30 mm/s; assumed TCP lag 50 ms.')
+    print(f'SYNTHETIC ONLY: XY error p95 after 1 s = {p95:.7f} m')
+    print('10 s simulation; belt 0.02 -> 0.03 m/s; assumed TCP lag 0.05 s.')
     print('No hardware command, no measured field accuracy, no gripper release.')
     assert p95 < .001
     return p95
