@@ -36,6 +36,7 @@ class FakeResidentController:
         self._done_seq = 0
         self._t = 0.0
         self._pending = None
+        self.fail_writes = False                     # 루프의 Modbus 쓰기 실패 주입
 
     # ------------------------------------------------------------ RegisterIO
     def get(self, address: int) -> int:
@@ -51,7 +52,7 @@ class FakeResidentController:
         self._advance()
         self.drl_starts += 1
         r = self.regs
-        self.reg[r.init] = self.reg[r.arm] = self.reg[r.stop] = 0
+        self.reg[r.init] = self.reg[r.arm] = self.reg[r.stop] = self.reg[r.cmd_result] = 0
         self._done_seq = self.reg[r.seq]
         self._t = self.clock.steady_now()
         self.running = True
@@ -127,9 +128,13 @@ class FakeResidentController:
             effect_t = t + n_before * self.rtt_s + self.write_effect_s
 
             def execute():
-                self._move_to(effect_t)
-                self._goal_current, self._target = cur, float(pos)
-                self.motion_starts.append(effect_t)
+                if self.fail_writes:                 # DRL: 전류 쓰기 실패 → 위치를 쓰지 않고 결과 242
+                    self.reg[r.cmd_result] = 242
+                else:
+                    self._move_to(effect_t)
+                    self._goal_current, self._target = cur, float(pos)
+                    self.motion_starts.append(effect_t)
+                    self.reg[r.cmd_result] = 0
                 self._done_seq = seq
                 self.reg[r.done_seq], self.reg[r.arm] = seq, 0
 

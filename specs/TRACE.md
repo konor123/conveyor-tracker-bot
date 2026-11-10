@@ -91,7 +91,7 @@
 | TC-GRP-014-02 | U | REQ-GRP-014 | `src/robot_control/test/test_gripper_session.py::test_ensure_open_skips_when_already_at_width` |
 | TC-GRP-014-03 | U | REQ-GRP-014 | `src/robot_control/test/test_gripper_session.py::test_arm_then_fire_sends_only_the_trigger`<br>`src/robot_control/test/test_gripper_session.py::test_grasp_invalidates_an_earlier_arm` |
 | TC-GRP-015-01 | U | REQ-GRP-015 | `src/robot_control/test/test_resident_transport.py::test_grasp_is_judged_by_stall_not_by_reaching_the_end` |
-| TC-GRP-016-01 | U | REQ-GRP-016 | `src/robot_control/test/test_resident_transport.py::test_transport_maps_registers_and_starts_loop_once`<br>`src/robot_control/test/test_resident_transport.py::test_loop_init_failure_is_a_fault_and_drl_text_matches_registers` |
+| TC-GRP-016-01 | U | REQ-GRP-016 | `src/robot_control/test/test_resident_transport.py::test_transport_maps_registers_and_starts_loop_once`<br>`src/robot_control/test/test_resident_transport.py::test_loop_init_failure_is_a_fault_and_drl_text_matches_registers`<br>`src/robot_control/test/test_resident_transport.py::test_loop_write_failure_is_a_fault_for_that_command_only` |
 | TC-GRP-016-02 | U | REQ-GRP-016 | `src/robot_control/test/test_resident_transport.py::test_armed_trigger_delay_is_spin_plus_one_write` |
 | TC-GRP-016-03 | U | REQ-GRP-016 | `src/robot_control/test/test_resident_transport.py::test_fake_static_cycle_spends_far_less_time_on_the_gripper` |
 | TC-IF-001-01 | U | REQ-IF-001 | `tools/spec/test_interfaces.py::test_interface_snapshots_match` |

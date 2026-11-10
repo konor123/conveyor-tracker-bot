@@ -8,7 +8,7 @@
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
-| v0.4 | 2026-11-11 | REQ-ROB-013 XY 추종 코어(`belt_sync.BeltSynchronizer`): 계획 수락 조건, 감시, 제한·작업영역, 정지 유지와 명시적 재무장, 그림자 미리보기 |
+| v0.4 | 2026-11-11 | REQ-ROB-013 XY 추종 코어(`belt_sync.BeltSynchronizer`): 계획 수락 조건, 감시, 제한·작업영역, 정지 유지와 명시적 재무장, 그림자 미리보기. REQ-GRP-016 지령 결과 레지스터 40과 `RESIDENT_WRITE_FAILED` |
 | v0.3 | 2026-11-10 | REQ-GRP-014 공통 그리퍼 순서(`GripperSession`), 예약(prewrite) 무효화 규칙, REQ-GRP-015 막힘 파지 판정, REQ-GRP-016 상주 루프 transport·DRL 레지스터 계약, 그리퍼 전류 상한 100 → 150 mA |
 | v0.2 | 2026-11-10 | REQ-ROB-007: Stop으로 선점된 goal은 `CANCELED`·`STOPPED`, cancel은 `CANCELED`·`CANCELED` |
 | v0.1 | 2026-11-07 | ROB·GRP REQ 정의, SI/Doosan·그리퍼 adapter·정적 skill 계약, 기본 backend disabled |
@@ -76,7 +76,7 @@ Doosan 스트림·move_line 계약, 그리퍼 상주 루프 경로, 추종 제�
 - REQ-GRP-013: 상주 루프 생존 카운터가 2배 주기 넘게 변하지 않으면 `FAULT`(`GRIPPER_LOOP_DEAD`)다. 로봇 STANDBY가 아니면 `drl_start`를 호출하지 않고 `PRECONDITION`이다.
 - REQ-GRP-014: 정적·동적 투입은 같은 그리퍼 순서(`gripper_session.GripperSession`)를 쓴다. 상주 루프 기동과 시작 확인은 세션당 1회이고 시작 전 호출은 `PRECONDITION`(`SESSION_NOT_STARTED`)이다. `ensure_open`은 방금 읽은 폭이 목표 ± 허용오차이면 쓰기·트리거를 보내지 않는다. `arm_open`은 목표값만 쓰고, `fire_open`은 트리거 1회만 보내며 예약이 없으면 `PRECONDITION`(`NOT_ARMED`)이다. 다른 지령이 목표 레지스터를 덮어쓰면 앞선 예약은 무효이고, 무효가 된 예약으로는 트리거하지 않는다. 지령마다 시각과 생략 여부를 기록한다.
 - REQ-GRP-015: `grasp_stall_pulse`가 설정되면 닫기는 닫힘 목표 도달 또는 막힘으로 끝난다. 막힘은 상주 루프가 새로 올린 연속 두 표본의 위치 차가 `grasp_stall_pulse` 이하이고, 명령 전 위치에서 `grasp_min_travel_pulse` 넘게 움직였거나 전류가 한도의 `grasp_current_ratio` 이상일 때다. 막힘이면 `holding = true`(`STALLED`), 닫힘 목표까지 갔으면 `holding = false`(`REACHED_END`)다. 생존 카운터가 같은 동안의 읽기는 같은 표본으로 본다.
-- REQ-GRP-016: 상주 루프 transport(`resident_transport.ResidentLoopTransport`)는 제어기 출력 레지스터로만 대화한다. PC → DRL은 0~127 값(10 seq, 11·12 목표 위치, 13·14 목표 전류의 7비트 분할, 24 예약, 25 종료), DRL → PC는 0~255 값(30 생존 카운터, 31·32 위치, 33·34 전류, 35 오류 비트, 36 시작 상태, 37 Operating Mode, 38 펌웨어, 39 실행한 seq)이다. 루프 기동은 시작 상태 1을 본 뒤에만 성공이고 그 밖의 값은 `FAULT`(`RESIDENT_INIT`), 무응답은 `RESIDENT_INIT_TIMEOUT`이다. 루프가 올리지 않는 레지스터 읽기는 값을 지어내지 않고 예외다. 예약 상태의 루프는 Modbus 읽기를 멈추고 seq만 지켜보아 트리거 뒤 그리퍼가 목표를 받기까지 지연이 `spin + 위치 쓰기 1회` 이하다. DRL 본문(`drl/gripper_resident.drl`)의 레지스터 번호는 `ResidentRegs`와 같다.
+- REQ-GRP-016: 상주 루프 transport(`resident_transport.ResidentLoopTransport`)는 제어기 출력 레지스터로만 대화한다. PC → DRL은 0~127 값(10 seq, 11·12 목표 위치, 13·14 목표 전류의 7비트 분할, 24 예약, 25 종료), DRL → PC는 0~255 값(30 생존 카운터, 31·32 위치, 33·34 전류, 35 오류 비트, 36 시작 상태, 37 Operating Mode, 38 펌웨어, 39 실행한 seq, 40 그 seq의 결과(0 정상, 242 쓰기 실패, 39보다 먼저 씀))이다. 루프는 전류 쓰기에 실패하면 위치를 쓰지 않는다. 마지막으로 트리거한 seq가 실행되고 결과가 실패이면 transport는 다음 위치·전류 읽기에서 `FAULT`(`RESIDENT_WRITE_FAILED`)를 한 번 낸다. 앞선 seq의 결과는 다음 지령에 영향을 주지 않는다. 루프 기동은 시작 상태 1을 본 뒤에만 성공이고 그 밖의 값은 `FAULT`(`RESIDENT_INIT`), 무응답은 `RESIDENT_INIT_TIMEOUT`이다. 루프가 올리지 않는 레지스터 읽기는 값을 지어내지 않고 예외다. 예약 상태의 루프는 Modbus 읽기를 멈추고 seq만 지켜보아 트리거 뒤 그리퍼가 목표를 받기까지 지연이 `spin + 위치 쓰기 1회` 이하다. DRL 본문(`drl/gripper_resident.drl`)의 레지스터 번호는 `ResidentRegs`와 같다.
 
 ### 4.4 정적 skill과 추종
 

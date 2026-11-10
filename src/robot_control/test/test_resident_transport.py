@@ -101,10 +101,27 @@ def test_loop_init_failure_is_a_fault_and_drl_text_matches_registers():
                    f'get_output_register_int({r.arm})', f'get_output_register_int({r.stop})',
                    f'set_output_register_int({r.alive}, alive)', f'set_output_register_int({r.st_pos_hi},',
                    f'set_output_register_int({r.st_cur_hi},', f'set_output_register_int({r.error},',
-                   f'set_output_register_int({r.init}, status)', f'set_output_register_int({r.done_seq}, done_seq)'):
+                   f'set_output_register_int({r.init}, status)', f'set_output_register_int({r.done_seq}, done_seq)',
+                   f'set_output_register_int({r.cmd_result}, result)'):
         assert needle in code, needle
     with pytest.raises(ValueError):
         render_resident_drl(read_timeout_s=1.0)
+
+
+@pytest.mark.req('REQ-GRP-016')
+@pytest.mark.tc('TC-GRP-016-01')
+@pytest.mark.level('U')
+def test_loop_write_failure_is_a_fault_for_that_command_only():
+    session, _, ctrl, _ = build()
+    ctrl.fail_writes = True                            # 루프의 Modbus 쓰기가 실패한다
+    with pytest.raises(GripperFault) as err:
+        session.grasp(100)
+    assert err.value.reason == 'RESIDENT_WRITE_FAILED'
+    assert ctrl.motion_starts == []                    # 그리퍼는 목표를 받지 않았다
+
+    ctrl.fail_writes = False                           # 앞 지령의 실패가 다음 지령에 남지 않는다
+    held = session.grasp(100)
+    assert (held.reason_code, held.holding) == ('STALLED', True)
 
 
 @pytest.mark.req('REQ-GRP-016')

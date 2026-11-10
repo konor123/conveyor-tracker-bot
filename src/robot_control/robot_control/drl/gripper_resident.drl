@@ -7,7 +7,7 @@
 #   PC → DRL(값 0~127): 10 seq, 11·12 목표 위치(7비트 hi·lo), 13·14 목표 전류(7비트 hi·lo), 24 예약(1), 25 종료(1)
 #   DRL → PC(값 0~255): 30 생존 카운터, 31·32 위치 hi·lo, 33·34 전류 hi·lo(16비트 2의 보수), 35 오류 비트,
 #                        36 시작 상태(0 준비 중, 1 정상, 241 무응답, 246 모델, 247 모드, 244 오류 비트),
-#                        37 Operating Mode, 38 펌웨어, 39 실행한 seq
+#                        37 Operating Mode, 38 펌웨어, 39 실행한 seq, 40 그 seq의 결과(0 정상, 242 쓰기 실패. 39보다 먼저 쓴다)
 READ_TIMEOUT = __READ_TIMEOUT__
 SPIN = __SPIN__
 ARM_TIMEOUT = __ARM_TIMEOUT__
@@ -101,11 +101,17 @@ def run():
     while (get_output_register_int(25) & 127) != 1:
         seq = get_output_register_int(10) & 127
         if seq != done_seq:
+            result = 0
             cur = reg7(13)
-            if cur != goal_current and write_current(cur):
-                goal_current = cur
-            write_position(reg7(11))
+            if cur != goal_current:
+                if write_current(cur):
+                    goal_current = cur
+                else:
+                    result = 242                     # 전류를 못 바꿨으면 위치도 쓰지 않는다
+            if result == 0 and not write_position(reg7(11)):
+                result = 242
             done_seq = seq
+            set_output_register_int(40, result)
             set_output_register_int(39, done_seq)
             set_output_register_int(24, 0)
             armed_since = -1.0
@@ -133,6 +139,7 @@ def run():
 set_output_register_int(36, 0)
 set_output_register_int(24, 0)
 set_output_register_int(25, 0)
+set_output_register_int(40, 0)
 flange_serial_open(baudrate=57600, bytesize=DR_EIGHTBITS, parity=DR_PARITY_NONE, stopbits=DR_STOPBITS_ONE)
 status = init()
 set_output_register_int(36, status)
