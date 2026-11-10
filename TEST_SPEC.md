@@ -37,6 +37,7 @@ SPEC의 REQ 확인 → 이 문서의 TC 선택 → fake·fixture 준비(1절) �
 | E | 게이트 실험(반복 시도, 관찰자 판독) | `DropTask` + `trial_labeler.py` | `[OFF]` | 아님 |
 
 - `[ON*]` 시험은 필요한 자료가 없으면 **skip**으로 끝나야 하며 pass로 세지 않는다(`needs_data` 마커, 0.4절).
+- 실시간 스케줄에 의존하는 C 시험은 `realtime_pc` 마커를 단다. CI(공유 러너)는 이 시험을 판정 단계에서 빼고 별도 단계에서 실행·기록만 하며(실패해도 CI 통과 조건 아님), 판정은 PC(LEGION, 꺼져 있으면 officepc WSL)에서 하고 결과를 `records/worklog/`에 남긴다.
 - `[OFF]` 시험은 pytest로 돌리지 않는다. 절차·합격 기준·기록 위치를 이 문서에 두고, 결과는 `records/`와 게이트 보고서에 남긴다.
 
 ### 0.4 pytest 규칙
@@ -47,6 +48,7 @@ SPEC의 REQ 확인 → 이 문서의 TC 선택 → fake·fixture 준비(1절) �
 @pytest.mark.tc("TC-ABT-003-01")
 @pytest.mark.level("U")                 # U / C / I0 / I1 / I2
 @pytest.mark.needs_data("off1_bags")    # [ON*] 전용: 자료가 없으면 skip
+@pytest.mark.realtime_pc                # 실시간 스케줄 시험: CI는 기록만, 판정은 PC
 def test_l2_path_timeout_escalates_to_l4(fake_clock): ...
 ```
 
@@ -438,7 +440,7 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-MCK-002-01 | 역할 분리 일관성 | C | `[ON]` | `role:=vision`, `role:=tracking` 별도 프로세스 | 같은 시각의 뚜껑 위치 차 ≤ 1e-9 m |
 | TC-MCK-003-01 | mock_world 계약 | C | `[ON]` | vision·tracker 계약 시험 | 통과 |
 | TC-MCK-004-01 | mock_robot_controller 계약 | C | `[ON]` | robot_controller 계약 시험 | 통과 |
-| TC-MCK-005-01 | 장애 주입 시각 | C | `[ON]` | 단일 프레임씩 진행·처리·수신하는 시험용 ROS 시각 및 단조 시계 기반 실시간 실행(세계 노드는 별도 프로세스), 노드 topic·heartbeat·skill 결과 관찰 | 제어 시계에서 이벤트 직후 첫 데이터 프레임 ≤ 1/30 s; 실시간 수신 프레임의 stamp·이벤트 상태 일치(시작 전 효과 없음, 시작 후 1프레임부터 종료 전 효과 있음, 종료 후 1프레임부터 효과 없음) 및 적용 상태 ≥ 1회 수신; 누락 sequence 진단 기록; heartbeat ≤ 0.1 s, skill 첫 검사 주기; 주입 위상·수신 시각 기록, 데이터 프레임의 미들웨어 수신 시각 − k/30 ≤ 0.2 s(발행 시각·콜백 시각은 진단 기록) |
+| TC-MCK-005-01 | 장애 주입 시각(실시간 부분은 `realtime_pc`: CI 기록, PC 판정) | C | `[ON]` | 단일 프레임씩 진행·처리·수신하는 시험용 ROS 시각 및 단조 시계 기반 실시간 실행(세계 노드는 별도 프로세스), 노드 topic·heartbeat·skill 결과 관찰 | 제어 시계에서 이벤트 직후 첫 데이터 프레임 ≤ 1/30 s; 실시간 수신 프레임의 stamp·이벤트 상태 일치(시작 전 효과 없음, 시작 후 1프레임부터 종료 전 효과 있음, 종료 후 1프레임부터 효과 없음) 및 적용 상태 ≥ 1회 수신; 누락 sequence 진단 기록; heartbeat ≤ 0.1 s, skill 첫 검사 주기; 주입 위상·수신 시각 기록, 데이터 프레임의 미들웨어 수신 시각 − k/30 ≤ 0.2 s(발행 시각·콜백 시각은 진단 기록) |
 | TC-MCK-005-02 | 장애 주입 시각(엔진) | U | `[ON]` | 이벤트 10종을 넣은 시나리오, 가짜 시계로 이벤트 경계·프레임 사이 위상·지연 기상 주입 | `ceil(t_event × frame_rate_hz)` 직전 프레임은 효과 없음, 해당 첫 프레임에는 효과(지연 ≤ 1/30 s); 늦게 깨어난 최신 프레임의 stamp·상태 일치 |
 | TC-MCK-006-01 | 가정값 표기 | U | `[ON]` | `scenarios/*.yaml` | `world`·`robot` 수치 값이 모두 `assumed:` 또는 `measured:` 중 하나로 분류(중복 0), 엔진 `assumed_params`가 분류 결과와 같음 |
 | TC-MCK-006-02 | 가정값 기록 복사 | I0 | `[ON]` | mock 1사이클 | trial 기록 `assumed_params` == 대역 노드 `assumed_params` 파라미터 |

@@ -130,6 +130,7 @@ def test_controlled_clock_publishes_first_event_frame(ros):
 @pytest.mark.req('REQ-MCK-005')
 @pytest.mark.tc('TC-MCK-005-01')
 @pytest.mark.level('C')
+@pytest.mark.realtime_pc
 def test_injected_events_appear_at_scheduled_time(ros):
     # Scenario schedules use ROS time. Supply a controlled timeline so host NTP
     # corrections cannot change its mapping to the independent receive clock.

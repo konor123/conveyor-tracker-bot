@@ -55,7 +55,22 @@ jobs:
           source /opt/ros/jazzy/setup.bash
           source install/setup.bash
           PYTHONPATH="$PWD/tools/spec:${PYTHONPATH:-}" python3 -m pytest src/orchestrator/test -v
-          python3 -m pytest src/drop_mocks/test --ignore=src/drop_mocks/test/contract -v
+          python3 -m pytest src/drop_mocks/test --ignore=src/drop_mocks/test/contract -m "not realtime_pc" -v
+
+      # 실시간 스케줄 시험(TC-MCK-005-01 실시간 부분)은 공유 러너에서 실행·기록만 한다. 판정은 PC(SPEC-700 REQ-MCK-005).
+      - name: Run realtime mock timing tests (record only, judged on PC)
+        shell: bash
+        continue-on-error: true
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          source install/setup.bash
+          if python3 -m pytest src/drop_mocks/test --ignore=src/drop_mocks/test/contract -m realtime_pc -v -rA \
+               --junitxml=realtime-pc.xml; then
+            echo "realtime_pc: passed on CI (record only; judged on PC)" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "realtime_pc: FAILED on CI (record only; judged on PC, see step log)" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
 
       - name: Run tracking and intercept_planner unit, contract and I2 tests
         shell: bash

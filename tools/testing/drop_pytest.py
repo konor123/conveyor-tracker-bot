@@ -47,6 +47,8 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "tc(id): 시험 케이스 ID (TC-<영역>-<REQ 번호>-<순번>)")
     config.addinivalue_line("markers", "level(name): 시험 수준 U/C/I0/I1/I2")
     config.addinivalue_line("markers", "needs_data(name): [ON*] 자료 세트. 없으면 skip")
+    config.addinivalue_line("markers", "realtime_pc: 실시간 스케줄에 의존하는 시험. 공유 CI 러너에서는 실행·기록만 하고 "
+                                       "판정은 PC(LEGION 또는 officepc)에서 한다(SPEC-700 REQ-MCK-005)")
 
 
 def pytest_collection_modifyitems(config, items):

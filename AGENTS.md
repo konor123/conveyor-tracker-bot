@@ -36,7 +36,7 @@ GCE 중앙 작업 공간에서 일하는 에이전트는 같은 내용을 `/srv/
 SPEC의 REQ → TEST_SPEC.md의 TC → 실패하는 테스트 → 구현 → 통과 → trace.py
 ```
 
-- 테스트에 `@pytest.mark.req("REQ-…")`, `@pytest.mark.tc("TC-…")`, `@pytest.mark.level("U")`를 단다. `[ON*]` 시험은 `@pytest.mark.needs_data("<자료 이름>")`(자료 위치는 `records/datasets.yaml`).
+- 테스트에 `@pytest.mark.req("REQ-…")`, `@pytest.mark.tc("TC-…")`, `@pytest.mark.level("U")`를 단다. `[ON*]` 시험은 `@pytest.mark.needs_data("<자료 이름>")`(자료 위치는 `records/datasets.yaml`). 실시간 스케줄에 의존하는 시험은 `@pytest.mark.realtime_pc`를 달고 PC에서 판정한다(CI는 기록만, `TEST_SPEC.md` 0.3절).
 - 각 패키지 `test/conftest.py`가 `tools/testing/drop_pytest.py`를 가져온다. 새 패키지도 같은 conftest를 둔다.
 - 판단 로직은 ROS와 무관한 순수 Python 모듈로 만들고, 노드는 감싸기만 한다(`PLAN.md` 0.2절).
 - 단위 변환은 `robot_control/motion_adapter.py`(mm/deg/ZYZ)와 `gripper_adapter.py`(pulse)에서만 한다.
