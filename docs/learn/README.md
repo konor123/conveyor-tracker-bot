@@ -14,5 +14,6 @@
 | 2026-11-09 | [정지 pick-and-place](2026-11-09-static-pick-and-place.md) | 검출 좌표로 E0509가 공깃돌을 집어 정지 뚜껑에 넣는다. 현장에서 높이를 정한 방법, 도달 범위, 그리퍼 DRL의 지연·실패와 대처, 실행 명령. |
 | 2026-11-09 | [움직이는 병뚜껑 추적과 해제 계획](2026-11-09-tracking-and-intercept-planning.md) | 칼만 필터·gate·CUSUM·시간 예산·plan revision을 합성 시험으로 확인한 과정을 배운다. |
 | 2026-11-09 | [용어집](glossary.md) | ROS 2와 프로젝트 시험·안전 용어를 예로 익힌다. |
+| 2026-11-10 | [성공 경로 우선 범위 정리](2026-11-10-scope-trim-success-path.md) | 사용자 결정에서 불필요해진 진행 항목을 찾고, 안전 항목과 구분해 지우는 방법을 배운다. |
 
 설계의 원본은 [PLAN](../../PLAN.md), 현재 완료 조건은 [Progress](../../Progress.md), 시험 기대값은 [TEST_SPEC](../../TEST_SPEC.md), 요구사항은 [specs](../../specs/)다. 이 문서는 원본을 대체하지 않는다. 특히 PC 시험 통과·CI 통과·실장비 게이트 통과는 서로 다른 증거다. 실행 결과는 [11월 9일 worklog](../../records/worklog/2026-11-09.md)에 있으며 미실행·skip은 통과로 세지 않는다.

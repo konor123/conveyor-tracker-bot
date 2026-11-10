@@ -15,7 +15,7 @@
 | M0 | spec·시험 명세·계약·오케스트레이터 골격·최소 대역 | 1 | 전원 | `drop_interfaces`, `orchestrator`, `drop_mocks`(mock 2종), `drop_bringup` | I0 | 없음(전부 `[ON]`) | `deliverables/gate-M0-report-<date>.md` |
 | G0 | 제어 계약·그리퍼(상주 DRL 경유)·안전·현장 치수 | 0, 2 | A | `robot_control`(adapter, skill 서버) | I3 | OFF-1, OFF-2 | `gate-G0-report` |
 | G1 | D455 검출·보정 | 4, 5 | B | `vision`, `calibration` | I1 | OFF-1(자료), OFF-3 | `gate-G1-report` |
-| G2 | 정적 파지·정지 벨트 투입 | 5, 6 | A+B | `robot_control`, `orchestrator`(MODE_STATIC), `verifier.py` | I5 | OFF-4 | `gate-G2-report` |
+| G2 | 정적 파지·정지 벨트 투입 | 5, 6 | A+B | `robot_control`, `orchestrator`(MODE_STATIC) | I5 | OFF-4 | `gate-G2-report` |
 | G3 | 추적·속도 추정·관측 TF·지연 | 7, 8 | B | `tracking` | I1, I4 | OFF-1(자료), OFF-5 | `gate-G3-report` |
 | G4 | 예측 타이밍 투입(MODE_PREDICTED) | 9, 11A | C+A | `intercept_planner`, `dynamic_place` | I2 → I5 | OFF-6 | `gate-G4-report` |
 | G5 | 비접촉 동기 추종 | 10 | A | `tracking_controller` | I3 → I5 | OFF-5 | `gate-G5-report` |
@@ -29,11 +29,11 @@
 
 | 세션 | 시작 조건(먼저 끝낼 `[ON]`) | 할 일 | 수집할 자료 | 종료 조건 |
 |---|---|---|---|---|
-| OFF-1 현장 실측·자료 수집 | 측정 양식(`records/templates/*.csv`), `tools/eval/record_trial.sh`, D455 확인 스크립트(`tools/bench/check_d455.sh`), 버전 수집 스크립트(`tools/bench/collect_versions.sh`), pulse 실측 스크립트(`tools/bench/gripper_pulse_table.py`, 단위 테스트 통과) | 0절 실측 전부, 벨트 테이프 표식으로 다이얼 설정별 한 바퀴 시간, 병뚜껑 부착·롤러 통과, 수동 낙하 예비 시험, 카메라 최종 설치·프로파일 확인, 그리퍼 pulse ↔ 간격 실측표, 그리퍼 Protocol Type·현재 제어 방식 확인(설정 변경 없이 조회만) | 정지·이동 병뚜껑과 매트 위 공깃돌 rosbag(속도 3종 × 조명 2종, 손으로 가린 구간 포함), 한 bag 안에서 다이얼을 바꾼 속도 변화 bag(조작 시각 기록), 손으로 공깃돌을 넣어 1 s 이상 유지·1 s 안에 꺼냄·가림 후 재출현을 담은 연속 bag, 각 조명에서 벨트면·매트면 여러 위치에 놓은 평면 기준판(크기를 아는 체커보드) bag, 정지 영상 세트(뚜껑 빈 것·든 것·밖으로 나간 것), 작업 구간 기준선 두 개를 지나는 벨트 표식의 휴대폰 고속 영상(국소 속도·맥동 기준), RealSense 파라미터·펌웨어·버전 기록, 카메라 거치 위치 사진·표시 | `records/bench/site-survey-<date>.csv`와 bag 세트 저장, 첫 10 s 시험 bag을 카메라 없이 재생해 영상·CameraInfo·stamp 복원 확인, 퇴장 전 bag별 메시지 수·기간·SHA-256 확인과 별도 매체 복사, 카메라 거치 위치 표시 |
+| OFF-1 현장 실측·자료 수집 | 측정 양식(`records/templates/*.csv`), `tools/eval/record_trial.sh`, D455 확인 스크립트(`tools/bench/check_d455.sh`), 버전 수집 스크립트(`tools/bench/collect_versions.sh`), pulse 실측 스크립트(`tools/bench/gripper_pulse_table.py`, 단위 테스트 통과) | 0절 실측 전부, 벨트 테이프 표식으로 다이얼 설정별 한 바퀴 시간, 병뚜껑 부착·롤러 통과, 수동 낙하 예비 시험, 카메라 최종 설치·프로파일 확인, 그리퍼 pulse ↔ 간격 실측표, 그리퍼 Protocol Type·현재 제어 방식 확인(설정 변경 없이 조회만) | 정지·이동 병뚜껑과 매트 위 공깃돌 rosbag(속도 3종, 현장 조명 1종, 손으로 가린 구간 포함), 한 bag 안에서 다이얼을 바꾼 속도 변화 bag(조작 시각 기록), 손으로 공깃돌을 넣어 1 s 이상 유지·1 s 안에 꺼냄·가림 후 재출현을 담은 연속 bag, 매트면 한 위치에 놓은 평면 기준판(크기를 아는 체커보드) bag, 정지 영상 세트(뚜껑 빈 것·든 것), 작업 구간 기준선 두 개를 지나는 벨트 표식의 휴대폰 고속 영상(국소 속도·맥동 기준), RealSense 파라미터·펌웨어·버전 기록, 카메라 거치 위치 사진·표시 | `records/bench/site-survey-<date>.csv`와 bag 세트 저장, 첫 10 s 시험 bag을 카메라 없이 재생해 영상·CameraInfo·stamp 복원 확인, 퇴장 전 bag별 메시지 수·기간·SHA-256 확인과 별도 매체 복사, 카메라 거치 위치 표시 |
 | OFF-2 G0 제어 계약 | `motion_adapter`·`gripper_adapter`·skill 서버 U·C 통과, I0 통과, 스트림·그리퍼 측정 스크립트 | 스트림 주기·지연 측정, 그리퍼 명령 지연, 스트림 동작 중 그리퍼 개방, stale·cancel·통신 단절 정지, I3, skill 소요시간, 공구 무게 등록, Goal Current 결정 | `records/bench/stream-*.csv`, `gripper-*.csv`, I3 로그 | G0 합격 기준 측정 완료 |
 | OFF-3 G1 보정·검출 | 보정 도구 U, OFF-1 bag으로 `vision` 검출 `[ON*]` 통과 | eye-to-hand 대응점, 평면·진행 방향, 검증 점 20개 이상, 실시간 검출 확인 | 보정 결과, 검증 점 CSV, 추가 bag | G1 합격 기준 측정 완료 |
-| OFF-4 G2 정지 투입 | G0·G1 통과, MODE_STATIC I0 통과, `verifier` U(OFF-1 정지 영상) 통과 | 핑거 어댑터 검증, 파지 50회, 낙하 튕김 시험(해제 높이 × 의도 오차), 정적 투입 50회, 관찰자 판독 | 시도 기록, 관찰자 판독, bag | G2 합격 기준 측정 완료 |
-| OFF-5 G3 추적 + G5 추종 | `tracking` U·I1(OFF-1 bag) 통과, `tracking_controller` U, I2 통과 | 속도별 60 s 관측(한 바퀴 시간 GT), 지연 구성 측정, 그리퍼 가림 시간 측정, I4, 비접촉 추종 60 s × 조건, 추종 중 그리퍼 개방 | `tracking-*.csv`, 지연 CSV, bag | G3·G5 합격 기준 측정 완료 |
+| OFF-4 G2 정지 투입 | G0·G1 통과, MODE_STATIC I0 통과 | 핑거 어댑터 검증, 파지 50회, 낙하 튕김 시험(해제 높이 × 의도 오차), 정적 투입 50회, 관찰자 판독 | 시도 기록, 관찰자 판독, bag | G2 합격 기준 측정 완료 |
+| OFF-5 G3 추적 + G5 추종 | `tracking` U·I1(OFF-1 bag) 통과, `tracking_controller` U, I2 통과 | 속도별 60 s 관측(한 바퀴 시간 GT), 지연 구성 측정, 컨베이어 배치(그리퍼가 뚜껑을 가리지 않음) 확인, I4, 비접촉 추종 60 s × 조건, 추종 중 그리퍼 개방 | `tracking-*.csv`, 지연 CSV, bag | G3·G5 합격 기준 측정 완료 |
 | OFF-6 G4·G6 동적 투입 | G3 통과(G6은 G5 통과), `DynamicPlace` C, I2 통과 | 저속 30회(G4), 3속도 각 50회(G6) | 시도 기록, 관찰자 판독, bag | G4·G6 합격 기준 측정 완료 |
 | OFF-7 G7 통합 | G4 이상 통과, 고장 주입 절차서 | 100 사이클, 안전하게 재현 가능한 고장 주입, 시연 녹화 | 시도 기록, 시연 영상 | G7 합격 기준 측정 완료 |
 
@@ -138,12 +138,11 @@
 
 ## 4. RealSense D455 연결 및 캘리브레이션 → G1 (트랙 B)
 
-- [x] `[OFF]` 현재 조명에서 벨트 안정·빠른1·빠른2·사용자 설정 최고속도 4조건의 RGBD 원시 자료, 경로·SHA-256 및 품질 기록(`records/bench/moving-conditions-2026-11-07.csv`, `records/bags.csv`). 아날로그 수치 눈금·실측 mm/s 없음. 조명 변경 불가로 단일 조명 자료이며 3속도×2조명 전체 요건과 구분한다.
+- [x] `[OFF]` 현재 조명에서 벨트 안정·빠른1·빠른2·사용자 설정 최고속도 4조건의 RGBD 원시 자료, 경로·SHA-256 및 품질 기록(`records/bench/moving-conditions-2026-11-07.csv`, `records/bags.csv`). 아날로그 수치 눈금·실측 mm/s 없음. 조명은 현장 조명 1종이다.
 - [x] `[ON]` rosbag 8개의 RGB 8개·깊이 미리보기 6개 MP4 압축·전체 디코딩 검증, 원래 프레임 시각·SHA-256·원본 대응표 보존(`records/media/2026-11-07/README.md`).
 - [x] `[OFF]` 카메라 없는 10 s 시험 bag 재생: RGB/CameraInfo 286쌍 stamp 일치·역행 없음(`records/bench/camera-replay-2026-11-07.json`).
 - [x] `[OFF]` 카메라 높이 사용자 보고 600 mm의 최종 배치에서 hand-eye용 50자세·250장 수집 및 해시 보존.
 - [x] `[OFF]` OFF-1: D455 ROS 2 연결, RGB 1280×800/30 fps, CameraInfo 확인. realsense-ros 4.58.4, FastDDS SHM 확대 프로파일, 고정 K(`records/bench/d455-check-2026-11-07-161256.txt`, SPEC-600 4.8절)
-- [ ] `[OFF]` OFF-1: 자동 노출·화이트밸런스 고정, 노출 시간 ≤ 10 ms 목표(50 mm/s에서 흐림 0.5 mm)
 - [ ] `[OFF]` OFF-1: RealSense 헤더의 global_time·호스트 offset·장시간 drift 검증. 초기 수신−stamp p50 약22 ms. 속도 자료의 retained 선두 프레임·전송 누락·최대 지연은 bag별 integrity JSON으로 구분한다.
 - [x] `[ON]` 왜곡 보정·광선-평면 교차 모듈(`localizer.py`) 합성 카메라로 단위 테스트(TC-VIS-*)
 - [x] `[ON]` 보정 도구(`plane_calibration`, `eye_to_hand_calibration`, `tcp_offset`, `charuco`, 보정 파일, `calibrate_camera`·`charuco_view`) 합성 대응점·합성 영상으로 단위 테스트(TC-CAL-001~007, 2026-11-07, SPEC-600 v0.1). 내부 파라미터는 D455 공장값(`records/bench/d455-intrinsics-2026-11-07.txt`), 현장 촬영은 `tools/bench/capture_d455.py`
@@ -172,19 +171,18 @@
 - [ ] `[OFF]` OFF-4: 실제 E0509 파지, 파지 성공률·위치 오차 측정
     - 검출 좌표 1점 육안 확인(수평 2 mm 이하), 파지 4회 성공(659~661 pulse 막힘, 149 mA). 성공률 표본·위치 오차 측정은 별도.
 
-**G1 합격 기준(제안):** 검증 점 XY p95 ≤ 1 mm, 최대 ≤ 2 mm / 공깃돌·병뚜껑 각각 검출 recall ≥ 99%, 오선택 ≤ 1% / 정지 영상 세트에서 `stone_inside` 판독 정확도 ≥ 99% / `DetectObjects` 계약 테스트 통과.
+**G1 합격 기준(제안):** 검증 점 XY p95 ≤ 1 mm, 최대 ≤ 2 mm / 공깃돌·병뚜껑 각각 검출 recall ≥ 99%, 오선택 ≤ 1% / `DetectObjects` 계약 테스트 통과.
 
 ## 6. 정지 벨트 투입 → G2 (트랙 A+B 합류)
 
 - [ ] `[ON]` 오케스트레이터 MODE_STATIC 전체 시퀀스를 I0(mock)에서 통과
-- [ ] `[ON*]` `verifier.py`(`VerifyDrop`)를 OFF-1 정지 영상 세트로 단위 테스트(빈 뚜껑·든 뚜껑·밖으로 나감·가림)
 - [x] `[OFF]` OFF-4: 벨트를 멈추고 병뚜껑을 도달 구간 안에 둠, 공깃돌 파지 → 뚜껑 위 해제 높이까지 하강 → `Δ_open` 개방 → 수직 후퇴(2026-11-09, 4회 모두 카메라로 뚜껑 안 확인, `records/trials/2026-11-09-static-pick-place/`)
     - 원래 벨트 위치(robot_base x ≈ 0.81 m)는 수직 그리퍼로 도달 경계(J3 = 0°)라 컨베이어를 로봇 쪽으로 옮김. 카메라·로봇 기준 보정은 후보값 그대로 사용.
 - [ ] `[OFF]` OFF-4: 해제 높이 = 핑거 끝이 테두리 + `h_clear`(초기 2 mm). 낙하 높이(공깃돌 아래면 − 뚜껑 바닥)를 시도마다 기록
 - [ ] `[OFF]` OFF-4: **낙하 튕김 시험**. 해제 높이 2~3단계 × 의도한 해제 오차 0/1/2/3 mm × 각 10회 이상 → 허용 해제 오차를 실측해 `e_xy_max` 확정
 - [ ] `[OFF]` OFF-4: 오케스트레이터 MODE_STATIC 전체 시퀀스(I5), 단계마다 성공 판정·제한시간 적용
-- [ ] `[OFF]` OFF-4: **투입 판정**. 관찰자 판독을 기준 정답으로 기록하고, `verifier.py` 자동 판정을 보조로 쓴다(`PLAN.md` 4.5절). 결과는 SUCCESS/FAILURE/UNKNOWN
-- [ ] `[ON*]` 자동 판정 vs 관찰자 판독 혼동행렬, 단계 판정 결과와 관찰자 기록 대조
+- [ ] `[OFF]` OFF-4: **투입 판정**. 관찰자 판독으로 SUCCESS/FAILURE/판독 불가를 기록한다(`PLAN.md` 4.5절)
+- [ ] `[ON*]` 단계 판정 결과와 관찰자 기록 대조
 - [ ] `[ON*]` 단계 소요시간 p95 → 시간 예산 성분값·단계 제한시간 갱신
 - [x] `[OFF]` 현장 정지 pick-and-place 실행기(`static_pick_place`, `[OFF]` 사람 입회): 카메라 1프레임 검출 → 매트 공깃돌 파지 → 빈 뚜껑 투입 → 대기 자세 → `stone_inside` 확인. 처음부터 끝까지 끊김 없는 실행 1회(36.7 s), 단위 시험 19개
 - [ ] `[OFF]` OFF-4: 실제 E0509 정적 투입 반복 성공률 측정
@@ -207,9 +205,8 @@
 - [x] `[ON]` `occlusion_long`·`speed_change`·`frame_drop_10pct`·`clock_jump` 단위 테스트(`PLAN.md` 7.3절)
   - TC-TRK-004-01(가림 초과 LOST), 006-01, 007-01(10% 누락: 유효 추적 100%, 위치 p95 최대 0.209 mm), 008-01.
 - [ ] `[OFF]` OFF-5: 독립 GT로 오차 측정. 실기는 벨트 길이 ÷ 한 바퀴 시간, 또는 별도 영상(같은 카메라 결과끼리 비교하지 않음). sim GT는 `[ON]`
-- [ ] `[OFF]` OFF-5: 해제 자세의 그리퍼·공깃돌이 카메라 시야에서 병뚜껑을 가리지 않는지 확인(컨베이어 배치 검증), 남는 가림 시간 측정(대기·접근·하강 중) → τ_max 근거
+- [ ] `[OFF]` OFF-5: 대기·접근·하강·해제 자세의 그리퍼·공깃돌이 카메라 시야에서 병뚜껑을 가리지 않는지 확인(컨베이어 배치 검증)
 - [ ] `[OFF]` OFF-5: 영상 처리 지연, 프레임 누락, 추적 손실 조건 확인
-- [ ] `[ON*]` (선택) 벨트 표식: 병뚜껑 앞뒤 일정 간격에 표식을 붙여, 뚜껑이 가려져도 벨트 위상을 관측(뚜껑-표식 거리 고정). OFF-5에서 자료를 모으고 온라인에서 효과 평가
 
 ## 8. Moving Reference Frame 구현 → G3
 
@@ -221,7 +218,7 @@
 - [ ] `[ON]` RViz2: 관측 TF + 예측 Marker 별도 표시
 - [ ] `[OFF]` OFF-5: 실제 병뚜껑 위치와 TF 위치 비교, I4(실영상 → 계획까지 전체 인식 경로, 로봇 지령 없음)
 
-**G3 합격 기준(제안):** 속도 조건별 60 s 관측에서 독립 GT 대비 XY p95 ≤ 1 mm, 속도 오차 p95 ≤ 2 mm/s / timestamp 역행 0회 / 관측 가능 구간 유효 추적 ≥ 99%(가림 구간 별도 집계) / 가림 시간 분포 보고.
+**G3 합격 기준(제안):** 속도 조건별 60 s 관측에서 독립 GT 대비 XY p95 ≤ 1 mm, 속도 오차 p95 ≤ 2 mm/s / timestamp 역행 0회 / 관측 가능 구간 유효 추적 ≥ 99%(가림 구간 별도 집계).
 
 ## 9. 이동 목표 위치 예측 → G4 (트랙 C)
 
@@ -237,8 +234,8 @@
   - TC-PLN-007-01, TC-PLN-011-01(합성 tracked fixture → 실제 planner 7개 시나리오), officepc WSL 2회 반복 통과.
 - [ ] `[ON]` 실제 planner가 계약 테스트를 통과하면 `mock_world_node`의 임시 plan 발행(`publish_plan`)을 쓰지 않음
 - [ ] `[OFF]` OFF-5: 지연 구성 측정: 노출→수신→검출 완료→상태→계획→지령 송신→TCP 응답→그리퍼 개방 명령→개방 시작→공깃돌 이탈
-- [ ] `[ON*]` 가림 허용 시간 τ_max 산출: `e_pred ≤ e_pos + |δv|·τ + ½·a·τ² + |v|·δt` → 해제 게이트 값(`PLAN.md` 4.4절). 측정한 가림 시간보다 짧으면 벨트 표식 관측을 도입
-  - 계산 함수 `tau.py`(TC-PLN-010-01). G3·G4 측정값(e_pos·δv·a·δt)과 OFF-5 가림 시간이 완료 조건이다.
+- [ ] `[ON*]` 가림 허용 시간 τ_max 산출: `e_pred ≤ e_pos + |δv|·τ + ½·a·τ² + |v|·δt` → 해제 게이트 값(`PLAN.md` 4.4절)
+  - 계산 함수 `tau.py`(TC-PLN-010-01). G3·G4 측정값(e_pos·δv·a·δt)이 완료 조건이다.
 - [ ] `[ON*]` OFF-5 bag으로 50/100/200 ms horizon별 예측 오차를 이후 실제 관측과 대조
   - OFF-1 압축 영상 예비값(σ_a 0.1, XY p95): 0.1 s 1.2~4.2 mm, 0.5 s 4.6~7.3 mm, 2.8 s 22~33 mm(`records/bench/belt-video-2026-11-07/README.md`). OFF-5 bag과 독립 GT가 완료 조건이다.
 
