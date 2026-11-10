@@ -25,6 +25,7 @@ from drop_mocks.ros_common import ERROR_PROTECTIVE_STOP, from_time, to_time  # n
 from drop_mocks.scenario_engine import (COASTING, LOST, RESULT, ScenarioEngine)  # noqa: E402
 
 FRAME = 1.0 / 30.0
+WORLD_LEAD_S = 5.0          # 세계 노드 프로세스 기동·discovery 여유(CI)
 
 
 @pytest.fixture(scope='module')
@@ -44,26 +45,6 @@ def _params(scenario, t0, **extra):
 
 
 # ------------------------------------------------------------------ TC-MCK-005-01
-class TimingWorld(MockWorldNode):
-    """Test-only evidence: callback ROS frame vs publication vs DDS receipt."""
-
-    def __init__(self, **kwargs):
-        self.frame_wakes = []
-        super().__init__(**kwargs)
-        self.published = []
-        publish = self.det_pub.publish
-        def observed_publish(msg):
-            self.published.append((msg.image_seq, from_time(msg.header.stamp), time.monotonic()))
-            publish(msg)
-        self.det_pub.publish = observed_publish
-
-    def _on_frame(self):
-        t = self.scenario_t()
-        self.frame_wakes.append((t, self.engine.frame_index(t), self._last_k,
-                                 self.det_pub.get_subscription_count(), time.monotonic()))
-        super()._on_frame()
-
-
 @pytest.mark.req('REQ-MCK-005')
 @pytest.mark.tc('TC-MCK-005-01')
 @pytest.mark.level('U')
@@ -152,21 +133,31 @@ def test_controlled_clock_publishes_first_event_frame(ros):
 def test_injected_events_appear_at_scheduled_time(ros):
     # Scenario schedules use ROS time. Supply a controlled timeline so host NTP
     # corrections cannot change its mapping to the independent receive clock.
+    # mock_world_node runs in its own process (own GIL and executor): in-process,
+    # its /clock callbacks queued behind the robot, client and clock thread on CI
+    # runners and it published stale frames 0.22~0.4 s late (CI runs 42762185513,
+    # 42775254280).
     clock = SteadyRosClock()
-    t0 = clock.now() + 1.0
+    t0 = clock.now() + WORLD_LEAD_S
     steady_t0 = clock.steady_origin + t0 - clock.ros_origin
     eng = ScenarioEngine.from_file(scenario_path('all_events'))
     ev = {e['type']: e for e in eng.events}
     sim = [Parameter('use_sim_time', value=True)]
-    world = TimingWorld(parameter_overrides=_params('all_events', t0) + sim)
+    world = subprocess.Popen(
+        [sys.executable, '-m', 'drop_mocks.mock_world_node', '--ros-args',
+         '-p', f"scenario:={scenario_path('all_events')}", '-p', f't0_s:={t0}', '-p', 'use_sim_time:=true'],
+        env=dict(os.environ, ROS_DOMAIN_ID=str(DOMAIN)), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     robot = MockRobotControllerNode(parameter_overrides=_params('all_events', t0) + sim)
-    h = Harness(world, robot, use_sim_time=True)
+    h = Harness(robot, use_sim_time=True)
     try:
         dets = h.record(ObjectDetectionArray, 'objects/detections', steady=True)
         trks = h.record(TrackedObjectArray, 'objects/tracked', steady=True)
         belt = h.record(BeltMotion, 'belt/measured_motion', steady=True)
         hbs = h.record(Heartbeat, 'system/heartbeat', steady=True)
         pick = h.action(PickStone, 'robot/pick_stone')
+        h.wait_for(lambda: any(m.node_name == 'vision_node' for _, m in hbs), WORLD_LEAD_S - 1.0,
+                   '세계 노드 프로세스 heartbeat')
+        assert clock.now() < t0 - 0.5, 'world process started too late for the scenario'
         results = {}
         for label, t_start in (('before_delay', 6.0), ('in_delay', 6.5 + 2 * FRAME), ('pstop', 8.3)):
             h.wait_until(t0 + t_start)
@@ -178,14 +169,16 @@ def test_injected_events_appear_at_scheduled_time(ros):
         h.wait_until(t0 + 10.0)
     finally:
         h.close()
+        world.terminate()
+        world.wait(timeout=5)
         clock.close()
-        received = [(m.image_seq, from_time(m.header.stamp), t) for t, m in dets]
+        # seq·stamp·수신 steady 시각(시나리오 기준)과 누락 sequence. 지연 = 수신 − k/30(clock_jump 구간 제외)
+        received = [(m.image_seq, from_time(m.header.stamp), t - steady_t0) for t, m in dets]
         seqs = {row[0] for row in received}
         missing = sorted(set(range(min(seqs), max(seqs) + 1)) - seqs) if seqs else []
-        print({'cpu_count': os.cpu_count(), 'executor_threads': getattr(getattr(h.exec, '_executor', None), '_max_workers', None),
-               'clock_period_s': clock.period_s,
-               'frame_wakes_ros_k_previous_matches_steady': world.frame_wakes,
-               'published_seq_stamp_steady': world.published,
+        late = [t - k * FRAME for k, _, t in received if k >= 0]
+        print({'cpu_count': os.cpu_count(), 'clock_period_s': clock.period_s,
+               'receive_lateness_max_s': max(late) if late else None,
                'received_seq_stamp_steady': received, 'missing_sequences': missing})
 
     def scen(stamp):                 # stamp → 시나리오 시각(clock_jump 전)
