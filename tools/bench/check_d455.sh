@@ -112,9 +112,6 @@ PY
 sec "끝"
 echo "결과 파일: $OUT"
 if [[ -n "$LPID" ]]; then
-  echo "RealSense 노드는 계속 실행 중(pid $LPID). 노출·화이트밸런스는 아래처럼 바꾸고 이 스크립트를 --no-launch로 다시 실행해 기록한다:"
-  echo "  ros2 param set $NODE rgb_camera.enable_auto_exposure false"
-  echo "  ros2 param set $NODE rgb_camera.exposure <값>      # 단위·범위는 위 파라미터 출력과 rs-enumerate-devices -o 로 확인"
-  echo "  ros2 param set $NODE rgb_camera.enable_auto_white_balance false"
+  echo "RealSense 노드는 계속 실행 중(pid $LPID). 노출·화이트밸런스는 자동 설정 그대로 둔다."
   echo "종료: kill -INT $LPID"
 fi

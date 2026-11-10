@@ -3,7 +3,7 @@
 `tools/spec/trace.py`가 생성한다. 손으로 고치지 않는다.
 
 - REQ 117개 중 TC 연결 117개
-- pytest 대상 TC 192개 중 테스트 연결 178개
+- pytest 대상 TC 191개 중 테스트 연결 178개
 
 | TC | 수준 | REQ | 테스트 |
 |---|---|---|---|
@@ -222,7 +222,6 @@
 | TC-VIS-008-01 | C | REQ-VIS-008 | `src/vision/test/contract/test_vision_node_contract.py::test_stable_window` |
 | TC-VIS-008-02 | C | REQ-VIS-008 | `src/vision/test/contract/test_vision_node_contract.py::test_deadlines` |
 | TC-VIS-009-01 | U | REQ-VIS-009(SPEC 없음) | — |
-| TC-VIS-009-02 | U | REQ-VIS-009(SPEC 없음) | — |
 | TC-VIS-010-01 | I1 | REQ-VIS-010(SPEC 없음) | — |
 
 ## TC가 없는 REQ
@@ -243,5 +242,4 @@
 - TC-SYS-003-02
 - TC-TRK-013-01
 - TC-VIS-009-01
-- TC-VIS-009-02
 - TC-VIS-010-01

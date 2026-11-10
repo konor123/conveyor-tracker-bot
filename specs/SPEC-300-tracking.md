@@ -1,6 +1,6 @@
 # SPEC-300 tracking
 
-- 버전: v0.3
+- 버전: v0.4
 - 근거: PLAN.md 2.5, 3.1, 4.3, 5.3, 7절
 - REQ 영역: TRK
 
@@ -8,6 +8,7 @@
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
+| v0.4 | 2026-11-10 | `coast.max_s` 근거를 가림 시간 분포에서 가림 없는 배치의 검출 누락 구간으로 |
 | v0.3 | 2026-11-09 | `sigma_accel_mps2` 0.01(OFF-1 벨트 영상), REQ-TRK-001 정확도 기준, 병뚜껑 2개·가림 없는 배치 |
 | v0.2 | 2026-11-09 | `tracker_node`: `T_base_conveyor` 파라미터, 입력 중단 시 빈 프레임 처리(`input_timeout_s`), 프레임 공백 뒤 coast 한도 초과 track의 연관 금지 |
 | v0.1 | 2026-11-09 | 등속 칼만 필터, 연관·재획득, 상태 전이, 통과별 track, 속도 변화 검출, 시각 역행, `BeltMotion`·`SelectTarget`·`ResetTracking`·관측 TF |
@@ -147,4 +148,4 @@ SPEC-010 wire schema v0.2 / runtime contract v0.4 기준.
 
 - 관측 구간·도달 구간 경계값: TBD(배치도 OFF-1, 보정 OFF-3).
 - 속도 변화 검출: `sigma_accel_mps2` 0.01에서 TC-TRK-006(10 mm/s 계단 1 s 안 검출)을 지키는 CUSUM은 `k` 1·`h` 8뿐이며, OFF-1 벨트 영상에서 약 60 s당 22~38회 경보가 난다(실제 맥동 범위가 시험 계단보다 크다). 다이얼 조작과 맥동을 구분하는 방법과 WAIT_CAP의 `steady` 조건은 TBD(OFF-5 다이얼 조작 bag).
-- 그리퍼 가림 시간 분포와 `coast.max_s`의 관계: TBD(측정 G3, OFF-5).
+- `coast.max_s`: 그리퍼가 뚜껑을 가리지 않는 배치(TC-BEN-010-01)에서 검출 누락 구간 분포로 정한다. TBD(측정 G3, OFF-5).

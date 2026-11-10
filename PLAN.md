@@ -127,10 +127,10 @@ drop_ws/
 │   ├── vision/                              # ament_python
 │   │   ├── vision/
 │   │   │   ├── vision_node.py               # 검출+좌표 변환을 한 노드에서 처리(영상 이중 전송 방지)
-│   │   │   ├── detector.py                  # 색 마스크(공깃돌·병뚜껑·벨트 표식), 원·타원 중심, 신뢰도
+│   │   │   ├── detector.py                  # 색 마스크(공깃돌·병뚜껑), 원·타원 중심, 신뢰도
 │   │   │   ├── localizer.py                 # 왜곡 보정, 광선-평면 교차(대상물별 높이), 공분산
 │   │   │   ├── robot_mask.py                # 로봇·그리퍼 링크 투영 마스크(가림 영역 제외)
-│   │   │   └── verifier.py                  # 투입 판정(SUCCESS/FAILURE/UNKNOWN, 4.5절)
+│   │   │   └── verifier.py                  # 투입 자동 확인(SUCCESS/UNKNOWN, 4.5절)
 │   │   ├── config/vision.yaml
 │   │   └── test/                            # test_detector.py, test_localizer.py, test_verifier.py, contract/
 │   │
@@ -491,7 +491,7 @@ bool stopped            # 정지 확인 후 응답
 
 | 이름 | 형식 | 제공/발행 | 주기 | QoS(제안) | 비고 |
 |---|---|---|---|---|---|
-| `camera/color/image_raw`, `camera_info` | sensor_msgs | RealSense | 30 Hz(1280×800) | sensor data(best effort, depth 1) | 자동 노출·화이트밸런스 고정. FastDDS SHM 세그먼트 확대 프로파일 필수(SPEC-600 4.8절) |
+| `camera/color/image_raw`, `camera_info` | sensor_msgs | RealSense | 30 Hz(1280×800) | sensor data(best effort, depth 1) | 노출·화이트밸런스는 카메라 자동 설정(고정하지 않음). FastDDS SHM 세그먼트 확대 프로파일 필수(SPEC-600 4.8절) |
 | `objects/detections` | `ObjectDetectionArray` | vision | 영상 주기 | reliable, volatile, depth 5 | 위치·공분산 포함 |
 | `objects/tracked` | `TrackedObjectArray` | tracker | 영상 주기 | reliable, volatile, depth 5 | |
 | `belt/measured_motion` | `BeltMotion` | tracker | 영상 주기 | reliable, volatile, depth 5 | |
@@ -583,15 +583,10 @@ IDLE
 측면 카메라가 없으므로 고정 D455 상단 영상과 관찰자 판독을 조합한다. 병뚜껑은 위가 열려 있어 상단 영상으로 안에 든 공깃돌을 직접 볼 수 있다.
 
 1. **기준 정답 = 관찰자 판독:** 실험마다 관찰자가 벨트 옆에서 공깃돌이 뚜껑 안에 들어가 1 s 동안 함께 이동했는지 직접 보고 `tools/eval/trial_labeler.py`로 기록한다(SUCCESS/FAILURE/판독 불가). 성공률은 이 기록으로 계산한다.
-2. **자동 판정(`verifier.py`, 보조):** 후퇴 완료 후 아래를 모두 만족하면 SUCCESS 후보, 하나라도 어긋나면 FAILURE, 판단할 수 없으면 UNKNOWN.
-   - 선택한 병뚜껑 track의 원 안에 공깃돌이 보이고(`stone_inside`), 1 s 동안 공깃돌 중심이 뚜껑 원 안에 계속 있다.
-   - 벨트 ROI에 뚜껑 밖 공깃돌이 없다(있으면 튕겨 나감 → FAILURE).
-   - 그리퍼 개방 확인 + 그리퍼에 공깃돌이 붙어 있지 않다(핑거 간격, 그리퍼 주변 ROI에 공깃돌 없음).
-   - 매트 위 공깃돌 수가 파지 직후와 같다(이동 중 떨어뜨림 없음).
+2. **자동 확인(`verifier.py`, 보조):** 후퇴 완료 후 선택한 병뚜껑 track의 원 안에 공깃돌이 보이고(`stone_inside`) 1 s 동안 공깃돌 중심이 뚜껑 원 안에 계속 있으면 SUCCESS, 그렇지 않으면 UNKNOWN이다. 실패 원인(튕겨 나감, 그리퍼에 붙음, 이동 중 떨어뜨림)은 관찰자가 판정하며 자동 확인은 FAILURE를 내지 않는다.
 3. **오차 지표:**
    - 해제 오차(`release_error`): 해제 순간 공깃돌 중심과 뚜껑 중심 추정 사이 XY. 이때 뚜껑은 그리퍼에 가려 있으므로 track 예측 기반 추정값이다. 정적(G2)에서는 정지 뚜껑 측정값 기준으로 계산한다.
    - 안착 오프셋(`stone_offset`): 안착 후 뚜껑 중심 대비 공깃돌 중심, 직접 관측한다. 공깃돌이 뚜껑 안에서 굴러 테두리 쪽에 멈출 수 있으므로 정확도 지표로 쓰지 않고 기록만 한다.
-4. 자동 판정과 관찰자 판독의 혼동행렬을 G2부터 기록한다.
 
 ## 5. 중단 알고리즘
 
@@ -718,7 +713,7 @@ Isaac Sim은 대역으로 쓰지 않는다. 무겁고 결정적이지 않아 CI 
 | `clock_jump` | 장애 | tracker·`deadlines` 단위 테스트(ROS 시각 역행 시 무효화), 감시 타이머 단위 테스트(steady 시계로 계속 동작) | — |
 
 - 장애 10종 모두 `abort_policy`·`deadlines` 단위 테스트에 이벤트 열로 넣고 기대 중단 등급을 확인한다. 경계값은 임계 직전·경계·직후 세 점으로 확인한다.
-- 튕겨 나감·뚜껑 안 공깃돌 남음은 장애가 아니라 판정 결과이므로 `verifier.py` 단위 테스트(정지 영상 세트)로 확인한다.
+- 튕겨 나감·뚜껑 안 공깃돌 남음은 장애가 아니라 판정 결과이므로 관찰자 판독으로 기록한다(4.5절).
 - 가림·누락·속도 변화는 합성보다 실제 녹화 bag(또는 편집 bag)을 우선한다.
 
 ### 7.4 계약 테스트
@@ -874,7 +869,6 @@ time_margin = T_available − T_required        # 시도 조건: time_margin ≥
 - 성공률과 Wilson 95% 신뢰구간(`analyze_drop.py`)
 - 오차·지연은 p50/p95/p99/최대값 (평균만 보고하지 않음)
 - 합격 기준 대비 판정: `통과 / 미달 / 보류(측정 미완)`. 측정하지 않은 항목은 통과로 쓰지 않는다
-- 자동 판정과 관찰자 판독의 혼동행렬(G2 이후)
 - 최적화 보고서는 같은 조건의 변경 전·후 수치를 나란히 적는다
 
 ## 11. 개발 단계와 게이트
@@ -937,5 +931,5 @@ O   최적화 (12절, M2 이후 측정 기반으로)
 
 - 시작 조건: M2(G4) 통과. 그 전에는 기능 완성과 측정 기반 마련에 집중하고 성능 최적화는 하지 않는다. 안전·정확도 기준을 맞추는 데 꼭 필요한 경우만 예외로 한다(예: G0 지터 미달 시 adapter C++ 이전).
 - 절차: 기준값 측정 → 병목 식별(10.1절 bench) → 한 번에 하나만 변경 → 같은 조건 재측정 → 변경 전·후 보고. 효과가 없으면 되돌린다.
-- 후보: adapter·서보 루프 C++ 이전, 컴포넌트 합성(intra-process), QoS·executor 조정, 검출 ROI 축소, 계획 재계산 빈도, 대기 자세·접근 경로 단축, 그리퍼 개방 명령 경로 단축, 판정 임계값 조정(혼동행렬 근거).
+- 후보: adapter·서보 루프 C++ 이전, 컴포넌트 합성(intra-process), QoS·executor 조정, 검출 ROI 축소, 계획 재계산 빈도, 대기 자세·접근 경로 단축, 그리퍼 개방 명령 경로 단축, 단계 판정 임계값 조정(관찰자 기록 대조 근거).
 - 최적화로 바꾼 파라미터는 모두 10.4절 기록 대상이다. mock 시나리오의 지연 값도 함께 고친다.

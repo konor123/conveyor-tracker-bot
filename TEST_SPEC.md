@@ -66,9 +66,9 @@ def test_l2_path_timeout_escalates_to_l4(fake_clock): ...
 | `SyntheticCamera` | `vision/test/fakes/camera.py` | 합성 영상·투영 | 내부 행렬·왜곡·외부 자세, `project(point)`, `render(objects, background)`(매트 검정·벨트 녹색·원형 물체·잡음·그림자 선택) |
 | `TrajectoryFixture` | `tracking/test/fixtures/` | 합성 병뚜껑 궤적 → `ObjectDetectionArray` 열 | 등속·속도 계단·가림 구간·프레임 누락·역순 stamp |
 | `ScenarioEngine` | `drop_mocks` | I0·C 시험용 세계 모델 | 7.3절 시나리오 YAML, seed |
-| 자료 세트 | 저장소 밖(경로만 `records/datasets.yaml`) | `[ON*]` 시험 입력 | `off1_bags`(속도 3종 × 조명 2종), `off1_static_images`(라벨 포함), `off5_bags` |
+| 자료 세트 | 저장소 밖(경로만 `records/datasets.yaml`) | `[ON*]` 시험 입력 | `off1_bags`(속도 3종, 현장 조명 1종), `off1_static_images`(라벨 포함), `off5_bags` |
 
-자료 세트 라벨 형식(`labels.csv`): `file, frame, object_class, u, v, stone_inside, verdict, labeler`. 라벨은 두 사람이 독립으로 달고, 불일치 프레임은 제외하지 않고 `disputed`로 표시한다.
+자료 세트 라벨 형식(`labels.csv`): `file, frame, object_class, u, v, stone_inside, labeler`. 라벨은 두 사람이 독립으로 달고, 불일치 프레임은 제외하지 않고 `disputed`로 표시한다.
 
 ## 2. 순수 모듈 API (TDD 기준 시그니처)
 
@@ -319,8 +319,7 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-VIS-007-01 | 로봇 마스크 겹침 | U | `[ON]` | 검출이 마스크와 겹침 | `occluded_partial = true`, `DetectObjects` 개수에서 제외 |
 | TC-VIS-008-01 | `DetectObjects` 안정 창 | C | `[ON]` | fixture 검출 지터 0.3 mm / 0.6 mm, `stable_window = 0.5 s` | OK / FAILED |
 | TC-VIS-008-02 | `DetectObjects` deadline | C | `[ON]` | 이미 지난 deadline / 처리 중 경과 | 즉시 `TIMEOUT` / `TIMEOUT` |
-| TC-VIS-009-01 | 자동 투입 판정(합성) | U | `[ON]` | 정상 투입 / 튕겨 나가 벨트 위 / 그리퍼에 붙음 / 가림으로 미확인 / 0.9 s 안에 있다가 나감 | SUCCESS / FAILURE / FAILURE / UNKNOWN / FAILURE |
-| TC-VIS-009-02 | 자동 투입 판정(실영상) | U | `[ON*]` | `off1_static_images` 라벨 세트(`disputed` 제외 집계, 별도 공개) | `stone_inside` 정확도 ≥ 99%, verdict 혼동행렬 출력 |
+| TC-VIS-009-01 | 투입 자동 확인(합성) | U | `[ON]` | 정상 투입(1 s 유지) / 가림으로 미확인 / 0.9 s 안에 있다가 나감 / 튕겨 나가 벨트 위 / 그리퍼에 붙음 | SUCCESS / UNKNOWN / UNKNOWN / UNKNOWN / UNKNOWN(FAILURE를 내지 않음) |
 | TC-VIS-010-01 | 실데이터 검출 회귀 | I1 | `[ON*]` | `off1_bags` replay | 라벨 프레임 recall ≥ 99%, 오선택 ≤ 1%(class별) |
 
 ### 3.6 TRK — 추적
@@ -501,7 +500,7 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-BEN-007-01 | 상주 루프 + 스트림 동시 동작 | OFF-2 | 상주 루프를 띄운 상태에서 TC-BEN-004 조건 반복, 추종 중 개방 트리거 20회 | `gripper-stream-<date>.csv` | 스트림 지령 간격 최대값 변화, 추종 오차 p95 증가 ≤ 0.5 mm, 개방 지연이 정지 상태 p95의 1.2배 이내. 미달 시 `PLAN.md` 11.3절 |
 | TC-BEN-008-01 | 파지 전류 | OFF-2 | 전류를 단계적으로 올리며 계획 최대 가속으로 10회 왕복, 미끄러짐(TCP 오프셋 변화 > 0.5 mm) 확인 | `grip-current-<date>.csv` | 미끄러짐 0인 최소 전류 × 1.5를 설정값으로 |
 | TC-BEN-009-01 | 낙하 튕김 | OFF-1(예비), OFF-4 | 해제 높이 2~3단계 × 의도 오차 0/1/2/3 mm × 10회 이상, 정지 뚜껑 | `drop-matrix-<date>.csv` | 조건별 안착률·Wilson 구간, 안착률 ≥ 95%인 최대 오차로 `e_xy_max` 확정 |
-| TC-BEN-010-01 | 가림 시간 | OFF-5 | 대기·접근·하강 동작을 뚜껑 위에서 재현, 검출 누락 구간 측정 | `occlusion-<date>.csv` | 단계별 가림 시간 분포, τ_max와 비교 |
+| TC-BEN-010-01 | 가림 없는 배치 확인 | OFF-5 | 대기·접근·하강·해제 자세를 뚜껑 위에서 재현, 자세별 병뚜껑 검출 기록 | `layout-check-<date>.csv` | 그리퍼·공깃돌 가림에 의한 병뚜껑 검출 누락 0회 |
 | TC-BEN-011-01 | 지연 구성 | OFF-5 | 단계별 시각 기록 + 고속 촬영(240 fps 이상)으로 공깃돌 이탈 시각 확인 | `latency-chain-<date>.csv` | 노출 → 공깃돌 이탈까지 구성 성분별 p50/p95 |
 | TC-BEN-012-01 | 보정 검증 | OFF-3 | 보정에 쓰지 않은 20개 이상 위치에 TCP 접촉 | `calib-verify-<date>.csv` | XY p95 ≤ 1 mm, 최대 ≤ 2 mm |
 
@@ -531,12 +530,12 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | M0 | SYS-001·002·004, IF 전부, ORC 전부, ABT 전부(011-02·012-02·013-02·014-02 제외), MCK 전부, REC 전부, INT-001~006 | — | — | — |
 | G0 | ABT-014-02, ROB-001~012, GRP 전부 | GRP-001 | BEN-001·003~008, INT-020 | GRP: 실측표 전에는 선형 표; `[ON*]` GRP-001은 OFF-1 실측표로 재실행 |
 | G1 | SYS-003-01, ORC-005, VIS-001~008, CAL 전부 | VIS-010 | BEN-012 | ORC-005: 실제 영상 freshness·안정 창 C/I |
-| G2 | ORC 전부, VIS-009-01 | VIS-009-02 | BEN-009, EXP-G2 | ORC: MODE_STATIC 경로 |
+| G2 | ORC 전부, VIS-009-01 | — | BEN-009, EXP-G2 | ORC: MODE_STATIC 경로 |
 | G3 | SYS-003-02, ABT-011-02·012-02·013-02, TRK-001~012 | TRK-013 | BEN-002·010, INT-021, EXP-G3 | — |
 | G4 | ABT-011-02, PLN 전부 | — | BEN-011, EXP-G4 | — |
 | G5 | ROB-006·008~010 | — | EXP-G5 | — |
 | G6 | ROB 전부, PLN 전부 | — | EXP-G6 | — |
-| G7 | SYS 전부, IF 전부, ORC 전부, ABT 전부, MCK 전부, REC 전부, INT-001~006, ROB 전부, GRP 전부, VIS-001~008·009-01, CAL 전부, TRK-001~012, PLN 전부 | GRP-001, VIS-010·009-02, TRK-013 | EXP-G7, EXP-CMP | 앞 게이트 실행 조건 유지; SIM 전부 선택 |
+| G7 | SYS 전부, IF 전부, ORC 전부, ABT 전부, MCK 전부, REC 전부, INT-001~006, ROB 전부, GRP 전부, VIS-001~008·009-01, CAL 전부, TRK-001~012, PLN 전부 | GRP-001, VIS-010, TRK-013 | EXP-G7, EXP-CMP | 앞 게이트 실행 조건 유지; SIM 전부 선택 |
 
 - INT-007-01은 I1 게이트이며 M0 대상이 아니다. SYS-003-01은 G1, SYS-003-02는 G3다. ABT-011~014의 M0 범위는 U 판정·이벤트 입력이며 ROS 연결은 각 -02의 게이트 조건이다.
 

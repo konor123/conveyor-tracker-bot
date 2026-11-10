@@ -1,6 +1,6 @@
 # SPEC-200 vision
 
-- 버전: v0.1
+- 버전: v0.2
 - 근거: PLAN.md 0.2-4, 4.5절
 - REQ 영역: VIS
 
@@ -8,11 +8,12 @@
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
+| v0.2 | 2026-11-10 | 투입 자동 확인은 SUCCESS/UNKNOWN만 낸다(실패 판정은 관찰자) |
 | v0.1 | 2026-11-09 | 픽셀 검출(공깃돌 배경 색 거리·병뚜껑 색 범위+원 적합), `stone_inside`, 로봇 마스크 표시, 광선-평면 교차·공분산, 프레임 처리, DetectObjects 안정 창 |
 
 ## 1. 목적·범위
 
-공깃돌·병뚜껑 검출, 광선-평면 교차, 로봇 마스크, 투입 판정. 판단 로직은 ROS와 무관한 순수 모듈(`detector.py`, `localizer.py`, `pipeline.py`, `stable_window.py`)이고 `vision_node`는 감싸기만 한다.
+공깃돌·병뚜껑 검출, 광선-평면 교차, 로봇 마스크, 투입 자동 확인. 투입 자동 확인은 `stone_inside`가 1 s 유지되면 SUCCESS, 그 밖에는 UNKNOWN이며 FAILURE를 내지 않는다(실패 판정은 관찰자, PLAN.md 4.5절). 판단 로직은 ROS와 무관한 순수 모듈(`detector.py`, `localizer.py`, `pipeline.py`, `stable_window.py`)이고 `vision_node`는 감싸기만 한다.
 
 ## 2. 입력·출력(interface 버전)
 

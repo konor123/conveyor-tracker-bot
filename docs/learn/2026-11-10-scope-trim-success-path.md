@@ -24,3 +24,12 @@ python3 -m pytest -q tools
 python3 tools/spec/trace.py --gate M0 --check
 git diff --check
 ```
+
+## 명세·시험까지 맞추기
+
+Progress만 고친 뒤 같은 결정을 `PLAN.md`·`TEST_SPEC.md`·`specs/`에도 반영했다. 순서는 다음과 같다.
+
+1. 지운 항목의 핵심어로 저장소 전체를 찾는다: `grep -rn -E '혼동|화이트밸런스|조명 2|벨트 표식|가림 시간|TC-VIS-009|TC-BEN-010' PLAN.md TEST_SPEC.md specs src tools`.
+2. 요구 자체를 바꾼다. 예: 자동 투입 판정은 FAILURE를 내지 않고 SUCCESS/UNKNOWN만 낸다(PLAN 4.5절, SPEC-200 v0.2, TC-VIS-009-01). 가림 시간 측정 TC는 "가림 없는 배치 확인" TC로 바꾼다(TC-BEN-010-01).
+3. interface 상수(`CLASS_BELT_MARKER`, `VerifyDrop.FAILURE`)는 남긴다. msg를 바꾸면 SPEC-010 버전·스냅샷·모든 노드 빌드가 따라 바뀌는데, 값을 안 쓰는 것만으로 결정은 충분히 반영된다. 바꾸는 비용이 이득보다 큰 경우다.
+4. `python3 tools/spec/trace.py`로 `specs/TRACE.md`를 다시 만든다. 이 파일은 손으로 고치지 않는다. 지운 TC가 행렬에서 빠졌는지, M0 검사(`--gate M0 --check`)가 그대로 0인지 확인한다.
