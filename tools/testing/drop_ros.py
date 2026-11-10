@@ -8,6 +8,7 @@ from __future__ import annotations
 import os
 import shlex
 import subprocess
+import sys
 import threading
 import time
 from dataclasses import dataclass, field
@@ -75,39 +76,49 @@ class SteadyRosClock:
     The injected clock_jump scenario still changes message stamps; this clock only
     supplies a stable scenario timeline. Close after all subscribing nodes stop.
 
-    Every node with use_sim_time handles each /clock message as a Python callback in
-    the shared executor. At 200 Hz with three nodes this saturated 2~4 vCPU CI runners
-    (frame timer woke at about 6 Hz and ROS time lagged steady time by up to 0.4 s,
-    CI run 42762185513). 50 Hz keeps the quantization (20 ms) below one 30 Hz frame.
+    The publisher runs in its own process. Inside the test process it stalled with
+    that process on CI runners, so every node's ROS time froze and the mock world
+    published stale frames 0.27 s late (CI run 42781388215: publish, middleware and
+    callback lateness all 0.27 s). CLOCK_MONOTONIC is shared between processes, so
+    the child uses the same origins. 50 Hz keeps the quantization (20 ms) below one
+    30 Hz frame and the /clock callback load low (CI run 42762185513 at 200 Hz).
     """
 
     PERIOD_S = 0.02
 
-    def __init__(self, period_s: float = PERIOD_S):
+    def __init__(self, period_s: float = PERIOD_S, domain_id: int = DOMAIN):
         self.period_s = period_s
-        from rosgraph_msgs.msg import Clock
-        self._message = Clock
-        self.node = rclpy.create_node(f'drop_test_clock_{os.getpid()}')
-        self.pub = self.node.create_publisher(Clock, '/clock', 10)
         self.ros_origin = time.time()
         self.steady_origin = time.monotonic()
-        self._stop = threading.Event()
-        self._thread = threading.Thread(target=self._run, daemon=True)
-        self._thread.start()
+        self._proc = subprocess.Popen(
+            [sys.executable, os.path.abspath(__file__), 'clock', repr(self.ros_origin),
+             repr(self.steady_origin), repr(period_s)],
+            env=dict(os.environ, ROS_DOMAIN_ID=str(domain_id)),
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     def now(self):
         return self.ros_origin + time.monotonic() - self.steady_origin
 
-    def _run(self):
-        while not self._stop.is_set():
-            self.pub.publish(self._message(clock=to_time(self.now())))
-            self._stop.wait(self.period_s)
-
     def close(self):
-        self._stop.set()
-        self._thread.join(timeout=2.0)
-        assert not self._thread.is_alive()
-        self.node.destroy_node()
+        self._proc.terminate()
+        self._proc.wait(timeout=5)
+
+
+def _clock_main(ros_origin: float, steady_origin: float, period_s: float) -> None:
+    """SteadyRosClock 자식 프로세스: ROS_DOMAIN_ID 환경 변수의 domain에 /clock을 낸다."""
+    from rosgraph_msgs.msg import Clock
+    rclpy.init()
+    node = rclpy.create_node(f'drop_test_clock_{os.getpid()}')
+    pub = node.create_publisher(Clock, '/clock', 10)
+    try:
+        while rclpy.ok():
+            pub.publish(Clock(clock=to_time(ros_origin + time.monotonic() - steady_origin)))
+            time.sleep(period_s)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        node.destroy_node()
+        rclpy.try_shutdown()
 
 
 class Harness:
@@ -217,3 +228,7 @@ def stop(proc: subprocess.Popen) -> None:
     except subprocess.TimeoutExpired:
         proc.kill()
         proc.wait(timeout=5)
+
+
+if __name__ == '__main__' and sys.argv[1:2] == ['clock']:
+    _clock_main(float(sys.argv[2]), float(sys.argv[3]), float(sys.argv[4]))
