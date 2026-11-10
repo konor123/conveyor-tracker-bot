@@ -47,10 +47,12 @@ def test_invalid_plan_latches(changes):
 
 @pytest.mark.tc('TC-ROB-013-02')
 def test_old_revision_ignored_without_refresh():
-    c = controller()
-    assert not c.accept(plan(), 1.01, 10.01)
-    assert step(c, 1.01, 10.01).active
-    assert step(c, 1.3, 10.3).reason != 'OK'
+    c = controller()                                   # revision 1 수신 steady 10.0
+    assert not c.accept(plan(), 1., 10.2)              # 같은 revision 재수신: 무시
+    # ROS 시계를 멈춰 입력 상태 나이는 0으로 두고, 수신(steady) 감시만 본다
+    reasons = [step(c, 1., 10. + k*.01).reason for k in range(27)]
+    assert reasons[25] == 'OK'                         # steady 10.25: 수신 뒤 0.25 s
+    assert reasons[26] == 'PLAN_STALE'                 # 재수신이 감시를 갱신했다면 10.45까지 OK
 
 @pytest.mark.tc('TC-ROB-013-03')
 @pytest.mark.parametrize('now,steady,stamp,reason', [(1.01,10.04,1.01,'LOOP_GAP'),(.9,10.01,.9,'CLOCK_BACKWARD'),(1.01,10.01,.5,'TCP_STALE'),(1.01,10.01,1.1,'TCP_STALE')])
