@@ -59,13 +59,18 @@ def render_resident_drl(read_timeout_s: float = 0.5, spin_s: float = 0.005, arm_
 class ResidentLoopTransport:
     def __init__(self, io: RegisterIO, clock, sleep: Callable[[float], None],
                  regs: ResidentRegs = ResidentRegs(), ready_timeout_s: float = 10.0,
-                 drl_code: str | None = None):
+                 drl_code: str | None = None, sample_period_s: float = 0.58):
         self.io = io
         self.clock = clock
         self._sleep = sleep
         self.regs = regs
         self.ready_timeout_s = float(ready_timeout_s)
         self._drl_code = drl_code
+        # 루프가 상태를 새로 올리는 주기(Modbus 왕복 1회). 0.58 s는 일회성 DRL 측정값(2026-11-09)이며 OFF-2 실측으로 바꾼다.
+        # GripperAdapter는 이 값으로 응답·생존 제한시간이 판정 가능한지 생성 때 검사한다.
+        if not sample_period_s > 0.0:
+            raise ValueError('sample_period_s must be positive')
+        self.sample_period_s = float(sample_period_s)
         self._goal_current: int | None = None
         self._last_seq: int | None = None   # 마지막으로 트리거한 seq
 

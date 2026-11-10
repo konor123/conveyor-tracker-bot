@@ -3,7 +3,7 @@
 `tools/spec/trace.py`가 생성한다. 손으로 고치지 않는다.
 
 - REQ 122개 중 TC 연결 122개
-- pytest 대상 TC 204개 중 테스트 연결 191개
+- pytest 대상 TC 205개 중 테스트 연결 192개
 
 | TC | 수준 | REQ | 테스트 |
 |---|---|---|---|
@@ -94,6 +94,7 @@
 | TC-GRP-016-01 | U | REQ-GRP-016 | `src/robot_control/test/test_resident_transport.py::test_transport_maps_registers_and_starts_loop_once`<br>`src/robot_control/test/test_resident_transport.py::test_loop_init_failure_is_a_fault_and_drl_text_matches_registers`<br>`src/robot_control/test/test_resident_transport.py::test_loop_write_failure_is_a_fault_for_that_command_only` |
 | TC-GRP-016-02 | U | REQ-GRP-016 | `src/robot_control/test/test_resident_transport.py::test_armed_trigger_delay_is_spin_plus_one_write` |
 | TC-GRP-016-03 | U | REQ-GRP-016 | `src/robot_control/test/test_resident_transport.py::test_fake_static_cycle_spends_far_less_time_on_the_gripper` |
+| TC-GRP-016-04 | U | REQ-GRP-016 | `src/robot_control/test/test_resident_transport.py::test_timeouts_shorter_than_the_loop_sample_period_are_rejected` |
 | TC-IF-001-01 | U | REQ-IF-001 | `tools/spec/test_interfaces.py::test_interface_snapshots_match` |
 | TC-IF-002-01 | U | REQ-IF-002 | `tools/spec/test_interfaces.py::test_common_request_fields_order` |
 | TC-IF-003-01 | U | REQ-IF-003 | `tools/spec/test_interfaces.py::test_interface_constants_match_spec` |

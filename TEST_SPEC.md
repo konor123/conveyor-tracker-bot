@@ -418,6 +418,7 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-GRP-014-03 | 예약 뒤 트리거 | U | `[ON]` | `arm_open` → `fire_open` / 예약 없이 `fire_open` / `arm_open` → `grasp` → `fire_open` / adapter에서 prewrite → close → `open(prewritten)` | 예약 때 트리거 0회, 해제 때 트리거 1회·쓰기 0회 / `NOT_ARMED` / `NOT_ARMED`, 트리거는 닫기 1회뿐 / 열림 목표를 다시 써서 열림 |
 | TC-GRP-015-01 | 막힘 파지 판정 | U | `[ON]` | 가짜 제어기, 공깃돌이 659 pulse에서 막음 / 손가락 사이 빔(닫힘 목표 750) | `STALLED`·`holding = true`, 위치 659 / `REACHED_END`·`holding = false`, 위치 750 |
 | TC-GRP-016-01 | 상주 루프 transport 레지스터 계약 | U | `[ON]` | 세션 시작 / 루프가 올리지 않는 주소 읽기 / Operating Mode 쓰기 / 예약 / 시작 상태 246 / DRL 본문 / 루프 쓰기 실패 뒤 다음 지령 | 루프 기동 1회·위치·모드 읽기 일치 / 예외 / 거부 / 7비트 분할 값(0~127)·예약 1·seq 불변 / `FAULT`(`RESIDENT_INIT`) / 자리표시 없음·레지스터 번호 일치(결과 40 포함) / `FAULT`(`RESIDENT_WRITE_FAILED`)·그리퍼 목표 수신 0회, 다음 지령은 정상 |
+| TC-GRP-016-04 | 표본 주기 대비 제한시간 | U | `[ON]` | 표본 주기 0.58 s, 기본 설정(응답 0.5 s·생존 0.1 s) / 응답 1.74 s·생존 1.16 s / 각각 0.001 s 짧게 | `PRECONDITION`(`TIMEOUT_BELOW_LOOP_PERIOD`) / 생성 / `PRECONDITION` |
 | TC-GRP-016-02 | 예약 뒤 트리거 지연 | U | `[ON]` | 가짜 제어기 왕복 0.58 s, 쓰기 도달 0.58 s / 0.01 s, 예약 뒤 3 s 대기 후 트리거 | 그리퍼가 목표를 받기까지 ≤ spin + 쓰기 도달 시간, 추가 왕복 ≤ 3회 |
 | TC-GRP-016-03 | 공통 순서의 정적 사이클 시간(모델) | U | `[ON]` | 가짜 제어기 왕복 0.58 s, 이동은 2026-11-09 3회차 측정 시간 | 첫 열기 0 s(생략), 파지 유지, 그리퍼 합계 < 측정 19.76 s의 30%, 사이클 = 이동 합 + 그리퍼 합 |
 

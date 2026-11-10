@@ -8,7 +8,8 @@ import pytest
 
 from fakes.clock import FakeClock
 from fakes.resident import FakeResidentController
-from robot_control.gripper_adapter import MODBUS, GripperAdapter, GripperCfg, GripperFault, PulseTable
+from robot_control.gripper_adapter import (MODBUS, GripperAdapter, GripperCfg, GripperFault, PreconditionError,
+                                          PulseTable)
 from robot_control.gripper_session import GripperSession
 from robot_control.resident_transport import ResidentLoopTransport, ResidentRegs, render_resident_drl
 
@@ -122,6 +123,23 @@ def test_loop_write_failure_is_a_fault_for_that_command_only():
     ctrl.fail_writes = False                           # 앞 지령의 실패가 다음 지령에 남지 않는다
     held = session.grasp(100)
     assert (held.reason_code, held.holding) == ('STALLED', True)
+
+
+@pytest.mark.req('REQ-GRP-016')
+@pytest.mark.tc('TC-GRP-016-04')
+@pytest.mark.level('U')
+def test_timeouts_shorter_than_the_loop_sample_period_are_rejected():
+    clock = FakeClock(steady=100.0)
+    transport = ResidentLoopTransport(FakeResidentController(clock), clock, sleep=clock.advance,
+                                      drl_code='# fake', sample_period_s=0.58)
+    with pytest.raises(PreconditionError) as err:              # 기본값(응답 0.5 s, 생존 0.1 s)
+        GripperAdapter(transport, TABLE, GripperCfg(), clock)
+    assert err.value.reason == 'TIMEOUT_BELOW_LOOP_PERIOD'
+    ok = dict(close_pulse=CLOSE_PULSE, response_timeout_s=3 * 0.58, loop_timeout_s=2 * 0.58)
+    GripperAdapter(transport, TABLE, GripperCfg(**ok), clock)  # 경계: 응답 3주기, 생존 2주기
+    for bad in (dict(ok, response_timeout_s=3 * 0.58 - 0.001), dict(ok, loop_timeout_s=2 * 0.58 - 0.001)):
+        with pytest.raises(PreconditionError):
+            GripperAdapter(transport, TABLE, GripperCfg(**bad), clock)
 
 
 @pytest.mark.req('REQ-GRP-016')

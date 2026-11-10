@@ -414,6 +414,7 @@ class GripperAdapter:
         self.clock = clock
         self._sleep = sleep if sleep is not None else (lambda _dt: None)
         self.addresses = address_table(cfg.protocol)
+        self._check_timeouts_against_loop_period()
         self._started = False
         self._last_loop_counter: int | None = None
         self._last_loop_change_s: float | None = None
@@ -653,6 +654,21 @@ class GripperAdapter:
                     return motion_start, present, now, current, True
                 last, last_counter = present, counter
         raise GripperFault('GRIPPER_TIMEOUT', detail='grasp not settled')
+
+    def _check_timeouts_against_loop_period(self) -> None:
+        """상태를 표본 주기로 올리는 transport(상주 루프)에서는 제한시간이 주기보다 짧으면 판정이 불가능하다.
+
+        열기·닫기 1회 = 목표 쓰기 + 확인 표본, 막힘 판정 = 새 표본 2개이므로 응답 제한은 3주기 이상,
+        생존 감시는 REQ-GRP-013의 2배 주기 이상이어야 한다. 주기를 알리지 않는 transport는 검사하지 않는다.
+        """
+        period = getattr(self.transport, 'sample_period_s', None)
+        if period is None:
+            return
+        cfg = self.cfg
+        if cfg.response_timeout_s + EPS < 3.0 * period or cfg.loop_timeout_s + EPS < 2.0 * period:
+            raise PreconditionError(
+                'TIMEOUT_BELOW_LOOP_PERIOD',
+                f'response {cfg.response_timeout_s} s < 3×{period} s or loop {cfg.loop_timeout_s} s < 2×{period} s')
 
     def _holding(self, width_m: float, current_ma: float) -> bool | None:
         cfg = self.cfg
