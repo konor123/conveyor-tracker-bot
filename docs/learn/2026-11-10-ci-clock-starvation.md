@@ -53,3 +53,10 @@ TC-MCK-005-01(`test_injected_events_appear_at_scheduled_time`)은 mock 세계 �
 - 대신 프레임 누락이 늘어 frame_drop 구간 앞뒤 확인이 실패했다(CI 3회 중 2회). 세계 노드를 시험 프로세스로 되돌려 봤지만 WSL에서도 누락이 줄지 않아, 누락은 `/clock`이 프로세스 사이로 전달되는 방식에서 생기는 것으로 보인다.
 - **교훈: 한 증상(늦은 프레임)을 고친 변경이 다른 증상(누락)을 만들었다.** 진단 출력에 누락 수를 함께 남겨 두었기 때문에 언제부터 늘었는지 커밋 단위로 짚을 수 있었다.
 - **언제 멈추나:** 같은 시험을 다섯 번 고쳤다. 공유 CI 러너에서 30 Hz Python mock의 실시간 프레임 커버리지를 매번 보장하는 것은 시험 기반 문제가 아니라 명세 결정(실시간 누락을 판정에 넣을지)이 되었다. 그래서 고치기를 멈추고 사용자에게 선택지를 물었다.
+
+## 마무리: 실시간 시험은 PC에서 판정 (사용자 결정 (3))
+
+- 실시간 스케줄에 의존하는 시험에 `realtime_pc` 마커를 달았다. CI는 판정 단계에서 이 시험을 빼고(`-m "not realtime_pc"`), 별도 단계에서 실행해 결과를 실행 요약에 남긴다(`continue-on-error`). 판정은 LEGION(꺼져 있으면 officepc WSL)에서 하고 worklog에 적는다.
+- 같은 시험이 CI에서는 3회 중 2회 실패(발행 지연 0.31~0.85 s), officepc에서는 3회 모두 통과(0.056 s 이하)했다. 공유 러너의 스케줄 지연은 우리 코드가 통제할 수 없는 환경 조건이다. 무엇을 어디서 판정하는지를 명세(SPEC-700 v0.7, TEST_SPEC 0.3절)에 적어 두면 "CI가 빨갛다"와 "제품이 틀렸다"를 구분할 수 있다.
+- **함정: `continue-on-error` 단계는 시험이 실패해도 단계 결론이 success로 보인다.** 실제 결과는 로그의 PASSED/FAILED나 실행 요약 문구로 확인한다.
+- 확인: `python3 -m pytest src/drop_mocks/test --ignore=src/drop_mocks/test/contract -m realtime_pc -s`(PC).
