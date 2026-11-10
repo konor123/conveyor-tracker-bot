@@ -383,6 +383,11 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-ROB-009-01 | 해제 게이트 미통과 시 그리퍼를 열지 않는다 | U | `[ON]` | 게이트 항목을 하나씩 위반(5항목) | `FakeGripper` open 호출 0회, 결과 L3 요청 |
 | TC-ROB-010-01 | 동기 유지 후퇴 | U | `[ON]` | `SafeRetreat(keep_sync=true)` | z가 안전 높이에 닿을 때까지 XY 지령 속도 = 계획 속도 ± 1 mm/s |
 | TC-ROB-011-01 | virtual 모드 형식 확인 | C | `[ON]` | Doosan `mode:=virtual`(지원 시) | 선정 stream·`move_line` 요청이 거부 없이 수락. 미지원이면 stub로 대체하고 skip 사유 기록 |
+| TC-ROB-013-01 | XY 추종 목표·메시지 변환 | U | `[ON]` | release_xy (0.52, 0) m·v (0.02, 0) m/s·release 2 s, 현재 1 s / 새 revision에서 v 0.03 m/s / `InterceptPlan` 필드 | 목표 (0.50, 0) m, 전진 지령 / 목표 (0.49, 0) m / 시각·위치·속도·식별자 그대로 대응 |
+| TC-ROB-013-02 | 계획 수락 조건과 래치 | U | `[ON]` | epoch·track·plan_id 변경, status ≠ OK, frame ≠ `robot_base`, 비유한 속도, 만료, 시각 순서 위반, `position_std` 초과 / 같은 revision 재수신 / 입력 상태 나이 0.3 s | 거부, 이후 출력 비활성, 다음 revision도 거부 / 무시, 수신 감시 갱신 없음(0.25 s 뒤 `PLAN_STALE`) / 거부 |
+| TC-ROB-013-03 | 감시 | U | `[ON]` | steady 간격 0.03 s 초과 / ROS 시계 역행 / TCP 나이 0.51 s·미래 시각 / ROS 시계 정지 + steady 진행 / 만료 / 계획 없음 / 비유한 TCP | `LOOP_GAP` / `CLOCK_BACKWARD` / `TCP_STALE` / `PLAN_STALE` / `PLAN_EXPIRED` / `WAIT_PLAN` / `NONFINITE`, 모두 비활성·속도 (0, 0) |
+| TC-ROB-013-04 | 제한·작업영역·설정 | U | `[ON]` | 큰 오차 15주기 / TCP (2, 0) m / 주기 0, Kp NaN, 작업영역 역전, 주기 > 간격 한도 | `|v| ≤ v_max`, `|Δv| ≤ a_max·dt` / `WORKSPACE` / 생성 시 예외 |
+| TC-ROB-013-05 | 정지와 명시적 재무장 | U | `[ON]` | `stop` 뒤 주기 / `arm` 후 같은 계획 | 비활성 / 수락·활성 |
 | TC-ROB-012-01 | Heartbeat | C | `[ON]` | 10 s 관찰 | 10 Hz ± 10%, seq 연속 |
 
 ### 3.9 GRP — 그리퍼(RH-P12-RN(A), 상주 루프 DRL 경유)

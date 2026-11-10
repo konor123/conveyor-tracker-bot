@@ -243,6 +243,7 @@
 
 - [ ] `[ON]` 2절에서 확정한 스트림으로 추종 루프 구현(비전 30 Hz와 분리된 고정 주기)
 - [ ] `[ON]` `v_cmd = v_ff(병뚜껑 속도) + Kp·(p_target(t) − p_tcp)`, 속도·가속 제한, freshness 초과 시 정지(L0) 단위 테스트(TC-ROB-*)
+  - XY 추종 코어 `robot_control/belt_sync.py`(REQ-ROB-013, TC-ROB-013-01~05 U)와 지령 없는 그림자 노드 `belt_sync_preview`(`/tracking_preview/cmd_vel`). 합성 데모(TCP 1차 지연 50 ms 가정) XY p95 0.14 mm는 합성값이다. 스트림 지령 연결과 L0 정지 경로는 이 항목의 남은 조건이다.
 - [ ] `[ON]` 초기 실험 조건 정의: 고정 자세, XY 동기 + Z 독립
 - [ ] `[ON]` `DynamicPlace` 액션의 접근·동기 구간 먼저 구현, `intercept_plan` revision·epoch 확인
 - [ ] `[ON*]` `mock_robot_controller_node`에 TCP 1차 지연 모델 추가(G0 측정값 사용)
