@@ -149,10 +149,11 @@ def test_injected_events_appear_at_scheduled_time(ros):
         env=dict(os.environ, ROS_DOMAIN_ID=str(DOMAIN)), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     robot = MockRobotControllerNode(parameter_overrides=_params('all_events', t0) + sim)
     h = Harness(robot, use_sim_time=True)
+    raw = {'dets': [], 'trks': [], 'belt': []}
     try:
-        dets = h.record(ObjectDetectionArray, 'objects/detections', steady=True)
-        trks = h.record(TrackedObjectArray, 'objects/tracked', steady=True)
-        belt = h.record(BeltMotion, 'belt/measured_motion', steady=True)
+        raw = {name: h.record(typ, topic, steady=True, info=True) for name, typ, topic in (
+            ('dets', ObjectDetectionArray, 'objects/detections'), ('trks', TrackedObjectArray, 'objects/tracked'),
+            ('belt', BeltMotion, 'belt/measured_motion'))}
         hbs = h.record(Heartbeat, 'system/heartbeat', steady=True)
         pick = h.action(PickStone, 'robot/pick_stone')
         h.wait_for(lambda: any(m.node_name == 'vision_node' for _, m in hbs), WORLD_LEAD_S - 1.0,
@@ -172,19 +173,28 @@ def test_injected_events_appear_at_scheduled_time(ros):
         world.terminate()
         world.wait(timeout=5)
         clock.close()
-        # seq·stamp·수신 steady 시각(시나리오 기준)과 누락 sequence. 지연 = 수신 − k/30(clock_jump 구간 제외)
-        received = [(m.image_seq, from_time(m.header.stamp), t - steady_t0) for t, m in dets]
-        seqs = {row[0] for row in received}
+        # 데이터 수신 시각은 미들웨어 수신 시각(REQ-MCK-005)이다. 시스템 시계 절대값은 단조 시계와 어긋날 수
+        # 있어, 콜백 steady 시각에서 (콜백 때 시스템 시각 − 미들웨어 시각)만큼 거슬러 올라가 옮긴다.
+        def back(t_cb, wall_cb_ns, wall_ns):
+            return t_cb - (wall_cb_ns - wall_ns) * 1e-9
+        dets, trks, belt = ([(back(t, w, i['received_timestamp']), m) for t, m, i, w in raw[k]]
+                            for k in ('dets', 'trks', 'belt'))
+        rows = [(m.image_seq, back(t, w, i['source_timestamp']) - steady_t0,
+                 back(t, w, i['received_timestamp']) - steady_t0, t - steady_t0)
+                for t, m, i, w in raw['dets']]
+        seqs = {row[0] for row in rows}
         missing = sorted(set(range(min(seqs), max(seqs) + 1)) - seqs) if seqs else []
-        late = [t - k * FRAME for k, _, t in received if k >= 0]
+        def worst(col):
+            v = [r[col] - r[0] * FRAME for r in rows if r[0] >= 0]
+            return max(v) if v else None
         print({'cpu_count': os.cpu_count(), 'clock_period_s': clock.period_s,
-               'receive_lateness_max_s': max(late) if late else None,
-               'received_seq_stamp_steady': received, 'missing_sequences': missing})
+               'lateness_max_s': {'publish': worst(1), 'middleware_receive': worst(2), 'python_callback': worst(3)},
+               'seq_publish_receive_callback': rows, 'missing_sequences': missing})
 
     def scen(stamp):                 # stamp → 시나리오 시각(clock_jump 전)
         return from_time(stamp) - t0
 
-    # Invert clock_jump using independent receive time (offset is 5 s, transport
+    # Invert clock_jump using the middleware receive time (offset is 5 s, transport
     # bound is 0.2 s). This also checks post-jump frames without stamp ambiguity.
     def frame_t(received_at, msg):
         raw = scen(msg.header.stamp)

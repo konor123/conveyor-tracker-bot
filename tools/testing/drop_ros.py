@@ -127,14 +127,25 @@ class Harness:
     def now(self) -> float:
         return self.client.get_clock().now().nanoseconds * 1e-9
 
-    def record(self, typ, topic, steady: bool = False):
+    def record(self, typ, topic, steady: bool = False, info: bool = False):
         """수신 (수신 시각, 메시지) 목록. 목록은 계속 채워진다.
 
         수신 시각은 ROS 시각이다. `steady=True`면 `time.monotonic()`으로 남긴다(시계 점프와 무관한 주기 측정용).
+        `info=True`면 (콜백 시각, 메시지, 미들웨어 정보, 콜백 때 시스템 시각 [ns])를 남긴다. 미들웨어 정보는
+        rclpy `MessageInfo`의 `source_timestamp`(발행)·`received_timestamp`(미들웨어 수신) [ns, 시스템 시각]로,
+        시험 프로세스의 Python 콜백이 늦게 돌아도 바뀌지 않는다. 시스템 시계는 보정으로 단조 시계와 어긋날 수
+        있으므로(부하 걸린 WSL에서 2.5 s 어긋남을 초당 약 1 s씩 따라잡는 것을 관측) 절대값을 단조 시각에
+        옮기지 말고 `콜백 시각 − (콜백 때 시스템 시각 − 미들웨어 시각)`처럼 짧은 구간의 차이로만 쓴다.
         """
         box = []
         clock = time.monotonic if steady else self.now
-        self.client.create_subscription(typ, topic, lambda m: box.append((clock(), m)), RECORD_QOS,
+        if info:
+            def cb(m, i):
+                box.append((clock(), m, i, time.time_ns()))
+        else:
+            def cb(m):
+                box.append((clock(), m))
+        self.client.create_subscription(typ, topic, cb, RECORD_QOS,
                                        event_callbacks=SubscriptionEventCallbacks(use_default_callbacks=False))
         return box
 

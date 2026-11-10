@@ -40,3 +40,9 @@ TC-MCK-005-01(`test_injected_events_appear_at_scheduled_time`)은 mock 세계 �
 - **아직 남은 빈틈:** 실행 중인 skill이 없을 때(검출 서비스 호출 중, 단계 사이, WAIT_CAP 대기) 감시 노드가 보낸 Stop은 오케스트레이터에 전달되지 않는다. 로봇 쪽에서 "작업자가 풀 때까지 정지 중"을 알리는 신호가 필요하며 인터페이스 결정이 필요하다.
 
 확인: `python3 -m pytest src/orchestrator/test/test_node_failure_regressions.py -k stopped`(GCE, ROS 없이), `python3 -m pytest src/robot_control/test/test_robot_controller_stop.py`(ROS 필요, PC).
+
+## 세 번째 시도: 무엇을 재는지 바로잡기 (사용자 결정 (가))
+
+- REQ-MCK-005의 0.2 s 상한은 유지하고, 데이터 프레임의 "수신 시각"을 Python 콜백 시각이 아니라 미들웨어 수신 시각(rclpy `MessageInfo.received_timestamp`)으로 바꿨다. 발행 시각(`source_timestamp`)과 콜백 시각은 진단으로 함께 출력한다. 실패하면 발행 쪽·전송·수신 처리 중 어디가 늦었는지 바로 보인다.
+- **함정: 시스템 시계는 단조 시계와 다르게 움직인다.** 미들웨어 시각은 시스템 시계다. 처음에는 시험 시작 때 한 번 잡은 원점으로 옮겼는데, 부하가 걸린 WSL에서 시스템 시계가 약 2.5 s 뒤처졌다가 초당 약 1 s씩 따라잡는 바람에 "프레임이 발행 전에 도착했다"는 엉뚱한 값이 나왔다. 그래서 콜백 때 시스템 시각과 미들웨어 시각의 *차이*만 써서 콜백 steady 시각에서 거슬러 올라간다. 수신에서 콜백까지는 짧으므로 그 사이 시계 보정의 영향이 작다. 11월 9일에 시험 시계를 단조 시계 기반으로 만든 이유와 같은 문제다.
+- 확인: `python3 -m pytest src/drop_mocks/test/test_mock_nodes.py -k test_injected_events_appear_at_scheduled_time -s`(PC, ROS 필요). 출력의 `lateness_max_s`에 발행·미들웨어·콜백 지연 최대값이 나온다.
