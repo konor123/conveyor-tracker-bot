@@ -102,6 +102,10 @@ def main(argv=None):
     ap.add_argument('--config', action='append', default=[], help='덮어쓰기 YAML(여러 번 가능)')
     ap.add_argument('--execute', action='store_true', help='실제 로봇·그리퍼 지령을 보낸다([OFF], 입회 필수)')
     ap.add_argument('--confirm', action='store_true', help='단계마다 Enter를 받아 진행')
+    ap.add_argument('--one-drl', action='store_true',
+                    help='사이클 전체를 DRL 프로그램 하나로 실행한다(그리퍼 확인 1회, 이미 열려 있으면 열기 생략). '
+                         '--confirm과 함께 쓸 수 없다')
+    ap.add_argument('--stop-after', help='--one-drl 전용. 이 단계까지만 실행하고 끝낸다(첫 실기 확인용, 투입 확인 생략)')
     ap.add_argument('--save-image', help='검출에 쓴 프레임 저장 경로')
     ap.add_argument('--resume-from', help='중단된 실행을 이 단계부터 잇는다. --stone-xyz·--cap-xyz(앞 실행 로그의 targets)와 함께 쓴다')
     ap.add_argument('--stone-xyz', type=float, nargs=3, help='공깃돌 윗면 [m](--resume-from 전용)')
@@ -112,6 +116,10 @@ def main(argv=None):
     args = ap.parse_args(argv)
     if args.image and args.execute:
         ap.error('--image는 계획 확인용이다. 실행은 현재 카메라 프레임으로만 한다')
+    if args.one_drl and (args.confirm or args.resume_from):
+        ap.error('--one-drl은 한 프로그램으로 끝까지 실행한다. --confirm·--resume-from과 함께 쓸 수 없다')
+    if args.stop_after and not args.one_drl:
+        ap.error('--stop-after는 --one-drl 전용이다(단계별 실행은 --confirm을 쓴다)')
 
     import rclpy
     cfg = load_config(args.config)
@@ -177,14 +185,19 @@ def _cycle(node, cfg, p, geom, args, robot, wait_s: float) -> int:
                 return 2
         else:
             log('plan', step=s.name, pulse=s.pulse, current_ma=s.current_ma, grasp=s.grasp)
+    if args.stop_after:
+        steps = truncate_steps(steps, args.stop_after)
     if not args.execute:
         log('dry_run_done')
         return 0
     t0 = time.monotonic()
     log('ready', status=robot.check_ready())
-    code = _run_steps(robot, steps, p, args.confirm)
+    code = _run_one_drl(robot, steps, p) if args.one_drl else _run_steps(robot, steps, p, args.confirm)
     if code:
         return code
+    if args.stop_after:
+        log('partial_done', stop_after=args.stop_after, elapsed_s=round(time.monotonic() - t0, 2))
+        return 0
     code = _verify(node, cfg, geom, cap.position)
     log('cycle_done', elapsed_s=round(time.monotonic() - t0, 2), result='SUCCESS' if code == 0 else 'NOT_VERIFIED')
     return code
@@ -206,6 +219,41 @@ def _run_steps(robot, steps, p, confirm: bool) -> int:
                 # 목표(닫힘 끝점)까지 닫혔다 = 손가락 사이에 돌이 없다
                 log('abort', reason='GRASP_EMPTY', step=s.name)
                 return 4
+    return 0
+
+
+def truncate_steps(steps, stop_after: str):
+    """`stop_after` 단계까지만 남긴다. 이름이 없으면 계획 오류다."""
+    names = [s.name for s in steps]
+    if stop_after not in names:
+        raise PlanError('BAD_STOP_AFTER', f'단계 이름: {names}')
+    return steps[:names.index(stop_after) + 1]
+
+
+def cycle_timeout_s(steps, p) -> float:
+    """한 프로그램 실행 제한시간: 이동은 속도 기준 여유 2배 + 10 s, 그리퍼는 단계마다 `gripper_timeout_s`."""
+    total = 10.0
+    for s in steps:
+        total += p.gripper_timeout_s if s.kind == 'gripper' else 2.0 * 0.6 / max(s.v_mps, 1e-6)
+    return total
+
+
+def _run_one_drl(robot, steps, p) -> int:
+    try:
+        out = robot.run_cycle(steps, DOWN_QUAT_XYZW, cycle_timeout_s(steps, p), p.gripper_read_timeout_s,
+                              on_step=lambda name, sec: log('done', step=name, seconds=round(sec, 2)))
+    except RobotError as exc:
+        log('abort', reason=exc.reason, detail=str(exc))
+        return 4 if exc.reason == 'GRASP_EMPTY' else 2
+    log('one_drl_done', grasp_pulse=out.grasp_pulse, grasp_current_ma=out.grasp_current_ma,
+        grasp_status=out.grasp_status, open_pulse=out.open_pulse, open_status=out.open_status)
+    moves = [s for s in steps if s.kind == 'move']
+    if moves:                                    # 마지막 이동 목표에 실제로 와 있는지 확인한다
+        reached, _ = robot.tcp_pose()
+        if float(np.linalg.norm(reached - np.asarray(moves[-1].pos_m))) > 0.001:
+            log('abort', reason='MOVE_NOT_REACHED', step=moves[-1].name,
+                reached_m=[round(float(x), 4) for x in reached])
+            return 2
     return 0
 
 

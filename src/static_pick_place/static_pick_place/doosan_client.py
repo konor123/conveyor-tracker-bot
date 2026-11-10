@@ -18,8 +18,10 @@ ROBOT_MODE_AUTONOMOUS = 1
 DRL_STATE_PLAY, DRL_STATE_STOP, DRL_STATE_LAST = 0, 1, 3
 DRL_DONE = 250
 DRL_FAILURES = {241: 'GRIPPER_NO_RESPONSE', 242: 'GRIPPER_WRITE_FAILED', 244: 'GRIPPER_HARDWARE_ERROR',
-                245: 'GRIPPER_NOT_SETTLED', 246: 'GRIPPER_MODEL_MISMATCH', 247: 'GRIPPER_MODE_NOT_5'}
+                245: 'GRIPPER_NOT_SETTLED', 246: 'GRIPPER_MODEL_MISMATCH', 247: 'GRIPPER_MODE_NOT_5',
+                248: 'GRASP_EMPTY', 249: 'MOVE_FAILED'}
 _DRL = Path(__file__).with_name('drl') / 'gripper_move.drl'
+_CYCLE_DRL = Path(__file__).with_name('drl') / 'cycle.drl'
 
 
 class RobotError(RuntimeError):
@@ -45,6 +47,46 @@ def render_gripper_drl(pulse: int, current_ma: int, grasp: bool, read_timeout_s:
         raise ValueError('read_timeout_s must be in 0.01..0.5 s')
     return (_DRL.read_text().replace('__PULSE__', str(pulse)).replace('__CURRENT__', str(current_ma))
             .replace('__GRASP__', 'True' if grasp else 'False').replace('__READ_TIMEOUT__', repr(float(read_timeout_s))))
+
+
+@dataclass(frozen=True)
+class CycleOutcome:
+    grasp_pulse: int
+    grasp_current_ma: int
+    grasp_status: int              # 2 = 막힘(쥠)
+    open_pulse: int
+    open_status: int               # 1 = 도달, 3 = 이미 그 위치라 생략
+    step_times_s: tuple            # (단계 이름, 그 단계가 시작된 뒤 다음 단계 시작까지 PC에서 본 시간)
+
+
+def render_cycle_drl(steps, quat_xyzw, read_timeout_s: float = 0.5, ang_v_radps: float = 0.35,
+                     ang_a_radps2: float = 0.7) -> str:
+    """계획 단계(`plan.Step`) 전체를 DRL 프로그램 하나로 만든다. 값 검사는 일회성 그리퍼 DRL과 같다."""
+    if not 0.01 <= read_timeout_s <= 0.5:
+        raise ValueError('read_timeout_s must be in 0.01..0.5 s')
+    if not steps:
+        raise ValueError('steps is empty')
+    rows = []
+    for s in steps:
+        if s.kind == 'move':
+            pose = pose_si_to_doosan(s.pos_m, quat_xyzw)
+            if not 0.0 < s.v_mps <= 0.25 or not 0.0 < s.a_mps2 <= 1.0:
+                raise ValueError(f'{s.name}: v must be in (0, 0.25] m/s, a in (0, 1.0] m/s²')
+            v = speed_si_to_doosan([s.v_mps, 0.0, 0.0], [0.0, 0.0, 0.0])[0]
+            a = speed_si_to_doosan([s.a_mps2, 0.0, 0.0], [0.0, 0.0, 0.0])[0]
+            rows.append('[0, ' + ', '.join(f'{x:.3f}' for x in [*pose, v, a]) + ']')
+        elif s.kind == 'gripper':
+            if type(s.pulse) is not int or not 0 <= s.pulse <= 750:
+                raise ValueError('pulse must be an integer in 0..750 (현장 닫힘 끝점 750)')
+            if type(s.current_ma) is not int or not 1 <= s.current_ma <= 150:
+                raise ValueError('current must be an integer in 1..150 mA (2026-11-09 사용자 승인 상한)')
+            rows.append(f'[1, {s.pulse}, {s.current_ma}, {bool(s.grasp)}]')
+        else:
+            raise ValueError(f'unknown step kind: {s.kind}')
+    ang = speed_si_to_doosan([0.0, 0.0, 0.0], [ang_v_radps, ang_a_radps2, 0.0])
+    return (_CYCLE_DRL.read_text(encoding='utf-8').replace('__STEPS__', '[' + ', '.join(rows) + ']')
+            .replace('__READ_TIMEOUT__', repr(float(read_timeout_s)))
+            .replace('__ANG_V__', f'{ang[3]:.3f}').replace('__ANG_A__', f'{ang[4]:.3f}'))
 
 
 def decode_register_byte(value: int) -> int:
@@ -160,3 +202,60 @@ class DoosanClient:
                 raise RobotError(DRL_FAILURES[marker], f'marker={marker}')
             time.sleep(0.05)
         raise RobotError('GRIPPER_DRL_TIMEOUT', f'{timeout_s} s')
+
+    def run_cycle(self, steps, quat_xyzw, timeout_s: float, read_timeout_s: float = 0.5,
+                  on_step=None) -> CycleOutcome:
+        """사이클 전체를 DRL 하나로 실행한다. 진행 레지스터(14)가 바뀔 때마다 `on_step(이름, 걸린 시간)`을 부른다.
+
+        프로그램이 끝나 STOP이 된 뒤에만 돌아온다. 실패 코드는 `RobotError`로 올리고 팔은 그 단계에서 멈춰 있다.
+        """
+        from dsr_msgs2.srv import DrlStart, GetDrlState, GetOutputRegisterInt
+        code = render_cycle_drl(steps, quat_xyzw, read_timeout_s)
+        state = self._call(GetDrlState, 'drl/get_drl_state').drl_state
+        if state not in (DRL_STATE_STOP, DRL_STATE_LAST):
+            raise RobotError('DRL_BUSY', f'drl_state={state}')
+
+        def byte(addr):
+            return decode_register_byte(self._call(GetOutputRegisterInt, 'plc/get_output_register_int',
+                                                   address=addr, timeout_ms=1000).value)
+
+        reset_seen = byte(15) == 0
+        self._call(DrlStart, 'drl/drl_start', robot_system=0, code=code)
+        deadline = time.monotonic() + timeout_s
+        times: list[tuple[str, float]] = []
+        current, t_step = 0, time.monotonic()
+
+        def advance(to: int) -> None:
+            nonlocal current, t_step
+            now = time.monotonic()
+            while current < to:
+                if current >= 1:
+                    name = steps[current - 1].name
+                    times.append((name, now - t_step))
+                    if on_step is not None:
+                        on_step(name, now - t_step)
+                current += 1
+                t_step = now
+
+        while time.monotonic() < deadline:
+            marker = byte(15)
+            if marker == 0:
+                reset_seen = True
+            if reset_seen:
+                progress = byte(14)
+                if 1 <= progress <= len(steps):
+                    advance(progress)
+                if marker == DRL_DONE:
+                    advance(len(steps) + 1)
+                    b = [byte(a) for a in range(16, 24)]
+                    while self._call(GetDrlState, 'drl/get_drl_state').drl_state not in (DRL_STATE_STOP, DRL_STATE_LAST):
+                        if time.monotonic() > deadline:
+                            raise RobotError('DRL_NOT_STOPPED', 'cycle DRL finished but program still running')
+                        time.sleep(0.05)
+                    return CycleOutcome(b[0] * 256 + b[1], b[2] * 256 + b[3], b[4], b[5] * 256 + b[6], b[7],
+                                        tuple(times))
+                if marker in DRL_FAILURES:
+                    step = steps[current - 1].name if 1 <= current <= len(steps) else 'init'
+                    raise RobotError(DRL_FAILURES[marker], f'marker={marker} step={step}')
+            time.sleep(0.05)
+        raise RobotError('CYCLE_DRL_TIMEOUT', f'{timeout_s} s')
