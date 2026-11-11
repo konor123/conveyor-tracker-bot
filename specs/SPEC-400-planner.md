@@ -43,7 +43,7 @@ SPEC-010 wire schema v0.2 / runtime contract v0.4 기준.
 | `reach.x_reach_start_m` | −0.05 | SPEC-300 `select.x_reach_start_m`과 같은 값. TBD(배치도 OFF-1) |
 | `reach.workspace_min_m` | [0.20, −0.40, 0.00] | `robot_base` 기준 해제 TCP 허용 상자 하한. TBD(배치도 OFF-1) |
 | `reach.workspace_max_m` | [0.70, 0.40, 0.40] | 상한. 같음 |
-| `target.release_tcp_z_m` | 0.10 | 해제 직전 TCP 높이(`robot_base`). 핑거 끝 = 테두리 + `h_clear`가 되도록 TBD(보정 OFF-3, 핑거 어댑터 OFF-4) |
+| `target.release_tcp_z_m` | 0.10 | 해제 직전 TCP 높이(`robot_base`). 핑거 끝 = 테두리 + `h_clear`가 되도록 TBD(보정 OFF-3, 기본 핑거 OFF-4) |
 | `target.tool_quat_xyzw` | [1, 0, 0, 0] | 수직 하향 고정 자세. TBD(G0) |
 | `target.tcp_offset_m` | [0.0, 0.0] | 공깃돌 중심 − TCP(XY, `robot_base`). TBD(측정 OFF-4, `tcp_offset.py`) |
 | `uncertainty.position_std_max_m` | 0.0005 | PLAN.md 4.3절 |
@@ -152,5 +152,5 @@ ok          = time_margin ≥ margin
 ## 9. 미결 사항
 
 - 시간 예산 성분값: TBD(측정 G0 skill 소요시간, G4).
-- `x_exit`·`x_reach_start`·workspace 상자·`release_tcp_z_m`: TBD(배치도 OFF-1, 보정 OFF-3, 핑거 어댑터 OFF-4).
+- `x_exit`·`x_reach_start`·workspace 상자·`release_tcp_z_m`: TBD(배치도 OFF-1, 보정 OFF-3, 기본 핑거 OFF-4).
 - `MODE_PREDICTED`에서 해제 구간 속도 일치 시작 시각(`release_time − t_sync`)과 controller 계약: TBD(SPEC-500 `DynamicPlace`, G4).

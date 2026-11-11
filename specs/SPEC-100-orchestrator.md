@@ -40,7 +40,7 @@ SPEC-010 wire schema v0.2 / runtime contract v0.4 기준.
 | `precheck.gripper_response_max_s` | 0.5 | TBD(측정 G0) |
 | `detect_stone.confidence_min_ratio` | 0.9 | PLAN.md 4.3절 |
 | `detect_stone.window_std_max_m` | 0.0005 | PLAN.md 4.3절 |
-| `detect_stone.clearance_min_m` | 0.02 | TBD(핑거 어댑터 치수, OFF-1) |
+| `detect_stone.clearance_min_m` | 0.02 | TBD(기본 핑거 치수, OFF-1) |
 | `pick_stone.d_stone_min_m` | 0.017 | 실측 OFF-1(2026-11-07), 팔각기둥 면-면 |
 | `pick_stone.d_stone_max_m` | 0.018 | 실측 OFF-1(2026-11-07), 팔각기둥 꼭짓점-꼭짓점 |
 | `release.d_stone_max_m` | 0.018 | 같음 |
