@@ -59,20 +59,20 @@
 ## 1. Spec·시험 명세·계약·골격 → M0 (전부 `[ON]`)
 
 - [x] `[ON]` `specs/` 구성, spec 템플릿·REQ ID 체계(`PLAN.md` 8절)
-- [ ] `[ON]` SPEC-000(system), 010(interfaces), 100(orchestrator), 110(abort-timeout), 700(mocks), 800(records) v0.1 작성·리뷰
-  - SPEC 6종의 M0 범위·해제 후 정리·감시 게이트·기록 계약과 REQ·TC 연결. 독립 리뷰 지적 사항에 대한 재확인이 확정 조건이다.
-- [ ] `[ON]` `TEST_SPEC.md`의 M0 대상 시험 케이스(SYS·IF·ORC·ABT·MCK·REC·INT-I0) 리뷰 후 확정
-  - M0 게이트 REQ 49·TC 93, 연결 누락 0. 독립 리뷰 지적 사항에 대한 재확인이 확정 조건이다.
-- [ ] `[ON]` `drop_interfaces` 1차: 데이터 msg, `TaskStatus`, `Heartbeat`, `StepRecord`, skill action/srv, `DropTask` (TC-IF-*)
-  - officepc WSL의 10개 패키지 빌드와 계약 시험 통과. SPEC-010·M0 TC 재확인이 완료 조건이다.
+- [x] `[ON]` SPEC-000(system), 010(interfaces), 100(orchestrator), 110(abort-timeout), 700(mocks), 800(records) v0.1 작성·리뷰
+  - SPEC 6종의 M0 범위·해제 후 정리·감시 게이트·기록 계약과 REQ·TC 연결. 2026-11-11 독립 재검수(Codex)에서 원 지적 해결 확인, SPEC-800 v0.7에서 저장 루트·설치 schema 문구를 구현(`record_logger_node.repo_path`, `setup.py`)과 맞춤(`/srv/cloud-workspace/memory/projects/conveyor-tracker-bot/m0-rereview-2026-11-11.md`).
+- [x] `[ON]` `TEST_SPEC.md`의 M0 대상 시험 케이스(SYS·IF·ORC·ABT·MCK·REC·INT-I0) 리뷰 후 확정
+  - M0 게이트 REQ 50·TC 94, 연결 누락 0. 2026-11-11 독립 재검수(Codex)에서 원 지적 P1-1~P3-2 해결 확인, 시험 명세로 확정(`/srv/cloud-workspace/memory/projects/conveyor-tracker-bot/m0-rereview-2026-11-11.md`).
+- [x] `[ON]` `drop_interfaces` 1차: 데이터 msg, `TaskStatus`, `Heartbeat`, `StepRecord`, skill action/srv, `DropTask` (TC-IF-*)
+  - officepc WSL의 10개 패키지 빌드와 계약 시험 통과. SPEC-010(robot/status 수신 steady 측정, 실제 orchestrator QoS 시험)과 TC-IF 재확인 2026-11-11 독립 재검수.
 - [x] `[ON]` 공통 요청 필드(`cycle_id`·`step_id`·`deadline`), QoS, revision·epoch 처리, lifecycle 비활성 시 응답을 SPEC-010에 고정
 - [x] `[ON]` 타이머별 시계 정책(ROS 시각 / steady)을 SPEC-110에 고정(`PLAN.md` 6.2절)
 - [x] `[ON]` 접두 없는 패키지 이름이 underlay와 겹치지 않는지 첫 빌드에서 확인(TC-SYS-*)
 - [x] `[ON]` `orchestrator` 골격: `state_machine.py`, `step_judges.py`, `abort_policy.py`, `deadlines.py` 순수 모듈 + `test/fakes/`(skill port·fake clock) 단위 테스트(TC-ORC-*, TC-ABT-*)
 - [x] `[ON]` 장애 10종을 `abort_policy`·`deadlines` 단위 테스트의 이벤트 열로 작성(`PLAN.md` 7.3절)
 - [ ] `[ON]` `orchestrator_node`, `safety_supervisor_node`, `record_logger_node`
-  - F1~F8의 결함 처리 및 F4 감시 연결의 G0/G3/G4 게이트 조건, 해제 후 N1 정리 경로 시험. N1 수정 후 노드 묶음 독립 재검수가 완료 조건이다.
-  - 실행 중 skill이 `Stop`으로 끝나면(`STOPPED`) 하드 이상 L4로 처리한다(REQ-ORC-011, TC-ORC-011-01, CI run 42781388215 attempt 2·3과 42784411464 attempt 3에서 계약·I0 포함 전 단계 통과). 실행 중인 skill이 없을 때(검출 서비스 호출 중, 단계 사이, WAIT_CAP 대기) 감시 노드가 보낸 Stop은 오케스트레이터에 전달되지 않는다. 로봇 쪽에서 작업자 해제 전까지 정지 상태를 알리는 신호와 그 처리가 완료 조건에 포함된다.
+  - F1~F8의 결함 처리 및 F4 감시 연결의 G0/G3/G4 게이트 조건, 해제 후 N1 정리 경로 시험. 2026-11-11 독립 재검수에서 N1·F3·F8 해결 확인(`/srv/cloud-workspace/memory/projects/conveyor-tracker-bot/m0-rereview-2026-11-11.md`).
+  - 실행 중 skill이 `Stop`으로 끝나면(`STOPPED`) 하드 이상 L4로 처리한다(REQ-ORC-011, TC-ORC-011-01, CI run 42781388215 attempt 2·3과 42784411464 attempt 3에서 계약·I0 포함 전 단계 통과). 실행 중인 skill이 없을 때(검출 서비스 호출 중, 단계 사이, WAIT_CAP 대기) 감시 노드가 보낸 Stop은 오케스트레이터에 전달되지 않는다. 감시 노드만 controller heartbeat `error_code` 100(보호정지)을 보며, `robot_controller_node`는 Stop 뒤 다음 goal을 거부하지 않는다(재검수 R1, 순수 Python 재현 `supervisor=PROTECTIVE_STOP orchestrator=None`). 로봇 소유의 정지 latch·사유와 작업자 해제 계약, Stop 뒤 신규 goal 거부, 오케스트레이터가 그 상태를 단계 전후·모든 대기·사이클 시작에 적용하는 처리와 DETECT_STONE·WAIT_CAP·단계 사이 C/I 시험이 완료 조건이다.
 - [x] `[ON]` `drop_mocks`: `scenario_engine`, `mock_world_node`(`role:=vision|tracking|all`), `mock_robot_controller_node`(소요시간·결과 지정형). 정상 경로 우선, 지연·지터 값은 가정값으로 표기(TC-MCK-*)
 - [x] `[ON]` 계약 테스트 틀(`test/contract/`, 대상을 인자로 받음), `mock_world_node`의 vision·tracker 계약 통과
 - [x] `[ON]` `mock.launch.py`, `launch_testing` 기반 I0 통합 테스트(ROS I0 시나리오 5종)를 CI에 등록(TC-INT-*)

@@ -1,6 +1,6 @@
 # SPEC-800 records
 
-- 버전: v0.6
+- 버전: v0.7
 - 근거: PLAN.md 10절
 - REQ 영역: REC
 
@@ -8,6 +8,7 @@
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
+| v0.7 | 2026-11-11 | 저장 루트의 상대 경로 규칙(SPEC-000 REQ-SYS-005)과 설치 schema 문구 정합 |
 | v0.6 | 2026-11-09 | 일반 설치 schema 및 저장 오류 운용 계약 |
 | v0.5 | 2026-11-09 | 단계 기록의 원본 ROS 시각 보존·역행 허용 명시 |
 | v0.4 | 2026-11-09 | 기록 I/O 실패·직렬화·잘못된 summary 및 schema 부재 처리 |
@@ -42,7 +43,7 @@ SPEC-010 wire schema v0.2 / runtime contract v0.4 기준.
 - 시도 기록 필수 키: `trial_id`, `env`, `interface_version`, `scenario{name, seed}`, `assumed_params`, `gate`, `git_sha`, `mode`, `result`, `abort_level`(0~4), `reason_code`, `passes_skipped`(≥ 0), `cycle_time_s`. 그 밖의 키는 PLAN.md 10.2절 형식을 따르고 새 키를 더해도 된다.
 - 성공률: 분자 = SUCCESS, 분모 = SUCCESS + FAILURE + UNKNOWN. CANCELED·SAFE_ABORT·PROTECTIVE_STOP·NOT_ATTEMPTED는 분모에 넣지 않고 따로 개수를 공개한다. n = 0이면 구간은 [0, 1].
 - 분위수 보고: p50, p95, p99, 최대값.
-- 저장 루트는 `records_dir`(기본 `DROP_RECORDS_DIR` 또는 실행 cwd의 `records/trials`)다. 날짜는 명시한 `date`, 생략 시 프로세스 호스트의 로컬 날짜를 기동 시 고정한다. 자정 자동 회전은 없다. 단계는 `task/step_record`, 시도는 orchestrator의 `last_trial_json` 파라미터 이벤트에서 기록하며 같은 직전 trial_id는 중복 저장하지 않는다.
+- 저장 루트는 `records_dir`(기본 `DROP_RECORDS_DIR`, 없으면 `records/trials`)다. 절대 경로는 그대로 쓰고, 상대 경로는 SPEC-000 4.4절 규칙(REQ-SYS-005)으로 저장소 루트 기준 절대 경로가 된다: `DROP_REPO_ROOT` → 기록 노드 모듈에서 위로 올라가며 `src`·`records`를 함께 가진 첫 폴더 → 둘 다 없으면 실행 cwd. 날짜는 명시한 `date`, 생략 시 프로세스 호스트의 로컬 날짜를 기동 시 고정한다. 자정 자동 회전은 없다. 단계는 `task/step_record`, 시도는 orchestrator의 `last_trial_json` 파라미터 이벤트에서 기록하며 같은 직전 trial_id는 중복 저장하지 않는다.
 - 단계 `t_start_s`·`t_end_s`는 수신 StepRecord의 원본 ROS 시각을 그대로 보존한다. ROS 역행 시 `t_end_s < t_start_s`도 유효하며, 기록을 단조 시각처럼 재정렬하거나 고치지 않는다.
 - 실패·중단·미시도 기록을 지우지 않는다(PLAN.md 10.2절).
 
@@ -58,7 +59,7 @@ SPEC-010 wire schema v0.2 / runtime contract v0.4 기준.
 
 Logger의 metadata 갱신과 JSONL append는 같은 lock으로 직렬화한다. 파일 생성·쓰기·flush 실패는 callback 밖으로 전파하지 않고 `storage_error`와 경고에 남긴다. trial 중복 확인 상태는 정상 append·flush 성공 뒤에만 확정하므로 실패한 trial의 재전달을 허용한다. 자동 재전달이나 전원 장애에 대한 exactly-once 보장은 없다.
 
-summary의 root·타입·변환 오류는 원문과 오류를 `.invalid.jsonl`에 격리하고 정상 trial 중복 상태에 반영하지 않는다. schema 부재는 검증 오류로 처리하고 정상 trials 파일에 기록하지 않는다. 일반 install은 schema를 별도로 배치해야 하며, schema가 없는 실행은 검증 성공으로 간주하지 않는다.
+summary의 root·타입·변환 오류는 원문과 오류를 `.invalid.jsonl`에 격리하고 정상 trial 중복 상태에 반영하지 않는다. schema 부재는 검증 오류로 처리하고 정상 trials 파일에 기록하지 않는다(6.2절의 설치 schema를 찾지 못한 경우). schema가 없는 실행은 검증 성공으로 간주하지 않는다.
 
 ### 6.2 설치·저장 오류 운용 계약
 
