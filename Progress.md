@@ -14,7 +14,7 @@
 
 | 게이트 | 목표 | 절 | 트랙 | 우선 구현 패키지 | 통합 단계(`PLAN.md` 7.5절) | 현장 세션 | 보고서 |
 |---|---|---|---|---|---|---|---|
-| M0 | spec·시험 명세·계약·오케스트레이터 골격·최소 대역 | 1 | 전원 | `drop_interfaces`, `orchestrator`, `drop_mocks`(mock 2종), `drop_bringup` | I0 | 없음(전부 `[ON]`) | `deliverables/gate-M0-report-<date>.md` |
+| M0 | spec·시험 명세·계약·오케스트레이터 골격·최소 대역 | 1 | 전원 | `drop_interfaces`, `orchestrator`, `drop_mocks`(mock 2종), `drop_bringup` | I0 | 없음(전부 `[ON]`) | 통과(2026-11-11), `deliverables/gate-M0-report-2026-11-11.md` |
 | G0 | 제어 계약·그리퍼(상주 DRL 경유)·안전·현장 치수 | 0, 2 | A | `robot_control`(adapter, skill 서버) | I3 | OFF-1, OFF-2 | `gate-G0-report` |
 | G1 | D455 검출·보정 | 4, 5 | B | `vision`, `calibration` | I1 | OFF-1(자료), OFF-3 | `gate-G1-report` |
 | G2 | 정적 파지·정지 벨트 투입 | 5, 6 | A+B | `robot_control`, `orchestrator`(MODE_STATIC) | I5 | OFF-4 | 사용자 판정 통과(2026-11-11) |
