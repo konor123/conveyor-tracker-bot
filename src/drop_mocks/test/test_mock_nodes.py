@@ -357,6 +357,9 @@ def test_robot_skill_cancel_hang_stop_deadline(ros):
         assert r.stopped and r.result == RESULT['OK']
         res = wait_future(gh.get_result_async(), 2.0).result
         assert (res.result, res.reason_code) == (RESULT['CANCELED'], 'STOPPED')
+        # 정지 유지는 사유 있는 작업자 해제로만 풀린다(SPEC-010 4.5절)
+        from rclpy.parameter import Parameter
+        assert robot.set_parameters([Parameter('stop_release_reason', value='test release')])[0].successful
         # cancel을 받아들이는 skill
         gh = _send(retreat, SafeRetreat.Goal())
         wait_future(gh.cancel_goal_async(), 2.0)

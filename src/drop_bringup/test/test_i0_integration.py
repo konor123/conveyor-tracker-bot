@@ -92,9 +92,38 @@ def _wait_ready(h: Harness, timeout_s: float = 15.0) -> None:
     while time.monotonic() < end:
         seen = {m.node_name for _, m in hbs if m.lifecycle_state == 3}
         if want <= seen and statuses:
+            if not getattr(h, 'settled', False):
+                _settle(h)
             return
         time.sleep(0.05)
     raise AssertionError(f'mock bringup 준비 시간 초과: seen={ {m.node_name for _, m in hbs} }, task={len(statuses)}')
+
+
+BRINGUP_SETTLE_S = 1.5
+BRINGUP_RELEASE_REASON = 'i0: bring-up supervisor heartbeat transient'
+
+
+def _settle(h: Harness) -> None:
+    """기동 직후 안정 대기(TEST_SPEC 0.4절 I0 기동 절차).
+
+    감시 노드는 기동 직후 controller heartbeat를 0.3 s 넘게 늦게 받아 `CONTROLLER_HEARTBEAT_LOST` Stop을
+    보낼 수 있다(대역 발행은 연속). 로봇은 Stop을 정지 유지로 남기므로(SPEC-010 4.5절) 첫 goal 전에 시험이
+    작업자 역할로 사유를 남기고 해제한다. 그 밖의 사유거나 이 구간 뒤의 감시 노드 Stop은 해제하지 않는다.
+    """
+    time.sleep(BRINGUP_SETTLE_S)
+    stops = _get_cancel_stop_history(h)[2]
+    sup = [s['reason_code'] for s in stops if s['requester'] == Stop.Request.SUPERVISOR]
+    assert set(sup) <= {'CONTROLLER_HEARTBEAT_LOST'}, f'기동 중 예기치 않은 Stop: {stops}'
+    if sup:
+        print(f'I0 기동 과도 감시 노드 Stop {len(sup)}회 → 해제', flush=True)
+        _set_params(h, 'mock_robot_controller_node', [_param_str('stop_release_reason', BRINGUP_RELEASE_REASON)])
+    h.settled = True
+    h.bringup_stops = len(stops)
+
+
+def _supervisor_stops_after_settle(h: Harness) -> list[str]:
+    stops = _get_cancel_stop_history(h)[2][getattr(h, 'bringup_stops', 0):]
+    return [s['reason_code'] for s in stops if s['requester'] == Stop.Request.SUPERVISOR]
 
 
 def _set_params(h: Harness, node_name: str, params: list[RosParam]) -> None:
@@ -220,6 +249,7 @@ def test_i0_nominal_20_cycles_and_records(ros, tmp_path):
                 observed = observed[1:]
             assert observed == expected_states, f'seed={seed} 상태 열 불일치: {observed}'
 
+        assert _supervisor_stops_after_settle(h) == []
         t_file = trials_path(str(tmp_path), DATE_STR)
         deadline = time.monotonic() + 5.0
         while time.monotonic() < deadline and len(_read_jsonl(t_file)) < 20:
@@ -290,7 +320,7 @@ def test_i0_robot_hang_escalates_and_stops(ros, tmp_path):
         assert stop_count >= 1
         assert requester == Stop.Request.ORCHESTRATOR
         cancel_count, cancel_received, stops = _get_cancel_stop_history(h)
-        assert cancel_count == 1
+        assert cancel_count == 1, _get_cancel_stop_history(h)
         ours = [s for s in stops if s['requester'] == Stop.Request.ORCHESTRATOR]
         assert ours
         # Both endpoints are observed in one mock process. 20 ms covers cancel transport offset.
@@ -503,8 +533,9 @@ def test_i0_inactive_node_rejected_at_precheck(ros, tmp_path):
             max_passes=3,
         )
         _, res = _send_goal(h, goal, timeout=10.0)
-        assert res.result == DropTask.Result.NOT_ATTEMPTED
-        assert res.reason_code == 'NODE_INACTIVE'
+        assert (res.result, res.reason_code) == (DropTask.Result.NOT_ATTEMPTED, 'NODE_INACTIVE'), (
+            res, _get_cancel_stop_history(h)[2])
+        assert _supervisor_stops_after_settle(h) == []
 
         t_file = trials_path(str(tmp_path), DATE_STR)
         deadline = time.monotonic() + 5.0
@@ -516,6 +547,73 @@ def test_i0_inactive_node_rejected_at_precheck(ros, tmp_path):
         assert trials[0]['reason_code'] == 'NODE_INACTIVE'
         # PRECHECK 외 스킬이 0회 호출되었음을 검증
         assert list(trials[0]['step_durations_s'].keys()) == ['PRECHECK']
+    finally:
+        _stop(proc)
+        h.close()
+
+
+def _skill_runs(h) -> int:
+    res = h.call(GetParameters, '/mock_robot_controller_node/get_parameters', names=['skill_run_count'],
+                 timeout=5.0)
+    return int(res.values[0].integer_value)
+
+
+def _drop_goal(timeout: float = 15.0) -> DropTask.Goal:
+    return DropTask.Goal(mode=DropTask.Goal.MODE_SYNCHRONIZED, max_belt_speed=0.05, timeout=timeout,
+                         max_passes=3)
+
+
+@pytest.mark.req('REQ-ORC-012', 'REQ-MCK-008')
+@pytest.mark.tc('TC-INT-008-01')
+@pytest.mark.level('I0')
+def test_i0_supervisor_stop_without_running_skill(ros, tmp_path):
+    """감시 노드 Stop이 실행 중 skill이 없는 WAIT_CAP에 와도 L4로 끝나고, 해제 전에는 다시 시작하지 않는다."""
+    h = Harness()
+    task_msgs = h.record(TaskStatus, 'task/status')
+    proc = _launch('scenario:=nominal_20mms', 'duration_scale_ratio:=0.12', f'records_dir:={tmp_path}',
+                   f'date:={DATE_STR}')
+    try:
+        _wait_ready(h)
+        ac = h.action(DropTask, 'drop_task', timeout=5.0)
+
+        # 1) WAIT_CAP(병뚜껑 선택·관측 대기, 실행 중 skill 없음)에서 감시 노드 Stop
+        _reset_cycle_clock(h, seed=0)
+        n0 = len(task_msgs)
+        gh = wait_future(ac.send_goal_async(_drop_goal()), 5.0)
+        assert gh.accepted
+        try:
+            h.wait_for(lambda: any(m.state == 'WAIT_CAP' for _, m in task_msgs[n0:]), timeout=10.0,
+                       what='WAIT_CAP')
+        except TimeoutError as exc:
+            raise AssertionError(f'WAIT_CAP 미도달, stops={_get_cancel_stop_history(h)[2]}') from exc
+        r = h.call(Stop, 'robot/stop', requester=Stop.Request.SUPERVISOR, reason_code='I0_WAIT_CAP')
+        assert r.stopped
+        res = wait_future(gh.get_result_async(), 15.0).result
+        stops = _get_cancel_stop_history(h)[2]
+        assert (res.result, res.reason_code) == (DropTask.Result.PROTECTIVE_STOP, 'ROBOT_STOPPED'), (res, stops)
+        # 이 시험이 보낸 Stop 외 감시 노드 Stop은 없어야 한다(대역 heartbeat 공백 검출)
+        assert _supervisor_stops_after_settle(h) == ['I0_WAIT_CAP'], stops
+        h.wait_for(lambda: task_msgs[-1][1].state == 'WAIT_OPERATOR', timeout=2.0, what='WAIT_OPERATOR')
+        assert task_msgs[-1][1].abort_level == 4
+
+        # 2) resume만 하고 로봇을 해제하지 않으면 다음 사이클은 PRECHECK에서 다시 L4
+        _set_params(h, 'orchestrator_node', [_param_str('resume_reason', 'resume_without_robot_release')])
+        h.wait_for(lambda: task_msgs[-1][1].state == 'IDLE', timeout=2.0, what='IDLE')
+        _reset_cycle_clock(h, seed=1)
+        runs = _skill_runs(h)
+        _, res = _send_goal(h, _drop_goal(), timeout=15.0)
+        assert res.reason_code == 'ROBOT_STOPPED', (res.result, res.reason_code)
+        h.wait_for(lambda: task_msgs[-1][1].state == 'WAIT_OPERATOR', timeout=2.0, what='WAIT_OPERATOR')
+        assert task_msgs[-1][1].abort_level == 4
+        assert _skill_runs(h) == runs
+
+        # 3) 작업자가 로봇을 해제하고 재개하면 정상 사이클
+        _set_params(h, 'mock_robot_controller_node', [_param_str('stop_release_reason', 'operator checked')])
+        _set_params(h, 'orchestrator_node', [_param_str('resume_reason', 'robot_released')])
+        h.wait_for(lambda: task_msgs[-1][1].state == 'IDLE', timeout=2.0, what='IDLE')
+        _reset_cycle_clock(h, seed=2, t0_offset_s=-2.5)
+        _, res = _send_goal(h, _drop_goal(), timeout=20.0)
+        assert res.result == DropTask.Result.SUCCESS, (res.result, res.reason_code, _get_cancel_stop_history(h)[2])
     finally:
         _stop(proc)
         h.close()

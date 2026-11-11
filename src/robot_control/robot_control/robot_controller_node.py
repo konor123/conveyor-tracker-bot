@@ -3,6 +3,7 @@
 판단은 `skill_logic.py`가 한다. 기본 backend는 `disabled`이며 어떤 파라미터도
 실기 연결을 암묵적으로 만들지 않는다. `backend:=fake`는 시뮬레이션 값만 쓴다.
 DynamicPlace는 계획기·추종 제어가 준비될 때까지 PRECONDITION으로 닫는다.
+`Stop`은 정지 유지를 걸고, 작업자가 `stop_release_reason`에 사유를 쓸 때만 풀린다(SPEC-010 4.5절, REQ-ROB-014).
 """
 from __future__ import annotations
 
@@ -19,6 +20,7 @@ from drop_interfaces.msg import Heartbeat, RobotStatus
 from drop_interfaces.srv import Stop
 from geometry_msgs.msg import Point, Pose, Quaternion
 from lifecycle_msgs.msg import State
+from rcl_interfaces.msg import SetParametersResult
 from rclpy.action import ActionServer, CancelResponse, GoalResponse
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.clock import Clock, ClockType
@@ -29,7 +31,8 @@ from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 from std_msgs.msg import Header
 
 from .fake_backend import SimulatedBackend
-from .skill_logic import Result, StaticSkillCfg, StaticSkillExecutor
+from .skill_logic import Result, SkillResult, StaticSkillCfg, StaticSkillExecutor
+from .stop_latch import ERROR_STOP_LATCHED, StopLatch
 
 HEARTBEAT_PERIOD_S = 0.1
 DATA_QOS = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE,
@@ -81,6 +84,7 @@ class RobotControllerNode(LifecycleNode):
         self._active = False
         self._active_goal = False
         self._stop_requested = False
+        self.stop_latch = StopLatch()
         self._seq = 0
         self.cfg = self._load_cfg()
         self.backend_name = str(self.get_parameter('backend').value)
@@ -91,6 +95,7 @@ class RobotControllerNode(LifecycleNode):
         self.status_pub = None
         self.hb_pub = None
         self._timers = []
+        self.add_on_set_parameters_callback(self._on_params)
 
     # ------------------------------------------------------------ 파라미터·설정
     def _declare_parameters(self) -> None:
@@ -116,6 +121,7 @@ class RobotControllerNode(LifecycleNode):
             'fake_tcp_z_m': 0.1,
             'standby_pose': [],
             'safe_pose': [],
+            'stop_release_reason': '',
         }
         for name, value in defs.items():
             self.declare_parameter(name, value)
@@ -222,6 +228,8 @@ class RobotControllerNode(LifecycleNode):
         with self._lock:
             if not self._active or self._active_goal or self.skill.authority.busy:
                 return GoalResponse.REJECT
+            # 수락 시점에 실행 중으로 예약한다: 수락과 실행 사이의 작업자 해제를 GOAL_ACTIVE로 막는다
+            self._active_goal = True
         return GoalResponse.ACCEPT
 
     def _executor_for(self, name):
@@ -230,6 +238,7 @@ class RobotControllerNode(LifecycleNode):
     def _execute(self, name, goal_handle):
         with self._lock:
             self._active_goal = True
+            latched = self.stop_latch.latched
         self._stop_requested = False
         goal = goal_handle.request
         typ = ACTIONS[name][0]
@@ -239,7 +248,7 @@ class RobotControllerNode(LifecycleNode):
             deadline_s = raw_deadline
 
         def cancel():
-            return bool(goal_handle.is_cancel_requested or self._stop_requested)
+            return bool(goal_handle.is_cancel_requested or self._stop_requested or self.stop_latch.latched)
 
         def feedback(phase, metrics, done):
             fb = typ.Feedback(phase=phase)
@@ -251,7 +260,10 @@ class RobotControllerNode(LifecycleNode):
             goal_handle.publish_feedback(fb)
 
         try:
-            if name == 'MoveToPose':
+            if latched:
+                # 정지 유지 중: 지령 없이 STOPPED로 끝낸다(SPEC-010 4.5절)
+                res = SkillResult(Result.CANCELED, 'STOPPED', {})
+            elif name == 'MoveToPose':
                 pos, quat = _pose_parts(goal.target_pose)
                 res = self.skill.move_to_pose(pos, quat, deadline_s, cancel, feedback,
                                               named_pose=str(goal.named_pose))
@@ -277,7 +289,8 @@ class RobotControllerNode(LifecycleNode):
             with self._lock:
                 self._active_goal = False
 
-        if self._stop_requested and res.result != Result.OK:
+        # 실행 중 들어온 Stop도 STOPPED로 낸다: 시작 때 본 값만이 아니라 지금의 정지 유지 상태를 다시 읽는다
+        if (self._stop_requested or latched or self.stop_latch.latched) and res.result != Result.OK:
             # Stop으로 선점된 goal은 cancel과 구분해 CANCELED·STOPPED로 끝낸다(SPEC-010 3.2절, REQ-ROB-007)
             res = replace(res, result=Result.CANCELED, reason_code='STOPPED')
         result = typ.Result()
@@ -308,6 +321,7 @@ class RobotControllerNode(LifecycleNode):
 
     # ------------------------------------------------------------ Stop·Status·Heartbeat
     def _on_stop(self, request, response):
+        self.stop_latch.latch(f'{int(request.requester)}:{request.reason_code}')
         self._stop_requested = True
         res = self.skill.stop(str(request.reason_code))
         end = time.monotonic() + 2.0
@@ -336,7 +350,7 @@ class RobotControllerNode(LifecycleNode):
         else:
             pos, quat = self.backend.read_tcp_pose()
             msg.connected = True
-            msg.ready = self._active and not self._stop_requested
+            msg.ready = self.stop_latch.ready(self._active, protective_stop=False)
             msg.protective_stop = False
             msg.tcp_pose = Pose(position=Point(x=float(pos[0]), y=float(pos[1]), z=float(pos[2])),
                                 orientation=Quaternion(x=float(quat[0]), y=float(quat[1]),
@@ -349,10 +363,32 @@ class RobotControllerNode(LifecycleNode):
         if not self._active or self.hb_pub is None:
             return
         self._seq += 1
+        code = self.stop_latch.heartbeat_code(protective_stop=False)
         msg = Heartbeat(node_name='robot_controller_node', lifecycle_state=self.state_id,
-                        seq=self._seq, error_code=0, detail='')
+                        seq=self._seq, error_code=code,
+                        detail='STOP_LATCHED' if code == ERROR_STOP_LATCHED else '')
         msg.header.stamp = self.get_clock().now().to_msg()
         self.hb_pub.publish(msg)
+
+    def _on_params(self, params):
+        """작업자 해제(`stop_release_reason`). 실행 중 goal·보호정지·빈 사유는 거부하고 유지한다."""
+        for p in params:
+            if p.name != 'stop_release_reason':
+                continue
+            with self._lock:
+                was_latched = self.stop_latch.latched
+                code = self.stop_latch.release(str(p.value), goal_active=self._active_goal,
+                                               protective_stop=False)
+            if code:
+                self.get_logger().warning(f'정지 유지 해제 거부: {code}')
+                return SetParametersResult(successful=False, reason=code)
+            if not was_latched:
+                continue                  # 정지 유지 중이 아니면 아무것도 하지 않는다(SPEC-010 4.5절)
+            reset = getattr(self.backend, 'reset_stop', None)
+            if reset is not None:
+                reset()
+            self.get_logger().info(f'정지 유지 해제: {str(p.value).strip()}')
+        return SetParametersResult(successful=True)
 
     # ------------------------------------------------------------ 시각 계약
     def ros_now(self) -> float:

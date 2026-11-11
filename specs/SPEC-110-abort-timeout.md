@@ -1,6 +1,6 @@
 # SPEC-110 abort-timeout
 
-- 버전: v0.8
+- 버전: v0.9
 - 근거: PLAN.md 5, 6절
 - REQ 영역: ABT
 
@@ -8,6 +8,7 @@
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
+| v0.9 | 2026-11-11 | `ROBOT_STOPPED`에 controller 정지 유지(heartbeat 101) 포함, 재개 순서(로봇 해제 → `resume`) |
 | v0.8 | 2026-11-10 | 하드 이상에 `ROBOT_STOPPED`(실행 중 skill이 Stop으로 끝남) 추가 |
 | v0.7 | 2026-11-10 | G7 판정에서 실기 고장 주입 제외 |
 | v0.6 | 2026-11-10 | L1(재시도) 제거, `AbortCtx`를 상태·holding·released로 축소 |
@@ -53,7 +54,7 @@ M0는 감시 판정 함수와 이벤트 입력의 U 검증 범위다. ROS 관측
 
 `decide(event, ctx)`는 다음 순서로 첫 번째로 맞는 등급을 낸다.
 
-1. `HARD_FAULTS`(보호정지, 비상정지, 로봇 통신 단절, `robot_controller` heartbeat 손실, 중단 경로 제한시간 초과, RETREAT 실패, 실행 중 skill이 `Stop`으로 끝남 `ROBOT_STOPPED`) → L4
+1. `HARD_FAULTS`(보호정지, 비상정지, 로봇 통신 단절, `robot_controller` heartbeat 손실, 중단 경로 제한시간 초과, RETREAT 실패, 실행 중 skill이 `Stop`으로 끝남 또는 controller가 `Stop` 정지 유지 중(heartbeat `error_code` 101, SPEC-010 4.5절) `ROBOT_STOPPED`) → L4
 2. `ctx.released` → `CONTINUE_TO_RETREAT_VERIFY`
 3. `ctx.holding` 또는 `ctx.state ∈ DYNAMIC_STATES`(APPROACH, SYNCHRONIZE, DESCEND, RELEASE) 또는 이벤트가 통과 보내기 소진 → L3
 4. 그 외 → L2(단계 실패는 재시도하지 않는다)
@@ -63,7 +64,7 @@ M0는 감시 판정 함수와 이벤트 입력의 U 검증 범위다. ROS 관측
 - 심각도 순서: `NONE < L2 < L3 < CONTINUE_TO_RETREAT_VERIFY < L4`. `escalate(current, new)`는 둘 중 심각한 쪽을 낸다.
 - 중단 경로가 시작되면(L2·L3) steady 시계로 경과를 잰다. 제한시간을 넘으면 L4.
 - cancel을 보낸 뒤 `cancel_response_s` 안에 응답이 없으면 한 단계 올린다(L2→L3, L3→L4).
-- WAIT_OPERATOR에는 제한시간이 없다.
+- WAIT_OPERATOR에는 제한시간이 없다. `Stop`을 받은 controller는 작업자가 정지 유지를 해제(`stop_release_reason`)할 때까지 지령을 실행하지 않으므로, 재개는 로봇 해제 뒤 `resume` 순서다(SPEC-010 4.5절, REQ-ORC-012).
 
 ### 4.3 감시
 

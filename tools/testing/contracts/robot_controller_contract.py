@@ -16,6 +16,8 @@ from action_msgs.msg import GoalStatus
 from drop_interfaces.action import DropTask, DynamicPlace, MoveToPose, PickStone, PlaceStone, SafeRetreat
 from drop_interfaces.msg import RobotStatus
 from drop_interfaces.srv import Stop
+from rcl_interfaces.msg import Parameter as RosParam, ParameterType, ParameterValue
+from rcl_interfaces.srv import SetParameters
 from rclpy.action import get_action_names_and_types
 
 import common
@@ -79,6 +81,21 @@ def _send(h, name, goal, feedback=None):
 
 def _result(gh):
     return drop_ros.wait_future(gh.get_result_async(), RESULT_TIMEOUT_S)
+
+
+STOP_LATCHED = 101     # SPEC-010 3.4절
+
+
+def _release(h, reason: str):
+    """작업자 해제(SPEC-010 4.5절). 파라미터 설정 결과를 돌려준다."""
+    p = RosParam(name='stop_release_reason',
+                 value=ParameterValue(type=ParameterType.PARAMETER_STRING, string_value=reason))
+    res = h.call(SetParameters, f'/{h.target.node}/set_parameters', parameters=[p])
+    return res.results[0]
+
+
+def _ctrl_hb(h, since: float):
+    return [m for t, m in h.heartbeats if t >= since and m.node_name == 'robot_controller_node']
 
 
 class TestRobotControllerContract:
@@ -192,6 +209,42 @@ class TestRobotControllerContract:
         res = _result(gh)
         assert (res.result.result, res.result.reason_code) == (common.RESULT_CANCELED, 'STOPPED')
         assert res.status in (GoalStatus.STATUS_ABORTED, GoalStatus.STATUS_CANCELED)
+        assert _release(h, 'contract: stop test done').successful
+
+    @pytest.mark.req('REQ-MCK-008', 'REQ-ROB-014')
+    @pytest.mark.tc('TC-MCK-008-01')
+    def test_robot_stop_latches_until_release(self, robot_contract):
+        h = robot_contract
+        r = h.call(Stop, 'robot/stop', requester=Stop.Request.SUPERVISOR, reason_code='CONTRACT_IDLE')
+        assert r.stopped and r.result == common.RESULT_OK
+        t0 = time.monotonic()
+        h.wait_for(lambda: len(_ctrl_hb(h, t0)) >= 2 and len([1 for t, _ in h.status if t >= t0]) >= 2,
+                   2.0, '정지 유지 뒤 heartbeat·status')
+        assert all(m.error_code == STOP_LATCHED for m in _ctrl_hb(h, t0)), [m.error_code for m in _ctrl_hb(h, t0)]
+        assert not any(m.ready for t, m in h.status if t >= t0)
+        # 유지 중 goal: 수락하고 지령 없이 CANCELED(STOPPED), phase feedback 0회
+        fbs = []
+        gh = _send(h, 'robot/place_stone', _goal(h, 'robot/place_stone'), feedback=fbs.append)
+        assert gh.accepted
+        res = _result(gh)
+        assert (res.result.result, res.result.reason_code) == (common.RESULT_CANCELED, 'STOPPED')
+        assert fbs == []
+        # 빈 사유는 거부하고 유지한다
+        bad = _release(h, '')
+        assert not bad.successful and 'REASON_REQUIRED' in bad.reason
+        t1 = time.monotonic()
+        h.wait_for(lambda: len(_ctrl_hb(h, t1)) >= 1, 1.0, '거부 뒤 heartbeat')
+        assert _ctrl_hb(h, t1)[-1].error_code == STOP_LATCHED
+        # 사유 있는 해제 뒤 정상
+        assert _release(h, 'contract: operator checked').successful
+        t2 = time.monotonic()
+        h.wait_for(lambda: len(_ctrl_hb(h, t2)) >= 2 and len([1 for t, _ in h.status if t >= t2]) >= 2,
+                   2.0, '해제 뒤 heartbeat·status')
+        assert all(m.error_code == 0 for m in _ctrl_hb(h, t2))
+        assert all(m.ready for t, m in h.status if t >= t2)
+        gh = _send(h, 'robot/move_to_pose', _goal(h, 'robot/move_to_pose'))
+        assert gh.accepted
+        assert _result(gh).result.result == common.RESULT_OK
 
     def test_robot_inactive_rejects_goals(self, robot_contract):
         h = robot_contract

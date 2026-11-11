@@ -1,6 +1,6 @@
 # SPEC-010 interfaces
 
-- 버전: v0.5
+- 버전: v0.6
 - 근거: PLAN.md 2.2, 3, 7.4절, `src/drop_interfaces/`
 - REQ 영역: IF
 
@@ -8,6 +8,7 @@
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
+| v0.6 | 2026-11-11 | Stop 정지 유지(latch)와 작업자 해제(`stop_release_reason`), `Heartbeat.error_code` 101 `STOP_LATCHED`, 100 우선 |
 | v0.5 | 2026-11-10 | `CANCELED` 이유 코드 구분: 클라이언트 cancel은 `CANCELED`, 실행 중 `Stop` 선점은 `STOPPED` |
 | v0.4 | 2026-11-09 | M0 검증 범위·게이트 및 독립 계약 기대값 정합성 |
 | v0.1 | 2026-11-07 | msg 9종·srv 6종·action 6종 규약, 공통 요청 필드·결과 코드·상수 표, QoS 표, revision·epoch 규칙, lifecycle 비활성 응답, Heartbeat 오류 코드, 스냅샷 버전 규칙 |
@@ -22,7 +23,7 @@
 
 ## 2. 입력·출력(interface 버전)
 
-wire schema는 v0.2이며 v0.3·v0.4는 필드 선언을 바꾸지 않는 runtime contract다. 시도 기록의 `interface_version = SPEC-010 0.2`는 wire schema를 뜻한다.
+wire schema는 v0.2이며 v0.3~v0.6는 필드 선언을 바꾸지 않는 runtime contract다. 시도 기록의 `interface_version = SPEC-010 0.2`는 wire schema를 뜻한다.
 
 ### 2.1 데이터 및 상태 메시지 (`src/drop_interfaces/msg/`, 10종)
 
@@ -133,6 +134,9 @@ wire schema는 v0.2이며 v0.3·v0.4는 필드 선언을 바꾸지 않는 runtim
 |---|---|---|---|
 | `0` | `""` | 모든 기능 노드 | 정상 |
 | `100` | `"PROTECTIVE_STOP"` | `robot_controller_node` | 로봇 보호정지·비상정지 활성(L4 전이 조건) |
+| `101` | `"STOP_LATCHED"` | `robot_controller_node` | `Stop`을 받아 정지 유지 중. 작업자 해제 전까지 유지(4.5절, L4 전이 조건) |
+
+보호정지와 정지 유지가 함께 있으면 `100`을 낸다(`100` > `101` > `0`).
 
 ### 3.5 토픽·서비스·액션 QoS 표 (PLAN.md 3.3절)
 
@@ -181,6 +185,14 @@ wire schema는 v0.2이며 v0.3·v0.4는 필드 선언을 바꾸지 않는 runtim
 - 빌드 후 `tools/spec/snapshot_interfaces.sh`를 실행해 `specs/snapshots/*.txt` 스냅샷 파일(22개)을 갱신하고, 영향을 받는 대역(`drop_mocks`) 및 계약 시험(`tools/testing/contracts/`)을 같은 변경에서 함께 수정한다.
 - `tools/spec/snapshot_interfaces.sh --check`는 현재 빌드된 `drop_interfaces`의 `ros2 interface show` 출력과 `specs/snapshots/*.txt`를 비교하여 차이가 있으면 종료 코드 1을 반환한다.
 
+### 4.5 `Stop` 정지 유지와 작업자 해제
+
+- `robot/stop`을 받으면 요청자(`ORCHESTRATOR`·`SUPERVISOR`)와 무관하게 controller가 정지 유지 상태가 된다. 실행 중 goal은 `CANCELED`(`STOPPED`)로 끝난다.
+- 정지 유지 중에는 `RobotStatus.ready = false`, `Heartbeat.error_code = 101`(보호정지가 함께 있으면 `100`)이다. lifecycle 비활성·재활성으로 풀리지 않는다.
+- 정지 유지 중 받은 skill goal은 수락한 뒤 로봇·그리퍼 지령 없이 `CANCELED`(`STOPPED`)로 끝낸다(수락 거부 대신 이 결과를 내어 orchestrator가 REQ-ORC-011 경로로 L4 처리한다).
+- 해제는 작업자가 `robot_controller_node` 파라미터 `stop_release_reason`에 비어 있지 않은 사유를 쓸 때만 한다. 정지 유지 중 실행 중 goal이 있거나 보호정지가 활성이면 파라미터 설정을 실패로 돌려주고(`GOAL_ACTIVE`·`PROTECTIVE_STOP`) 유지한다. 정지 유지 중 빈 사유는 `REASON_REQUIRED`로 실패한다. 정지 유지 중이 아닐 때의 설정(파라미터 선언의 기본값 포함)은 아무것도 하지 않고 성공이다. 자동 해제는 없다.
+- 운용 순서: 원인 확인 → 로봇 `stop_release_reason` → orchestrator `resume_reason`(REQ-ORC-009) → 새 `DropTask`. 로봇을 해제하지 않고 재개하면 다음 사이클 시작에서 다시 L4가 된다(REQ-ORC-012).
+
 ## 5. 시간 제약(주기·제한시간)
 
 - `system/heartbeat` 및 `robot/status`: 10 Hz 발행(계약 시험 기준 `10 Hz ± 20%`, 즉 `8.0 ~ 12.0 Hz`, 인접 메시지 간격 `< 0.3 s`, heartbeat `seq` 엄격 단조 증가). 주기·간격은 수신 steady 시각으로 잰다(발행 타이머가 steady이고 `header.stamp`는 ROS 시각이라 시계 점프 때 stamp 간격은 발행 간격과 다르다).
@@ -213,4 +225,4 @@ wire schema는 v0.2이며 v0.3·v0.4는 필드 선언을 바꾸지 않는 runtim
 ## 9. 미결 사항
 
 - Doosan 드라이버 실시간 스트림 토픽(`servol_stream` / `speedl_stream` / RT 계열) 및 그리퍼 상태 읽기 레지스터 경로의 확정 인터페이스·QoS: TBD(측정 G0, SPEC-500).
-- `Heartbeat.error_code`의 로봇·그리퍼 세부 오류 코드 확장(100 외 추가 코드): SPEC-500 작성 시 확정.
+- `Heartbeat.error_code`의 그리퍼 세부 오류 코드 확장(100·101 외): SPEC-500 G0에서 확정.

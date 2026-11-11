@@ -1,4 +1,4 @@
-"""mock_robot_controller_node가 robot_controller 계약을 통과한다(TC-MCK-004-01)."""
+"""mock_robot_controller_node가 robot_controller 계약을 통과한다(TC-MCK-004-01, 정지 유지 TC-MCK-008-01)."""
 import os
 import sys
 
@@ -11,6 +11,8 @@ pytestmark = [
     pytest.mark.tc('TC-MCK-004-01'),
     pytest.mark.req('REQ-IF-005'),
     pytest.mark.tc('TC-IF-005-01'),
+    pytest.mark.req('REQ-MCK-008'),
+    pytest.mark.tc('TC-MCK-008-01'),
     pytest.mark.level('C'),
 ]
 SCENARIO = os.path.join(os.path.dirname(__file__), os.pardir, 'data', 'contract_robot.yaml')

@@ -1,6 +1,6 @@
 # SPEC-700 mocks
 
-- 버전: v0.7
+- 버전: v0.8
 - 근거: PLAN.md 7절
 - REQ 영역: MCK, INT
 
@@ -8,6 +8,7 @@
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
+| v0.8 | 2026-11-11 | REQ-MCK-008 대역의 Stop 정지 유지·작업자 해제 |
 | v0.7 | 2026-11-10 | 실시간 실행 판정은 PC(LEGION 또는 officepc), CI는 실행·기록만 |
 | v0.6 | 2026-11-10 | 실시간 데이터 수신 지연을 미들웨어 수신 시각으로 측정 |
 | v0.5 | 2026-11-09 | 이벤트 프레임 위상과 실시간 최신 프레임 수신의 검증 기준 분리 |
@@ -184,10 +185,11 @@ measured: {<키 경로>: <출처>}
 - REQ-MCK-005: 이벤트 10종은 엔진에서 지정 시각 이후 첫 프레임(`k = ceil(t_event × frame_rate_hz)`, 지연 ≤ 1/`frame_rate_hz` s)에 효과가 나타나고 직전 프레임에는 나타나지 않는다. 30 Hz 데이터의 위상은 시험용 ROS 시각을 한 프레임씩 진행하고 처리·수신을 확인하여 검증한다. 실시간 실행에서는 4.1절의 최신 프레임 발행 정책을 적용한다. 수신한 모든 프레임은 시나리오 stamp와 이벤트 상태가 일치해야 한다(이벤트 시작 전 효과 없음, 시작 후 1프레임부터 종료 전 효과 있음, 종료 후 1프레임부터 효과 없음). 각 데이터 이벤트의 적용 상태를 1회 이상 수신해야 하며, 누락 프레임의 수·sequence는 진단으로 기록한다. 10 Hz heartbeat는 주입 이후 첫 발행 주기(≤ 0.1 s), skill은 주입 이후 첫 검사 주기에 효과가 나타난다. 각 측정은 주입 위상과 수신 시각을 기록한다. 데이터 프레임의 수신 시각은 미들웨어 수신 시각(rclpy `MessageInfo.received_timestamp`)이며, 시스템 시계 보정의 영향을 받지 않도록 콜백 steady 시각에서 콜백 때 시스템 시각과의 차이만큼 거슬러 올라가 단조 시각으로 옮긴다. 프레임 시각 `k / frame_rate_hz` 대비 허용 상한은 0.2 s다. 발행 시각(`source_timestamp`)과 시험 프로세스의 콜백 시각은 진단으로 기록한다. heartbeat·skill 측정은 수신 steady 시각을 쓴다. 실시간 실행 판정은 PC(LEGION, 꺼져 있으면 officepc WSL)에서 하며, 공유 CI 러너에서는 실행·기록만 하고 실패해도 CI 통과 조건에 넣지 않는다(시각 조작 실행과 엔진 시험은 CI에서 판정한다).
 - REQ-MCK-006: 시나리오의 `world`·`robot` 수치 값은 100% `assumed` 또는 `measured`로 분류되고(중복 0), `assumed`로 분류된 키 목록이 trial 기록 `assumed_params`로 복사된다.
 - REQ-MCK-007: 같은 역할의 실제 노드와 대역을 동시에 지정하면 bringup이 기동을 거부한다.
+- REQ-MCK-008: `mock_robot_controller_node`는 SPEC-010 4.5절의 정지 유지·해제를 실제 노드와 같게 따른다(`ready=false`, heartbeat 101, 유지 중 goal은 지령 없이 `CANCELED`(`STOPPED`), `stop_release_reason` 해제 조건). 대본의 보호정지(100)와는 별개다.
 
 ## 8. 검증 방법(`TEST_SPEC.md` TC ID, 게이트)
 
-TC-MCK-001-01, 002-01, 003-01, 004-01, 005-01, 005-02, 006-01, 006-02, 007-01, 007-02(M0).
+TC-MCK-001-01, 002-01, 003-01, 004-01, 005-01, 005-02, 006-01, 006-02, 007-01, 007-02, 008-01(M0).
 
 ## 9. 미결 사항
 
@@ -195,4 +197,4 @@ TC-MCK-001-01, 002-01, 003-01, 004-01, 005-01, 005-02, 006-01, 006-02, 007-01, 0
 
 ### 관측용 진단 파라미터
 
-`mock_robot_controller_node`의 `cancel_count`·`cancel_received_steady_s`는 cancel 수신 횟수·최근 수신 단조 시각이며 `stop_history_json`은 requester·reason_code·수신 steady 시각을 요청마다 보존한다. 이 값은 시험에서 읽는 관측 정보이며 지령 판정에는 쓰지 않는다.
+`mock_robot_controller_node`의 `cancel_count`·`cancel_received_steady_s`는 cancel 수신 횟수·최근 수신 단조 시각이며 `stop_history_json`은 requester·reason_code·수신 steady 시각을 요청마다 보존한다. `skill_run_count`는 정지 유지 검사를 지나 실제로 실행을 시작한 skill goal 수다. 이 값은 시험에서 읽는 관측 정보이며 지령 판정에는 쓰지 않는다.

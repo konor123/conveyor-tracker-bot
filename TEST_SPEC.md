@@ -38,6 +38,7 @@ SPEC의 REQ 확인 → 이 문서의 TC 선택 → fake·fixture 준비(1절) �
 
 - `[ON*]` 시험은 필요한 자료가 없으면 **skip**으로 끝나야 하며 pass로 세지 않는다(`needs_data` 마커, 0.4절).
 - 실시간 스케줄에 의존하는 C 시험은 `realtime_pc` 마커를 단다. CI(공유 러너)는 이 시험을 판정 단계에서 빼고 별도 단계에서 실행·기록만 하며(실패해도 CI 통과 조건 아님), 판정은 PC(LEGION, 꺼져 있으면 officepc WSL)에서 하고 결과를 `records/worklog/`에 남긴다.
+- I0 기동 절차: 모든 노드의 heartbeat(ACTIVE)와 `task/status`를 받은 뒤 1.5 s 안정 대기한다. 이 구간에 감시 노드가 보낸 `CONTROLLER_HEARTBEAT_LOST` Stop(기동 직후 감시 노드의 controller heartbeat 수신 지연)은 시험이 작업자 역할로 사유(`i0: bring-up supervisor heartbeat transient`)를 남기고 해제한다(SPEC-010 4.5절). 다른 사유의 Stop과 첫 goal 이후 시험이 의도하지 않은 감시 노드 Stop은 해제하지 않고 실패로 본다.
 - `[OFF]` 시험은 pytest로 돌리지 않는다. 절차·합격 기준·기록 위치를 이 문서에 두고, 결과는 `records/`와 게이트 보고서에 남긴다.
 
 ### 0.4 pytest 규칙
@@ -273,6 +274,7 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-ORC-010-02 | 해제 뒤 독립 cleanup 예산 | U | `[ON]` | RELEASE 직후·RETREAT 도중·VERIFY 직전 실제 ROS 시각이 원 사이클 deadline 초과, 준비된 결과·지연 결과·실패·동결 시계 | RETREAT·VERIFY 각각 기존 단계 제한시간, 준비된 응답 우선, 실제 후퇴 실패·하드 이상 L4, steady 상한 유지 |
 | TC-ORC-010-01 | 포트 대기와 비동기 장애 latch | U | `[ON]` | 해제 전 비하드 장애 / RELEASE 응답 뒤 비하드 장애 / 해제 뒤 비하드 latch 중 하드 이상 / 하드 latch 중 비하드 / `reset` 뒤 | 대기 종료 / 대기 계속·latch 유지 / 대기 종료·하드로 교체 / 하드 유지 / 해제 표시 초기화 |
 | TC-ORC-011-01 | skill 결과의 정지 사유를 하드 이상으로 | U | `[ON]` | action 결과 `STOPPED` / `PROTECTIVE_STOP` / `CANCELED` / 빈 사유, phase 대기 중 `STOPPED`, 자체 감시가 controller heartbeat 손실을 먼저 봄, `ROBOT_STOPPED` latch 뒤 보호정지 확인 | `ROBOT_STOPPED` / `PROTECTIVE_STOP` / 장애 없음 / 장애 없음, `ROBOT_STOPPED`, `CONTROLLER_HEARTBEAT_LOST`, `PROTECTIVE_STOP` |
+| TC-ORC-012-01 | controller 정지 유지·보호정지 감시 | U | `[ON]` | controller heartbeat `error_code` 100 / 101 / 0, 100 뒤 101; `ROBOT_STOPPED`가 DETECT_STONE(`DetectObjects.MAT` 뒤) / WAIT_CAP(`SelectTarget` 뒤) / 단계 사이(`PickStone` 성공 뒤) / PRECHECK에서 latch | `PROTECTIVE_STOP` / `ROBOT_STOPPED` / 장애 없음, `PROTECTIVE_STOP` 유지; 각 경우 L4·WAIT_OPERATOR, latch 뒤 Stop 외 로봇 skill 호출 0회 |
 
 ### 3.4 ABT — 중단·제한시간·감시
 
@@ -389,6 +391,8 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-ROB-013-03 | 감시 | U | `[ON]` | steady 간격 0.03 s 초과 / ROS 시계 역행 / TCP 나이 0.51 s·미래 시각 / ROS 시계 정지 + steady 진행 / 만료 / 계획 없음 / 비유한 TCP | `LOOP_GAP` / `CLOCK_BACKWARD` / `TCP_STALE` / `PLAN_STALE` / `PLAN_EXPIRED` / `WAIT_PLAN` / `NONFINITE`, 모두 비활성·속도 (0, 0) |
 | TC-ROB-013-04 | 제한·작업영역·설정 | U | `[ON]` | 큰 오차 15주기 / TCP (2, 0) m / 주기 0, Kp NaN, 작업영역 역전, 주기 > 간격 한도 | `|v| ≤ v_max`, `|Δv| ≤ a_max·dt` / `WORKSPACE` / 생성 시 예외 |
 | TC-ROB-013-05 | 정지와 명시적 재무장 | U | `[ON]` | `stop` 뒤 주기 / `arm` 후 같은 계획 | 비활성 / 수락·활성 |
+| TC-ROB-014-01 | 정지 유지 판정 | U | `[ON]` | Stop(사유) / 해제: 빈 사유, 실행 중 goal, 보호정지, 정상 사유 / 보호정지와 유지 동시 | 유지·`ready=false`·코드 101 / `REASON_REQUIRED`·`GOAL_ACTIVE`·`PROTECTIVE_STOP`으로 유지, 정상 사유는 해제·코드 0 / 코드 100; 유지 중이 아닐 때 해제 요청은 무동작 성공 |
+| TC-ROB-014-02 | 실제 노드 정지 유지 | C | `[ON]` | fake backend, Stop 뒤 skill goal, lifecycle 비활성·재활성, `stop_release_reason` 빈 값·정상 값 | goal 수락 후 백엔드 이동 지령 0회로 `CANCELED`(`STOPPED`), 재활성 뒤에도 heartbeat 101·`ready=false`, 빈 사유 설정 실패, 정상 사유 뒤 goal 실행 |
 
 ### 3.9 GRP — 그리퍼(RH-P12-RN(A), 상주 루프 DRL 경유)
 
@@ -459,6 +463,7 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-MCK-006-02 | 가정값 기록 복사 | I0 | `[ON]` | mock 1사이클 | trial 기록 `assumed_params` == 대역 노드 `assumed_params` 파라미터 |
 | TC-MCK-007-01 | 실제·대역 동시 기동 금지 | I0 | `[ON]` | `use_mock_vision:=true`와 실제 vision 동시 지정 | bringup이 기동 거부 |
 | TC-MCK-007-02 | 기동 뒤 실제 노드 등장 시 대역 종료 | C | `[ON]` | `mock_world_node role:=vision` heartbeat 확인 뒤 대역 밖에서 `vision/detect_objects` 서버 생성 / 대역을 `vision/detect_objects:=camera/detect_objects`로 remap하고 `camera/detect_objects` 서버 생성 | 10 s 안에 종료 코드 1, 출력에 `REAL_NODE_PRESENT` |
+| TC-MCK-008-01 | 대역 정지 유지 | C | `[ON]` | robot_controller 계약: Stop 뒤 skill goal, heartbeat·status 관찰, `stop_release_reason` 빈 값·정상 값 | `CANCELED`(`STOPPED`)·phase feedback 0회, heartbeat 101·`ready=false`, 빈 사유 실패, 정상 사유 뒤 heartbeat 0·`ready=true`·goal 정상 |
 
 ### 3.12 REC — 기록·분석
 
@@ -490,6 +495,7 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-INT-004-01 | heartbeat 손실 | I0 | `[ON]` | 정상 heartbeat 확인 후 vision·controller는 PICK_STONE(파지 전), tracker는 MOVE_STANDBY(파지 후)에서 각각 끊음 | L2/L3/L4(TC-ABT-010-01과 같음) |
 | TC-INT-005-01 | 시간 부족 | I0 | `[ON]` | 첫 통과 부족 → 다음 통과 / 전부 부족 | 두 번째 통과에서 진행 / `NOT_ATTEMPTED` |
 | TC-INT-006-01 | lifecycle 비활성 | I0 | `[ON]` | 노드 하나 `INACTIVE` | PRECHECK FAILED, skill 호출 0회 |
+| TC-INT-008-01 | skill 없는 구간의 감시 노드 Stop | I0 | `[ON]` | nominal, WAIT_CAP 진입 뒤 `robot/stop`(SUPERVISOR) 직접 호출, `resume`만 하고 로봇을 해제하지 않은 새 `DropTask`, 로봇 해제 + `resume` 뒤 새 `DropTask`(DETECT_STONE·단계 사이는 TC-ORC-012-01) | WAIT_CAP: 결과 `PROTECTIVE_STOP`(`ROBOT_STOPPED`), WAIT_OPERATOR L4; 미해제 새 goal: `ROBOT_STOPPED`·L4, 대역 `skill_run_count` 증가 0; 해제·재개 뒤 SUCCESS |
 | TC-INT-007-01 | replay는 지령 경로가 없다 | I1 | `[ON]` | `replay.launch.py` | 스트림 토픽 발행자·robot action 클라이언트·그리퍼 호출 0개 |
 | TC-INT-020-01 | I3 실기 skill·감시 | I3 | `[OFF]` | 안전 높이: deadline 자체 중단, stale 지령, `Stop`, plan 갱신 중단, 추종 중 그리퍼 개방 | 각 20회, 정의된 동작 20/20, 예기치 않은 재개 0회 |
 | TC-INT-021-01 | I4 인식 경로 | I4 | `[OFF]` | 실영상 → 계획, 로봇 mock | stale·추적 손실·계획 유효성 판정이 기대표와 일치 |
@@ -542,15 +548,15 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 
 | 게이트 | `[ON]` 필수(모두 통과) | `[ON*]` 필수 | `[OFF]` 필수 | 실행 조건 |
 |---|---|---|---|---|
-| M0 | SYS-001·002·004, IF 전부, ORC 전부, ABT 전부(011-02·012-02·013-02·014-02 제외), MCK 전부, REC 전부, INT-001~006 | — | — | — |
-| G0 | ABT-014-02, ROB-001~012, GRP 전부 | GRP-001 | BEN-001·003~008, INT-020 | GRP: 실측표 전에는 선형 표; `[ON*]` GRP-001은 OFF-1 실측표로 재실행 |
+| M0 | SYS-001·002·004, IF 전부, ORC 전부, ABT 전부(011-02·012-02·013-02·014-02 제외), MCK 전부, REC 전부, INT-001~006·008 | — | — | — |
+| G0 | ABT-014-02, ROB-001~012·014, GRP 전부 | GRP-001 | BEN-001·003~008, INT-020 | GRP: 실측표 전에는 선형 표; `[ON*]` GRP-001은 OFF-1 실측표로 재실행 |
 | G1 | SYS-003-01, ORC-005, VIS-001~008, CAL 전부 | VIS-010 | BEN-012 | ORC-005: 실제 영상 freshness·안정 창 C/I |
 | G2 | ORC 전부, VIS-009-01 | — | EXP-G2 | ORC: MODE_STATIC 경로 |
 | G3 | SYS-003-02, ABT-011-02·012-02·013-02, TRK-001~012 | TRK-013 | BEN-002·010, INT-021, EXP-G3 | — |
 | G4 | ABT-011-02, PLN 전부 | — | BEN-011, EXP-G4 | — |
 | G5 | ROB-006·008~010 | — | EXP-G5 | — |
 | G6 | ROB 전부, PLN 전부 | — | EXP-G6 | — |
-| G7 | SYS 전부, IF 전부, ORC 전부, ABT 전부, MCK 전부, REC 전부, INT-001~006, ROB 전부, GRP 전부, VIS-001~008·009-01, CAL 전부, TRK-001~012, PLN 전부 | GRP-001, VIS-010, TRK-013 | EXP-G7, EXP-CMP | 앞 게이트 실행 조건 유지; SIM 전부 선택 |
+| G7 | SYS 전부, IF 전부, ORC 전부, ABT 전부, MCK 전부, REC 전부, INT-001~006·008, ROB 전부, GRP 전부, VIS-001~008·009-01, CAL 전부, TRK-001~012, PLN 전부 | GRP-001, VIS-010, TRK-013 | EXP-G7, EXP-CMP | 앞 게이트 실행 조건 유지; SIM 전부 선택 |
 
 - INT-007-01은 I1 게이트이며 M0 대상이 아니다. SYS-003-01은 G1, SYS-003-02는 G3다. ABT-011~014의 M0 범위는 U 판정·이벤트 입력이며 ROS 연결은 각 -02의 게이트 조건이다.
 

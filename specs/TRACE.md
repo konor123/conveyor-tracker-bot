@@ -2,8 +2,8 @@
 
 `tools/spec/trace.py`가 생성한다. 손으로 고치지 않는다.
 
-- REQ 122개 중 TC 연결 122개
-- pytest 대상 TC 205개 중 테스트 연결 192개
+- REQ 125개 중 TC 연결 125개
+- pytest 대상 TC 210개 중 테스트 연결 197개
 
 | TC | 수준 | REQ | 테스트 |
 |---|---|---|---|
@@ -109,6 +109,7 @@
 | TC-INT-005-01 | I0 | REQ-INT-005(SPEC 없음) | `src/drop_bringup/test/test_i0_integration.py::test_i0_time_insufficient_pass_skip_and_not_attempted_record` |
 | TC-INT-006-01 | I0 | REQ-INT-006(SPEC 없음) | `src/drop_bringup/test/test_i0_integration.py::test_i0_inactive_node_rejected_at_precheck` |
 | TC-INT-007-01 | I1 | REQ-INT-007(SPEC 없음) | — |
+| TC-INT-008-01 | I0 | REQ-INT-008(SPEC 없음) | `src/drop_bringup/test/test_i0_integration.py::test_i0_supervisor_stop_without_running_skill` |
 | TC-INT-020-01 | I3 | REQ-INT-020(SPEC 없음) | 절차 시험 |
 | TC-INT-021-01 | I4 | REQ-INT-021(SPEC 없음) | 절차 시험 |
 | TC-MCK-001-01 | U | REQ-MCK-001 | `src/drop_mocks/test/test_scenario_engine.py::test_same_scenario_and_seed_give_same_output` |
@@ -121,6 +122,7 @@
 | TC-MCK-006-02 | I0 | REQ-MCK-006 | `src/drop_bringup/test/test_i0_integration.py::test_i0_nominal_20_cycles_and_records` |
 | TC-MCK-007-01 | I0 | REQ-MCK-007 | `src/drop_bringup/test/test_mock_bringup.py::test_mock_refuses_when_real_provider_is_running` |
 | TC-MCK-007-02 | C | REQ-MCK-007 | `src/drop_mocks/test/test_mock_nodes.py::test_mock_exits_when_real_provider_appears_after_start` |
+| TC-MCK-008-01 | C | REQ-MCK-008 | `src/drop_mocks/test/contract/test_mock_robot_controller_contract.py::<module>` |
 | TC-ORC-001-01 | U | REQ-ORC-001 | `src/orchestrator/test/test_cycle_runner.py::test_synchronized_nominal_sequence` |
 | TC-ORC-001-02 | U | REQ-ORC-001 | `src/orchestrator/test/test_cycle_runner.py::test_static_skips_synchronize_and_detects_cap`<br>`src/orchestrator/test/test_step_judges.py::test_static_place` |
 | TC-ORC-001-03 | U | REQ-ORC-001 | `src/orchestrator/test/test_cycle_runner.py::test_predicted_uses_entry_judgement`<br>`src/orchestrator/test/test_step_judges.py::test_predicted_entry` |
@@ -151,6 +153,7 @@
 | TC-ORC-010-01 | U | REQ-ORC-010 | `src/orchestrator/test/test_ros_skill_port.py::test_soft_fault_ends_wait_before_release`<br>`src/orchestrator/test/test_ros_skill_port.py::test_soft_fault_does_not_end_wait_after_release`<br>`src/orchestrator/test/test_ros_skill_port.py::test_hard_fault_ends_wait_after_release_and_overrides_soft`<br>`src/orchestrator/test/test_ros_skill_port.py::test_soft_fault_does_not_override_hard`<br>`src/orchestrator/test/test_ros_skill_port.py::test_reset_clears_release`<br>`src/orchestrator/test/test_ros_skill_port.py::test_concurrent_soft_and_hard_raise_keeps_hard`<br>`src/orchestrator/test/test_ros_skill_port.py::test_concurrent_consume_and_hard_raise_loses_nothing` |
 | TC-ORC-010-02 | U | REQ-ORC-010 | `src/orchestrator/test/test_cycle_runner.py::test_cleanup_after_real_cycle_deadline`<br>`src/orchestrator/test/test_node_failure_regressions.py::test_ready_cleanup_result_after_original_deadline`<br>`src/orchestrator/test/test_node_failure_regressions.py::test_runner_cleanup_with_production_ros_port`<br>`src/orchestrator/test/test_node_failure_regressions.py::test_released_cleanup_frozen_clock_is_still_bounded`<br>`src/orchestrator/test/test_ros_skill_port.py::test_ready_response_after_original_cycle_deadline` |
 | TC-ORC-011-01 | U | REQ-ORC-011 | `src/orchestrator/test/test_node_failure_regressions.py::test_stopped_skill_result_latches_hard_fault`<br>`src/orchestrator/test/test_node_failure_regressions.py::test_stopped_result_reported_by_phase_wait`<br>`src/orchestrator/test/test_node_failure_regressions.py::test_specific_cause_wins_over_generic_stop` |
+| TC-ORC-012-01 | U | REQ-ORC-012 | `src/orchestrator/test/test_controller_stop_watch.py::<module>` |
 | TC-PLN-001-01 | U | REQ-PLN-001 | `src/intercept_planner/test/test_planner.py::test_budget_formula` |
 | TC-PLN-001-02 | U | REQ-PLN-001 | `src/intercept_planner/test/test_planner.py::test_budget_boundary` |
 | TC-PLN-001-03 | U | REQ-PLN-001 | `src/intercept_planner/test/test_planner.py::test_belt_boundary` |
@@ -198,6 +201,8 @@
 | TC-ROB-013-03 | U | REQ-ROB-013 | `src/robot_control/test/test_belt_sync.py::test_watchdogs`<br>`src/robot_control/test/test_belt_sync.py::test_freeze_ros_clock_detected_by_steady_time`<br>`src/robot_control/test/test_belt_sync.py::test_expiration_without_loop_gap`<br>`src/robot_control/test/test_belt_sync.py::test_no_plan_and_nonfinite_tcp` |
 | TC-ROB-013-04 | U | REQ-ROB-013 | `src/robot_control/test/test_belt_sync.py::test_speed_and_acceleration_limits`<br>`src/robot_control/test/test_belt_sync.py::test_workspace_failure`<br>`src/robot_control/test/test_belt_sync.py::test_invalid_config` |
 | TC-ROB-013-05 | U | REQ-ROB-013 | `src/robot_control/test/test_belt_sync.py::test_stop_and_explicit_rearm` |
+| TC-ROB-014-01 | U | REQ-ROB-014 | `src/robot_control/test/test_stop_latch.py::<module>` |
+| TC-ROB-014-02 | C | REQ-ROB-014 | `src/robot_control/test/test_robot_controller_stop.py::test_stop_latches_until_operator_release`<br>`src/robot_control/test/test_robot_controller_stop.py::test_release_refused_while_goal_active`<br>`src/robot_control/test/test_robot_controller_stop.py::test_accept_reserves_goal_and_noop_release_keeps_backend_stop` |
 | TC-SIM-001-01 | S | REQ-SIM-001(SPEC 없음) | 절차 시험 |
 | TC-SIM-002-01 | S | REQ-SIM-002(SPEC 없음) | 절차 시험 |
 | TC-SIM-003-01 | S | REQ-SIM-003(SPEC 없음) | 절차 시험 |

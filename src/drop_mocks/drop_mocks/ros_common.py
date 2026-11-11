@@ -24,7 +24,8 @@ HEARTBEAT_QOS = QoSProfile(depth=10, reliability=ReliabilityPolicy.RELIABLE,
                            durability=DurabilityPolicy.VOLATILE)
 HEARTBEAT_PERIOD_S = 0.1
 EXCLUSIVE_WATCH_PERIOD_S = 0.5     # 기동 뒤 같은 역할 서버 감시 주기(REQ-MCK-007)
-ERROR_PROTECTIVE_STOP = 100        # SPEC-010 코드 표 확정 전 임시값(SPEC-700 4.5절)
+ERROR_PROTECTIVE_STOP = 100        # SPEC-010 3.4절
+ERROR_STOP_LATCHED = 101           # SPEC-010 3.4·4.5절: Stop 정지 유지
 
 
 def to_time(sec: float) -> Time:

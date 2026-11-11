@@ -1,4 +1,7 @@
-"""mock_robot_controller_node(SPEC-700 4.5절): skill 액션 5종 + Stop + RobotStatus + Heartbeat 대역."""
+"""mock_robot_controller_node(SPEC-700 4.5절): skill 액션 5종 + Stop + RobotStatus + Heartbeat 대역.
+
+`Stop`은 실제 노드와 같은 정지 유지를 건다(SPEC-010 4.5절, REQ-MCK-008). 해제는 `stop_release_reason`.
+"""
 from __future__ import annotations
 
 import json
@@ -12,9 +15,10 @@ from drop_interfaces.srv import Stop
 from geometry_msgs.msg import Point, Pose, Quaternion
 from rclpy.action import ActionServer, CancelResponse, GoalResponse
 from rclpy.callback_groups import ReentrantCallbackGroup
+from rcl_interfaces.msg import SetParametersResult
 from rclpy.parameter import Parameter
 
-from .ros_common import (ERROR_PROTECTIVE_STOP, HEARTBEAT_PERIOD_S, HEARTBEAT_QOS,
+from .ros_common import (ERROR_PROTECTIVE_STOP, ERROR_STOP_LATCHED, HEARTBEAT_PERIOD_S, HEARTBEAT_QOS,
                          MockLifecycleNode, from_time, no_pub_events, spin_mock, steady_clock)
 from .scenario_engine import GRIPPER_SKILLS, MODE_PREDICTED, RESULT
 
@@ -35,6 +39,10 @@ SYNC_FEEDBACK_PERIOD_S = 0.04
 class MockRobotControllerNode(MockLifecycleNode):
     def __init__(self, **kwargs):
         super().__init__('mock_robot_controller_node', **kwargs)
+        # 파라미터 선언도 설정 callback(_on_params)을 부르므로 그 callback이 읽는 상태를 먼저 만든다
+        self._lock = threading.Lock()
+        self._busy = False
+        self._stop_latched = False         # Stop 정지 유지(작업자 해제까지, t0 재설정으로 풀리지 않음)
         self.declare_parameter('stop_count', 0)
         self.declare_parameter('last_stop_requester', 0)
         self.declare_parameter('last_stop_reason', '')
@@ -42,16 +50,17 @@ class MockRobotControllerNode(MockLifecycleNode):
         self.declare_parameter('cancel_count', 0)
         self.declare_parameter('cancel_received_steady_s', 0.0)
         self.declare_parameter('stop_history_json', '[]')
+        self.declare_parameter('stop_release_reason', '')
+        self.declare_parameter('skill_run_count', 0)
         self._cancel_count = 0
         self._stop_history = []
         self._observer_lock = threading.Lock()
-        self._lock = threading.Lock()
-        self._busy = False
         self._active_skill: str | None = None
         self._active_phase: str | None = None
         self._holding = False
         self._stop_requested = False
         self._pstop_latched = False        # skill 대본으로 시작한 보호정지(노드 재시작까지 유지)
+        self._skill_runs = 0
         self._calls = {name: 0 for name in ACTIONS}
         self._seq = 0
         self._last_hb_mono = 0.0
@@ -108,6 +117,13 @@ class MockRobotControllerNode(MockLifecycleNode):
     def _run(self, name, goal_handle):
         typ, _, phases = ACTIONS[name]
         goal = goal_handle.request
+        if self._stop_latched:
+            # 정지 유지 중: 대본·feedback 없이 STOPPED로 끝낸다(SPEC-010 4.5절)
+            goal_handle.abort()
+            return typ.Result(result=RESULT['CANCELED'], reason_code='STOPPED')
+        with self._observer_lock:
+            self._skill_runs += 1
+            self.set_parameters([Parameter('skill_run_count', value=self._skill_runs)])
         reply = self.engine.skill(name, self._calls[name])
         self._calls[name] += 1
         t_start = self.scenario_t()
@@ -241,6 +257,7 @@ class MockRobotControllerNode(MockLifecycleNode):
             self.set_parameters([
                 Parameter('stop_history_json', value=json.dumps(self._stop_history)),
             ])
+        self._stop_latched = True
         self._stop_requested = True
         try:
             end = time.monotonic() + 2.0
@@ -260,6 +277,22 @@ class MockRobotControllerNode(MockLifecycleNode):
         res.reason_code = '' if res.stopped else 'STOP_TIMEOUT'
         return res
 
+    def _on_params(self, params):
+        """작업자 해제(`stop_release_reason`). 실행 중 goal·보호정지·빈 사유는 거부하고 유지한다."""
+        for p in params:
+            if p.name != 'stop_release_reason':
+                continue
+            reason = str(p.value).strip()
+            with self._lock:
+                code = ('' if not self._stop_latched else 'REASON_REQUIRED' if not reason else
+                        'GOAL_ACTIVE' if self._busy else 'PROTECTIVE_STOP' if self.protective_stop() else '')
+                if not code:
+                    self._stop_latched = False
+            if code:
+                return SetParametersResult(successful=False, reason=code)
+            self.get_logger().info(f'STOP_RELEASED reason={reason}')
+        return super()._on_params(params)
+
     def _on_status(self):
         if not self.active:
             return
@@ -271,7 +304,7 @@ class MockRobotControllerNode(MockLifecycleNode):
         x, y, z, qx, qy, qz, qw = self.engine.robot_status_pose()
         st = RobotStatus(
             connected=True,
-            ready=self.active and not pstop,
+            ready=self.active and not pstop and not self._stop_latched,
             protective_stop=pstop,
             tcp_pose=Pose(position=Point(x=x, y=y, z=z),
                           orientation=Quaternion(x=qx, y=qy, z=qz, w=qw)),
@@ -296,9 +329,10 @@ class MockRobotControllerNode(MockLifecycleNode):
             self._seq += 1
             seq = self._seq
         pstop = self.protective_stop()
+        code, detail = ((ERROR_PROTECTIVE_STOP, 'PROTECTIVE_STOP') if pstop else
+                        (ERROR_STOP_LATCHED, 'STOP_LATCHED') if self._stop_latched else (0, ''))
         hb = Heartbeat(node_name='robot_controller_node', lifecycle_state=self.state_id, seq=seq,
-                       error_code=ERROR_PROTECTIVE_STOP if pstop else 0,
-                       detail='PROTECTIVE_STOP' if pstop else '')
+                       error_code=code, detail=detail)
         hb.header.stamp = self.get_clock().now().to_msg()
         self.hb_pub.publish(hb)
 

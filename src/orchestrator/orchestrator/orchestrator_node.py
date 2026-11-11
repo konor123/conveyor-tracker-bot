@@ -552,6 +552,10 @@ class RosSkillPort:
 
 
 class OrchestratorNode(Node):
+    CONTROLLER_NODE = 'robot_controller_node'
+    ERROR_PROTECTIVE_STOP = 100     # SPEC-010 3.4절 Heartbeat.error_code
+    ERROR_STOP_LATCHED = 101
+
     def __init__(self, **kwargs):
         super().__init__('orchestrator_node', **kwargs)
         self.declare_parameter('config', '')
@@ -569,6 +573,7 @@ class OrchestratorNode(Node):
         self.hb_group = MutuallyExclusiveCallbackGroup()
         self.hb = HeartbeatMonitor(float(self.cfg_dict['watchdog']['heartbeat_timeout_s']), self.clock)
         self.lifecycle: dict[str, int] = {}
+        self.hb_error_code: dict[str, int] = {}
         self.robot_status = self.belt = self.tracked = self.detections = None
         self.tracked_seq = 0
         self.create_subscription(Heartbeat, 'system/heartbeat', self._on_hb, HB_QOS, callback_group=self.hb_group,
@@ -626,6 +631,7 @@ class OrchestratorNode(Node):
     def _on_hb(self, m: Heartbeat):
         self.hb.beat(m.node_name)
         self.lifecycle[m.node_name] = m.lifecycle_state
+        self.hb_error_code[m.node_name] = int(m.error_code)
 
     def _on_status(self, m: RobotStatus):
         self.robot_status = m
@@ -635,12 +641,19 @@ class OrchestratorNode(Node):
         self.tracked_seq += 1
 
     def _watch(self):
-        """비동기 장애(SPEC-100 4.8절 pending_fault). 사이클 중에만 latch한다."""
+        """비동기 장애(SPEC-100 4.8절 pending_fault). 사이클 중에만 latch한다.
+
+        controller heartbeat `error_code` 100(보호정지)·101(Stop 정지 유지)은 실행 중 skill이 없어도
+        감시 주기마다 latch한다(REQ-ORC-012, SPEC-010 4.5절). 감시 노드가 skill 없는 구간에 보낸 Stop도 여기서 잡힌다.
+        """
         rs = self.robot_status
-        if rs is not None and rs.protective_stop:
+        code = self.hb_error_code.get(self.CONTROLLER_NODE, 0)
+        if (rs is not None and rs.protective_stop) or code == self.ERROR_PROTECTIVE_STOP:
             self.port.raise_fault(Event.PROTECTIVE_STOP)
         elif rs is not None and not rs.connected:
             self.port.raise_fault(Event.ROBOT_COMM_LOST)
+        elif code == self.ERROR_STOP_LATCHED:
+            self.port.raise_fault(Event.ROBOT_STOPPED)
         for name in self.node_cfg['required_nodes']:
             if name in self.lifecycle and self.hb.lost(name):
                 self.port.raise_fault(HEARTBEAT_ROLE_EVENT.get(name, Event.HEARTBEAT_LOST))

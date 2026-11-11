@@ -70,9 +70,10 @@
 - [x] `[ON]` 접두 없는 패키지 이름이 underlay와 겹치지 않는지 첫 빌드에서 확인(TC-SYS-*)
 - [x] `[ON]` `orchestrator` 골격: `state_machine.py`, `step_judges.py`, `abort_policy.py`, `deadlines.py` 순수 모듈 + `test/fakes/`(skill port·fake clock) 단위 테스트(TC-ORC-*, TC-ABT-*)
 - [x] `[ON]` 장애 10종을 `abort_policy`·`deadlines` 단위 테스트의 이벤트 열로 작성(`PLAN.md` 7.3절)
-- [ ] `[ON]` `orchestrator_node`, `safety_supervisor_node`, `record_logger_node`
+- [x] `[ON]` `orchestrator_node`, `safety_supervisor_node`, `record_logger_node`
   - F1~F8의 결함 처리 및 F4 감시 연결의 G0/G3/G4 게이트 조건, 해제 후 N1 정리 경로 시험. 2026-11-11 독립 재검수에서 N1·F3·F8 해결 확인(`/srv/cloud-workspace/memory/projects/conveyor-tracker-bot/m0-rereview-2026-11-11.md`).
-  - 실행 중 skill이 `Stop`으로 끝나면(`STOPPED`) 하드 이상 L4로 처리한다(REQ-ORC-011, TC-ORC-011-01, CI run 42781388215 attempt 2·3과 42784411464 attempt 3에서 계약·I0 포함 전 단계 통과). 실행 중인 skill이 없을 때(검출 서비스 호출 중, 단계 사이, WAIT_CAP 대기) 감시 노드가 보낸 Stop은 오케스트레이터에 전달되지 않는다. 감시 노드만 controller heartbeat `error_code` 100(보호정지)을 보며, `robot_controller_node`는 Stop 뒤 다음 goal을 거부하지 않는다(재검수 R1, 순수 Python 재현 `supervisor=PROTECTIVE_STOP orchestrator=None`). 로봇 소유의 정지 latch·사유와 작업자 해제 계약, Stop 뒤 신규 goal 거부, 오케스트레이터가 그 상태를 단계 전후·모든 대기·사이클 시작에 적용하는 처리와 DETECT_STONE·WAIT_CAP·단계 사이 C/I 시험이 완료 조건이다.
+  - 실행 중 skill이 `Stop`으로 끝나면(`STOPPED`) 하드 이상 L4로 처리한다(REQ-ORC-011, TC-ORC-011-01).
+  - 실행 중 skill이 없을 때의 감시 노드 Stop(R1): controller가 `Stop`을 정지 유지로 남기고 heartbeat `error_code` 101·`ready=false`를 내며, 작업자가 `stop_release_reason`으로 해제할 때까지 goal을 지령 없이 `STOPPED`로 끝낸다. orchestrator는 controller heartbeat 100·101을 감시 주기마다 latch해 PRECHECK·DETECT_STONE·WAIT_CAP·단계 사이에서 L4로 끝낸다(SPEC-010 4.5절, REQ-ORC-012·ROB-014·MCK-008, TC-ORC-012-01·ROB-014-01·02·MCK-008-01·INT-008-01). 2026-11-11 officepc WSL 빌드 11개 패키지, orchestrator 700·robot_control 102·drop_mocks 78·계약 27·I0 9 통과. 독립 검수(Codex)의 P1(수락~실행 사이 해제)·P2(무동작 해제가 backend 정지를 풂)는 수정 뒤 coordinator 확인(`r1-review-2026-11-11.md`).
 - [x] `[ON]` `drop_mocks`: `scenario_engine`, `mock_world_node`(`role:=vision|tracking|all`), `mock_robot_controller_node`(소요시간·결과 지정형). 정상 경로 우선, 지연·지터 값은 가정값으로 표기(TC-MCK-*)
 - [x] `[ON]` 계약 테스트 틀(`test/contract/`, 대상을 인자로 받음), `mock_world_node`의 vision·tracker 계약 통과
 - [x] `[ON]` `mock.launch.py`, `launch_testing` 기반 I0 통합 테스트(ROS I0 시나리오 5종)를 CI에 등록(TC-INT-*)
@@ -135,6 +136,7 @@
 - [ ] `[ON*]` 측정값으로 `PLAN.md` 6절 제한시간 1차 확정, `mock_robot_controller_node`·fake gripper의 소요시간·지연값 갱신
 - [ ] `[ON]` 안전 절차 문서: 속도·가속 제한, 작업영역 제한, 비상정지 위치, 관찰자 역할, 보호 정지 후 재개 절차
 - [ ] `[OFF]` OFF-2: 안전 절차 현장 확인(비상정지 동작, 작업영역 제한 설정)
+- [ ] `[OFF]` OFF-2: 감시 노드 기동 직후 controller heartbeat 수신 지연 확인. officepc WSL 대역 I0에서 기동 직후 감시 노드가 마지막 controller stamp를 0.30~0.34 s 전 것으로 보고 `CONTROLLER_HEARTBEAT_LOST` Stop을 냈다(같은 순간 독립 구독자 수신 공백 ≤ 0.10 s, 판정 타이머 간격 0.05 s, R1 이전 코드에서도 발생). 실기 bringup에서 재현 여부를 보고, 재현되면 Stop 정지 유지 해제 절차(SPEC-010 4.5절)를 기동 절차에 넣거나 원인을 고친다
 
 **G0 합격 기준(제안):** 0절 항목 기록 완료 / 단위 변환·pulse 변환 테스트 통과 / 통신·추적 손실·cancel 모사 20회에서 정의된 정지·대기 전환 20/20, 예기치 않은 재개 0회 / I3에서 L0·L4 모사 20/20 / 스트림 주기·지연 분포 보고서 / 그리퍼 개방 지연 분포와 스트림 중 개방 결과 보고서.
 

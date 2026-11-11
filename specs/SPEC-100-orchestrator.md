@@ -1,6 +1,6 @@
 # SPEC-100 orchestrator
 
-- 버전: v0.10
+- 버전: v0.11
 - 근거: PLAN.md 4절
 - REQ 영역: ORC
 
@@ -8,6 +8,7 @@
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
+| v0.11 | 2026-11-11 | controller heartbeat `error_code` 100·101을 사이클 전 구간 감시에 적용(REQ-ORC-012) |
 | v0.10 | 2026-11-11 | 병뚜껑 안쪽 지름 `D_in` 31 mm로 `sync.e_xy_max_m` 0.00325 |
 | v0.9 | 2026-11-10 | skill 결과 `STOPPED`·`PROTECTIVE_STOP`을 하드 이상으로 latch(REQ-ORC-011) |
 | v0.8 | 2026-11-10 | 재검출·재파지(L1) 제거: DETECT_STONE·PICK_STONE 실패와 검출 나이 초과는 L2 |
@@ -232,6 +233,7 @@ planner의 `time_budget`이 생기기 전까지 WAIT_CAP 예산은 `orchestrator
 - REQ-ORC-008: PLAN_INTERCEPT가 동적 deadline까지 OK가 아니면 APPROACH를 0회 호출하고, 남은 통과가 있으면 WAIT_CAP으로 돌아간다.
 - REQ-ORC-009: WAIT_OPERATOR에서 사유 없는 `resume`은 거부하고, 사유 있는 `resume`은 PRECHECK부터 다시 시작하며 진입 시각·사유를 기록한다.
 - REQ-ORC-011: 실행 중 skill이 `STOPPED`로 끝나면 단계 판정 대신 하드 이상(L4)으로 처리한다. 같은 시점에 자체 감시가 보호정지·통신 단절·controller heartbeat 손실을 보고 있으면 그 사유를 남기고, 원인을 모르면 `ROBOT_STOPPED`를 남긴다. 클라이언트 cancel 결과(`CANCELED`)는 하드 이상이 아니다.
+- REQ-ORC-012: `robot_controller_node`의 `Heartbeat.error_code`가 100이면 `PROTECTIVE_STOP`, 101(정지 유지, SPEC-010 4.5절)이면 `ROBOT_STOPPED`를 감시 주기마다 latch한다. 실행 중 skill이 없을 때(PRECHECK, DETECT_STONE 서비스 대기, WAIT_CAP 선택·관측 대기, 단계 사이)도 L4로 끝나고 그 뒤 Stop 외 로봇 skill 호출은 0회다. 정지 유지가 풀리지 않은 채 시작한 사이클은 PRECHECK에서 L4다.
 - REQ-ORC-010: 포트 대기는 해제 전에는 latch된 모든 장애로, RELEASE 응답 뒤에는 하드 이상으로만 끝난다. latch된 비하드 장애는 하드 이상으로 바뀌고, 하드 이상은 비하드 장애로 바뀌지 않는다.
 
 ## 7. 성공 판정(측정 가능)
@@ -242,7 +244,7 @@ planner의 `time_budget`이 생기기 전까지 WAIT_CAP 예산은 `orchestrator
 
 ## 8. 검증 방법(`TEST_SPEC.md` TC ID, 게이트)
 
-TC-ORC-001-01 ~ TC-ORC-011-01(U, M0). ROS 수준은 TC-INT-001-01, TC-INT-005-01, TC-INT-006-01.
+TC-ORC-001-01 ~ TC-ORC-012-01(U, M0). ROS 수준은 TC-INT-001-01, TC-INT-005-01, TC-INT-006-01, TC-INT-008-01.
 
 ## 9. 미결 사항
 
