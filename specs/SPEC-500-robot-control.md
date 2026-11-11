@@ -117,7 +117,7 @@ Doosan 스트림·move_line 계약, 그리퍼 상주 루프 경로, 추종 제�
 ## 8. 검증 방법(`TEST_SPEC.md` TC ID, 게이트)
 
 - `src/robot_control/test/test_motion_adapter.py`: TC-ROB-001~006.
-- `src/robot_control/test/test_gripper_adapter.py`: TC-GRP-001~013. `test_gripper_session.py`: TC-GRP-014. `test_resident_transport.py`: TC-GRP-015·016(가짜 제어기 `test/fakes/resident.py`, 시간은 모델 값).
+- `src/robot_control/test/test_gripper_adapter.py`: TC-GRP-001~013. `test_gripper_session.py`: TC-GRP-014. `test_resident_transport.py`: TC-GRP-015·016(가짜 제어기 `test/fakes/resident.py`, 시간은 모델 값. DRL 본문은 `test/fakes/drl_env.py`에서 그대로 실행).
 - `src/robot_control/test/test_skill_logic.py`: TC-ROB-007~010.
 - `src/robot_control/test/test_belt_sync.py`: TC-ROB-013(속도·가속 제한은 TC-ROB-006-01도 함께).
 - `robot_controller_node` 계약: `tools/testing/contracts/robot_controller_contract.py`가 기대하는 feedback phase·metric, lifecycle, heartbeat, Stop.

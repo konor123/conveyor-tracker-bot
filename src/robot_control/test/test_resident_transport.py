@@ -7,6 +7,7 @@ from __future__ import annotations
 import pytest
 
 from fakes.clock import FakeClock
+from fakes.drl_env import ResidentDrlEnv
 from fakes.resident import FakeResidentController
 from robot_control.gripper_adapter import (MODBUS, GripperAdapter, GripperCfg, GripperFault, PreconditionError,
                                           PulseTable)
@@ -166,6 +167,35 @@ def test_timeouts_shorter_than_the_loop_sample_period_are_rejected():
     for bad in (dict(ok, response_timeout_s=3 * 0.58 - 0.001), dict(ok, loop_timeout_s=2 * 0.58 - 0.001)):
         with pytest.raises(PreconditionError):
             GripperAdapter(transport, TABLE, GripperCfg(**bad), clock)
+
+
+@pytest.mark.req('REQ-GRP-016')
+@pytest.mark.tc('TC-GRP-016-01')
+@pytest.mark.level('U')
+def test_resident_drl_body_reports_each_command_result_before_its_seq():
+    """DRL 본문을 그대로 실행한다: 정상 지령, 같은 전류, 전류 쓰기 실패, 위치 쓰기 실패."""
+    def run(**kw):
+        env = ResidentDrlEnv(**kw)
+        env.command(at_loop=3, seq=1, pulse=750, current=120)
+        env.command(at_loop=10, seq=2, pulse=600, current=120)      # 같은 전류: 전류 쓰기 생략
+        env.run(render_resident_drl())
+        return env
+
+    def command_sets(env, seq):
+        k = env.sets.index((39, seq))
+        return env.sets[k - 1], env.sets[k]
+
+    env = run()
+    assert env.reg[36] == 1
+    assert command_sets(env, 1) == ((40, 0), (39, 1)) and command_sets(env, 2) == ((40, 0), (39, 2))
+    assert env.modbus_writes == [(6, 275, 120), (16, 282, 750), (16, 282, 600)]
+
+    env = run(fail_current_write=True)                               # 전류를 못 바꾸면 위치도 쓰지 않는다
+    assert command_sets(env, 1) == ((40, 242), (39, 1))
+    assert [w for w in env.modbus_writes if w[0] == 16] == []
+
+    env = run(fail_position_write=True)
+    assert command_sets(env, 1) == ((40, 242), (39, 1)) and command_sets(env, 2) == ((40, 242), (39, 2))
 
 
 @pytest.mark.req('REQ-GRP-016')
