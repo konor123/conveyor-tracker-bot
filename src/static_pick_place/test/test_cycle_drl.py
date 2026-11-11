@@ -3,6 +3,7 @@
 실기 측정이 아니다. 시간은 Modbus 왕복 0.58 s(2026-11-09 측정)와 이동 사다리꼴 모델로 센 값이다.
 """
 import math
+import re
 import sys
 import types
 
@@ -200,27 +201,50 @@ def test_render_rejects_out_of_range_values():
 
 
 class _FakeRobot(dc.DoosanClient):
-    """레지스터 15(결과)·14(진행)를 호출마다 대본에서 하나씩 돌려준다."""
+    """레지스터 15(결과)·14(진행)·DRL 상태를 호출마다 대본에서 하나씩 돌려준다.
 
-    def __init__(self, reg15, reg14, payload, drl_state=1):
+    레지스터 26(실행 번호)은 시작 전 `pre_run_id`, 시작 뒤 `run_id_delay`번 읽는 동안 그대로이고 그다음부터
+    프로그램이 쓴 값이다(`None`이면 끝내 쓰지 않음). 실행 번호를 쓰기 전 14·15는 지난 실행 값(`stale`)이다.
+    """
+
+    def __init__(self, reg15, reg14, payload, drl_state=1, pre_run_id=0, run_id_delay=0, stale=(0, 0)):
         self.node, self.ns, self._clients = None, 'dsr01', {}
         self.script = {15: list(reg15), 14: list(reg14)}
         self.payload, self.drl_state, self.calls = payload, drl_state, []
+        self.pre_run_id, self.run_id_delay, self.stale = pre_run_id, run_id_delay, stale
+        self.run_id = None
+
+    def _visible_run_id(self):
+        if self.run_id is None or self.run_id_delay is None:
+            return self.pre_run_id
+        if self.run_id_delay > 0:
+            self.run_id_delay -= 1
+            return self.pre_run_id
+        return self.run_id
 
     def _call(self, srv_type, name, timeout_s=None, **f):
         self.calls.append((name, f))
         r = types.SimpleNamespace(success=True)
-        if name == 'drl/get_drl_state':
+        if name == 'drl/drl_start':
+            self.run_id = int(re.search(r'^RUN_ID = (\d+)$', f['code'], re.M).group(1))
+        elif name == 'drl/get_drl_state':
             st = self.drl_state
             r.drl_state = (st.pop(0) if len(st) > 1 else st[0]) if isinstance(st, list) else st
         elif name == 'plc/get_output_register_int':
             a = f['address']
-            if a in self.script:
+            if a == dc.RUN_ID_REGISTER:
+                v = self._visible_run_id()
+            elif a in self.script and (self.run_id is None or self._visible_is_ours()):
                 v = self.script[a].pop(0) if len(self.script[a]) > 1 else self.script[a][0]
+            elif a in self.script:
+                v = self.stale[0] if a == 15 else self.stale[1]
             else:
                 v = self.payload[a - 16]
             r.value = v << 24
         return r
+
+    def _visible_is_ours(self):
+        return self.run_id_delay is not None and self.run_id_delay <= 0
 
 
 @pytest.mark.level('U')
@@ -228,15 +252,19 @@ def test_run_cycle_reports_each_step_and_waits_for_program_stop(monkeypatch):
     monkeypatch.setattr(dc.time, 'sleep', lambda s: None)
     plan = steps()
     payload = [2, 147, 0, 149, 2, 2, 88, 1]                   # 파지 659·149 mA·막힘, 열기 600·도달
-    robot = _FakeRobot([250, 0, 0, 0, 0, 250], [0, 1, 4, 10, 10], payload, drl_state=[1, 0, 0, 0, 0, 1])
+    # 실행 번호가 보이기 전 15에는 지난 실행의 250이 남아 있다(stale). 번호를 본 뒤의 값만 믿는다
+    robot = _FakeRobot([0, 0, 0, 250], [1, 4, 10, 10], payload, drl_state=[1, 0, 0, 0, 0, 0, 1],
+                       pre_run_id=7, run_id_delay=2, stale=(250, 10))
     seen = []
     out = robot.run_cycle(plan, DOWN_QUAT_XYZW, timeout_s=5.0, on_step=lambda n, s: seen.append(n))
+    assert robot.run_id == 8                                  # 시작 전 값과 다른 실행 번호
     assert (out.grasp_pulse, out.grasp_current_ma, out.grasp_status, out.open_pulse, out.open_status) \
         == (659, 149, 2, 600, 1)
     assert seen == [s.name for s in plan]                     # 지난 실행의 250은 무시하고 모든 단계를 보고한다
     assert [n for n, _ in out.step_times_s] == seen
     assert sum(1 for n, _ in robot.calls if n == 'drl/drl_start') == 1
     assert robot.drl_state == [1]                             # STOP을 본 뒤에 돌아왔다
+    assert robot.script[15] == [250]                          # 이번 실행의 결과(대본 끝)까지 읽었다
 
 
 @pytest.mark.level('U')
@@ -292,16 +320,18 @@ def test_run_cycle_fails_fast_when_the_program_stops_without_a_result(monkeypatc
     with pytest.raises(dc.RobotError) as e:
         robot.run_cycle(plan, DOWN_QUAT_XYZW, timeout_s=60.0)
     assert e.value.reason == 'DRL_STOPPED_NO_RESULT' and 'over_stone' in str(e.value)
+    assert not e.value.program_may_run
     assert dc.time.t < 1.0
 
 
 @pytest.mark.level('U')
 def test_run_cycle_reports_a_program_that_never_runs(monkeypatch):
     monkeypatch.setattr(dc, 'time', _FakeTime())
-    robot = _FakeRobot([0], [0], [0] * 8, drl_state=1)            # 시작 뒤에도 PLAY가 한 번도 보이지 않는다
+    # 시작 뒤에도 PLAY도 실행 번호도 보이지 않는다
+    robot = _FakeRobot([0], [0], [0] * 8, drl_state=1, run_id_delay=None)
     with pytest.raises(dc.RobotError) as e:
         robot.run_cycle(steps(), DOWN_QUAT_XYZW, timeout_s=60.0)
-    assert e.value.reason == 'DRL_NOT_STARTED'
+    assert e.value.reason == 'DRL_NOT_STARTED' and not e.value.program_may_run
     assert dc.time.t < 5.0
 
 
@@ -311,7 +341,7 @@ def test_run_cycle_rereads_the_result_written_just_before_stop(monkeypatch):
     plan = steps()
     payload = [2, 147, 0, 149, 2, 2, 88, 1]
     # 결과 레지스터는 프로그램의 마지막 문장이다. STOP을 본 직후 다시 읽으면 250이 있다
-    robot = _FakeRobot([0, 0, 0, 250], [0, 10], payload, drl_state=[1, 0, 1])
+    robot = _FakeRobot([0, 0, 250], [0, 10], payload, drl_state=[1, 0, 1])
     out = robot.run_cycle(plan, DOWN_QUAT_XYZW, timeout_s=60.0)
     assert out.grasp_status == 2
 
@@ -324,3 +354,64 @@ def test_result_registers_from_an_earlier_run_are_cleared():
     assert ctrl.run(dc.render_cycle_drl(truncate_steps(steps(), 'open_before_pick'), DOWN_QUAT_XYZW)) == 250
     assert [ctrl.reg[a] for a in range(16, 21)] == [0, 0, 0, 0, 0]   # 파지 미실행 = 0
     assert ctrl.reg[23] == 3                                   # 첫 열기는 이미 열려 있어 생략
+
+
+@pytest.mark.level('U')
+def test_run_cycle_trusts_the_run_id_over_a_late_play_state(monkeypatch):
+    monkeypatch.setattr(dc, 'time', _FakeTime())
+    plan = steps()
+    payload = [2, 147, 0, 149, 2, 2, 88, 1]
+    # 상태는 계속 STOP으로 보이지만 실행 번호와 진행 레지스터는 프로그램이 돈다고 말한다(2 s 넘게)
+    robot = _FakeRobot([0] * 60 + [250], [1] * 30 + [5] * 30 + [10], payload, drl_state=1)
+    seen = []
+    out = robot.run_cycle(plan, DOWN_QUAT_XYZW, timeout_s=60.0, on_step=lambda n, s: seen.append(n))
+    assert dc.time.t > dc.DRL_START_GRACE_S and out.grasp_status == 2
+    assert seen == [s.name for s in plan]
+
+
+@pytest.mark.level('U')
+def test_run_cycle_ignores_progress_left_by_an_earlier_run(monkeypatch):
+    monkeypatch.setattr(dc, 'time', _FakeTime())
+    plan = steps()
+    # 지난 실행이 결과 없이 멈춰 14 = 5, 15 = 0이 남았다. 이번 실행은 2단계에서 이동 실패
+    robot = _FakeRobot([0, 0, 249], [1, 2, 2], [0] * 8, drl_state=[1, 0, 0, 0, 0, 0, 1],
+                       run_id_delay=3, stale=(0, 5))
+    seen = []
+    with pytest.raises(dc.RobotError) as e:
+        robot.run_cycle(plan, DOWN_QUAT_XYZW, timeout_s=60.0, on_step=lambda n, s: seen.append(n))
+    assert e.value.reason == 'MOVE_FAILED' and 'step=over_stone' in str(e.value)
+    assert seen == ['open_before_pick']                         # 실행 전 단계를 done으로 보고하지 않는다
+
+
+@pytest.mark.level('U')
+def test_run_cycle_failure_waits_for_stop_and_flags_a_running_program(monkeypatch):
+    monkeypatch.setattr(dc, 'time', _FakeTime())
+    plan = steps()
+    robot = _FakeRobot([248], [4], [0] * 8, drl_state=[1, 0, 0, 0, 1])   # 실패 표지 뒤 STOP까지 기다린다
+    with pytest.raises(dc.RobotError) as e:
+        robot.run_cycle(plan, DOWN_QUAT_XYZW, timeout_s=60.0)
+    assert e.value.reason == 'GRASP_EMPTY' and not e.value.program_may_run and robot.drl_state == [1]
+
+    robot = _FakeRobot([248], [4], [0] * 8, drl_state=[1, 0])                # 끝내 STOP이 아니다
+    with pytest.raises(dc.RobotError) as e:
+        robot.run_cycle(plan, DOWN_QUAT_XYZW, timeout_s=3.0)
+    assert e.value.reason == 'GRASP_EMPTY' and e.value.program_may_run
+
+    robot = _FakeRobot([0], [2], [0] * 8, drl_state=[1, 0])                  # 결과 없이 계속 PLAY
+    with pytest.raises(dc.RobotError) as e:
+        robot.run_cycle(plan, DOWN_QUAT_XYZW, timeout_s=3.0)
+    assert e.value.reason == 'CYCLE_DRL_TIMEOUT' and e.value.program_may_run
+
+
+@pytest.mark.level('U')
+def test_run_id_is_written_after_the_result_registers_are_cleared():
+    from static_pick_place.pick_place import truncate_steps
+    ctrl = FakeController()
+    order = []
+    ctrl.reg = type('R', (dict,), {'__setitem__': lambda d, k, v: (order.append(k), dict.__setitem__(d, k, v))})()
+    code = dc.render_cycle_drl(truncate_steps(steps(), 'open_before_pick'), DOWN_QUAT_XYZW, run_id=42)
+    assert ctrl.run(code) == 250 and ctrl.reg[26] == 42
+    first = {a: order.index(a) for a in (14, 15, *range(16, 24), 26)}
+    assert all(first[26] > first[a] for a in (14, 15, *range(16, 24)))
+    with pytest.raises(ValueError):
+        dc.render_cycle_drl(steps(), DOWN_QUAT_XYZW, run_id=0)

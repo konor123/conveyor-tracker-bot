@@ -243,7 +243,10 @@ def _run_one_drl(robot, steps, p) -> int:
         out = robot.run_cycle(steps, DOWN_QUAT_XYZW, cycle_timeout_s(steps, p), p.gripper_read_timeout_s,
                               on_step=lambda name, sec: log('done', step=name, seconds=round(sec, 2)))
     except RobotError as exc:
-        log('abort', reason=exc.reason, detail=str(exc))
+        log('abort', reason=exc.reason, detail=str(exc), program_may_run=exc.program_may_run)
+        if exc.program_may_run:
+            log('operator_action', action='PENDANT_OR_ESTOP',
+                message='PC는 감시를 멈췄지만 제어기 DRL이 아직 돌 수 있다. 펜던트·비상정지로 멈추고 상태를 기록한다(drl_stop 자동 호출 없음)')
         return 4 if exc.reason == 'GRASP_EMPTY' else 2
     result = {}
     if out.grasp_status:                         # 0이면 이번 실행에 파지가 없었다(--stop-after)

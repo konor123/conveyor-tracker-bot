@@ -3,13 +3,15 @@
 # Modbus 함수와 주소는 gripper_move.drl(2026-11-09 실기 검증)과 같다. 플랜지 RS-485 왕복은 약 0.58 s라 횟수를 줄인다.
 # 출력 레지스터: 14 = 시작한 단계 번호(1부터), 15 = 결과(250 성공, 그 밖은 실패),
 #   16·17 파지 위치 hi·lo, 18·19 파지 전류 hi·lo, 20 파지 상태(1 끝점 도달 = 빈 손, 2 막힘 = 쥠),
-#   21·22 마지막 열기 위치 hi·lo, 23 마지막 열기 상태(1 도달, 3 이미 그 위치라 생략)
+#   21·22 마지막 열기 위치 hi·lo, 23 마지막 열기 상태(1 도달, 3 이미 그 위치라 생략),
+#   26 실행 번호(PC가 정한 값. 14~23을 지운 뒤에 쓰므로, PC는 이 값을 본 뒤에만 14·15를 이번 실행의 값으로 믿는다)
 # 실패 코드: 241 무응답, 242 쓰기 실패, 244 오류 비트, 245 미정착, 246 모델, 247 모드, 248 빈 손 파지, 249 이동 실패
 # STEPS 한 줄: 이동 [0, x, y, z, a, b, c, v, acc](mm·deg·mm/s·mm/s²), 그리퍼 [1, pulse, current, grasp]
 STEPS = __STEPS__
 READ_TIMEOUT = __READ_TIMEOUT__
 ANG_V = __ANG_V__
 ANG_A = __ANG_A__
+RUN_ID = __RUN_ID__
 
 def crc16(d):
     c = 0xFFFF
@@ -149,6 +151,7 @@ set_output_register_int(15, 0)
 set_output_register_int(14, 0)
 for a in range(16, 24):                             # 지난 실행의 파지·열기 결과를 지운다(0 = 이번 실행에서 안 함)
     set_output_register_int(a, 0)
+set_output_register_int(26, RUN_ID)                  # 지운 뒤에 쓴다
 flange_serial_open(baudrate=57600, bytesize=DR_EIGHTBITS, parity=DR_PARITY_NONE, stopbits=DR_STOPBITS_ONE)
 result = run()
 flange_serial_close()
