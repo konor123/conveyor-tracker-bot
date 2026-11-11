@@ -78,6 +78,7 @@ class ResidentLoopTransport:
     def start_resident_loop(self) -> bool:
         """DRL을 띄우고 시작 상태가 올라올 때까지 기다린다. 정상(1)이 아니면 예외."""
         code = self._drl_code if self._drl_code is not None else render_resident_drl()
+        self._last_seq = None             # 새 루프는 기동 전 seq를 실행한 것으로 표시하므로 지난 지령을 잊는다
         if not self.io.drl_start(code):
             return False
         deadline = self.clock.steady_now() + self.ready_timeout_s
@@ -106,10 +107,8 @@ class ResidentLoopTransport:
         if address == MODBUS.hardware_error_status:
             return int(self.io.get(r.error))
         if address == MODBUS.present_position:
-            self._check_command()
             return self._word(r.st_pos_hi)
         if address == MODBUS.present_current:
-            self._check_command()
             return self._word(r.st_cur_hi)
         if address == MODBUS.goal_current:
             return self._goal_current if self._goal_current is not None else 0
@@ -117,6 +116,17 @@ class ResidentLoopTransport:
 
     def read_loop_counter(self) -> int:
         return int(self.io.get(self.regs.alive))
+
+    def last_command(self) -> tuple[bool, int] | None:
+        """마지막으로 트리거한 지령의 (실행됨, 결과). 트리거한 적이 없으면 None.
+
+        결과는 루프가 실행한 seq(39)가 이 지령의 seq일 때만 의미가 있다(40은 39보다 먼저 쓰인다).
+        """
+        if self._last_seq is None:
+            return None
+        if int(self.io.get(self.regs.done_seq)) != self._last_seq:
+            return False, CMD_OK
+        return True, int(self.io.get(self.regs.cmd_result))
 
     # ------------------------------------------------------------ 쓰기
     def write_register(self, address: int, value: int) -> bool:
@@ -139,15 +149,6 @@ class ResidentLoopTransport:
         return ok
 
     # ------------------------------------------------------------ 내부
-    def _check_command(self) -> None:
-        """마지막으로 트리거한 지령을 루프가 실행했고 그 결과가 실패면 FAULT를 한 번 낸다. 앞선 지령의 결과는 보지 않는다."""
-        if self._last_seq is None or int(self.io.get(self.regs.done_seq)) != self._last_seq:
-            return
-        result = int(self.io.get(self.regs.cmd_result))
-        if result != CMD_OK:
-            seq, self._last_seq = self._last_seq, None      # 한 번만 알린다(adapter는 FAULT를 래치하지 않는다)
-            raise GripperFault('RESIDENT_WRITE_FAILED', detail=f'seq={seq} result={result}')
-
     def _word(self, hi_address: int) -> int:
         return (int(self.io.get(hi_address)) & 255) * 256 + (int(self.io.get(hi_address + 1)) & 255)
 

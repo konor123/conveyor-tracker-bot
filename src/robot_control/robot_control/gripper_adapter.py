@@ -607,8 +607,30 @@ class GripperAdapter:
         self.check_loop_alive(counter)
         return counter
 
+    def _command_sample_ready(self, counter: int, seen: list) -> bool:
+        """지령 실행을 알리는 transport(상주 루프)에서는 루프가 이 지령을 실행했고(결과 0)
+        그 뒤 새 표본이 올라왔을 때만 판정한다. 실패 결과면 이 지령의 FAULT다. 알리지 않는 transport는 항상 참.
+        `seen`은 [실행을 처음 본 표본의 카운터]를 담는 호출자 상태다.
+        """
+        status = getattr(self.transport, 'last_command', None)
+        if status is None:
+            return True
+        st = status()
+        if st is None:
+            return True
+        executed, result = st
+        if not executed:
+            return False
+        if result != 0:
+            raise GripperFault('RESIDENT_WRITE_FAILED', detail=f'result={result}')
+        if not seen:
+            seen.append(counter)
+            return False
+        return counter != seen[0]
+
     def _wait_position(self, target: int, initial: int, t_cmd: float):
         motion_start: float | None = None
+        seen: list = []
         max_iters = int(self.cfg.response_timeout_s / max(self.cfg.read_period_s, EPS)) + 3
         for _ in range(max_iters):
             self._sleep(self.cfg.read_period_s)
@@ -617,9 +639,11 @@ class GripperAdapter:
                 raise GripperFault('GRIPPER_TIMEOUT', detail=f'{now - t_cmd:.3f} s')
             present = self._read_present_pulse()
             self._check_error()
-            self._observe_loop()
+            counter = self._observe_loop()
             if motion_start is None and present != initial:
                 motion_start = now
+            if not self._command_sample_ready(counter, seen):
+                continue
             if abs(present - target) <= self.cfg.position_tolerance_pulse:
                 return motion_start, present, now
         raise GripperFault('GRIPPER_TIMEOUT', detail='position not reached')
@@ -633,6 +657,7 @@ class GripperAdapter:
         motion_start: float | None = None
         last: int | None = None
         last_counter: int | None = None
+        seen: list = []
         max_iters = int(cfg.response_timeout_s / max(cfg.read_period_s, EPS)) + 3
         for _ in range(max_iters):
             self._sleep(cfg.read_period_s)
@@ -645,6 +670,8 @@ class GripperAdapter:
             counter = self._observe_loop()
             if motion_start is None and present != initial:
                 motion_start = now
+            if not self._command_sample_ready(counter, seen):
+                continue
             if abs(present - target) <= cfg.position_tolerance_pulse:
                 return motion_start, present, now, current, False
             if counter != last_counter:

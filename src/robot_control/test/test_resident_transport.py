@@ -114,7 +114,7 @@ def test_loop_init_failure_is_a_fault_and_drl_text_matches_registers():
 @pytest.mark.level('U')
 def test_loop_write_failure_is_a_fault_for_that_command_only():
     session, _, ctrl, _ = build()
-    ctrl.fail_writes = True                            # 루프의 Modbus 쓰기가 실패한다
+    ctrl.fail_writes = True                            # 루프의 Modbus 쓰기가 실패한다(대기 끝까지 유지)
     with pytest.raises(GripperFault) as err:
         session.grasp(100)
     assert err.value.reason == 'RESIDENT_WRITE_FAILED'
@@ -123,6 +123,32 @@ def test_loop_write_failure_is_a_fault_for_that_command_only():
     ctrl.fail_writes = False                           # 앞 지령의 실패가 다음 지령에 남지 않는다
     held = session.grasp(100)
     assert (held.reason_code, held.holding) == ('STALLED', True)
+
+
+@pytest.mark.req('REQ-GRP-016')
+@pytest.mark.tc('TC-GRP-016-01')
+@pytest.mark.level('U')
+def test_success_waits_for_the_loop_to_execute_the_command():
+    session, transport, ctrl, clock = build()
+    session.grasp(100)                                 # 공깃돌을 쥔 상태(이미 목표·막힘 상태)
+    ctrl.fail_writes = True
+    with pytest.raises(GripperFault) as err:           # 실행 전 표본으로 성공을 내지 않는다
+        session.grasp(120)                             # 전류를 바꾸는 재파지
+    assert err.value.reason == 'RESIDENT_WRITE_FAILED'
+    ctrl.fail_writes = False
+    clock.advance(3.0)
+    assert session.grasp(100).reason_code == 'STALLED'  # 다음 지령은 앞 실패를 받지 않는다
+
+    session, transport, ctrl, clock = build(stone=None)
+    seq_before = ctrl.reg[ctrl.regs.done_seq]
+    session.ensure_open(TABLE.pulse_to_width(OPEN_PULSE + 100))
+    assert ctrl.reg[ctrl.regs.done_seq] != seq_before  # 루프가 실행한 뒤에 돌아왔다
+    assert ctrl.motion_starts and ctrl.motion_starts[-1] <= clock.steady_now()
+
+    # 이미 목표 위치여도 실행을 본 순간의 표본(실행 전에 읽은 값)으로 끝내지 않고, 그 뒤 새 표본까지 기다린다
+    session, transport, ctrl, clock = build(stone=None)
+    result = session.adapter.open(OPEN_M, 100)
+    assert result.t_done >= ctrl.motion_starts[-1] + ctrl.rtt_s - 1e-9
 
 
 @pytest.mark.req('REQ-GRP-016')
