@@ -41,6 +41,16 @@ jobs:
           source /opt/ros/jazzy/setup.bash
           colcon build --symlink-install
 
+      - name: Diagnose DNS
+        shell: bash
+        run: |
+          echo "=== DNS configuration ==="
+          cat /etc/resolv.conf
+          echo "=== Ubuntu archive ==="
+          getent hosts archive.ubuntu.com || true
+          echo "=== Ubuntu security ==="
+          getent hosts security.ubuntu.com || true
+
       - name: Run spec and eval unit tests
         shell: bash
         run: |
