@@ -156,17 +156,39 @@ def test_success_waits_for_the_loop_to_execute_the_command():
 @pytest.mark.tc('TC-GRP-016-04')
 @pytest.mark.level('U')
 def test_timeouts_shorter_than_the_loop_sample_period_are_rejected():
+    period = 0.58
     clock = FakeClock(steady=100.0)
     transport = ResidentLoopTransport(FakeResidentController(clock), clock, sleep=clock.advance,
-                                      drl_code='# fake', sample_period_s=0.58)
+                                      drl_code='# fake', sample_period_s=period)
     with pytest.raises(PreconditionError) as err:              # 기본값(응답 0.5 s, 생존 0.1 s)
         GripperAdapter(transport, TABLE, GripperCfg(), clock)
     assert err.value.reason == 'TIMEOUT_BELOW_LOOP_PERIOD'
-    ok = dict(close_pulse=CLOSE_PULSE, response_timeout_s=3 * 0.58, loop_timeout_s=2 * 0.58)
-    GripperAdapter(transport, TABLE, GripperCfg(**ok), clock)  # 경계: 응답 3주기, 생존 2주기
-    for bad in (dict(ok, response_timeout_s=3 * 0.58 - 0.001), dict(ok, loop_timeout_s=2 * 0.58 - 0.001)):
+    ok = dict(close_pulse=CLOSE_PULSE, response_timeout_s=5 * period, loop_timeout_s=3 * period,
+              read_period_s=0.05, grasp_stall_pulse=2)
+    for bad in (dict(ok, response_timeout_s=5 * period - 0.001), dict(ok, loop_timeout_s=3 * period - 0.001)):
         with pytest.raises(PreconditionError):
             GripperAdapter(transport, TABLE, GripperCfg(**bad), clock)
+
+    # 경계값은 충분해야 한다: 트리거 위상 30가지 모두에서 지령이 끝난다
+    for phase in [k * 0.02 for k in range(30)]:
+        clock = FakeClock(steady=100.0)
+        ctrl = FakeResidentController(clock, stone_pulse=STONE_PULSE, present_pulse=OPEN_PULSE)
+        transport = ResidentLoopTransport(ctrl, clock, sleep=clock.advance, drl_code='# fake',
+                                          sample_period_s=period)
+        session = GripperSession(GripperAdapter(transport, TABLE, GripperCfg(**ok), clock, sleep=clock.advance),
+                                 0.0005)
+        session.start(robot_standby=True)
+        clock.advance(phase)
+        assert session.grasp(100).reason_code == 'STALLED'       # 첫 파지(전류 쓰기 포함)
+        clock.advance(phase)
+        assert session.grasp(120).reason_code == 'STALLED'       # 전류를 바꾼 재파지
+        clock.advance(phase)
+        session.ensure_open(OPEN_M, 120)                          # 같은 전류 열기
+        clock.advance(phase)
+        session.grasp(120)
+        session.arm_open(OPEN_M, 120)
+        clock.advance(1.0 + phase)
+        assert session.fire_open().reason_code == 'OK'
 
 
 @pytest.mark.req('REQ-GRP-016')

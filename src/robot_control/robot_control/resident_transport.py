@@ -66,7 +66,7 @@ class ResidentLoopTransport:
         self.regs = regs
         self.ready_timeout_s = float(ready_timeout_s)
         self._drl_code = drl_code
-        # 루프가 상태를 새로 올리는 주기(Modbus 왕복 1회). 0.58 s는 일회성 DRL 측정값(2026-11-09)이며 OFF-2 실측으로 바꾼다.
+        # 루프가 상태를 새로 올리는 주기(Modbus 왕복 1회). 제안값 0.58 s는 일회성 DRL 왕복 측정값(2026-11-09)이다.
         # GripperAdapter는 이 값으로 응답·생존 제한시간이 판정 가능한지 생성 때 검사한다.
         if not sample_period_s > 0.0:
             raise ValueError('sample_period_s must be positive')

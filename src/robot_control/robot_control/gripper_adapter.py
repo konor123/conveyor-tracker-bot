@@ -683,19 +683,21 @@ class GripperAdapter:
         raise GripperFault('GRIPPER_TIMEOUT', detail='grasp not settled')
 
     def _check_timeouts_against_loop_period(self) -> None:
-        """상태를 표본 주기로 올리는 transport(상주 루프)에서는 제한시간이 주기보다 짧으면 판정이 불가능하다.
+        """상태를 표본 주기로 올리는 transport(상주 루프)에서 판정이 끝날 수 없는 제한시간을 거부한다.
 
-        열기·닫기 1회 = 목표 쓰기 + 확인 표본, 막힘 판정 = 새 표본 2개이므로 응답 제한은 3주기 이상,
-        생존 감시는 REQ-GRP-013의 2배 주기 이상이어야 한다. 주기를 알리지 않는 transport는 검사하지 않는다.
+        상주 루프 모델의 최악 경우(전류를 바꾸는 지령): 트리거가 읽기 직후에 닿아 1주기 대기, 전류·위치 쓰기 2주기,
+        실행 뒤 새 표본 1주기, 막힘 판정의 두 번째 표본 1주기 = 응답 5주기. 쓰기 2회와 다음 읽기 동안 생존 카운터가
+        멈추므로 생존 감시 3주기. 가짜 제어기에서 위상 30가지 모두 이 값으로 끝나고 그보다 짧으면 끝나지 않는다
+        (TC-GRP-016-04). 실제 루프에서도 충분한지는 실측이 판정한다. 주기를 알리지 않는 transport는 검사하지 않는다.
         """
         period = getattr(self.transport, 'sample_period_s', None)
         if period is None:
             return
         cfg = self.cfg
-        if cfg.response_timeout_s + EPS < 3.0 * period or cfg.loop_timeout_s + EPS < 2.0 * period:
+        if cfg.response_timeout_s + EPS < 5.0 * period or cfg.loop_timeout_s + EPS < 3.0 * period:
             raise PreconditionError(
                 'TIMEOUT_BELOW_LOOP_PERIOD',
-                f'response {cfg.response_timeout_s} s < 3×{period} s or loop {cfg.loop_timeout_s} s < 2×{period} s')
+                f'response {cfg.response_timeout_s} s < 5×{period} s or loop {cfg.loop_timeout_s} s < 3×{period} s')
 
     def _holding(self, width_m: float, current_ma: float) -> bool | None:
         cfg = self.cfg
