@@ -1,7 +1,7 @@
 """I0 전체 대역 통합 시험(PLAN.md 7.5절, TEST_SPEC.md 3.11·3.12·3.13절).
 
 TC-INT-001-01, TC-INT-002-01, TC-INT-003-01, TC-INT-004-01, TC-INT-005-01, TC-INT-006-01,
-TC-MCK-006-02, TC-REC-002-01, TC-REC-003-01을 격리된 ROS_DOMAIN_ID에서 검증한다.
+TC-INT-008-01, TC-INT-009-01, TC-MCK-006-02, TC-REC-002-01, TC-REC-003-01을 격리된 ROS_DOMAIN_ID에서 검증한다.
 """
 from __future__ import annotations
 
@@ -49,7 +49,7 @@ def ros():
     rclpy.shutdown()
 
 
-def _launch(*args):
+def _launch(*args, launch_file='mock.launch.py'):
     env = dict(
         os.environ,
         ROS_DOMAIN_ID=str(_ACTIVE_DOMAIN),
@@ -58,7 +58,7 @@ def _launch(*args):
     log = tempfile.NamedTemporaryFile(mode='w+', encoding='utf-8', prefix='drop-i0-', suffix='.log',
                                       delete=False)
     proc = subprocess.Popen(
-        ['ros2', 'launch', 'drop_bringup', 'mock.launch.py', *args],
+        ['ros2', 'launch', 'drop_bringup', launch_file, *args],
         env=env,
         stdout=log,
         stderr=subprocess.STDOUT,
@@ -618,6 +618,50 @@ def test_i0_supervisor_stop_without_running_skill(ros, tmp_path):
         _reset_cycle_clock(h, seed=2, t0_offset_s=-2.5)
         _, res = _send_goal(h, _drop_goal(), timeout=20.0)
         assert res.result == DropTask.Result.SUCCESS, (res.result, res.reason_code, _get_cancel_stop_history(h)[2])
+    finally:
+        _stop(proc)
+        h.close()
+
+
+@pytest.mark.req('REQ-ORC-013', 'REQ-PLN-012')
+@pytest.mark.tc('TC-INT-009-01')
+@pytest.mark.level('I0')
+@pytest.mark.parametrize('mode', [DropTask.Goal.MODE_SYNCHRONIZED, DropTask.Goal.MODE_PREDICTED],
+                         ids=['synchronized', 'predicted'])
+def test_i0_real_tracker_planner_cycle(ros, tmp_path, mode):
+    """mock vision·robot + 실제 tracker·planner로 계획 시점·계획 단계 기준을 거쳐 한 사이클을 끝낸다."""
+    h = Harness()
+    task_msgs = h.record(TaskStatus, 'task/status')
+    step_msgs = h.record(StepRecord, 'task/step_record')
+    proc = _launch('use_mock_vision:=true', 'use_mock_robot:=true', 'use_mock_tracking:=false',
+                   'use_mock_planner:=false', 'scenario:=nominal_20mms', 'duration_scale_ratio:=0.12',
+                   f'records_dir:={tmp_path}', f'date:={DATE_STR}', launch_file='drop.launch.py')
+    expected_states = ['PRECHECK', 'DETECT_STONE', 'PICK_STONE', 'MOVE_STANDBY', 'WAIT_CAP', 'PLAN_INTERCEPT',
+                       'APPROACH', 'SYNCHRONIZE', 'DESCEND', 'RELEASE', 'RETREAT', 'VERIFY', 'DONE']
+    try:
+        _wait_ready(h, timeout_s=30.0)
+        assert sorted(i.node_name for i in h.client.get_publishers_info_by_topic('/drop/intercept_plan')) \
+            == ['intercept_planner_node']
+        for seed in range(4):
+            _reset_cycle_clock(h, seed=seed, t0_offset_s=-2.5)
+            before_idx = len(task_msgs)
+            goal = _drop_goal(timeout=30.0)
+            goal.mode = mode
+            _, res = _send_goal(h, goal, timeout=40.0)
+            cyc_id = task_msgs[-1][1].cycle_id
+            steps = {m.step_name: dict(zip(m.metric_keys, m.metric_values))
+                     for _, m in step_msgs if m.cycle_id == cyc_id and m.result == 0}
+            assert res.result == DropTask.Result.SUCCESS, (seed, res.result, res.reason_code, steps)
+            observed = []
+            for _, m in task_msgs[before_idx:]:
+                if not observed or observed[-1] != m.state:
+                    observed.append(m.state)
+            while observed and observed[0] in ('IDLE', 'DONE'):
+                observed = observed[1:]
+            assert observed == expected_states, f'seed={seed} 상태 열 불일치: {observed}'
+            assert steps['WAIT_CAP']['t_to_window_s'] <= 3.0, (seed, steps['WAIT_CAP'])
+            assert steps['PLAN_INTERCEPT']['position_std_m'] <= 0.00325, (seed, steps['PLAN_INTERCEPT'])
+        assert _supervisor_stops_after_settle(h) == []
     finally:
         _stop(proc)
         h.close()

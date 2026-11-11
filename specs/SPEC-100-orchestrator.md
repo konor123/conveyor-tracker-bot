@@ -251,7 +251,7 @@ planner의 `time_budget`이 생기기 전까지 WAIT_CAP 예산은 `orchestrator
 
 ## 8. 검증 방법(`TEST_SPEC.md` TC ID, 게이트)
 
-TC-ORC-001-01 ~ TC-ORC-012-01(U, M0), TC-ORC-013-01·TC-ORC-014-01(U, G4). ROS 수준은 TC-INT-001-01, TC-INT-005-01, TC-INT-006-01, TC-INT-008-01.
+TC-ORC-001-01 ~ TC-ORC-012-01(U, M0), TC-ORC-013-01·TC-ORC-014-01(U, G4). ROS 수준은 TC-INT-001-01, TC-INT-005-01, TC-INT-006-01, TC-INT-008-01, TC-INT-009-01(실제 tracker·planner, REQ-ORC-013).
 
 ## 9. 미결 사항
 

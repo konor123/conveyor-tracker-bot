@@ -504,6 +504,7 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-INT-005-01 | 시간 부족 | I0 | `[ON]` | 첫 통과 부족 → 다음 통과 / 전부 부족 | 두 번째 통과에서 진행 / `NOT_ATTEMPTED` |
 | TC-INT-006-01 | lifecycle 비활성 | I0 | `[ON]` | 노드 하나 `INACTIVE` | PRECHECK FAILED, skill 호출 0회 |
 | TC-INT-008-01 | skill 없는 구간의 감시 노드 Stop | I0 | `[ON]` | nominal, WAIT_CAP 진입 뒤 `robot/stop`(SUPERVISOR) 직접 호출, `resume`만 하고 로봇을 해제하지 않은 새 `DropTask`, 로봇 해제 + `resume` 뒤 새 `DropTask`(DETECT_STONE·단계 사이는 TC-ORC-012-01) | WAIT_CAP: 결과 `PROTECTIVE_STOP`(`ROBOT_STOPPED`), WAIT_OPERATOR L4; 미해제 새 goal: `ROBOT_STOPPED`·L4, 대역 `skill_run_count` 증가 0; 해제·재개 뒤 SUCCESS |
+| TC-INT-009-01 | I0 실제 tracker·planner 한 사이클 | I0 | `[ON]` | `drop.launch.py` mock vision·robot + 실제 tracker·planner + 오케스트레이터, `nominal_20mms`, seed 0~3, `MODE_SYNCHRONIZED`·`MODE_PREDICTED` 각각 | 모드별 4/4 SUCCESS, 상태 열 TC-INT-001-01과 같음 / `drop/intercept_plan` 발행자 = `intercept_planner_node` 1개 / WAIT_CAP `t_to_window_s` ≤ `plan_lead_s`(3.0 s) / PLAN_INTERCEPT `position_std_m` ≤ 3.25 mm |
 | TC-INT-007-01 | replay는 지령 경로가 없다 | I1 | `[ON]` | `replay.launch.py` | 스트림 토픽 발행자·robot action 클라이언트·그리퍼 호출 0개 |
 | TC-INT-020-01 | I3 실기 skill·감시 | I3 | `[OFF]` | 안전 높이: deadline 자체 중단, stale 지령, `Stop`, plan 갱신 중단, 추종 중 그리퍼 개방 | 각 20회, 정의된 동작 20/20, 예기치 않은 재개 0회 |
 | TC-INT-021-01 | I4 인식 경로 | I4 | `[OFF]` | 실영상 → 계획, 로봇 mock | stale·추적 손실·계획 유효성 판정이 기대표와 일치 |
