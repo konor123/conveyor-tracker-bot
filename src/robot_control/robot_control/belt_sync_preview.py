@@ -5,7 +5,7 @@ Identity must be explicitly supplied; a different plan requires a fresh invocati
 """
 import argparse
 import time
-from .belt_sync import BeltSynchronizer, PlanSample
+from .belt_sync import BeltSynchronizer, PlanSample, SyncConfig
 
 
 def seconds(t):
@@ -25,7 +25,12 @@ def main():
     parser.add_argument('--plan-id',type=int,required=True)
     parser.add_argument('--track-id',type=int,required=True)
     parser.add_argument('--epoch',type=int,required=True)
+    parser.add_argument('--config',help='JSON file containing SyncConfig fields')
+    parser.add_argument('--csv',help='New CSV path; existing file is never overwritten')
     args, ros_args = parser.parse_known_args()
+    import json
+    from .sync_metrics import SyncCsv
+    cfg = SyncConfig(**json.loads(open(args.config).read())) if args.config else SyncConfig()
     import rclpy
     from rclpy.node import Node
     from rclpy.clock import Clock, ClockType
@@ -37,7 +42,8 @@ def main():
     class Preview(Node):
         def __init__(self):
             super().__init__('belt_sync_preview')
-            self.core = BeltSynchronizer()
+            self.core = BeltSynchronizer(cfg)
+            self.csv = SyncCsv(args.csv) if args.csv else None
             self.core.arm(args.plan_id,args.track_id,args.epoch)
             self.tcp = None
             self.tcp_received = None
@@ -76,6 +82,8 @@ def main():
                 self.core.stop('TCP_RECEIVE_TIMEOUT')
             out = self.core.step(now,steady,(m.tcp_pose.position.x,m.tcp_pose.position.y),
                                  seconds(m.header.stamp),m.header.frame_id)
+            if self.csv:
+                self.csv.write(self.core,out,now,steady,(m.tcp_pose.position.x,m.tcp_pose.position.y),seconds(m.header.stamp))
             self.emit(out.velocity_xy_mps,out.reason)
 
         def emit(self,xy,reason):
@@ -98,6 +106,8 @@ def main():
     except KeyboardInterrupt:
         pass
     finally:
+        if node.csv:
+            node.csv.close()
         node.destroy_node()
         if rclpy.ok():
             rclpy.shutdown()
