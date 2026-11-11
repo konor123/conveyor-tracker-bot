@@ -81,6 +81,7 @@
 - [x] `[ON]` `records/` 디렉터리, trial·step JSONL 기록, `devlog.csv`, `param_changes.csv`(TC-REC-*)
   - JSON Schema·StepRecord/trial JSONL 및 2026-11-09 devlog: unit 793/793·contract 72/72·I0 8/8(officepc WSL), 통합 커밋 `74013cf`. TC-MCK-005-01 실시간 실행은 `realtime_pc` 마커로 CI에서 기록만 하고 PC에서 판정한다(SPEC-700 v0.7). 2026-11-10 officepc WSL 판정 3/3 통과(발행 지연 최대 0.056 s). 커밋 `7c63b0b` CI run 42788599903 전체 실행 3회 연속 통과.
 - [x] `[ON]` `tools/spec/trace.py` 추적 행렬 생성(REQ·TC 연결 검사)
+- [ ] `[ON]` I0 nominal 간헐 `STEP_TIMEOUT`(결과 SAFE_ABORT) 원인 확정. officepc WSL에서 4회 중 2회(seed 7·18) 관찰, 실패 단계 미기록. 유력 후보는 RELEASE(제한 1.0 s, 대역 0.36 s)에서 WSL 교란으로 `phase_done` feedback 지연 또는 시계 전진, 또는 result 선처리(0.2 s 대기 추가로 완화). 재발하면 실패 메시지의 `last=`(마지막 단계·소요시간)로 판정하고, result 선처리 또는 feedback 지연이면 orchestrator action client를 전용 callback group으로 옮긴다. 근거: GCE `memory/projects/conveyor-tracker-bot/fable-m0-risk-2026-11-11.md` 1절
 
 **M0 합격 기준(제안):** SPEC 6종 v0.1과 M0 대상 시험 케이스 리뷰 완료 / interface 빌드 / 단위 테스트에서 장애 10종 이벤트 열마다 기대 중단 등급 / I0 정상 시나리오 20/20, ROS I0 장애 시나리오 4종(`robot_hang`, `protective_stop`, `heartbeat_loss`, `time_insufficient`)마다 정의된 중단 등급 동작 / 오케스트레이터 REQ 연결률 100% / `records/`에 StepRecord·trial 기록 생성 확인.
 

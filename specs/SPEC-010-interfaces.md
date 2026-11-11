@@ -190,7 +190,7 @@ wire schema는 v0.2이며 v0.3~v0.6는 필드 선언을 바꾸지 않는 runtime
 - `robot/stop`을 받으면 요청자(`ORCHESTRATOR`·`SUPERVISOR`)와 무관하게 controller가 정지 유지 상태가 된다. 실행 중 goal은 `CANCELED`(`STOPPED`)로 끝난다.
 - 정지 유지 중에는 `RobotStatus.ready = false`, `Heartbeat.error_code = 101`(보호정지가 함께 있으면 `100`)이다. lifecycle 비활성·재활성으로 풀리지 않는다.
 - 정지 유지 중 받은 skill goal은 수락한 뒤 로봇·그리퍼 지령 없이 `CANCELED`(`STOPPED`)로 끝낸다(수락 거부 대신 이 결과를 내어 orchestrator가 REQ-ORC-011 경로로 L4 처리한다).
-- 해제는 작업자가 `robot_controller_node` 파라미터 `stop_release_reason`에 비어 있지 않은 사유를 쓸 때만 한다. 정지 유지 중 실행 중 goal이 있거나 보호정지가 활성이면 파라미터 설정을 실패로 돌려주고(`GOAL_ACTIVE`·`PROTECTIVE_STOP`) 유지한다. 정지 유지 중 빈 사유는 `REASON_REQUIRED`로 실패한다. 정지 유지 중이 아닐 때의 설정(파라미터 선언의 기본값 포함)은 아무것도 하지 않고 성공이다. 자동 해제는 없다.
+- 해제는 작업자가 `robot_controller_node` 파라미터 `stop_release_reason`에 비어 있지 않은 사유를 쓸 때만 한다. 정지 유지 중 실행 중 goal이 있거나 보호정지가 활성이면 파라미터 설정을 실패로 돌려주고(`GOAL_ACTIVE`·`PROTECTIVE_STOP`) 유지한다. 정지 유지 중 빈 사유는 `REASON_REQUIRED`로 실패한다. 정지 유지 중이 아닐 때의 설정(파라미터 선언의 기본값 포함)은 아무것도 하지 않고 성공이다. 자동 해제는 없다. 해제 요청과 새 `Stop`이 같은 순간(수 ms 안)에 겹치면 그 Stop의 정지 유지가 풀릴 수 있다. 해제 요청에 정지 세대 번호를 싣지 않으므로 생기는 한계이며, 작업자는 해제 뒤 heartbeat `error_code`가 0인지 확인한다.
 - 운용 순서: 원인 확인 → 로봇 `stop_release_reason` → orchestrator `resume_reason`(REQ-ORC-009) → 새 `DropTask`. 로봇을 해제하지 않고 재개하면 다음 사이클 시작에서 다시 L4가 된다(REQ-ORC-012).
 
 ## 5. 시간 제약(주기·제한시간)
