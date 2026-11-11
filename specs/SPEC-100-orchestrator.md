@@ -1,6 +1,6 @@
 # SPEC-100 orchestrator
 
-- 버전: v0.9
+- 버전: v0.10
 - 근거: PLAN.md 4절
 - REQ 영역: ORC
 
@@ -8,6 +8,7 @@
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
+| v0.10 | 2026-11-11 | 병뚜껑 안쪽 지름 `D_in` 31 mm로 `sync.e_xy_max_m` 0.00325 |
 | v0.9 | 2026-11-10 | skill 결과 `STOPPED`·`PROTECTIVE_STOP`을 하드 이상으로 latch(REQ-ORC-011) |
 | v0.8 | 2026-11-10 | 재검출·재파지(L1) 제거: DETECT_STONE·PICK_STONE 실패와 검출 나이 초과는 L2 |
 | v0.7 | 2026-11-09 | 해제 후 RETREAT·VERIFY 독립 단계 예산과 준비된 응답 우선 |
@@ -54,7 +55,7 @@ SPEC-010 wire schema v0.2 / runtime contract v0.4 기준.
 | `plan.time_margin_min_s` | 1.0 | PLAN.md 4.3절 |
 | `plan.position_std_max_m` | 0.0005 | PLAN.md 4.3절 |
 | `plan.t_approach_s` | 1.0 | TBD(측정 G0) |
-| `sync.e_xy_max_m` | 0.00275 | `0.5 × (D_in − d_stone_max) / 2`, TBD(`D_in` 실측 OFF-1) |
+| `sync.e_xy_max_m` | 0.00325 | `0.5 × (D_in − d_stone_max) / 2`, `D_in` 31 mm·`d_stone_max` 18 mm |
 | `sync.v_rel_max_mps` | 0.005 | PLAN.md 4.4절 |
 | `sync.hold_s` | 0.3 | PLAN.md 4.3절 |
 | `sync.timeout_s` | 2.0 | PLAN.md 4.3절 |
@@ -245,6 +246,6 @@ TC-ORC-001-01 ~ TC-ORC-011-01(U, M0). ROS 수준은 TC-INT-001-01, TC-INT-005-01
 
 ## 9. 미결 사항
 
-- 병뚜껑 안쪽 지름 `D_in`과 이에 따른 `e_xy_max_m`, `clearance_min_m`, `safe_z_m`: TBD(실측 OFF-1).
+- `clearance_min_m`, `safe_z_m`: TBD(현장 배치 OFF-1).
 - `grip_current_min_ma`, `gripper_response_max_s`, `t_approach_s`: TBD(측정 G0).
 - `entry_time_tol_s`: TBD(측정 G4).

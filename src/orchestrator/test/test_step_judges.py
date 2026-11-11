@@ -14,7 +14,7 @@ MM = 1e-3
 D_STONE_MIN = 17 * MM
 D_STONE_MAX = 18 * MM
 DELTA_OPEN = 4 * MM
-E_XY_MAX = 2.75 * MM
+E_XY_MAX = 3.25 * MM
 V_REL_MAX = 5 * MM
 H_CLEAR = 2 * MM
 

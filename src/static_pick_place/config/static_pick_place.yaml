@@ -9,7 +9,7 @@ robot_namespace: dsr01
 h_stone_offset_m: 0.015       # 공깃돌 높이(사용자 실측 15 mm) → 위치 z = 공깃돌 윗면
 h_rim_m: 0.022                # 벨트면 → 뚜껑 테두리 윗면(사용자 실측: 매트면에서 115 mm, 벨트면은 매트면 + 93 mm)
 floor_thickness_m: 0.0015     # TBD
-inner_diameter_ratio: 0.80    # TBD(D_in)
+inner_diameter_ratio: 0.80    # 판정 반지름 비(치수비 31/32보다 작게, 테두리 제외)
 # 경유점(플랜지 높이)
 travel_z_m: 0.2844
 grasp_above_stone_top_m: 0.1620

@@ -239,7 +239,7 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 
 ### 3.3 ORC — 상태 머신·단계 판정
 
-경계 시험 공통 파라미터: `d_stone_min = 0.017 m`, `d_stone_max = 0.018 m`, `Δ_open = 0.004 m`, `e_xy_max = 0.00275 m`, `v_rel_max = 0.005 m/s`, `h_clear = 0.002 m`.
+경계 시험 공통 파라미터: `d_stone_min = 0.017 m`, `d_stone_max = 0.018 m`, `Δ_open = 0.004 m`, `e_xy_max = 0.00325 m`, `v_rel_max = 0.005 m/s`, `h_clear = 0.002 m`.
 
 | TC | 검증 내용(REQ 초안) | 수준 | 장소 | 조건 | 기대 결과 |
 |---|---|---|---|---|---|

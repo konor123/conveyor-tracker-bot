@@ -27,7 +27,7 @@ judge:
   approach:
     pose_error_max_m: 0.002
   sync:
-    e_xy_max_m: 0.00275                # 0.5 × (D_in − d_stone) / 2, TBD(D_in 실측 OFF-1)
+    e_xy_max_m: 0.00325                # 0.5 × (D_in 31 mm − d_stone_max 18 mm) / 2
     v_rel_max_mps: 0.005
     hold_s: 0.3
     timeout_s: 2.0

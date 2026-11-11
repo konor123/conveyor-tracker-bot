@@ -81,7 +81,7 @@ class Blob:
 
 @dataclass(frozen=True)
 class InsideParams:
-    inner_diameter_ratio: float = 0.80   # 안쪽 지름 / 바깥 지름. TBD(D_in 실측 OFF-1)
+    inner_diameter_ratio: float = 0.80   # 뚜껑 안 판정 반지름 / 바깥 반지름. 치수비 31/32보다 작게 두어 테두리 픽셀을 뺀다
 
 
 def default_classes() -> dict[int, ColorModel]:
