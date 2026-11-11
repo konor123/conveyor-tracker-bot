@@ -383,12 +383,12 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-ROB-009-01 | 해제 게이트 미통과 시 그리퍼를 열지 않는다 | U | `[ON]` | 게이트 항목을 하나씩 위반(5항목) | `FakeGripper` open 호출 0회, 결과 L3 요청 |
 | TC-ROB-010-01 | 동기 유지 후퇴 | U | `[ON]` | `SafeRetreat(keep_sync=true)` | z가 안전 높이에 닿을 때까지 XY 지령 속도 = 계획 속도 ± 1 mm/s |
 | TC-ROB-011-01 | virtual 모드 형식 확인 | C | `[ON]` | Doosan `mode:=virtual`(지원 시) | 선정 stream·`move_line` 요청이 거부 없이 수락. 미지원이면 stub로 대체하고 skip 사유 기록 |
+| TC-ROB-012-01 | Heartbeat | C | `[ON]` | 10 s 관찰 | 10 Hz ± 10%, seq 연속 |
 | TC-ROB-013-01 | XY 추종 목표·메시지 변환 | U | `[ON]` | release_xy (0.52, 0) m·v (0.02, 0) m/s·release 2 s, 현재 1 s / 새 revision에서 v 0.03 m/s / `InterceptPlan` 필드 | 목표 (0.50, 0) m, 전진 지령 / 목표 (0.49, 0) m / 시각·위치·속도·식별자 그대로 대응 |
 | TC-ROB-013-02 | 계획 수락 조건과 래치 | U | `[ON]` | epoch·track·plan_id 변경, status ≠ OK, frame ≠ `robot_base`, 비유한 속도, 만료, 시각 순서 위반, `position_std` 초과 / 같은 revision 재수신 / 입력 상태 나이 0.3 s | 거부, 이후 출력 비활성, 다음 revision도 거부 / 무시, 수신 감시 갱신 없음(0.25 s 뒤 `PLAN_STALE`) / 거부 |
 | TC-ROB-013-03 | 감시 | U | `[ON]` | steady 간격 0.03 s 초과 / ROS 시계 역행 / TCP 나이 0.51 s·미래 시각 / ROS 시계 정지 + steady 진행 / 만료 / 계획 없음 / 비유한 TCP | `LOOP_GAP` / `CLOCK_BACKWARD` / `TCP_STALE` / `PLAN_STALE` / `PLAN_EXPIRED` / `WAIT_PLAN` / `NONFINITE`, 모두 비활성·속도 (0, 0) |
 | TC-ROB-013-04 | 제한·작업영역·설정 | U | `[ON]` | 큰 오차 15주기 / TCP (2, 0) m / 주기 0, Kp NaN, 작업영역 역전, 주기 > 간격 한도 | `|v| ≤ v_max`, `|Δv| ≤ a_max·dt` / `WORKSPACE` / 생성 시 예외 |
 | TC-ROB-013-05 | 정지와 명시적 재무장 | U | `[ON]` | `stop` 뒤 주기 / `arm` 후 같은 계획 | 비활성 / 수락·활성 |
-| TC-ROB-012-01 | Heartbeat | C | `[ON]` | 10 s 관찰 | 10 Hz ± 10%, seq 연속 |
 
 ### 3.9 GRP — 그리퍼(RH-P12-RN(A), 상주 루프 DRL 경유)
 
@@ -418,9 +418,9 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-GRP-014-03 | 예약 뒤 트리거 | U | `[ON]` | `arm_open` → `fire_open` / 예약 없이 `fire_open` / `arm_open` → `grasp` → `fire_open` / adapter에서 prewrite → close → `open(prewritten)` | 예약 때 트리거 0회, 해제 때 트리거 1회·쓰기 0회 / `NOT_ARMED` / `NOT_ARMED`, 트리거는 닫기 1회뿐 / 열림 목표를 다시 써서 열림 |
 | TC-GRP-015-01 | 막힘 파지 판정 | U | `[ON]` | 가짜 제어기, 공깃돌이 659 pulse에서 막음 / 손가락 사이 빔(닫힘 목표 750) | `STALLED`·`holding = true`, 위치 659 / `REACHED_END`·`holding = false`, 위치 750 |
 | TC-GRP-016-01 | 상주 루프 transport 레지스터 계약 | U | `[ON]` | 세션 시작 / 루프가 올리지 않는 주소 읽기 / Operating Mode 쓰기 / 예약 / 시작 상태 246 / DRL 본문 / 루프 쓰기 실패 뒤 다음 지령 / 이미 목표 상태에서 쓰기 실패·이미 목표 위치로 열기 / DRL 본문 실행(정상·같은 전류·전류 쓰기 실패·위치 쓰기 실패) | 루프 기동 1회·위치·모드 읽기 일치 / 예외 / 거부 / 7비트 분할 값(0~127)·예약 1·seq 불변 / `FAULT`(`RESIDENT_INIT`) / 자리표시 없음·레지스터 번호 일치(결과 40 포함) / `FAULT`(`RESIDENT_WRITE_FAILED`)·그리퍼 목표 수신 0회, 다음 지령은 정상 / 그 지령의 `RESIDENT_WRITE_FAILED`(성공 보고 없음)·실행 뒤 표본 1주기 이후 완료 / 지령마다 결과 40을 39보다 먼저 씀, 같은 전류는 전류 쓰기 생략, 전류 쓰기 실패면 위치 쓰기 0회·242, 위치 쓰기 실패면 242 |
-| TC-GRP-016-04 | 표본 주기 대비 제한시간 | U | `[ON]` | 표본 주기 0.58 s, 기본 설정(응답 0.5 s·생존 0.1 s) / 응답 2.90 s·생존 1.74 s에서 트리거 위상 0~0.58 s 30가지로 첫 파지·전류 바꾼 재파지·같은 전류 열기·예약 뒤 열기 / 각각 0.001 s 짧게 | `PRECONDITION`(`TIMEOUT_BELOW_LOOP_PERIOD`) / 생성, 모든 위상에서 지령 완료 / `PRECONDITION` |
 | TC-GRP-016-02 | 예약 뒤 트리거 지연 | U | `[ON]` | 가짜 제어기 왕복 0.58 s, 쓰기 도달 0.58 s / 0.01 s, 예약 뒤 3 s 대기 후 트리거 | 그리퍼가 목표를 받기까지 ≤ spin + 쓰기 도달 시간, 추가 왕복 ≤ 3회 |
 | TC-GRP-016-03 | 공통 순서의 정적 사이클 시간(모델) | U | `[ON]` | 가짜 제어기 왕복 0.58 s, 이동은 2026-11-09 3회차 측정 시간 | 첫 열기 0 s(생략), 파지 유지, 그리퍼 합계 < 측정 19.76 s의 30%, 사이클 = 이동 합 + 그리퍼 합 |
+| TC-GRP-016-04 | 표본 주기 대비 제한시간 | U | `[ON]` | 표본 주기 0.58 s, 기본 설정(응답 0.5 s·생존 0.1 s) / 응답 2.90 s·생존 1.74 s에서 트리거 위상 0~0.58 s 30가지로 첫 파지·전류 바꾼 재파지·같은 전류 열기·예약 뒤 열기 / 각각 0.001 s 짧게 | `PRECONDITION`(`TIMEOUT_BELOW_LOOP_PERIOD`) / 생성, 모든 위상에서 지령 완료 / `PRECONDITION` |
 
 ### 3.10 CAL — 보정
 
