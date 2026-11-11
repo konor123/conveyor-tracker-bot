@@ -84,6 +84,7 @@ class RosClock:
 
 class RosSkillPort:
     """SkillPort(cycle_runner.py)의 ROS 구현. 메서드는 작업 스레드에서 불리고 deadline(ROS 시각)까지 기다린다."""
+    FEEDBACK_DRAIN_S = 0.2   # 정상 result가 마지막 phase_done feedback보다 먼저 처리될 때 기다리는 시간
 
     def __init__(self, node: 'OrchestratorNode'):
         self.n = node
@@ -440,11 +441,16 @@ class RosSkillPort:
         return None if m is None else meas_from_metrics(sj.ApproachMeas, m)
 
     def _phase_done(self, phase, deadline):
+        def has_fb():
+            return any(fb.phase == phase and fb.phase_done for _, fb in self._feedback)
+
         def done():
-            return any(fb.phase == phase and fb.phase_done for _, fb in self._feedback) or (
-                self._result_future is not None and self._result_future.done())
+            return has_fb() or (self._result_future is not None and self._result_future.done())
         if not self._wait(done, deadline):
             return None
+        if not has_fb() and self._result_future is not None and self._result_future.result().result.result == 0:
+            # 정상 result가 마지막 feedback보다 먼저 처리된 경우만 짧게 기다린다(정지 결과는 즉시, SPEC-100 4.10절)
+            self._wait(has_fb, min(deadline, self.clock.ros_now() + self.FEEDBACK_DRAIN_S))
         fb = next((fb for _, fb in self._feedback if fb.phase == phase and fb.phase_done), None)
         if fb is None:
             if self._result_future is not None and self._result_future.done():

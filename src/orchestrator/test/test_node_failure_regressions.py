@@ -522,3 +522,41 @@ def test_specific_cause_wins_over_generic_stop():
     q._result(1.)
     q.raise_fault(Event.PROTECTIVE_STOP)
     assert q.pending_fault() is Event.PROTECTIVE_STOP
+
+
+def _done_result(code):
+    return NS(done=lambda: True, result=lambda: NS(result=NS(result=code, reason_code='')))
+
+
+@pytest.mark.req('REQ-ORC-010')
+@pytest.mark.tc('TC-ORC-010-03')
+@pytest.mark.level('U')
+def test_phase_done_waits_briefly_for_feedback_after_ok_result():
+    """정상 result가 마지막 phase_done feedback보다 먼저 처리돼도 그 feedback을 짧게 기다린다(SPEC-100 4.10절)."""
+    p = port()
+    p._phase_done.__func__.__globals__['metrics_of'] = lambda fb: dict(zip(fb.metric_keys, fb.metric_values))
+    p._result_future = _done_result(0)
+    fb = NS(phase='RELEASE', phase_done=True, metric_keys=['open_width_m'], metric_values=[0.02])
+    threading.Timer(0.05, lambda: p._feedback.append((0., fb))).start()
+    t = time.monotonic()
+    assert p._phase_done('RELEASE', 10.) == {'open_width_m': 0.02}
+    assert time.monotonic() - t < 0.5
+
+
+@pytest.mark.req('REQ-ORC-010')
+@pytest.mark.tc('TC-ORC-010-03')
+@pytest.mark.level('U')
+def test_phase_done_gives_up_after_drain_and_stopped_result_is_immediate():
+    p = port()
+    p._phase_done.__func__.__globals__['metrics_of'] = lambda fb: {}
+    p._result_future = _done_result(0)
+    t = time.monotonic()
+    assert p._phase_done('RELEASE', 10.) is None                 # feedback이 끝내 없으면 짧은 대기 뒤 None
+    assert time.monotonic() - t < 1.0
+    p = port()
+    p._result_future = NS(done=lambda: True, result=lambda: NS(result=NS(result=4, reason_code='STOPPED')))
+    p.n._watch = lambda: None
+    t = time.monotonic()
+    assert p._phase_done('RELEASE', 10.) is None                 # 정지 결과는 기다리지 않는다
+    assert time.monotonic() - t < 0.05
+    assert p._fault is Event.ROBOT_STOPPED

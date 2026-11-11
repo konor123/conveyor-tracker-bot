@@ -3,7 +3,7 @@
 `tools/spec/trace.py`가 생성한다. 손으로 고치지 않는다.
 
 - REQ 125개 중 TC 연결 125개
-- pytest 대상 TC 210개 중 테스트 연결 197개
+- pytest 대상 TC 211개 중 테스트 연결 198개
 
 | TC | 수준 | REQ | 테스트 |
 |---|---|---|---|
@@ -152,6 +152,7 @@
 | TC-ORC-009-01 | U | REQ-ORC-009 | `src/orchestrator/test/test_cycle_runner.py::test_resume_requires_reason`<br>`src/orchestrator/test/test_cycle_runner.py::test_precheck_failure_returns_to_idle_without_wait_operator` |
 | TC-ORC-010-01 | U | REQ-ORC-010 | `src/orchestrator/test/test_ros_skill_port.py::test_soft_fault_ends_wait_before_release`<br>`src/orchestrator/test/test_ros_skill_port.py::test_soft_fault_does_not_end_wait_after_release`<br>`src/orchestrator/test/test_ros_skill_port.py::test_hard_fault_ends_wait_after_release_and_overrides_soft`<br>`src/orchestrator/test/test_ros_skill_port.py::test_soft_fault_does_not_override_hard`<br>`src/orchestrator/test/test_ros_skill_port.py::test_reset_clears_release`<br>`src/orchestrator/test/test_ros_skill_port.py::test_concurrent_soft_and_hard_raise_keeps_hard`<br>`src/orchestrator/test/test_ros_skill_port.py::test_concurrent_consume_and_hard_raise_loses_nothing` |
 | TC-ORC-010-02 | U | REQ-ORC-010 | `src/orchestrator/test/test_cycle_runner.py::test_cleanup_after_real_cycle_deadline`<br>`src/orchestrator/test/test_node_failure_regressions.py::test_ready_cleanup_result_after_original_deadline`<br>`src/orchestrator/test/test_node_failure_regressions.py::test_runner_cleanup_with_production_ros_port`<br>`src/orchestrator/test/test_node_failure_regressions.py::test_released_cleanup_frozen_clock_is_still_bounded`<br>`src/orchestrator/test/test_ros_skill_port.py::test_ready_response_after_original_cycle_deadline` |
+| TC-ORC-010-03 | U | REQ-ORC-010 | `src/orchestrator/test/test_node_failure_regressions.py::test_phase_done_waits_briefly_for_feedback_after_ok_result`<br>`src/orchestrator/test/test_node_failure_regressions.py::test_phase_done_gives_up_after_drain_and_stopped_result_is_immediate` |
 | TC-ORC-011-01 | U | REQ-ORC-011 | `src/orchestrator/test/test_node_failure_regressions.py::test_stopped_skill_result_latches_hard_fault`<br>`src/orchestrator/test/test_node_failure_regressions.py::test_stopped_result_reported_by_phase_wait`<br>`src/orchestrator/test/test_node_failure_regressions.py::test_specific_cause_wins_over_generic_stop` |
 | TC-ORC-012-01 | U | REQ-ORC-012 | `src/orchestrator/test/test_controller_stop_watch.py::<module>` |
 | TC-PLN-001-01 | U | REQ-PLN-001 | `src/intercept_planner/test/test_planner.py::test_budget_formula` |

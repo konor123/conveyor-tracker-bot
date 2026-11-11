@@ -273,6 +273,7 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-ORC-009-01 | WAIT_OPERATOR 재개 | U | `[ON]` | `resume` 사유 없음 / 사유 있음 | 거부 / PRECHECK부터 재시작, 진입 시각·사유 기록 |
 | TC-ORC-010-02 | 해제 뒤 독립 cleanup 예산 | U | `[ON]` | RELEASE 직후·RETREAT 도중·VERIFY 직전 실제 ROS 시각이 원 사이클 deadline 초과, 준비된 결과·지연 결과·실패·동결 시계 | RETREAT·VERIFY 각각 기존 단계 제한시간, 준비된 응답 우선, 실제 후퇴 실패·하드 이상 L4, steady 상한 유지 |
 | TC-ORC-010-01 | 포트 대기와 비동기 장애 latch | U | `[ON]` | 해제 전 비하드 장애 / RELEASE 응답 뒤 비하드 장애 / 해제 뒤 비하드 latch 중 하드 이상 / 하드 latch 중 비하드 / `reset` 뒤 | 대기 종료 / 대기 계속·latch 유지 / 대기 종료·하드로 교체 / 하드 유지 / 해제 표시 초기화 |
+| TC-ORC-010-03 | result가 마지막 feedback보다 먼저 처리됨 | U | `[ON]` | 정상 result 처리 뒤 0.05 s에 `phase_done` feedback 도착 / 끝내 없음 / `STOPPED` result | feedback의 metrics 반환 / 짧은 대기 뒤 None / 대기 없이 None·`ROBOT_STOPPED` |
 | TC-ORC-011-01 | skill 결과의 정지 사유를 하드 이상으로 | U | `[ON]` | action 결과 `STOPPED` / `PROTECTIVE_STOP` / `CANCELED` / 빈 사유, phase 대기 중 `STOPPED`, 자체 감시가 controller heartbeat 손실을 먼저 봄, `ROBOT_STOPPED` latch 뒤 보호정지 확인 | `ROBOT_STOPPED` / `PROTECTIVE_STOP` / 장애 없음 / 장애 없음, `ROBOT_STOPPED`, `CONTROLLER_HEARTBEAT_LOST`, `PROTECTIVE_STOP` |
 | TC-ORC-012-01 | controller 정지 유지·보호정지 감시 | U | `[ON]` | controller heartbeat `error_code` 100 / 101 / 0, 100 뒤 101; `ROBOT_STOPPED`가 DETECT_STONE(`DetectObjects.MAT` 뒤) / WAIT_CAP(`SelectTarget` 뒤) / 단계 사이(`PickStone` 성공 뒤) / PRECHECK에서 latch | `PROTECTIVE_STOP` / `ROBOT_STOPPED` / 장애 없음, `PROTECTIVE_STOP` 유지; 각 경우 L4·WAIT_OPERATOR, latch 뒤 Stop 외 로봇 skill 호출 0회 |
 

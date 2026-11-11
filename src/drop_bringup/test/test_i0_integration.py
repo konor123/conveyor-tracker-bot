@@ -237,8 +237,12 @@ def test_i0_nominal_20_cycles_and_records(ros, tmp_path):
                 max_passes=3,
             )
             _, res = _send_goal(h, goal, timeout=20.0)
+            cyc = [m for _, m in step_msgs if task_msgs and m.cycle_id == task_msgs[-1][1].cycle_id]
+            last = [(m.step_name, m.reason_code, round((m.t_end.sec - m.t_start.sec)
+                                                       + (m.t_end.nanosec - m.t_start.nanosec) * 1e-9, 3))
+                    for m in cyc[-2:]]
             assert res.result == DropTask.Result.SUCCESS, (
-                f'seed={seed} 실패: {res.result} ({res.reason_code}); '
+                f'seed={seed} 실패: {res.result} ({res.reason_code}); last={last}; '
                 f'steps={[(m.step_name, m.reason_code, dict(zip(m.metric_keys, m.metric_values))) for _, m in step_msgs if m.cycle_id == task_msgs[-1][1].cycle_id]}'
             )
             observed = []

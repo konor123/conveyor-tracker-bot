@@ -236,6 +236,13 @@ class RobotControllerNode(LifecycleNode):
         return lambda goal_handle: self._execute(name, goal_handle)
 
     def _execute(self, name, goal_handle):
+        try:
+            return self._execute_reserved(name, goal_handle)
+        finally:
+            with self._lock:
+                self._active_goal = False         # 실행 초입 예외로 빠져도 수락 때의 예약을 푼다
+
+    def _execute_reserved(self, name, goal_handle):
         with self._lock:
             self._active_goal = True
             latched = self.stop_latch.latched
@@ -387,6 +394,8 @@ class RobotControllerNode(LifecycleNode):
             reset = getattr(self.backend, 'reset_stop', None)
             if reset is not None:
                 reset()
+                if self.stop_latch.latched:       # 해제와 reset 사이에 새 Stop이 왔으면 다시 멈춘다
+                    self.backend.stop()
             self.get_logger().info(f'정지 유지 해제: {str(p.value).strip()}')
         return SetParametersResult(successful=True)
 

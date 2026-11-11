@@ -198,7 +198,7 @@ planner의 `time_budget`이 생기기 전까지 WAIT_CAP 예산은 `orchestrator
 
 ### 4.10 포트 대기와 미확정 action
 
-수락 future가 미완료인 action은 취소 확인으로 간주하지 않는다. 늦게 수락한 goal에도 cancel을 보내고 terminal result(status 4·5·6)를 확인한다. 이전 모션 종료가 미확정이면 대체 모션을 보내지 않는다. feedback은 goal별 token으로 격리한다. 포트 대기의 steady 예산은 진입 시 남은 ROS deadline 시간 × `watchdog.cycle_steady_factor_ratio`(기본 2.0)다(deadline 없는 호출은 1 s × 배율). ROS deadline 자체는 계속 검사한다. 포트 대기는 이 steady 예산, 사이클 steady 상한, 사용자 cancel, context 종료를 검사한다. 해제 뒤 비하드 장애의 후퇴·검증 규칙(REQ-ORC-010)은 유지한다.
+수락 future가 미완료인 action은 취소 확인으로 간주하지 않는다. 늦게 수락한 goal에도 cancel을 보내고 terminal result(status 4·5·6)를 확인한다. 이전 모션 종료가 미확정이면 대체 모션을 보내지 않는다. feedback은 goal별 token으로 격리한다. 포트 대기의 steady 예산은 진입 시 남은 ROS deadline 시간 × `watchdog.cycle_steady_factor_ratio`(기본 2.0)다(deadline 없는 호출은 1 s × 배율). ROS deadline 자체는 계속 검사한다. 포트 대기는 이 steady 예산, 사이클 steady 상한, 사용자 cancel, context 종료를 검사한다. 해제 뒤 비하드 장애의 후퇴·검증 규칙(REQ-ORC-010)은 유지한다. phase 끝 대기에서 action result가 정상(`OK`)으로 먼저 처리되고 그 phase의 `phase_done` feedback이 아직 없으면 0.2 s(ROS deadline 안)까지 더 기다린다. 정상이 아닌 result(`STOPPED` 등)는 기다리지 않는다.
 
 ## 5. 시간 제약(주기·제한시간)
 
