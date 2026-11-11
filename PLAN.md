@@ -813,7 +813,7 @@ time_margin = T_available − T_required        # 시도 조건: time_margin ≥
 | 성능 측정 | `records/bench/<항목>-<date>.csv` | 측정 스크립트 | 지연·지터·주기 분포(G0 스트림·그리퍼, G3, G5) |
 | 파라미터 변경 | `records/param_changes.csv` | 수동 | 10.4절 |
 | 개발 지표 | `records/devlog.csv` | 일 1회 스크립트 | 10.3절 |
-| 게이트 보고서 | `deliverables/gate-G<n>-report-<YYYY-MM-DD>.md` | 수동 + `tools/eval` | 10.5절 |
+| 게이트 보고서 | `records/gates/gate-G<n>-report-<YYYY-MM-DD>.md` | 수동 + `tools/eval` | 10.5절 |
 
 ### 10.2 시도 기록 스키마 (trials.jsonl 한 줄)
 

@@ -1,0 +1,19 @@
+E                                                                        [100%]
+==================================== ERRORS ====================================
+___________ ERROR at setup of test_i0_nominal_20_cycles_and_records ____________
+
+self = PosixPath('/home/user/ctb-codex/nominal-results/8'), mode = 448
+parents = False, exist_ok = False
+
+    def mkdir(self, mode=0o777, parents=False, exist_ok=False):
+        """
+        Create a new directory at this given path.
+        """
+        try:
+>           os.mkdir(self, mode)
+E           FileNotFoundError: [Errno 2] No such file or directory: '/home/user/ctb-codex/nominal-results/8'
+
+/usr/lib/python3.12/pathlib.py:1313: FileNotFoundError
+=========================== short test summary info ============================
+ERROR src/drop_bringup/test/test_i0_integration.py::test_i0_nominal_20_cycles_and_records
+1 error in 0.33s

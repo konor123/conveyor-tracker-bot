@@ -1,0 +1,165 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+____________________ test_i0_nominal_20_cycles_and_records _____________________
+
+ros = None
+tmp_path = PosixPath('/tmp/pytest-of-user/pytest-5/test_i0_nominal_20_cycles_and_0')
+
+    @pytest.mark.req('REQ-ORC-001', 'REQ-MCK-006', 'REQ-REC-001', 'REQ-REC-002', 'REQ-REC-003')
+    @pytest.mark.tc('TC-INT-001-01', 'TC-MCK-006-02', 'TC-REC-003-01')
+    @pytest.mark.level('I0')
+    def test_i0_nominal_20_cycles_and_records(ros, tmp_path):
+        h = Harness()
+        task_msgs = h.record(TaskStatus, 'task/status')
+        step_msgs = h.record(StepRecord, 'task/step_record')
+        proc = _launch(
+            'scenario:=nominal_20mms',
+            'duration_scale_ratio:=0.12',
+            f'records_dir:={tmp_path}',
+            f'date:={DATE_STR}',
+        )
+        expected_states = [
+            'PRECHECK',
+            'DETECT_STONE',
+            'PICK_STONE',
+            'MOVE_STANDBY',
+            'WAIT_CAP',
+            'PLAN_INTERCEPT',
+            'APPROACH',
+            'SYNCHRONIZE',
+            'DESCEND',
+            'RELEASE',
+            'RETREAT',
+            'VERIFY',
+            'DONE',
+        ]
+        try:
+            _wait_ready(h)
+            for seed in range(20):
+                _reset_cycle_clock(h, seed=seed, t0_offset_s=-2.5)
+                before_idx = len(task_msgs)
+                goal = DropTask.Goal(
+                    mode=DropTask.Goal.MODE_SYNCHRONIZED,
+                    max_belt_speed=0.05,
+                    timeout=15.0,
+                    max_passes=3,
+                )
+                _, res = _send_goal(h, goal, timeout=20.0)
+>               assert res.result == DropTask.Result.SUCCESS, f'seed={seed} 실패: {res.result} ({res.reason_code})'
+E               AssertionError: seed=9 실패: 4 (STEP_TIMEOUT)
+E               assert 4 == 0
+E                +  where 4 = drop_interfaces.action.DropTask_Result(result=4, reason_code='STEP_TIMEOUT', release_error=0.0, release_error_valid=False, stone_offset=0.0, stone_offset_valid=False, hold_time=0.0, cycle_time=2.528486967086792, passes_skipped=0).result
+E                +  and   0 = <class 'drop_interfaces.action._drop_task.DropTask_Result'>.SUCCESS
+E                +    where <class 'drop_interfaces.action._drop_task.DropTask_Result'> = DropTask.Result
+
+src/drop_bringup/test/test_i0_integration.py:211: AssertionError
+----------------------------- Captured stdout call -----------------------------
+I0 launch log: /tmp/drop-i0-mtaodp5w.log
+09-14-37-52-555449-localhost-1111
+[INFO] [launch]: Default logging verbosity is set to INFO
+[INFO] [mock_world_node-1]: process started with pid [1114]
+[INFO] [mock_robot_controller_node-2]: process started with pid [1115]
+[INFO] [orchestrator_node-3]: process started with pid [1116]
+[INFO] [safety_supervisor_node-4]: process started with pid [1117]
+[INFO] [record_logger_node-5]: process started with pid [1118]
+[mock_world_node-1] [INFO] [1794202673.050175366] [mock_world_node]: scenario=nominal_20mms seed=0 t0_s=1794202672.593 file=/home/user/ctb-codex/install/drop_mocks/share/drop_mocks/scenarios/nominal_20mms.yaml
+[mock_robot_controller_node-2] [INFO] [1794202673.092039573] [mock_robot_controller_node]: scenario=nominal_20mms seed=0 t0_s=1794202672.593 file=/home/user/ctb-codex/install/drop_mocks/share/drop_mocks/scenarios/nominal_20mms.yaml
+[orchestrator_node-3] [INFO] [1794202679.012204749] [orchestrator_node]: 20261109-143756-0001: SUCCESS  (IDLE → PRECHECK → DETECT_STONE → PICK_STONE → MOVE_STANDBY → WAIT_CAP → PLAN_INTERCEPT → APPROACH → SYNCHRONIZE → DESCEND → RELEASE → RETREAT → VERIFY → DONE)
+[orchestrator_node-3] [INFO] [1794202681.854886391] [orchestrator_node]: 20261109-143759-0002: SUCCESS  (IDLE → PRECHECK → DETECT_STONE → PICK_STONE → MOVE_STANDBY → WAIT_CAP → PLAN_INTERCEPT → APPROACH → SYNCHRONIZE → DESCEND → RELEASE → RETREAT → VERIFY → DONE)
+[orchestrator_node-3] [INFO] [1794202684.690843579] [orchestrator_node]: 20261109-143801-0003: SUCCESS  (IDLE → PRECHECK → DETECT_STONE → PICK_STONE → MOVE_STANDBY → WAIT_CAP → PLAN_INTERCEPT → APPROACH → SYNCHRONIZE → DESCEND → RELEASE → RETREAT → VERIFY → DONE)
+[orchestrator_node-3] [INFO] [1794202687.558411553] [orchestrator_node]: 20261109-143804-0004: SUCCESS  (IDLE → PRECHECK → DETECT_STONE → PICK_STONE → MOVE_STANDBY → WAIT_CAP → PLAN_INTERCEPT → APPROACH → SYNCHRONIZE → DESCEND → RELEASE → RETREAT → VERIFY → DONE)
+[orchestrator_node-3] [INFO] [1794202690.423705222] [orchestrator_node]: 20261109-143807-0005: SUCCESS  (IDLE → PRECHECK → DETECT_STONE → PICK_STONE → MOVE_STANDBY → WAIT_CAP → PLAN_INTERCEPT → APPROACH → SYNCHRONIZE → DESCEND → RELEASE → RETREAT → VERIFY → DONE)
+[orchestrator_node-3] [INFO] [1794202693.257666639] [orchestrator_node]: 20261109-143810-0006: SUCCESS  (IDLE → PRECHECK → DETECT_STONE → PICK_STONE → MOVE_STANDBY → WAIT_CAP → PLAN_INTERCEPT → APPROACH → SYNCHRONIZE → DESCEND → RELEASE → RETREAT → VERIFY → DONE)
+[orchestrator_node-3] [INFO] [1794202696.118127181] [orchestrator_node]: 20261109-143813-0007: SUCCESS  (IDLE → PRECHECK → DETECT_STONE → PICK_STONE → MOVE_STANDBY → WAIT_CAP → PLAN_INTERCEPT → APPROACH → SYNCHRONIZE → DESCEND → RELEASE → RETREAT → VERIFY → DONE)
+[orchestrator_node-3] [INFO] [1794202698.960147461] [orchestrator_node]: 20261109-143816-0008: SUCCESS  (IDLE → PRECHECK → DETECT_STONE → PICK_STONE → MOVE_STANDBY → WAIT_CAP → PLAN_INTERCEPT → APPROACH → SYNCHRONIZE → DESCEND → RELEASE → RETREAT → VERIFY → DONE)
+[orchestrator_node-3] [INFO] [1794202701.818172360] [orchestrator_node]: 20261109-143819-0009: SUCCESS  (IDLE → PRECHECK → DETECT_STONE → PICK_STONE → MOVE_STANDBY → WAIT_CAP → PLAN_INTERCEPT → APPROACH → SYNCHRONIZE → DESCEND → RELEASE → RETREAT → VERIFY → DONE)
+[orchestrator_node-3] [INFO] [1794202704.493651104] [orchestrator_node]: 20261109-143821-0010: SAFE_ABORT STEP_TIMEOUT (IDLE → PRECHECK → DETECT_STONE → PICK_STONE → MOVE_STANDBY → WAIT_CAP → PLAN_INTERCEPT → APPROACH → SYNCHRONIZE → DESCEND → RELEASE → SAFE_ABORT → WAIT_OPERATOR)
+[WARNING] [launch]: user interrupted with ctrl-c (SIGINT)
+[INFO] [record_logger_node-5]: sending signal 'SIGINT' to process[record_logger_node-5]
+[INFO] [safety_supervisor_node-4]: sending signal 'SIGINT' to process[safety_supervisor_node-4]
+[INFO] [orchestrator_node-3]: sending signal 'SIGINT' to process[orchestrator_node-3]
+[INFO] [mock_robot_controller_node-2]: sending signal 'SIGINT' to process[mock_robot_controller_node-2]
+[INFO] [mock_world_node-1]: sending signal 'SIGINT' to process[mock_world_node-1]
+[record_logger_node-5] Traceback (most recent call last):
+[record_logger_node-5]   File "/home/user/ctb-codex/install/orchestrator/lib/orchestrator/record_logger_node", line 33, in <module>
+[record_logger_node-5]     sys.exit(load_entry_point('orchestrator', 'console_scripts', 'record_logger_node')())
+[record_logger_node-5]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[record_logger_node-5]   File "/home/user/ctb-codex/build/orchestrator/orchestrator/record_logger_node.py", line 329, in main
+[record_logger_node-5]     node.destroy_node()
+[record_logger_node-5]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/node.py", line 1962, in destroy_node
+[record_logger_node-5]     self.destroy_service(self._services[0])
+[record_logger_node-5]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/node.py", line 1886, in destroy_service
+[safety_supervisor_node-4] Traceback (most recent call last):
+[safety_supervisor_node-4]   File "/home/user/ctb-codex/install/orchestrator/lib/orchestrator/safety_supervisor_node", line 33, in <module>
+[record_logger_node-5]     service.destroy()
+[record_logger_node-5]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/service.py", line 123, in destroy
+[record_logger_node-5]     self.__service.destroy_when_not_in_use()
+[record_logger_node-5] KeyboardInterrupt
+[safety_supervisor_node-4]     sys.exit(load_entry_point('orchestrator', 'console_scripts', 'safety_supervisor_node')())
+[safety_supervisor_node-4]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[safety_supervisor_node-4]   File "/home/user/ctb-codex/build/orchestrator/orchestrator/safety_supervisor_node.py", line 171, in main
+[safety_supervisor_node-4]     node.destroy_node()
+[safety_supervisor_node-4]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/node.py", line 1962, in destroy_node
+[safety_supervisor_node-4]     self.destroy_service(self._services[0])
+[safety_supervisor_node-4]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/node.py", line 1886, in destroy_service
+[safety_supervisor_node-4]     service.destroy()
+[safety_supervisor_node-4]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/service.py", line 123, in destroy
+[safety_supervisor_node-4]     self.__service.destroy_when_not_in_use()
+[safety_supervisor_node-4] KeyboardInterrupt
+[orchestrator_node-3] Traceback (most recent call last):
+[orchestrator_node-3]   File "/home/user/ctb-codex/install/orchestrator/lib/orchestrator/orchestrator_node", line 33, in <module>
+[orchestrator_node-3]     sys.exit(load_entry_point('orchestrator', 'console_scripts', 'orchestrator_node')())
+[orchestrator_node-3]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[orchestrator_node-3]   File "/home/user/ctb-codex/build/orchestrator/orchestrator/orchestrator_node.py", line 726, in main
+[mock_robot_controller_node-2] Traceback (most recent call last):
+[mock_robot_controller_node-2]   File "/home/user/ctb-codex/install/drop_mocks/lib/drop_mocks/mock_robot_controller_node", line 33, in <module>
+[mock_robot_controller_node-2]     sys.exit(load_entry_point('drop-mocks', 'console_scripts', 'mock_robot_controller_node')())
+[mock_robot_controller_node-2]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[mock_robot_controller_node-2]   File "/home/user/ctb-codex/build/drop_mocks/drop_mocks/mock_robot_controller_node.py", line 307, in main
+[orchestrator_node-3]     node.destroy_node()
+[orchestrator_node-3]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/node.py", line 1958, in destroy_node
+[mock_robot_controller_node-2]     spin_mock(MockRobotControllerNode, 'mock_robot_controller_node', num_threads=3, args=args)
+[mock_robot_controller_node-2]   File "/home/user/ctb-codex/build/drop_mocks/drop_mocks/ros_common.py", line 225, in spin_mock
+[mock_robot_controller_node-2]     node.destroy_node()
+[mock_robot_controller_node-2]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/node.py", line 1962, in destroy_node
+[orchestrator_node-3]     self.destroy_subscription(self._subscriptions[0])
+[orchestrator_node-3]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/node.py", line 1854, in destroy_subscription
+[mock_world_node-1] Traceback (most recent call last):
+[mock_world_node-1]   File "/home/user/ctb-codex/install/drop_mocks/lib/drop_mocks/mock_world_node", line 33, in <module>
+[mock_world_node-1]     sys.exit(load_entry_point('drop-mocks', 'console_scripts', 'mock_world_node')())
+[mock_world_node-1]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[mock_world_node-1]   File "/home/user/ctb-codex/build/drop_mocks/drop_mocks/mock_world_node.py", line 205, in main
+[orchestrator_node-3]     subscription.destroy()
+[orchestrator_node-3]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/subscription.py", line 101, in destroy
+[orchestrator_node-3]     self.handle.destroy_when_not_in_use()
+[orchestrator_node-3] KeyboardInterrupt
+[mock_world_node-1]     spin_mock(MockWorldNode, 'mock_world_node', num_threads=2, args=args)
+[mock_world_node-1]   File "/home/user/ctb-codex/build/drop_mocks/drop_mocks/ros_common.py", line 225, in spin_mock
+[mock_world_node-1]     node.destroy_node()
+[mock_world_node-1]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/node.py", line 1962, in destroy_node
+[mock_robot_controller_node-2]     self.destroy_service(self._services[0])
+[mock_robot_controller_node-2]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/node.py", line 1886, in destroy_service
+[mock_robot_controller_node-2]     service.destroy()
+[mock_robot_controller_node-2]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/service.py", line 123, in destroy
+[mock_robot_controller_node-2]     self.__service.destroy_when_not_in_use()
+[mock_robot_controller_node-2] KeyboardInterrupt
+[mock_world_node-1]     self.destroy_service(self._services[0])
+[mock_world_node-1]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/node.py", line 1886, in destroy_service
+[mock_world_node-1]     service.destroy()
+[mock_world_node-1]   File "/opt/ros/jazzy/lib/python3.12/site-packages/rclpy/service.py", line 123, in destroy
+[mock_world_node-1]     self.__service.destroy_when_not_in_use()
+[mock_world_node-1] KeyboardInterrupt
+[ERROR] [safety_supervisor_node-4]: process has died [pid 1117, exit code -2, cmd '/home/user/ctb-codex/install/orchestrator/lib/orchestrator/safety_supervisor_node --ros-args -r __node:=safety_supervisor_node --params-file /tmp/launch_params_y8ody3fn'].
+[INFO] [launch.user]: safety_supervisor_node-4 종료 코드 -2: bringup 중단
+[ERROR] [mock_world_node-1]: process has died [pid 1114, exit code -2, cmd '/home/user/ctb-codex/install/drop_mocks/lib/drop_mocks/mock_world_node --ros-args -r __node:=mock_world_node --params-file /tmp/launch_params_tkse0aq4'].
+[INFO] [launch.user]: mock_world_node-1 종료 코드 -2: bringup 중단
+[ERROR] [record_logger_node-5]: process has died [pid 1118, exit code -2, cmd '/home/user/ctb-codex/install/orchestrator/lib/orchestrator/record_logger_node --ros-args -r __node:=record_logger_node --params-file /tmp/launch_params_ysjtlcdj'].
+[INFO] [launch.user]: record_logger_node-5 종료 코드 -2: bringup 중단
+[ERROR] [mock_robot_controller_node-2]: process has died [pid 1115, exit code -2, cmd '/home/user/ctb-codex/install/drop_mocks/lib/drop_mocks/mock_robot_controller_node --ros-args -r __node:=mock_robot_controller_node --params-file /tmp/launch_params_3cfm1cya'].
+[INFO] [launch.user]: mock_robot_controller_node-2 종료 코드 -2: bringup 중단
+[ERROR] [orchestrator_node-3]: process has died [pid 1116, exit code -2, cmd '/home/user/ctb-codex/install/orchestrator/lib/orchestrator/orchestrator_node --ros-args -r __node:=orchestrator_node --params-file /tmp/launch_params_xrro9x5h'].
+[INFO] [launch.user]: orchestrator_node-3 종료 코드 -2: bringup 중단
+
+=========================== short test summary info ============================
+FAILED src/drop_bringup/test/test_i0_integration.py::test_i0_nominal_20_cycles_and_records
+1 failed in 32.86s

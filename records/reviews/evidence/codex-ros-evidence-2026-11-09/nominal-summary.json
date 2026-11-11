@@ -1,0 +1,71 @@
+{
+  "runs": [
+    {
+      "run": 1,
+      "trials": 20,
+      "success": 20,
+      "step_records": 240,
+      "backward_ros_steps": 0,
+      "sha256": "5b419d6ac5814b52114edf407450a76f0c7608aacf3bfa111cb4ac3c258a7a48"
+    },
+    {
+      "run": 2,
+      "trials": 20,
+      "success": 20,
+      "step_records": 240,
+      "backward_ros_steps": 0,
+      "sha256": "cd9caf89a507df2a7ec3e06e98159da020d12ad609b61af44cad7a47e5e1fcca"
+    },
+    {
+      "run": 3,
+      "trials": 20,
+      "success": 20,
+      "step_records": 240,
+      "backward_ros_steps": 0,
+      "sha256": "81bcc2c70d37543d55430c96ea956d42488308bff9f1e0a3fcdff857104cef07"
+    },
+    {
+      "run": 4,
+      "trials": 20,
+      "success": 20,
+      "step_records": 240,
+      "backward_ros_steps": 0,
+      "sha256": "c322df09a4f4d825e82e092bdc4d99c017494bf8e4b554cee38520163234fe8e"
+    },
+    {
+      "run": 5,
+      "trials": 20,
+      "success": 20,
+      "step_records": 240,
+      "backward_ros_steps": 0,
+      "sha256": "3518ab7331f54e453630cf2fddf12393461f69d8f3ed695d793d4627b3c0319d"
+    },
+    {
+      "run": 6,
+      "trials": 20,
+      "success": 20,
+      "step_records": 240,
+      "backward_ros_steps": 0,
+      "sha256": "0167822c94f2066b8e02b576f916ebc714a551f242dd1f528ce45075abf672f6"
+    },
+    {
+      "run": 7,
+      "trials": 20,
+      "success": 20,
+      "step_records": 240,
+      "backward_ros_steps": 0,
+      "sha256": "c7e2f30752a60335ecf05fefde5b2cbaca6826a6d8d44acc8db9d5924a27ca80"
+    },
+    {
+      "run": 8,
+      "trials": 20,
+      "success": 20,
+      "step_records": 240,
+      "backward_ros_steps": 0,
+      "sha256": "bca801db566a0b2d79a7a39375330d1fab9477d4c390d26668916fdd3640e50c"
+    }
+  ],
+  "cycles": 160,
+  "success": 160,
+  "step_records": 1920
+}

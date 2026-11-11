@@ -1,0 +1,71 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+________________ test_injected_events_appear_at_scheduled_time _________________
+
+ros = None
+
+    @pytest.mark.req('REQ-MCK-005')
+    @pytest.mark.tc('TC-MCK-005-01')
+    @pytest.mark.level('C')
+    def test_injected_events_appear_at_scheduled_time(ros):
+        t0 = time.time() + 1.0
+        steady_t0 = time.monotonic() + (t0 - time.time())
+        eng = ScenarioEngine.from_file(scenario_path('all_events'))
+        ev = {e['type']: e for e in eng.events}
+        world = MockWorldNode(parameter_overrides=_params('all_events', t0))
+        robot = MockRobotControllerNode(parameter_overrides=_params('all_events', t0))
+        h = Harness(world, robot)
+        try:
+            dets = h.record(ObjectDetectionArray, 'objects/detections', steady=True)
+            trks = h.record(TrackedObjectArray, 'objects/tracked', steady=True)
+            belt = h.record(BeltMotion, 'belt/measured_motion', steady=True)
+            hbs = h.record(Heartbeat, 'system/heartbeat', steady=True)
+            pick = h.action(PickStone, 'robot/pick_stone')
+            results = {}
+            for label, t_start in (('before_delay', 6.0), ('in_delay', 6.5 + 2 * FRAME), ('pstop', 8.3)):
+                h.wait_until(t0 + t_start)
+                sent_at = time.monotonic() - steady_t0
+                gh = _send(pick, PickStone.Goal())
+                assert gh.accepted
+                res = wait_future(gh.get_result_async(), 5.0).result
+                results[label] = (sent_at, time.monotonic() - steady_t0, res)
+            h.wait_until(t0 + 10.0)
+        finally:
+            h.close()
+    
+        def scen(stamp):                 # stamp → 시나리오 시각(clock_jump 전)
+            return from_time(stamp) - t0
+    
+        def near(t_seen, t_event):
+            assert t_seen is not None
+            assert abs(t_seen - t_event) <= FRAME + 1e-6, (t_seen, t_event)
+    
+        trk = [(scen(m.header.stamp), m) for _, m in trks if m.tracks]
+        near(_first(trk, lambda x: x[1].tracks[0].status == COASTING)[0], ev['occlusion']['t_s'])
+        near(_first(trk, lambda x: x[1].tracks[0].status == LOST)[0], ev['track_lost']['t_s'])
+        near(_first(trk, lambda x: x[1].tracks[0].epoch == 1)[0], ev['epoch_increment']['t_s'])
+        bm = [(scen(m.header.stamp), m) for _, m in belt]
+        near(_first(bm, lambda x: abs(x[1].speed - 0.030) < 1e-9 and not x[1].steady)[0], ev['speed_change']['t_s'])
+        caps = [(scen(m.header.stamp), m) for _, m in dets]
+        near(_first(caps, lambda x: any(d.stone_inside for d in x[1].detections))[0], ev['stone_in_cap']['t_s'])
+        seqs = {m.image_seq for _, m in dets}                                  # frame_drop: 구간 프레임 미발행
+        t_drop = ev['frame_drop']
+        k0 = eng.frame_index(t_drop['t_s'])
+        k1 = eng.frame_index(t_drop['t_s'] + t_drop['duration_s'])
+        assert not seqs & set(range(k0, k1)), sorted(seqs & set(range(k0, k1)))
+        assert seqs & set(range(k0 - 6, k0)) and seqs & set(range(k1, k1 + 6))   # 구간 앞뒤 0.2 s는 발행
+        jumped = _first(dets, lambda x: from_time(x[1].header.stamp) - (t0 + x[1].image_seq * FRAME) < -4.9)
+        near(jumped[1].image_seq * FRAME, ev['clock_jump']['t_s'])
+    
+        # Preserve injection phase and measure receive delay independently of ROS stamp.
+>       assert all(-0.01 <= t - steady_t0 - m.image_seq * FRAME <= 0.2 for t, m in dets if t >= steady_t0)
+E       assert False
+E        +  where False = all(<generator object test_injected_events_appear_at_scheduled_time.<locals>.<genexpr> at 0x74882dc7a3e0>)
+
+src/drop_mocks/test/test_w7_old_clock.py:102: AssertionError
+----------------------------- Captured stderr call -----------------------------
+[INFO] [1794202869.052612479] [mock_world_node]: scenario=all_events seed=0 t0_s=1794202869.931 file=/home/user/ctb-codex/src/drop_mocks/test/data/all_events.yaml
+[INFO] [1794202870.161101679] [mock_robot_controller_node]: scenario=all_events seed=0 t0_s=1794202869.931 file=/home/user/ctb-codex/src/drop_mocks/test/data/all_events.yaml
+=========================== short test summary info ============================
+FAILED src/drop_mocks/test/test_w7_old_clock.py::test_injected_events_appear_at_scheduled_time
+1 failed in 12.39s

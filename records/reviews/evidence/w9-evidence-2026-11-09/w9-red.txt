@@ -1,0 +1,316 @@
+FFFFF.F                                                                  [100%]
+=================================== FAILURES ===================================
+_________ test_cleanup_after_real_cycle_deadline[False-before_retreat] _________
+
+fake_clock = <fakes.clock.FakeClock object at 0x77981e8adb20>
+cfg = OrchestratorCfg(precheck={'heartbeat_age_max_s': 0.3, 'gripper_response_max_s': 0.5}, detect=DetectParams(confidence_m...gripper_response_max_s': 0.5, 'gripper_alive_stall_s': 0.1, 'cycle_timeout_s': 90.0, 'cycle_steady_factor_ratio': 2.0})
+point = 'before_retreat', failed = False
+
+    @pytest.mark.req('REQ-ORC-010')
+    @pytest.mark.tc('TC-ORC-010-02')
+    @pytest.mark.level('U')
+    @pytest.mark.parametrize('point', ['before_retreat', 'during_retreat', 'before_verify'])
+    @pytest.mark.parametrize('failed', [False, True])
+    def test_cleanup_after_real_cycle_deadline(fake_clock, cfg, point, failed):
+        cycle_end = fake_clock.ros_now() + goal().timeout_s
+        class DeadlinePort(FakeSkillPort):
+            def place_feedback(self, phase, deadline):
+                if phase == 'RETREAT':
+                    assert deadline > self.clock.ros_now()
+                    if point == 'during_retreat':
+                        self.clock.advance_ros(cycle_end - self.clock.ros_now() + .1)
+                        assert deadline > self.clock.ros_now()
+                return super().place_feedback(phase, deadline)
+            def verify(self, deadline):
+                assert deadline - self.clock.ros_now() == pytest.approx(cfg.verify.timeout_s)
+                return super().verify(deadline)
+        port = DeadlinePort(fake_clock)
+        if failed:
+            port.script['result.RETREAT'] = [Reply(replace(M.OK_RET, tcp_z_m=.05), .1)]
+        def on_state(state):
+            if ((point == 'before_retreat' and state is S.RETREAT)
+                    or (point == 'before_verify' and state is S.VERIFY)):
+                fake_clock.advance_ros(cycle_end - fake_clock.ros_now() + .1)
+            elif point == 'during_retreat' and state is S.RETREAT:
+                fake_clock.advance_ros(cycle_end - fake_clock.ros_now() - .1)
+>       out = CycleRunner(port, fake_clock, cfg, on_state=on_state).run(goal())
+
+src/orchestrator/test/test_cycle_runner.py:530: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/orchestrator/orchestrator/cycle_runner.py:250: in run
+    j, event = self._execute(c, state)
+src/orchestrator/orchestrator/cycle_runner.py:287: in _execute
+    return fn(c)
+src/orchestrator/orchestrator/cycle_runner.py:420: in _do_retreat
+    fb = self._port.place_feedback('RETREAT', self._deadline(c, S.RETREAT))
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <test_cycle_runner.test_cleanup_after_real_cycle_deadline.<locals>.DeadlinePort object at 0x77981e3d9400>
+phase = 'RETREAT', deadline = 1090.0
+
+    def place_feedback(self, phase, deadline):
+        if phase == 'RETREAT':
+>           assert deadline > self.clock.ros_now()
+E           assert 1090.0 > 1090.1
+E            +  where 1090.1 = <bound method FakeClock.ros_now of <fakes.clock.FakeClock object at 0x77981e8adb20>>()
+E            +    where <bound method FakeClock.ros_now of <fakes.clock.FakeClock object at 0x77981e8adb20>> = <fakes.clock.FakeClock object at 0x77981e8adb20>.ros_now
+E            +      where <fakes.clock.FakeClock object at 0x77981e8adb20> = <test_cycle_runner.test_cleanup_after_real_cycle_deadline.<locals>.DeadlinePort object at 0x77981e3d9400>.clock
+
+src/orchestrator/test/test_cycle_runner.py:513: AssertionError
+_________ test_cleanup_after_real_cycle_deadline[False-during_retreat] _________
+
+fake_clock = <fakes.clock.FakeClock object at 0x77981e3d8c80>
+cfg = OrchestratorCfg(precheck={'heartbeat_age_max_s': 0.3, 'gripper_response_max_s': 0.5}, detect=DetectParams(confidence_m...gripper_response_max_s': 0.5, 'gripper_alive_stall_s': 0.1, 'cycle_timeout_s': 90.0, 'cycle_steady_factor_ratio': 2.0})
+point = 'during_retreat', failed = False
+
+    @pytest.mark.req('REQ-ORC-010')
+    @pytest.mark.tc('TC-ORC-010-02')
+    @pytest.mark.level('U')
+    @pytest.mark.parametrize('point', ['before_retreat', 'during_retreat', 'before_verify'])
+    @pytest.mark.parametrize('failed', [False, True])
+    def test_cleanup_after_real_cycle_deadline(fake_clock, cfg, point, failed):
+        cycle_end = fake_clock.ros_now() + goal().timeout_s
+        class DeadlinePort(FakeSkillPort):
+            def place_feedback(self, phase, deadline):
+                if phase == 'RETREAT':
+                    assert deadline > self.clock.ros_now()
+                    if point == 'during_retreat':
+                        self.clock.advance_ros(cycle_end - self.clock.ros_now() + .1)
+                        assert deadline > self.clock.ros_now()
+                return super().place_feedback(phase, deadline)
+            def verify(self, deadline):
+                assert deadline - self.clock.ros_now() == pytest.approx(cfg.verify.timeout_s)
+                return super().verify(deadline)
+        port = DeadlinePort(fake_clock)
+        if failed:
+            port.script['result.RETREAT'] = [Reply(replace(M.OK_RET, tcp_z_m=.05), .1)]
+        def on_state(state):
+            if ((point == 'before_retreat' and state is S.RETREAT)
+                    or (point == 'before_verify' and state is S.VERIFY)):
+                fake_clock.advance_ros(cycle_end - fake_clock.ros_now() + .1)
+            elif point == 'during_retreat' and state is S.RETREAT:
+                fake_clock.advance_ros(cycle_end - fake_clock.ros_now() - .1)
+>       out = CycleRunner(port, fake_clock, cfg, on_state=on_state).run(goal())
+
+src/orchestrator/test/test_cycle_runner.py:530: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/orchestrator/orchestrator/cycle_runner.py:250: in run
+    j, event = self._execute(c, state)
+src/orchestrator/orchestrator/cycle_runner.py:287: in _execute
+    return fn(c)
+src/orchestrator/orchestrator/cycle_runner.py:420: in _do_retreat
+    fb = self._port.place_feedback('RETREAT', self._deadline(c, S.RETREAT))
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <test_cycle_runner.test_cleanup_after_real_cycle_deadline.<locals>.DeadlinePort object at 0x77981e4775c0>
+phase = 'RETREAT', deadline = 1090.0
+
+    def place_feedback(self, phase, deadline):
+        if phase == 'RETREAT':
+            assert deadline > self.clock.ros_now()
+            if point == 'during_retreat':
+                self.clock.advance_ros(cycle_end - self.clock.ros_now() + .1)
+>               assert deadline > self.clock.ros_now()
+E               assert 1090.0 > 1090.1
+E                +  where 1090.1 = <bound method FakeClock.ros_now of <fakes.clock.FakeClock object at 0x77981e3d8c80>>()
+E                +    where <bound method FakeClock.ros_now of <fakes.clock.FakeClock object at 0x77981e3d8c80>> = <fakes.clock.FakeClock object at 0x77981e3d8c80>.ros_now
+E                +      where <fakes.clock.FakeClock object at 0x77981e3d8c80> = <test_cycle_runner.test_cleanup_after_real_cycle_deadline.<locals>.DeadlinePort object at 0x77981e4775c0>.clock
+
+src/orchestrator/test/test_cycle_runner.py:516: AssertionError
+_________ test_cleanup_after_real_cycle_deadline[False-before_verify] __________
+
+fake_clock = <fakes.clock.FakeClock object at 0x77981e474d70>
+cfg = OrchestratorCfg(precheck={'heartbeat_age_max_s': 0.3, 'gripper_response_max_s': 0.5}, detect=DetectParams(confidence_m...gripper_response_max_s': 0.5, 'gripper_alive_stall_s': 0.1, 'cycle_timeout_s': 90.0, 'cycle_steady_factor_ratio': 2.0})
+point = 'before_verify', failed = False
+
+    @pytest.mark.req('REQ-ORC-010')
+    @pytest.mark.tc('TC-ORC-010-02')
+    @pytest.mark.level('U')
+    @pytest.mark.parametrize('point', ['before_retreat', 'during_retreat', 'before_verify'])
+    @pytest.mark.parametrize('failed', [False, True])
+    def test_cleanup_after_real_cycle_deadline(fake_clock, cfg, point, failed):
+        cycle_end = fake_clock.ros_now() + goal().timeout_s
+        class DeadlinePort(FakeSkillPort):
+            def place_feedback(self, phase, deadline):
+                if phase == 'RETREAT':
+                    assert deadline > self.clock.ros_now()
+                    if point == 'during_retreat':
+                        self.clock.advance_ros(cycle_end - self.clock.ros_now() + .1)
+                        assert deadline > self.clock.ros_now()
+                return super().place_feedback(phase, deadline)
+            def verify(self, deadline):
+                assert deadline - self.clock.ros_now() == pytest.approx(cfg.verify.timeout_s)
+                return super().verify(deadline)
+        port = DeadlinePort(fake_clock)
+        if failed:
+            port.script['result.RETREAT'] = [Reply(replace(M.OK_RET, tcp_z_m=.05), .1)]
+        def on_state(state):
+            if ((point == 'before_retreat' and state is S.RETREAT)
+                    or (point == 'before_verify' and state is S.VERIFY)):
+                fake_clock.advance_ros(cycle_end - fake_clock.ros_now() + .1)
+            elif point == 'during_retreat' and state is S.RETREAT:
+                fake_clock.advance_ros(cycle_end - fake_clock.ros_now() - .1)
+>       out = CycleRunner(port, fake_clock, cfg, on_state=on_state).run(goal())
+
+src/orchestrator/test/test_cycle_runner.py:530: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/orchestrator/orchestrator/cycle_runner.py:250: in run
+    j, event = self._execute(c, state)
+src/orchestrator/orchestrator/cycle_runner.py:287: in _execute
+    return fn(c)
+src/orchestrator/orchestrator/cycle_runner.py:428: in _do_verify
+    m = self._port.verify(self._deadline(c, S.VERIFY, self._cfg.verify.timeout_s))
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <test_cycle_runner.test_cleanup_after_real_cycle_deadline.<locals>.DeadlinePort object at 0x77981e3dac90>
+deadline = 1090.0
+
+    def verify(self, deadline):
+>       assert deadline - self.clock.ros_now() == pytest.approx(cfg.verify.timeout_s)
+E       assert -0.09999999999990905 == 3.0 ± 3.0e-06
+E         comparison failed
+E         Obtained: -0.09999999999990905
+E         Expected: 3.0 ± 3.0e-06
+
+src/orchestrator/test/test_cycle_runner.py:519: AssertionError
+_________ test_cleanup_after_real_cycle_deadline[True-before_retreat] __________
+
+fake_clock = <fakes.clock.FakeClock object at 0x77981e8ad340>
+cfg = OrchestratorCfg(precheck={'heartbeat_age_max_s': 0.3, 'gripper_response_max_s': 0.5}, detect=DetectParams(confidence_m...gripper_response_max_s': 0.5, 'gripper_alive_stall_s': 0.1, 'cycle_timeout_s': 90.0, 'cycle_steady_factor_ratio': 2.0})
+point = 'before_retreat', failed = True
+
+    @pytest.mark.req('REQ-ORC-010')
+    @pytest.mark.tc('TC-ORC-010-02')
+    @pytest.mark.level('U')
+    @pytest.mark.parametrize('point', ['before_retreat', 'during_retreat', 'before_verify'])
+    @pytest.mark.parametrize('failed', [False, True])
+    def test_cleanup_after_real_cycle_deadline(fake_clock, cfg, point, failed):
+        cycle_end = fake_clock.ros_now() + goal().timeout_s
+        class DeadlinePort(FakeSkillPort):
+            def place_feedback(self, phase, deadline):
+                if phase == 'RETREAT':
+                    assert deadline > self.clock.ros_now()
+                    if point == 'during_retreat':
+                        self.clock.advance_ros(cycle_end - self.clock.ros_now() + .1)
+                        assert deadline > self.clock.ros_now()
+                return super().place_feedback(phase, deadline)
+            def verify(self, deadline):
+                assert deadline - self.clock.ros_now() == pytest.approx(cfg.verify.timeout_s)
+                return super().verify(deadline)
+        port = DeadlinePort(fake_clock)
+        if failed:
+            port.script['result.RETREAT'] = [Reply(replace(M.OK_RET, tcp_z_m=.05), .1)]
+        def on_state(state):
+            if ((point == 'before_retreat' and state is S.RETREAT)
+                    or (point == 'before_verify' and state is S.VERIFY)):
+                fake_clock.advance_ros(cycle_end - fake_clock.ros_now() + .1)
+            elif point == 'during_retreat' and state is S.RETREAT:
+                fake_clock.advance_ros(cycle_end - fake_clock.ros_now() - .1)
+>       out = CycleRunner(port, fake_clock, cfg, on_state=on_state).run(goal())
+
+src/orchestrator/test/test_cycle_runner.py:530: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/orchestrator/orchestrator/cycle_runner.py:250: in run
+    j, event = self._execute(c, state)
+src/orchestrator/orchestrator/cycle_runner.py:287: in _execute
+    return fn(c)
+src/orchestrator/orchestrator/cycle_runner.py:420: in _do_retreat
+    fb = self._port.place_feedback('RETREAT', self._deadline(c, S.RETREAT))
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <test_cycle_runner.test_cleanup_after_real_cycle_deadline.<locals>.DeadlinePort object at 0x77981e4b00b0>
+phase = 'RETREAT', deadline = 1090.0
+
+    def place_feedback(self, phase, deadline):
+        if phase == 'RETREAT':
+>           assert deadline > self.clock.ros_now()
+E           assert 1090.0 > 1090.1
+E            +  where 1090.1 = <bound method FakeClock.ros_now of <fakes.clock.FakeClock object at 0x77981e8ad340>>()
+E            +    where <bound method FakeClock.ros_now of <fakes.clock.FakeClock object at 0x77981e8ad340>> = <fakes.clock.FakeClock object at 0x77981e8ad340>.ros_now
+E            +      where <fakes.clock.FakeClock object at 0x77981e8ad340> = <test_cycle_runner.test_cleanup_after_real_cycle_deadline.<locals>.DeadlinePort object at 0x77981e4b00b0>.clock
+
+src/orchestrator/test/test_cycle_runner.py:513: AssertionError
+_________ test_cleanup_after_real_cycle_deadline[True-during_retreat] __________
+
+fake_clock = <fakes.clock.FakeClock object at 0x77981e4b27e0>
+cfg = OrchestratorCfg(precheck={'heartbeat_age_max_s': 0.3, 'gripper_response_max_s': 0.5}, detect=DetectParams(confidence_m...gripper_response_max_s': 0.5, 'gripper_alive_stall_s': 0.1, 'cycle_timeout_s': 90.0, 'cycle_steady_factor_ratio': 2.0})
+point = 'during_retreat', failed = True
+
+    @pytest.mark.req('REQ-ORC-010')
+    @pytest.mark.tc('TC-ORC-010-02')
+    @pytest.mark.level('U')
+    @pytest.mark.parametrize('point', ['before_retreat', 'during_retreat', 'before_verify'])
+    @pytest.mark.parametrize('failed', [False, True])
+    def test_cleanup_after_real_cycle_deadline(fake_clock, cfg, point, failed):
+        cycle_end = fake_clock.ros_now() + goal().timeout_s
+        class DeadlinePort(FakeSkillPort):
+            def place_feedback(self, phase, deadline):
+                if phase == 'RETREAT':
+                    assert deadline > self.clock.ros_now()
+                    if point == 'during_retreat':
+                        self.clock.advance_ros(cycle_end - self.clock.ros_now() + .1)
+                        assert deadline > self.clock.ros_now()
+                return super().place_feedback(phase, deadline)
+            def verify(self, deadline):
+                assert deadline - self.clock.ros_now() == pytest.approx(cfg.verify.timeout_s)
+                return super().verify(deadline)
+        port = DeadlinePort(fake_clock)
+        if failed:
+            port.script['result.RETREAT'] = [Reply(replace(M.OK_RET, tcp_z_m=.05), .1)]
+        def on_state(state):
+            if ((point == 'before_retreat' and state is S.RETREAT)
+                    or (point == 'before_verify' and state is S.VERIFY)):
+                fake_clock.advance_ros(cycle_end - fake_clock.ros_now() + .1)
+            elif point == 'during_retreat' and state is S.RETREAT:
+                fake_clock.advance_ros(cycle_end - fake_clock.ros_now() - .1)
+>       out = CycleRunner(port, fake_clock, cfg, on_state=on_state).run(goal())
+
+src/orchestrator/test/test_cycle_runner.py:530: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/orchestrator/orchestrator/cycle_runner.py:250: in run
+    j, event = self._execute(c, state)
+src/orchestrator/orchestrator/cycle_runner.py:287: in _execute
+    return fn(c)
+src/orchestrator/orchestrator/cycle_runner.py:420: in _do_retreat
+    fb = self._port.place_feedback('RETREAT', self._deadline(c, S.RETREAT))
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <test_cycle_runner.test_cleanup_after_real_cycle_deadline.<locals>.DeadlinePort object at 0x77981e4758e0>
+phase = 'RETREAT', deadline = 1090.0
+
+    def place_feedback(self, phase, deadline):
+        if phase == 'RETREAT':
+            assert deadline > self.clock.ros_now()
+            if point == 'during_retreat':
+                self.clock.advance_ros(cycle_end - self.clock.ros_now() + .1)
+>               assert deadline > self.clock.ros_now()
+E               assert 1090.0 > 1090.1
+E                +  where 1090.1 = <bound method FakeClock.ros_now of <fakes.clock.FakeClock object at 0x77981e4b27e0>>()
+E                +    where <bound method FakeClock.ros_now of <fakes.clock.FakeClock object at 0x77981e4b27e0>> = <fakes.clock.FakeClock object at 0x77981e4b27e0>.ros_now
+E                +      where <fakes.clock.FakeClock object at 0x77981e4b27e0> = <test_cycle_runner.test_cleanup_after_real_cycle_deadline.<locals>.DeadlinePort object at 0x77981e4758e0>.clock
+
+src/orchestrator/test/test_cycle_runner.py:516: AssertionError
+______________ test_ready_cleanup_result_after_original_deadline _______________
+
+    @pytest.mark.req('REQ-ORC-010')
+    @pytest.mark.tc('TC-ORC-010-02')
+    @pytest.mark.level('U')
+    def test_ready_cleanup_result_after_original_deadline():
+        p = port()
+        p.clock.ros_now = lambda: 91.
+        p._released = True
+        p.raise_fault(Event.CYCLE_TIMEOUT)
+>       assert p._wait(lambda: True, 90.)
+E       assert False
+E        +  where False = <bound method RosSkillPort._wait of <RosSkillPort object at 0x77981e7a4ef0>>(<function test_ready_cleanup_result_after_original_deadline.<locals>.<lambda> at 0x77981e49e5c0>, 90.0)
+E        +    where <bound method RosSkillPort._wait of <RosSkillPort object at 0x77981e7a4ef0>> = <RosSkillPort object at 0x77981e7a4ef0>._wait
+
+src/orchestrator/test/test_node_failure_regressions.py:386: AssertionError
+=========================== short test summary info ============================
+FAILED src/orchestrator/test/test_cycle_runner.py::test_cleanup_after_real_cycle_deadline[False-before_retreat]
+FAILED src/orchestrator/test/test_cycle_runner.py::test_cleanup_after_real_cycle_deadline[False-during_retreat]
+FAILED src/orchestrator/test/test_cycle_runner.py::test_cleanup_after_real_cycle_deadline[False-before_verify]
+FAILED src/orchestrator/test/test_cycle_runner.py::test_cleanup_after_real_cycle_deadline[True-before_retreat]
+FAILED src/orchestrator/test/test_cycle_runner.py::test_cleanup_after_real_cycle_deadline[True-during_retreat]
+FAILED src/orchestrator/test/test_node_failure_regressions.py::test_ready_cleanup_result_after_original_deadline
+6 failed, 1 passed, 145 deselected in 0.50s

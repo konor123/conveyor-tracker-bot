@@ -1,0 +1,188 @@
+FFFFF.F...                                                               [100%]
+=================================== FAILURES ===================================
+___________________ test_soft_fault_ends_wait_before_release ___________________
+
+    @pytest.mark.req('REQ-ORC-010')
+    @pytest.mark.tc('TC-ORC-010-01')
+    @pytest.mark.level('U')
+    def test_soft_fault_ends_wait_before_release():
+        port = _port()
+        port.raise_fault(Event.HEARTBEAT_LOST)
+>       assert port._wait(lambda: False, deadline=10.0) is False
+
+src/orchestrator/test/test_ros_skill_port.py:45: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+build/orchestrator/orchestrator/orchestrator_node.py:162: in _wait
+    if self.cancel_requested() and not self._released and not self._cleanup_wait:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <orchestrator.orchestrator_node.RosSkillPort object at 0x7fbe0be685c0>
+
+    def cancel_requested(self):
+        gh = self.drop_goal_handle
+>       return bool(gh is not None and gh.is_cancel_requested)
+E       AttributeError: 'object' object has no attribute 'is_cancel_requested'
+
+build/orchestrator/orchestrator/orchestrator_node.py:531: AttributeError
+_______________ test_soft_fault_does_not_end_wait_after_release ________________
+
+    @pytest.mark.req('REQ-ORC-010')
+    @pytest.mark.tc('TC-ORC-010-01')
+    @pytest.mark.level('U')
+    def test_soft_fault_does_not_end_wait_after_release():
+        port = _port()
+>       _released(port)
+
+src/orchestrator/test/test_ros_skill_port.py:53: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/orchestrator/test/test_ros_skill_port.py:36: in _released
+    assert port.place_feedback('RELEASE', deadline=1.0) is not None
+build/orchestrator/orchestrator/orchestrator_node.py:436: in place_feedback
+    m = self._phase_done(phase, deadline)
+build/orchestrator/orchestrator/orchestrator_node.py:424: in _phase_done
+    if not self._wait(done, deadline):
+build/orchestrator/orchestrator/orchestrator_node.py:162: in _wait
+    if self.cancel_requested() and not self._released and not self._cleanup_wait:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <orchestrator.orchestrator_node.RosSkillPort object at 0x7fbe10115d90>
+
+    def cancel_requested(self):
+        gh = self.drop_goal_handle
+>       return bool(gh is not None and gh.is_cancel_requested)
+E       AttributeError: 'object' object has no attribute 'is_cancel_requested'
+
+build/orchestrator/orchestrator/orchestrator_node.py:531: AttributeError
+_ test_hard_fault_ends_wait_after_release_and_overrides_soft[Event.CONTROLLER_HEARTBEAT_LOST] _
+
+hard = <Event.CONTROLLER_HEARTBEAT_LOST: 4>
+
+    @pytest.mark.req('REQ-ORC-010')
+    @pytest.mark.tc('TC-ORC-010-01')
+    @pytest.mark.level('U')
+    @pytest.mark.parametrize('hard', [Event.CONTROLLER_HEARTBEAT_LOST, Event.PROTECTIVE_STOP, Event.ROBOT_COMM_LOST])
+    def test_hard_fault_ends_wait_after_release_and_overrides_soft(hard):
+        port = _port()
+>       _released(port)
+
+src/orchestrator/test/test_ros_skill_port.py:71: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/orchestrator/test/test_ros_skill_port.py:36: in _released
+    assert port.place_feedback('RELEASE', deadline=1.0) is not None
+build/orchestrator/orchestrator/orchestrator_node.py:436: in place_feedback
+    m = self._phase_done(phase, deadline)
+build/orchestrator/orchestrator/orchestrator_node.py:424: in _phase_done
+    if not self._wait(done, deadline):
+build/orchestrator/orchestrator/orchestrator_node.py:162: in _wait
+    if self.cancel_requested() and not self._released and not self._cleanup_wait:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <orchestrator.orchestrator_node.RosSkillPort object at 0x7fbe0be69670>
+
+    def cancel_requested(self):
+        gh = self.drop_goal_handle
+>       return bool(gh is not None and gh.is_cancel_requested)
+E       AttributeError: 'object' object has no attribute 'is_cancel_requested'
+
+build/orchestrator/orchestrator/orchestrator_node.py:531: AttributeError
+_ test_hard_fault_ends_wait_after_release_and_overrides_soft[Event.PROTECTIVE_STOP] _
+
+hard = <Event.PROTECTIVE_STOP: 1>
+
+    @pytest.mark.req('REQ-ORC-010')
+    @pytest.mark.tc('TC-ORC-010-01')
+    @pytest.mark.level('U')
+    @pytest.mark.parametrize('hard', [Event.CONTROLLER_HEARTBEAT_LOST, Event.PROTECTIVE_STOP, Event.ROBOT_COMM_LOST])
+    def test_hard_fault_ends_wait_after_release_and_overrides_soft(hard):
+        port = _port()
+>       _released(port)
+
+src/orchestrator/test/test_ros_skill_port.py:71: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/orchestrator/test/test_ros_skill_port.py:36: in _released
+    assert port.place_feedback('RELEASE', deadline=1.0) is not None
+build/orchestrator/orchestrator/orchestrator_node.py:436: in place_feedback
+    m = self._phase_done(phase, deadline)
+build/orchestrator/orchestrator/orchestrator_node.py:424: in _phase_done
+    if not self._wait(done, deadline):
+build/orchestrator/orchestrator/orchestrator_node.py:162: in _wait
+    if self.cancel_requested() and not self._released and not self._cleanup_wait:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <orchestrator.orchestrator_node.RosSkillPort object at 0x7fbe0be6a150>
+
+    def cancel_requested(self):
+        gh = self.drop_goal_handle
+>       return bool(gh is not None and gh.is_cancel_requested)
+E       AttributeError: 'object' object has no attribute 'is_cancel_requested'
+
+build/orchestrator/orchestrator/orchestrator_node.py:531: AttributeError
+_ test_hard_fault_ends_wait_after_release_and_overrides_soft[Event.ROBOT_COMM_LOST] _
+
+hard = <Event.ROBOT_COMM_LOST: 3>
+
+    @pytest.mark.req('REQ-ORC-010')
+    @pytest.mark.tc('TC-ORC-010-01')
+    @pytest.mark.level('U')
+    @pytest.mark.parametrize('hard', [Event.CONTROLLER_HEARTBEAT_LOST, Event.PROTECTIVE_STOP, Event.ROBOT_COMM_LOST])
+    def test_hard_fault_ends_wait_after_release_and_overrides_soft(hard):
+        port = _port()
+>       _released(port)
+
+src/orchestrator/test/test_ros_skill_port.py:71: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/orchestrator/test/test_ros_skill_port.py:36: in _released
+    assert port.place_feedback('RELEASE', deadline=1.0) is not None
+build/orchestrator/orchestrator/orchestrator_node.py:436: in place_feedback
+    m = self._phase_done(phase, deadline)
+build/orchestrator/orchestrator/orchestrator_node.py:424: in _phase_done
+    if not self._wait(done, deadline):
+build/orchestrator/orchestrator/orchestrator_node.py:162: in _wait
+    if self.cancel_requested() and not self._released and not self._cleanup_wait:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <orchestrator.orchestrator_node.RosSkillPort object at 0x7fbe0be6ade0>
+
+    def cancel_requested(self):
+        gh = self.drop_goal_handle
+>       return bool(gh is not None and gh.is_cancel_requested)
+E       AttributeError: 'object' object has no attribute 'is_cancel_requested'
+
+build/orchestrator/orchestrator/orchestrator_node.py:531: AttributeError
+__________________________ test_reset_clears_release ___________________________
+
+    @pytest.mark.req('REQ-ORC-010')
+    @pytest.mark.tc('TC-ORC-010-01')
+    @pytest.mark.level('U')
+    def test_reset_clears_release():
+        port = _port()
+>       _released(port)
+
+src/orchestrator/test/test_ros_skill_port.py:93: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/orchestrator/test/test_ros_skill_port.py:36: in _released
+    assert port.place_feedback('RELEASE', deadline=1.0) is not None
+build/orchestrator/orchestrator/orchestrator_node.py:436: in place_feedback
+    m = self._phase_done(phase, deadline)
+build/orchestrator/orchestrator/orchestrator_node.py:424: in _phase_done
+    if not self._wait(done, deadline):
+build/orchestrator/orchestrator/orchestrator_node.py:162: in _wait
+    if self.cancel_requested() and not self._released and not self._cleanup_wait:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <orchestrator.orchestrator_node.RosSkillPort object at 0x7fbe0be6bb00>
+
+    def cancel_requested(self):
+        gh = self.drop_goal_handle
+>       return bool(gh is not None and gh.is_cancel_requested)
+E       AttributeError: 'object' object has no attribute 'is_cancel_requested'
+
+build/orchestrator/orchestrator/orchestrator_node.py:531: AttributeError
+=========================== short test summary info ============================
+FAILED src/orchestrator/test/test_ros_skill_port.py::test_soft_fault_ends_wait_before_release
+FAILED src/orchestrator/test/test_ros_skill_port.py::test_soft_fault_does_not_end_wait_after_release
+FAILED src/orchestrator/test/test_ros_skill_port.py::test_hard_fault_ends_wait_after_release_and_overrides_soft[Event.CONTROLLER_HEARTBEAT_LOST]
+FAILED src/orchestrator/test/test_ros_skill_port.py::test_hard_fault_ends_wait_after_release_and_overrides_soft[Event.PROTECTIVE_STOP]
+FAILED src/orchestrator/test/test_ros_skill_port.py::test_hard_fault_ends_wait_after_release_and_overrides_soft[Event.ROBOT_COMM_LOST]
+FAILED src/orchestrator/test/test_ros_skill_port.py::test_reset_clears_release
+6 failed, 4 passed in 1.32s

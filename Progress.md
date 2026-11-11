@@ -14,7 +14,7 @@
 
 | 게이트 | 목표 | 절 | 트랙 | 우선 구현 패키지 | 통합 단계(`PLAN.md` 7.5절) | 현장 세션 | 보고서 |
 |---|---|---|---|---|---|---|---|
-| M0 | spec·시험 명세·계약·오케스트레이터 골격·최소 대역 | 1 | 전원 | `drop_interfaces`, `orchestrator`, `drop_mocks`(mock 2종), `drop_bringup` | I0 | 없음(전부 `[ON]`) | 통과(2026-11-11), `deliverables/gate-M0-report-2026-11-11.md` |
+| M0 | spec·시험 명세·계약·오케스트레이터 골격·최소 대역 | 1 | 전원 | `drop_interfaces`, `orchestrator`, `drop_mocks`(mock 2종), `drop_bringup` | I0 | 없음(전부 `[ON]`) | 통과(2026-11-11), `records/gates/gate-M0-report-2026-11-11.md` |
 | G0 | 제어 계약·그리퍼(상주 DRL 경유)·안전·현장 치수 | 0, 2 | A | `robot_control`(adapter, skill 서버) | I3 | OFF-1, OFF-2 | `gate-G0-report` |
 | G1 | D455 검출·보정 | 4, 5 | B | `vision`, `calibration` | I1 | OFF-1(자료), OFF-3 | `gate-G1-report` |
 | G2 | 정적 파지·정지 벨트 투입 | 5, 6 | A+B | `robot_control`, `orchestrator`(MODE_STATIC) | I5 | OFF-4 | 사용자 판정 통과(2026-11-11) |
@@ -60,9 +60,9 @@
 
 - [x] `[ON]` `specs/` 구성, spec 템플릿·REQ ID 체계(`PLAN.md` 8절)
 - [x] `[ON]` SPEC-000(system), 010(interfaces), 100(orchestrator), 110(abort-timeout), 700(mocks), 800(records) v0.1 작성·리뷰
-  - SPEC 6종의 M0 범위·해제 후 정리·감시 게이트·기록 계약과 REQ·TC 연결. 2026-11-11 독립 재검수(Codex)에서 원 지적 해결 확인, SPEC-800 v0.7에서 저장 루트·설치 schema 문구를 구현(`record_logger_node.repo_path`, `setup.py`)과 맞춤(`/srv/cloud-workspace/memory/projects/conveyor-tracker-bot/m0-rereview-2026-11-11.md`).
+  - SPEC 6종의 M0 범위·해제 후 정리·감시 게이트·기록 계약과 REQ·TC 연결. 2026-11-11 독립 재검수(Codex)에서 원 지적 해결 확인, SPEC-800 v0.7에서 저장 루트·설치 schema 문구를 구현(`record_logger_node.repo_path`, `setup.py`)과 맞춤(`records/reviews/m0-rereview-2026-11-11.md`).
 - [x] `[ON]` `TEST_SPEC.md`의 M0 대상 시험 케이스(SYS·IF·ORC·ABT·MCK·REC·INT-I0) 리뷰 후 확정
-  - M0 게이트 REQ 50·TC 94, 연결 누락 0. 2026-11-11 독립 재검수(Codex)에서 원 지적 P1-1~P3-2 해결 확인, 시험 명세로 확정(`/srv/cloud-workspace/memory/projects/conveyor-tracker-bot/m0-rereview-2026-11-11.md`).
+  - M0 게이트 REQ 50·TC 94, 연결 누락 0. 2026-11-11 독립 재검수(Codex)에서 원 지적 P1-1~P3-2 해결 확인, 시험 명세로 확정(`records/reviews/m0-rereview-2026-11-11.md`).
 - [x] `[ON]` `drop_interfaces` 1차: 데이터 msg, `TaskStatus`, `Heartbeat`, `StepRecord`, skill action/srv, `DropTask` (TC-IF-*)
   - officepc WSL의 10개 패키지 빌드와 계약 시험 통과. SPEC-010(robot/status 수신 steady 측정, 실제 orchestrator QoS 시험)과 TC-IF 재확인 2026-11-11 독립 재검수.
 - [x] `[ON]` 공통 요청 필드(`cycle_id`·`step_id`·`deadline`), QoS, revision·epoch 처리, lifecycle 비활성 시 응답을 SPEC-010에 고정
@@ -71,7 +71,7 @@
 - [x] `[ON]` `orchestrator` 골격: `state_machine.py`, `step_judges.py`, `abort_policy.py`, `deadlines.py` 순수 모듈 + `test/fakes/`(skill port·fake clock) 단위 테스트(TC-ORC-*, TC-ABT-*)
 - [x] `[ON]` 장애 10종을 `abort_policy`·`deadlines` 단위 테스트의 이벤트 열로 작성(`PLAN.md` 7.3절)
 - [x] `[ON]` `orchestrator_node`, `safety_supervisor_node`, `record_logger_node`
-  - F1~F8의 결함 처리 및 F4 감시 연결의 G0/G3/G4 게이트 조건, 해제 후 N1 정리 경로 시험. 2026-11-11 독립 재검수에서 N1·F3·F8 해결 확인(`/srv/cloud-workspace/memory/projects/conveyor-tracker-bot/m0-rereview-2026-11-11.md`).
+  - F1~F8의 결함 처리 및 F4 감시 연결의 G0/G3/G4 게이트 조건, 해제 후 N1 정리 경로 시험. 2026-11-11 독립 재검수에서 N1·F3·F8 해결 확인(`records/reviews/m0-rereview-2026-11-11.md`).
   - 실행 중 skill이 `Stop`으로 끝나면(`STOPPED`) 하드 이상 L4로 처리한다(REQ-ORC-011, TC-ORC-011-01).
   - 실행 중 skill이 없을 때의 감시 노드 Stop(R1): controller가 `Stop`을 정지 유지로 남기고 heartbeat `error_code` 101·`ready=false`를 내며, 작업자가 `stop_release_reason`으로 해제할 때까지 goal을 지령 없이 `STOPPED`로 끝낸다. orchestrator는 controller heartbeat 100·101을 감시 주기마다 latch해 PRECHECK·DETECT_STONE·WAIT_CAP·단계 사이에서 L4로 끝낸다(SPEC-010 4.5절, REQ-ORC-012·ROB-014·MCK-008, TC-ORC-012-01·ROB-014-01·02·MCK-008-01·INT-008-01). 2026-11-11 officepc WSL 빌드 11개 패키지, orchestrator 700·robot_control 102·drop_mocks 78·계약 27·I0 9 통과. 독립 검수(Codex)의 P1(수락~실행 사이 해제)·P2(무동작 해제가 backend 정지를 풂)는 수정 뒤 coordinator 확인(`r1-review-2026-11-11.md`).
 - [x] `[ON]` `drop_mocks`: `scenario_engine`, `mock_world_node`(`role:=vision|tracking|all`), `mock_robot_controller_node`(소요시간·결과 지정형). 정상 경로 우선, 지연·지터 값은 가정값으로 표기(TC-MCK-*)
@@ -81,7 +81,7 @@
 - [x] `[ON]` `records/` 디렉터리, trial·step JSONL 기록, `devlog.csv`, `param_changes.csv`(TC-REC-*)
   - JSON Schema·StepRecord/trial JSONL 및 2026-11-09 devlog: unit 793/793·contract 72/72·I0 8/8(officepc WSL), 통합 커밋 `74013cf`. TC-MCK-005-01 실시간 실행은 `realtime_pc` 마커로 CI에서 기록만 하고 PC에서 판정한다(SPEC-700 v0.7). 2026-11-10 officepc WSL 판정 3/3 통과(발행 지연 최대 0.056 s). 커밋 `7c63b0b` CI run 42788599903 전체 실행 3회 연속 통과.
 - [x] `[ON]` `tools/spec/trace.py` 추적 행렬 생성(REQ·TC 연결 검사)
-- [ ] `[ON]` I0 nominal 간헐 `STEP_TIMEOUT`(결과 SAFE_ABORT) 원인 확정. officepc WSL에서 4회 중 2회(seed 7·18) 관찰, 실패 단계 미기록. 유력 후보는 RELEASE(제한 1.0 s, 대역 0.36 s)에서 WSL 교란으로 `phase_done` feedback 지연 또는 시계 전진, 또는 result 선처리(0.2 s 대기 추가로 완화). 재발하면 실패 메시지의 `last=`(마지막 단계·소요시간)로 판정하고, result 선처리 또는 feedback 지연이면 orchestrator action client를 전용 callback group으로 옮긴다. 근거: GCE `memory/projects/conveyor-tracker-bot/fable-m0-risk-2026-11-11.md` 1절
+- [ ] `[ON]` I0 nominal 간헐 `STEP_TIMEOUT`(결과 SAFE_ABORT) 원인 확정. officepc WSL에서 4회 중 2회(seed 7·18) 관찰, 실패 단계 미기록. 유력 후보는 RELEASE(제한 1.0 s, 대역 0.36 s)에서 WSL 교란으로 `phase_done` feedback 지연 또는 시계 전진, 또는 result 선처리(0.2 s 대기 추가로 완화). 재발하면 실패 메시지의 `last=`(마지막 단계·소요시간)로 판정하고, result 선처리 또는 feedback 지연이면 orchestrator action client를 전용 callback group으로 옮긴다. 근거: `records/reviews/fable-m0-risk-2026-11-11.md` 1절
 
 **M0 합격 기준(제안):** SPEC 6종 v0.1과 M0 대상 시험 케이스 리뷰 완료 / interface 빌드 / 단위 테스트에서 장애 10종 이벤트 열마다 기대 중단 등급 / I0 정상 시나리오 20/20, ROS I0 장애 시나리오 4종(`robot_hang`, `protective_stop`, `heartbeat_loss`, `time_insufficient`)마다 정의된 중단 등급 동작 / 오케스트레이터 REQ 연결률 100% / `records/`에 StepRecord·trial 기록 생성 확인.
 
@@ -137,7 +137,7 @@
 - [ ] `[ON*]` 측정값으로 `PLAN.md` 6절 제한시간 1차 확정, `mock_robot_controller_node`·fake gripper의 소요시간·지연값 갱신
 - [ ] `[ON]` 안전 절차 문서: 속도·가속 제한, 작업영역 제한, 비상정지 위치, 관찰자 역할, 보호 정지 후 재개 절차
 - [ ] `[OFF]` OFF-2: 안전 절차 현장 확인(비상정지 동작, 작업영역 제한 설정)
-- [ ] `[OFF]` OFF-2: 감시 노드 기동 직후 controller heartbeat 수신 지연 확인. officepc WSL 대역 I0에서 기동 직후 감시 노드가 마지막 controller stamp를 0.30~0.34 s 전 것으로 보고 `CONTROLLER_HEARTBEAT_LOST` Stop을 냈다(같은 순간 독립 구독자 수신 공백 ≤ 0.10 s, 판정 타이머 간격 0.05 s, R1 이전 코드에서도 발생). 실기 bringup 5회에서 재현 여부를 본다. 시연 운용 절차: 기동 → 2 s 대기 → controller heartbeat `error_code` 확인, 101이고 Stop 사유가 `CONTROLLER_HEARTBEAT_LOST`이며 로봇이 정지·대기 자세면 `stop_release_reason`으로 사유를 남기고 해제(SPEC-010 4.5절). 재현이 잦으면 감시 노드가 controller heartbeat를 연속 5회 받은 뒤부터 손실을 판정하도록 바꾸는 안(REQ-ABT-010 변경)을 검토한다(GCE `memory/projects/conveyor-tracker-bot/fable-m0-risk-2026-11-11.md` 2절)
+- [ ] `[OFF]` OFF-2: 감시 노드 기동 직후 controller heartbeat 수신 지연 확인. officepc WSL 대역 I0에서 기동 직후 감시 노드가 마지막 controller stamp를 0.30~0.34 s 전 것으로 보고 `CONTROLLER_HEARTBEAT_LOST` Stop을 냈다(같은 순간 독립 구독자 수신 공백 ≤ 0.10 s, 판정 타이머 간격 0.05 s, R1 이전 코드에서도 발생). 실기 bringup 5회에서 재현 여부를 본다. 시연 운용 절차: 기동 → 2 s 대기 → controller heartbeat `error_code` 확인, 101이고 Stop 사유가 `CONTROLLER_HEARTBEAT_LOST`이며 로봇이 정지·대기 자세면 `stop_release_reason`으로 사유를 남기고 해제(SPEC-010 4.5절). 재현이 잦으면 감시 노드가 controller heartbeat를 연속 5회 받은 뒤부터 손실을 판정하도록 바꾸는 안(REQ-ABT-010 변경)을 검토한다(`records/reviews/fable-m0-risk-2026-11-11.md` 2절)
 
 **G0 합격 기준(제안):** 0절 항목 기록 완료 / 단위 변환·pulse 변환 테스트 통과 / 통신·추적 손실·cancel 모사 20회에서 정의된 정지·대기 전환 20/20, 예기치 않은 재개 0회 / I3에서 L0·L4 모사 20/20 / 스트림 주기·지연 분포 보고서 / 그리퍼 개방 지연 분포와 스트림 중 개방 결과 보고서.
 

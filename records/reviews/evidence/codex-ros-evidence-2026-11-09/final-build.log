@@ -1,0 +1,22 @@
+Starting >>> drop_interfaces
+Starting >>> drop_sim
+Finished <<< drop_sim [0.17s]
+Finished <<< drop_interfaces [0.73s]
+Starting >>> calibration
+Starting >>> drop_mocks
+Starting >>> orchestrator
+Starting >>> intercept_planner
+Starting >>> robot_control
+Starting >>> tracking
+Starting >>> vision
+Finished <<< tracking [3.81s]
+Finished <<< drop_mocks [3.86s]
+Finished <<< vision [3.85s]
+Finished <<< robot_control [3.88s]
+Finished <<< calibration [3.91s]
+Finished <<< intercept_planner [3.92s]
+Finished <<< orchestrator [3.93s]
+Starting >>> drop_bringup
+Finished <<< drop_bringup [1.25s]
+
+Summary: 10 packages finished [6.12s]

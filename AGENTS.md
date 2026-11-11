@@ -9,6 +9,7 @@
 - `main`에 직접 커밋한다. 작업 브랜치를 만들지 않는다. 푸시 전에 `git fetch`로 원격을 확인하고, 새 커밋이 있으면 `git rebase origin/main` 후 푸시한다.
 - 작업 단계가 완료되면 검증 근거에 맞춰 `Progress.md`의 완료 여부와 남은 조건을 갱신하고, 해당 단계의 코드·시험·기록과 함께 커밋하여 GitHub에 푸시한다. 부분 수행이나 실패한 시험을 완료로 표시하지 않는다.
 - `deliverables/`는 `.gitignore` 대상이다. 커밋하지 않고 `git add -f`로 강제 추가하지 않는다.
+- GitHub에 올리는 문서(`Progress.md`·`specs/`·`records/`·`docs/`)에는 GCE·PC의 로컬 경로를 근거로 쓰지 않는다. 다른 사람이 볼 수 없기 때문이다. 근거 파일은 저장소에 넣고(검수·분석 보고서는 `records/reviews/`, 게이트 보고서는 `records/gates/`) 그 경로를 쓴다. 저장소에 넣을 수 없는 원본(rosbag 등)은 위치와 SHA-256을 기록하는 기존 규칙을 따른다.
 - rosbag은 저장소 밖에 둔다. 경로와 SHA-256만 `records/bags.csv`에 남긴다(`tools/eval/record_trial.sh`).
 - GitHub에 공유할 영상은 ffmpeg로 압축한 RGB·깊이 미리보기와 원래 프레임 시각 CSV를 `records/media/<date>/`에 둔다. 원본 rosbag은 보존하며, 압축 영상의 크기·프레임 수·SHA-256 및 원본 대응표를 함께 기록한다.
 

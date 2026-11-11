@@ -21,4 +21,4 @@
 - **상태를 남기면 숨어 있던 문제가 드러난다.** 감시 노드가 기동 직후 controller heartbeat를 잠깐 늦게 받아 보내던 가짜 Stop은 예전부터 있었지만 흔적이 없었다. 정지 유지 뒤로는 다음 시험을 L4로 만들었다. 원인을 가리는 법: 같은 실행에서 (1) 다른 구독자가 받은 heartbeat stamp 공백, (2) 감시 노드 판정 순간의 타이머 간격과 마지막 수신 stamp를 같이 찍는다. 보내는 쪽은 연속이고 감시 노드 타이머도 정상인데 마지막 수신만 오래됐다면 수신 쪽 지연이다.
 - **WSL은 SSH 세션이 끝나면 백그라운드 프로세스를 정리한다.** 긴 시험은 제한시간 안의 단계로 나눠 돌린다.
 
-관련: [worklog](../../records/worklog/2026-11-11.md), `Progress.md` 1절 노드 항목, 검수 보고서(GCE `memory/projects/conveyor-tracker-bot/r1-review-2026-11-11.md`).
+관련: [worklog](../../records/worklog/2026-11-11.md), `Progress.md` 1절 노드 항목, 검수 보고서(`records/reviews/r1-review-2026-11-11.md`).

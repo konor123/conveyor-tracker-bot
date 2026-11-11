@@ -1,0 +1,400 @@
+--- a/src/orchestrator/test/test_node_failure_regressions.py
++++ b/src/orchestrator/test/test_node_failure_regressions.py
+@@ -30,6 +30,7 @@
+ def port():
+     cls = load('orchestrator_node.py', ['RosSkillPort'])['RosSkillPort']
+     n = NS(clock=NS(ros_now=lambda: 0.), cycle_id='c', step_id=1,
++           cfg_dict={'watchdog': {'cycle_steady_factor_ratio': 2.0}},
+            get_logger=lambda: NS(warning=lambda x: None), _watch=lambda: None)
+     p = cls(n)
+     p.reset(NS(is_cancel_requested=False))
+@@ -338,3 +339,37 @@
+     del env['open']
+     n._write_trial_from_json('{"trial_id":"retry"}')
+     assert not n.storage_error and n._last_trial_id == 'retry' and n.trials_written == 1
++
++
++@pytest.mark.req('REQ-ABT-008', 'REQ-ORC-010')
++@pytest.mark.tc('TC-ABT-003-03')
++@pytest.mark.level('U')
++def test_wait_backward_ros_clock_uses_scaled_steady_budget():
++    p = port()
++    tick = [0.0]
++    p.n.cfg_dict = {'watchdog': {'cycle_steady_factor_ratio': 2.0}}
++    p.clock.ros_now = lambda: tick[0] - (0.8 if tick[0] >= 0.2 else 0.0)
++    p._wait.__globals__['time'] = NS(
++        monotonic=lambda: tick[0], sleep=lambda dt: tick.__setitem__(0, tick[0] + .01))
++    # A 0.36 s ROS phase plus a 0.8 s backward correction remains before
++    # both its ROS deadline (1 s) and its independent steady cap (2 s).
++    assert p._wait(lambda: p.clock.ros_now() >= .36, 1.0)
++    assert 1.15 <= tick[0] <= 1.18
++    tick[0] = 0.0
++    p.clock.ros_now = lambda: 0.0
++    assert not p._wait(lambda: False, 1.0)
++    assert 2.0 <= tick[0] <= 2.02
++
++
++@pytest.mark.req('REQ-REC-003')
++@pytest.mark.tc('TC-REC-003-01')
++@pytest.mark.level('U')
++def test_step_record_preserves_backward_ros_stamps():
++    env = load('record_logger_node.py', ['_time_to_s', 'step_record_to_dict'], StepRecord=object)
++    msg = NS(header=NS(stamp=NS(sec=7, nanosec=500000000)), cycle_id='c', step_seq=1,
++             step_name='DETECT_STONE', t_start=NS(sec=8, nanosec=0),
++             t_end=NS(sec=7, nanosec=500000000), result=0, reason_code='', attempt=1,
++             abort_level=0, metric_keys=['stone_count'], metric_values=[1.0])
++    row = env['step_record_to_dict'](msg)
++    assert (row['t_start_s'], row['t_end_s']) == (8.0, 7.5)
++    assert row['metrics'] == {'stone_count': 1.0}
+--- a/src/orchestrator/test/test_ros_skill_port.py
++++ b/src/orchestrator/test/test_ros_skill_port.py
+@@ -24,9 +24,10 @@
+ 
+ 
+ def _port():
+-    node = SimpleNamespace(clock=_Clock(), get_logger=lambda: _Log(), _watch=lambda: None)
++    node = SimpleNamespace(cfg_dict={'watchdog': {'cycle_steady_factor_ratio': 2.0}},
++                           clock=_Clock(), get_logger=lambda: _Log(), _watch=lambda: None)
+     port = RosSkillPort(node)
+-    port.reset(goal_handle=object())
++    port.reset(goal_handle=SimpleNamespace(is_cancel_requested=False))
+     return port
+ 
+ 
+@@ -91,7 +92,7 @@
+ def test_reset_clears_release():
+     port = _port()
+     _released(port)
+-    port.reset(goal_handle=object())
++    port.reset(goal_handle=SimpleNamespace(is_cancel_requested=False))
+     port.raise_fault(Event.HEARTBEAT_LOST)
+     assert port._wait(lambda: False, deadline=10.0) is False
+ 
+--- a/src/orchestrator/orchestrator/orchestrator_node.py
++++ b/src/orchestrator/orchestrator/orchestrator_node.py
+@@ -153,7 +153,11 @@
+     def _wait(self, pred, deadline: float | None) -> bool:
+         # A frozen ROS clock must not make a transport call unbounded.
+         budget = max(0., deadline - self.clock.ros_now()) if deadline is not None else 1.
+-        steady_end = time.monotonic() + budget
++        # ROS deadlines can move relative to steady time after a backward clock
++        # correction. Use the same finite safety factor as the cycle watchdog;
++        # cleanup/cycle guards below still enforce their independent hard caps.
++        factor = float(self.n.cfg_dict['watchdog']['cycle_steady_factor_ratio'])
++        steady_end = time.monotonic() + budget * factor
+         while True:
+             context = getattr(self.n, 'context', None)
+             if context is not None and not context.ok():
+--- a/src/drop_mocks/test/test_mock_nodes.py
++++ b/src/drop_mocks/test/test_mock_nodes.py
+@@ -15,7 +15,7 @@
+ from rclpy.parameter import Parameter  # noqa: E402
+ 
+ from conftest import scenario_path  # noqa: E402
+-from drop_ros import DOMAIN, Harness, own_qos_event_handlers, wait_future  # noqa: E402
++from drop_ros import DOMAIN, Harness, SteadyRosClock, own_qos_event_handlers, wait_future  # noqa: E402
+ from drop_mocks.mock_robot_controller_node import MockRobotControllerNode  # noqa: E402
+ from drop_mocks.mock_world_node import MockWorldNode  # noqa: E402
+ from drop_mocks.ros_common import ERROR_PROTECTIVE_STOP, from_time, to_time  # noqa: E402
+@@ -49,13 +49,17 @@
+ @pytest.mark.tc('TC-MCK-005-01')
+ @pytest.mark.level('C')
+ def test_injected_events_appear_at_scheduled_time(ros):
+-    t0 = time.time() + 1.0
+-    steady_t0 = time.monotonic() + (t0 - time.time())
++    # Scenario schedules use ROS time. Supply a controlled timeline so host NTP
++    # corrections cannot change its mapping to the independent receive clock.
++    clock = SteadyRosClock()
++    t0 = clock.now() + 1.0
++    steady_t0 = clock.steady_origin + t0 - clock.ros_origin
+     eng = ScenarioEngine.from_file(scenario_path('all_events'))
+     ev = {e['type']: e for e in eng.events}
+-    world = MockWorldNode(parameter_overrides=_params('all_events', t0))
+-    robot = MockRobotControllerNode(parameter_overrides=_params('all_events', t0))
+-    h = Harness(world, robot)
++    sim = [Parameter('use_sim_time', value=True)]
++    world = MockWorldNode(parameter_overrides=_params('all_events', t0) + sim)
++    robot = MockRobotControllerNode(parameter_overrides=_params('all_events', t0) + sim)
++    h = Harness(world, robot, use_sim_time=True)
+     try:
+         dets = h.record(ObjectDetectionArray, 'objects/detections', steady=True)
+         trks = h.record(TrackedObjectArray, 'objects/tracked', steady=True)
+@@ -73,6 +77,7 @@
+         h.wait_until(t0 + 10.0)
+     finally:
+         h.close()
++        clock.close()
+ 
+     def scen(stamp):                 # stamp → 시나리오 시각(clock_jump 전)
+         return from_time(stamp) - t0
+--- a/src/drop_mocks/package.xml
++++ b/src/drop_mocks/package.xml
+@@ -17,6 +17,7 @@
+   <exec_depend>python3-yaml</exec_depend>
+ 
+   <test_depend>python3-pytest</test_depend>
++  <test_depend>rosgraph_msgs</test_depend>
+ 
+   <export>
+     <build_type>ament_python</build_type>
+--- a/src/drop_bringup/test/test_i0_integration.py
++++ b/src/drop_bringup/test/test_i0_integration.py
+@@ -208,7 +208,10 @@
+                 max_passes=3,
+             )
+             _, res = _send_goal(h, goal, timeout=20.0)
+-            assert res.result == DropTask.Result.SUCCESS, f'seed={seed} 실패: {res.result} ({res.reason_code})'
++            assert res.result == DropTask.Result.SUCCESS, (
++                f'seed={seed} 실패: {res.result} ({res.reason_code}); '
++                f'steps={[(m.step_name, m.reason_code, dict(zip(m.metric_keys, m.metric_values))) for _, m in step_msgs if m.cycle_id == task_msgs[-1][1].cycle_id]}'
++            )
+             observed = []
+             for _, m in task_msgs[before_idx:]:
+                 if not observed or observed[-1] != m.state:
+@@ -241,7 +244,10 @@
+             assert len(live) == 12
+             budget_names = {'plan', 'approach', 'synchronize', 'descend', 'release'}
+             for srec, msg in zip(step_rows, live):
+-                assert srec['t_end_s'] >= srec['t_start_s']
++                # These are raw ROS stamps, which may go backward during NTP
++                # correction. The logger must preserve both endpoints verbatim.
++                assert srec['t_start_s'] == msg.t_start.sec + msg.t_start.nanosec * 1e-9
++                assert srec['t_end_s'] == msg.t_end.sec + msg.t_end.nanosec * 1e-9
+                 assert srec['attempt'] == msg.attempt == 1
+                 assert srec['step_seq'] == msg.step_seq
+                 keys = set(srec['metric_keys'])
+@@ -376,31 +382,40 @@
+             timeout=15.0,
+             max_passes=3,
+         )
+-        # 1) vision heartbeat 손실 (파지 전 holding=False) -> L2 (FAILURE)
+-        _set_params(h, 'mock_world_node', [_param_str('drop_role', 'vision'), _param_double('drop_at_s', 0.2)])
+-        _reset_cycle_clock(h)
+-        _, res_vis = _send_goal(h, goal, timeout=15.0)
++        def inject(role, node, state):
++            # Recover all heartbeats before PRECHECK, then inject in an observed
++            # state. Absolute scenario offsets can fire during DDS discovery or
++            # the preceding trial and turn this into a PRECHECK rejection test.
++            _set_params(h, 'mock_world_node', [_param_str('drop_role', 'none'),
++                                             _param_double('drop_at_s', 999.0)])
++            _set_params(h, 'mock_robot_controller_node', [_param_str('drop_role', 'none'),
++                                                        _param_double('drop_at_s', 999.0)])
++            _reset_cycle_clock(h)
++            _wait_ready(h)
++            states = h.record(TaskStatus, 'task/status')
++            ac = h.action(DropTask, 'drop_task')
++            gh = wait_future(ac.send_goal_async(goal), 5.0)
++            assert gh.accepted
++            h.wait_for(lambda: any(m.state == state for _, m in states), timeout=5.0,
++                       what=f'{role} injection state {state}')
++            _set_params(h, node, [_param_str('drop_role', role), _param_double('drop_at_s', 0.0)])
++            out = wait_future(gh.get_result_async(), 15.0).result
++            return out
++
++        # 1) PickStone still runs with holding=False -> L2 (FAILURE).
++        res_vis = inject('vision', 'mock_world_node', 'PICK_STONE')
+         assert res_vis.result == DropTask.Result.FAILURE
+         assert res_vis.reason_code == 'HEARTBEAT_LOST'
+ 
+-        # 2) tracking heartbeat 손실 (파지 후 holding=True) -> L3 (SAFE_ABORT)
++        # 2) PickStone completed, holding=True -> L3 (SAFE_ABORT).
+         _set_params(h, 'orchestrator_node', [_param_str('resume_reason', 'resume_after_vision_loss')])
+-        _set_params(h, 'mock_world_node', [_param_str('drop_role', 'tracking'), _param_double('drop_at_s', 1.05)])
+-        _reset_cycle_clock(h)
+-        _, res_trk = _send_goal(h, goal, timeout=15.0)
++        res_trk = inject('tracking', 'mock_world_node', 'MOVE_STANDBY')
+         assert res_trk.result == DropTask.Result.SAFE_ABORT
+         assert res_trk.reason_code == 'HEARTBEAT_LOST'
+ 
+-        # 3) robot_controller heartbeat 손실 -> L4 (PROTECTIVE_STOP + Stop 호출)
++        # 3) Controller heartbeat loss -> L4 and Stop.
+         _set_params(h, 'orchestrator_node', [_param_str('resume_reason', 'resume_after_tracking_loss')])
+-        _set_params(h, 'mock_world_node', [_param_str('drop_role', 'none'), _param_double('drop_at_s', 999.0)])
+-        _set_params(
+-            h,
+-            'mock_robot_controller_node',
+-            [_param_str('drop_role', 'robot_controller'), _param_double('drop_at_s', 0.25)],
+-        )
+-        _reset_cycle_clock(h)
+-        _, res_ctrl = _send_goal(h, goal, timeout=15.0)
++        res_ctrl = inject('robot_controller', 'mock_robot_controller_node', 'PICK_STONE')
+         assert res_ctrl.result == DropTask.Result.PROTECTIVE_STOP
+         assert res_ctrl.reason_code == 'CONTROLLER_HEARTBEAT_LOST'
+         stop_count, _, _ = _get_stop_info(h)
+--- a/tools/testing/drop_ros.py
++++ b/tools/testing/drop_ros.py
+@@ -20,6 +20,7 @@
+ from rclpy.event_handler import SubscriptionEventCallbacks
+ from rclpy.executors import MultiThreadedExecutor
+ from rclpy.qos import QoSProfile, ReliabilityPolicy
++from rclpy.parameter import Parameter
+ 
+ DOMAIN = 100 + os.getpid() % 100
+ RECORD_QOS = QoSProfile(depth=200, reliability=ReliabilityPolicy.RELIABLE)
+@@ -68,11 +69,46 @@
+     return fut.result()
+ 
+ 
++class SteadyRosClock:
++    """Publish controlled ROS time for schedule tests, independent of host NTP jumps.
++
++    The injected clock_jump scenario still changes message stamps; this clock only
++    supplies a stable scenario timeline. Close after all subscribing nodes stop.
++    """
++
++    def __init__(self):
++        from rosgraph_msgs.msg import Clock
++        self._message = Clock
++        self.node = rclpy.create_node(f'drop_test_clock_{os.getpid()}')
++        self.pub = self.node.create_publisher(Clock, '/clock', 10)
++        self.ros_origin = time.time()
++        self.steady_origin = time.monotonic()
++        self._stop = threading.Event()
++        self._thread = threading.Thread(target=self._run, daemon=True)
++        self._thread.start()
++
++    def now(self):
++        return self.ros_origin + time.monotonic() - self.steady_origin
++
++    def _run(self):
++        while not self._stop.is_set():
++            self.pub.publish(self._message(clock=to_time(self.now())))
++            self._stop.wait(0.005)
++
++    def close(self):
++        self._stop.set()
++        self._thread.join(timeout=2.0)
++        assert not self._thread.is_alive()
++        self.node.destroy_node()
++
++
+ class Harness:
+     """노드 여러 개 + 시험용 클라이언트 노드를 백그라운드 executor로 돌린다."""
+ 
+-    def __init__(self, *nodes):
+-        self.client = rclpy.create_node(f'drop_test_client_{os.getpid()}_{id(self)}')
++    def __init__(self, *nodes, use_sim_time=False):
++        self.client = rclpy.create_node(
++            f'drop_test_client_{os.getpid()}_{id(self)}',
++            parameter_overrides=[Parameter('use_sim_time', value=use_sim_time)])
+         self.nodes = list(nodes)
+         self.exec = MultiThreadedExecutor()
+         for n in self.nodes + [self.client]:
+--- a/specs/SPEC-800-records.md
++++ b/specs/SPEC-800-records.md
+@@ -1,6 +1,6 @@
+ # SPEC-800 records
+ 
+-- 버전: v0.4
++- 버전: v0.5
+ - 근거: PLAN.md 10절
+ - REQ 영역: REC
+ 
+@@ -8,6 +8,7 @@
+ 
+ | 버전 | 날짜 | 내용 |
+ |---|---|---|
++| v0.5 | 2026-11-09 | 단계 기록의 원본 ROS 시각 보존·역행 허용 명시 |
+ | v0.4 | 2026-11-09 | 기록 I/O 실패·직렬화·잘못된 summary 및 schema 부재 처리 |
+ | v0.3 | 2026-11-09 | M0 검증 범위·게이트 및 독립 계약 기대값 정합성 |
+ | v0.2 | 2026-11-09 | 일별 개발 지표 집계·미측정·날짜별 저장 규칙 |
+@@ -41,6 +42,7 @@
+ - 성공률: 분자 = SUCCESS, 분모 = SUCCESS + FAILURE + UNKNOWN. CANCELED·SAFE_ABORT·PROTECTIVE_STOP·NOT_ATTEMPTED는 분모에 넣지 않고 따로 개수를 공개한다. n = 0이면 구간은 [0, 1].
+ - 분위수 보고: p50, p95, p99, 최대값.
+ - 저장 루트는 `records_dir`(기본 `DROP_RECORDS_DIR` 또는 실행 cwd의 `records/trials`)다. 날짜는 명시한 `date`, 생략 시 프로세스 호스트의 로컬 날짜를 기동 시 고정한다. 자정 자동 회전은 없다. 단계는 `task/step_record`, 시도는 orchestrator의 `last_trial_json` 파라미터 이벤트에서 기록하며 같은 직전 trial_id는 중복 저장하지 않는다.
++- 단계 `t_start_s`·`t_end_s`는 수신 StepRecord의 원본 ROS 시각을 그대로 보존한다. ROS 역행 시 `t_end_s < t_start_s`도 유효하며, 기록을 단조 시각처럼 재정렬하거나 고치지 않는다.
+ - 실패·중단·미시도 기록을 지우지 않는다(PLAN.md 10.2절).
+ 
+ ## 5. 시간 제약(주기·제한시간)
+--- a/specs/SPEC-110-abort-timeout.md
++++ b/specs/SPEC-110-abort-timeout.md
+@@ -1,6 +1,6 @@
+ # SPEC-110 abort-timeout
+ 
+-- 버전: v0.3
++- 버전: v0.4
+ - 근거: PLAN.md 5, 6절
+ - REQ 영역: ABT
+ 
+@@ -8,6 +8,7 @@
+ 
+ | 버전 | 날짜 | 내용 |
+ |---|---|---|
++| v0.4 | 2026-11-09 | 포트 대기 steady 배율과 독립 중단 상한 정합화 |
+ | v0.3 | 2026-11-09 | 포트 대기 steady 상한·Stop 전달 확인과 재시도 계약 |
+ | v0.2 | 2026-11-09 | M0 검증 범위·게이트 및 독립 계약 기대값 정합성 |
+ | v0.1 | 2026-11-07 | 중단 등급 판정 순서, 승격, 중단 경로·cancel 제한시간, deadline, 시계 정책, 감시 임계값 |
+@@ -111,7 +112,7 @@
+ 
+ ### 8.1 노드 대기·Stop 전달 계약
+ 
+-포트 대기 중에도 REQ-ABT-003·008의 steady 예산을 검사한다. 중단 경로는 사용자 cancel을 재적용하지 않으며 독립 steady 상한을 따른다. context 종료는 하드 중단으로 처리한다. 미확정 action 수락·terminal result는 cancel 확인이 아니며 대체 모션을 금지한다.
++포트 대기의 자체 steady 상한은 진입 시 남은 ROS 시간 × `cycle_steady_factor_ratio`다(SPEC-100 4.10절). 대기 중에도 REQ-ABT-003·008의 독립 steady 예산을 검사한다. cancel 응답·Stop 호출·L2/L3 중단 경로 제한시간에는 이 배율을 적용하지 않는다. 중단 경로는 사용자 cancel을 재적용하지 않으며 독립 steady 상한을 따른다. context 종료는 하드 중단으로 처리한다. 미확정 action 수락·terminal result는 cancel 확인이 아니며 대체 모션을 금지한다.
+ 
+ Supervisor는 장애 latch와 Stop 전달 확인을 분리한다. `stopped=true` 전에는 0.1 s 이상 간격으로 재시도하며 서비스 부재·호출 예외·`stopped=false`를 경고한다. 진행 중 Stop RPC는 최대 1개다. 응답이 없는 RPC가 남으면 중복 요청을 보내지 않고 1 s 간격으로 미확인 상태를 경고한다. Stop만 호출하는 단일 지령 권한은 유지한다.
+ 
+--- a/specs/SPEC-100-orchestrator.md
++++ b/specs/SPEC-100-orchestrator.md
+@@ -1,6 +1,6 @@
+ # SPEC-100 orchestrator
+ 
+-- 버전: v0.5
++- 버전: v0.6
+ - 근거: PLAN.md 4절
+ - REQ 영역: ORC
+ 
+@@ -8,6 +8,7 @@
+ 
+ | 버전 | 날짜 | 내용 |
+ |---|---|---|
++| v0.6 | 2026-11-09 | ROS 역행을 고려한 포트 steady 예산 배율 명시 |
+ | v0.5 | 2026-11-09 | 미확정 action 수락 보존·취소 및 포트 대기 중단 계약 |
+ | v0.4 | 2026-11-09 | M0 검증 범위·게이트 및 독립 계약 기대값 정합성 |
+ | v0.1 | 2026-11-07 | 상태 열(모드 3종), 단계별 skill·선행조건·판정·기록 키, 재시도·통과 보내기, WAIT_OPERATOR 재개 |
+@@ -193,7 +194,7 @@
+ 
+ ### 4.10 포트 대기와 미확정 action
+ 
+-수락 future가 미완료인 action은 취소 확인으로 간주하지 않는다. 늦게 수락한 goal에도 cancel을 보내고 terminal result(status 4·5·6)를 확인한다. 이전 모션 종료가 미확정이면 대체 모션을 보내지 않는다. feedback은 goal별 token으로 격리한다. 포트 대기는 ROS deadline과 steady 예산, 사이클 steady 상한, 사용자 cancel, context 종료를 검사한다. 해제 뒤 비하드 장애의 후퇴·검증 규칙(REQ-ORC-010)은 유지한다.
++수락 future가 미완료인 action은 취소 확인으로 간주하지 않는다. 늦게 수락한 goal에도 cancel을 보내고 terminal result(status 4·5·6)를 확인한다. 이전 모션 종료가 미확정이면 대체 모션을 보내지 않는다. feedback은 goal별 token으로 격리한다. 포트 대기의 steady 예산은 진입 시 남은 ROS deadline 시간 × `watchdog.cycle_steady_factor_ratio`(기본 2.0)다(deadline 없는 호출은 1 s × 배율). ROS deadline 자체는 계속 검사한다. 포트 대기는 이 steady 예산, 사이클 steady 상한, 사용자 cancel, context 종료를 검사한다. 해제 뒤 비하드 장애의 후퇴·검증 규칙(REQ-ORC-010)은 유지한다.
+ 
+ ## 5. 시간 제약(주기·제한시간)
+ 
+--- a/TEST_SPEC.md
++++ b/TEST_SPEC.md
+@@ -279,7 +279,7 @@
+ | TC-ABT-002-01 | 높은 등급이 낮은 등급을 덮어쓴다 | U | `[ON]` | L3 진행 중 L4 / L4 진행 중 L2 | L4 / L4 유지 |
+ | TC-ABT-003-01 | L2 중단 경로 제한시간 | U | `[ON]` | steady 10.000 / 10.001 s 경과 | 유지 / L4 |
+ | TC-ABT-003-02 | L3 중단 경로 제한시간 | U | `[ON]` | steady 15.000 / 15.001 s 경과 | 유지 / L4 |
+-| TC-ABT-003-03 | 포트 대기 steady·cancel·종료 | U | `[ON]` | ROS 시각 정지, 대기 중 cancel·context 종료·cleanup guard | steady 상한 반환, USER_CANCEL 또는 하드 중단, cleanup 지속 |
++| TC-ABT-003-03 | 포트 대기 steady·cancel·종료 | U | `[ON]` | ROS 시각 정지, 대기 중 cancel·context 종료·cleanup guard | steady 상한 반환, USER_CANCEL 또는 하드 중단, cleanup 지속; 0.8 s ROS 역행 중 0.36 s 정상 phase는 deadline 1 s·steady 2 s 안에서 완료, ROS 정지 시 steady 2 s에서 종료 |
+ | TC-ABT-004-01 | cancel 무응답 승격 | U | `[ON]` | cancel 후 0.5 s 응답 없음 | 한 단계 승격 |
+ | TC-ABT-004-02 | 늦은 action 수락 | U | `[ON]` | 수락 future 지연 후 cancel 요청·늦은 수락 | 미확정은 ack=false, 수락 후 cancel, terminal 확인 전 대체 모션 없음 |
+ | TC-ABT-005-01 | 들고 있을 때 사용자 cancel은 L3 | U | `[ON]` | holding = true, 사용자 cancel | L3 |
+@@ -435,7 +435,7 @@
+ | TC-MCK-002-01 | 역할 분리 일관성 | C | `[ON]` | `role:=vision`, `role:=tracking` 별도 프로세스 | 같은 시각의 뚜껑 위치 차 ≤ 1e-9 m |
+ | TC-MCK-003-01 | mock_world 계약 | C | `[ON]` | vision·tracker 계약 시험 | 통과 |
+ | TC-MCK-004-01 | mock_robot_controller 계약 | C | `[ON]` | robot_controller 계약 시험 | 통과 |
+-| TC-MCK-005-01 | 장애 주입 시각 | C | `[ON]` | 시나리오 이벤트 10종, 노드 topic·heartbeat·skill 결과 관찰 | 엔진·30 Hz 데이터 ≤ 1프레임, heartbeat ≤ 0.1 s, skill 첫 검사 주기; 주입 위상·수신 steady 기록, 전송 관측 지연 ≤ 0.2 s |
++| TC-MCK-005-01 | 장애 주입 시각 | C | `[ON]` | 단조 시계로 구동한 시험용 ROS 시각에서 시나리오 이벤트 10종, 노드 topic·heartbeat·skill 결과 관찰 | 엔진·30 Hz 데이터 ≤ 1프레임, heartbeat ≤ 0.1 s, skill 첫 검사 주기; 주입 위상·수신 steady 기록, 전송 관측 지연 ≤ 0.2 s |
+ | TC-MCK-005-02 | 장애 주입 시각(엔진) | U | `[ON]` | 이벤트 10종을 넣은 시나리오, 이벤트 직전·직후 프레임 | 직전 프레임은 효과 없음, 직후 프레임(± 1)에 효과 |
+ | TC-MCK-006-01 | 가정값 표기 | U | `[ON]` | `scenarios/*.yaml` | `world`·`robot` 수치 값이 모두 `assumed:` 또는 `measured:` 중 하나로 분류(중복 0), 엔진 `assumed_params`가 분류 결과와 같음 |
+ | TC-MCK-006-02 | 가정값 기록 복사 | I0 | `[ON]` | mock 1사이클 | trial 기록 `assumed_params` == 대역 노드 `assumed_params` 파라미터 |
+@@ -449,7 +449,7 @@
+ | TC-REC-001-01 | 시도 기록 스키마 | U | `[ON]` | `PLAN.md` 10.2절 JSON Schema로 검증 | 필수 필드 누락 시 실패 |
+ | TC-REC-002-01 | 시도하지 않은 경우도 기록 | I0 | `[ON]` | `time_insufficient` 소진 | `result = NOT_ATTEMPTED`, reason, `passes_skipped` 기록 |
+ | TC-REC-002-02 | logger 실패·직렬화·격리 | U | `[ON]` | I/O 오류 후 같은 trial 재전달, callback 경합, 잘못된 summary, schema 부재 | 오류 노출·성공 뒤 dedup, 직렬화, invalid 격리·정상 기록 금지 |
+-| TC-REC-003-01 | 단계 기록 | I0 | `[ON]` | 정상 1사이클 | 12단계 이름·순서·attempt=1·전체 metric 키는 독립 SPEC 기대값과 같음; 키/값 전체는 수신 StepRecord와 JSONL이 같음 |
++| TC-REC-003-01 | 단계 기록 | I0 | `[ON]` | 정상 1사이클 | 12단계 이름·순서·attempt=1·전체 metric 키는 독립 SPEC 기대값과 같음; 키/값 전체는 수신 StepRecord와 JSONL이 같음; 시작·종료 ROS 시각은 역행을 포함해 원본 StepRecord와 동일 |
+ | TC-REC-004-01 | Wilson 95% 구간 | U | `[ON]` | k/n = 45/50, 50/50, 0/20 | [0.7864, 0.9565], [0.9287, 1.0000], [0.0000, 0.1611](±1e-4) |
+ | TC-REC-004-02 | UNKNOWN 처리 | U | `[ON]` | SUCCESS 40, FAILURE 5, UNKNOWN 5 | 성공률 40/50(UNKNOWN은 분모에만) |
+ | TC-REC-005-01 | 분위수 보고 | U | `[ON]` | 알려진 표본 | p50/p95/p99/최대값이 numpy `method="linear"`와 일치 |
+@@ -468,7 +468,7 @@
+ | TC-INT-001-01 | I0 정상 | I0 | `[ON]` | `nominal_20mms`, 20회 | 20/20 SUCCESS(mock 판정), 상태 열 TC-ORC-001-01과 같음 |
+ | TC-INT-002-01 | 로봇 무응답 | I0 | `[ON]` | `robot_hang` | cancel 호출 1회, steady cancel 송신→L4 승격 0.5~0.7 s(관측 지연 ≤ 0.2 s), cancel 직전 L2 / 미종료 로봇 지령 확인 뒤 L4(U 계측)·Stop ≥1건; I0 수신→Stop은 0.48~0.70 s(송수신 원점 오차 ≤ 0.02 s) |
+ | TC-INT-003-01 | 보호정지 | I0 | `[ON]` | `protective_stop` | requester별 이력에서 SUPERVISOR `Stop` ≥1건 → WAIT_OPERATOR, 자동 재개 0회 |
+-| TC-INT-004-01 | heartbeat 손실 | I0 | `[ON]` | vision·tracker·controller 각각 끊음 | L2/L3/L4(TC-ABT-010-01과 같음) |
++| TC-INT-004-01 | heartbeat 손실 | I0 | `[ON]` | 정상 heartbeat 확인 후 vision·controller는 PICK_STONE(파지 전), tracker는 MOVE_STANDBY(파지 후)에서 각각 끊음 | L2/L3/L4(TC-ABT-010-01과 같음) |
+ | TC-INT-005-01 | 시간 부족 | I0 | `[ON]` | 첫 통과 부족 → 다음 통과 / 전부 부족 | 두 번째 통과에서 진행 / `NOT_ATTEMPTED` |
+ | TC-INT-006-01 | lifecycle 비활성 | I0 | `[ON]` | 노드 하나 `INACTIVE` | PRECHECK FAILED, skill 호출 0회 |
+ | TC-INT-007-01 | replay는 지령 경로가 없다 | I1 | `[ON]` | `replay.launch.py` | 스트림 토픽 발행자·robot action 클라이언트·그리퍼 호출 0개 |
