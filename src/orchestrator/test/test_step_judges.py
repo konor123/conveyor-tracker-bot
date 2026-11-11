@@ -24,8 +24,9 @@ P_PICK = sj.PickParams(d_stone_min_m=D_STONE_MIN, d_stone_max_m=D_STONE_MAX, wid
                        grip_current_min_ma=100,
                        detection_age_max_s=1.0)
 P_STB = sj.StandbyParams(pose_error_max_m=2 * MM)
-P_WAIT = sj.WaitCapParams(observation_count_min_count=30, speed_std_max_mps=1 * MM, margin_s=1.0)
-P_PLAN = sj.PlanParams(time_margin_min_s=1.0, position_std_max_m=0.5 * MM, t_approach_s=1.0)
+P_WAIT = sj.WaitCapParams(observation_count_min_count=30, speed_std_max_mps=1 * MM, margin_s=1.0,
+                          plan_lead_s=3.0)
+P_PLAN = sj.PlanParams(time_margin_min_s=1.0, position_std_max_m=3.25 * MM, t_approach_s=1.0)
 P_APP = sj.ApproachParams(pose_error_max_m=2 * MM)
 P_SYNC = sj.SyncParams(e_xy_max_m=E_XY_MAX, v_rel_max_mps=V_REL_MAX, hold_s=0.3, timeout_s=2.0)
 P_ENTRY = sj.EntryParams(entry_time_tol_s=0.05, v_rel_max_mps=V_REL_MAX)
@@ -183,6 +184,21 @@ def test_wait_cap_empty_and_budget(change, result, reason, detail):
     assert j.detail == detail
 
 
+@pytest.mark.req("REQ-ORC-013")
+@pytest.mark.tc("TC-ORC-013-01")
+@pytest.mark.level("U")
+@pytest.mark.parametrize("t_to_window, result, reason, detail", [
+    (3.001, Result.FAILED, 'WAIT', 'TOO_EARLY'),
+    (3.000, Result.OK, '', ''),
+    (2.999, Result.OK, '', ''),
+])
+def test_wait_cap_plan_lead(t_to_window, result, reason, detail):
+    j = sj.judge_wait_cap(rep(OK_WAIT, t_to_window_s=t_to_window), P_WAIT)
+    check(j, result, reason)
+    assert j.detail == detail
+    assert j.metrics['t_to_window_s'] == pytest.approx(t_to_window)
+
+
 # ---------------------------------------------------------------- PLAN_INTERCEPT
 @pytest.mark.req("REQ-ORC-003")
 @pytest.mark.tc("TC-ORC-003-09")
@@ -190,8 +206,8 @@ def test_wait_cap_empty_and_budget(change, result, reason, detail):
 @pytest.mark.parametrize("change, result, reason", [
     ({'time_margin_s': 0.99}, Result.FAILED, 'TIME_MARGIN'),
     ({'time_margin_s': 1.00}, Result.OK, ''),
-    ({'position_std_m': 0.50 * MM}, Result.OK, ''),
-    ({'position_std_m': 0.51 * MM}, Result.FAILED, 'POSITION_STD'),
+    ({'position_std_m': 3.25 * MM}, Result.OK, ''),
+    ({'position_std_m': 3.26 * MM}, Result.FAILED, 'POSITION_STD'),
     ({'valid_until': 101.0}, Result.FAILED, 'PLAN_EXPIRES'),       # = now + T_approach, 경계는 '>'
     ({'valid_until': 101.001}, Result.OK, ''),
     ({'plan_ok': False}, Result.FAILED, 'PLAN_STATUS'),

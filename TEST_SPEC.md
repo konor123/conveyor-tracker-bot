@@ -197,6 +197,7 @@ class PulseTable:
     def pulse_to_width(self, p: int) -> float
 
 # ---------- calibration (SPEC-600) ----------
+def plane_frame(normal, offset_m: float, x_hint, origin_xy) -> np.ndarray   # frames.py, 4×4 robot_base ← 평면 좌표계
 def fit_plane(points: np.ndarray, ransac_thresh: float, up=(0, 0, 1), rng=None) -> Plane   # Plane.height_at(x, y)
 def fit_direction(points: np.ndarray, plane: Plane | None = None) -> np.ndarray
 def solve_eye_to_hand(cam_pts: np.ndarray, base_pts: np.ndarray) -> tuple[np.ndarray, float]  # (T, rms [m])
@@ -225,6 +226,7 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-SYS-003-02 | track stamp는 상태 시각이다 | C | `[ON]` | `tracker_node`에 stamp T 검출 입력, 수신은 T+80 ms | `TrackedObject.header.stamp == t_state == T` |
 | TC-SYS-004-01 | 단위 변환은 adapter 두 곳에만 있다 | U | `[ON]` | 소스 정적 검사: `* 1000`, `math.degrees`, `/ 1000` 패턴 | `motion_adapter.py`, `gripper_adapter.py`, 테스트 외에는 0건 |
 | TC-SYS-005-01 | 설정 파일 상대 경로는 저장소 루트 기준 | U | `[ON]` | 다른 작업 폴더에서 상대·절대·`~`·빈 경로 해석, 설치 트리 모양의 모듈 위치에서 루트 찾기, `DROP_REPO_ROOT` 지정 | 상대 경로 = 저장소 루트 + 경로, 절대·빈 값 그대로, `~` 확장, 설치 트리에서도 같은 루트, 환경 변수 우선 |
+| TC-SYS-006-01 | TF는 고정·관측 시각화에만 쓴다 | U | `[ON]` | `src/**/*.py`(test 제외)를 토큰으로 검사 / 허용 밖 파일에 `lookup_transform`을 넣은 임시 트리 | TF 조회 1곳(`calibration/ros_nodes.py`), `TimePointZero` 0건, `/tf` 발행 `tracker_node` 1곳, `/tf_static` 발행 `calibration` 2곳 / 위반 1건 보고 |
 
 ### 3.2 IF — 인터페이스
 
@@ -257,7 +259,7 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-ORC-003-06 | MOVE_STANDBY 자세 오차 | U | `[ON]` | 2.0 / 2.1 mm, holding false | OK / FAILED, FAILED(`DROPPED`) |
 | TC-ORC-003-07 | WAIT_CAP 추적 안정 경계 | U | `[ON]` | observation_count 29 / 30, speed_std 1.00 / 1.01 mm/s, `steady=false` | 통과 대기 / OK, OK / 대기, 대기 |
 | TC-ORC-003-08 | WAIT_CAP 빈 뚜껑·시간 예산 | U | `[ON]` | `stone_inside=true` / `stone_inside_valid=false` / `t_available−t_required` = 0.99 / 1.00 / 1.01 s (`margin_s=1.00 s`) | FAILED(`CAP_NOT_EMPTY`) / reason `PASS_SKIP`(`CAP_STATE_UNKNOWN`) / reason `PASS_SKIP` / OK / OK |
-| TC-ORC-003-09 | PLAN_INTERCEPT 판정 | U | `[ON]` | time_margin 0.99 / 1.00 s, position_std 0.5 / 0.51 mm, `valid_until = now + T_approach` | FAILED / OK, OK / FAILED, FAILED(경계는 `>`) |
+| TC-ORC-003-09 | PLAN_INTERCEPT 판정 | U | `[ON]` | time_margin 0.99 / 1.00 s, position_std 3.25 / 3.26 mm, `valid_until = now + T_approach` | FAILED / OK, OK / FAILED, FAILED(경계는 `>`) |
 | TC-ORC-003-10 | SYNCHRONIZE 연속 0.3 s | U | `[ON]` | 100 Hz 표본, 0.25 s 시점에 e_xy 1회 초과 | 초과 시점부터 다시 셈, 초과 후 0.3 s 연속 만족한 시점에 OK, 2 s 안에 못 채우면 TIMEOUT |
 | TC-ORC-003-11 | DESCEND 핑거 끝 여유 | U | `[ON]` | 핑거 끝 − 테두리 = 1.9 / 2.0 mm | FAILED(`RIM_CLEARANCE`) / OK |
 | TC-ORC-003-12 | RELEASE 개방 확인 | U | `[ON]` | 간격 20.9 / 21.0 mm(`d_stone_max+Δ_open−1 mm` = 21 mm) | FAILED / OK |
@@ -276,6 +278,8 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-ORC-010-03 | result가 마지막 feedback보다 먼저 처리됨 | U | `[ON]` | 정상 result 처리 뒤 0.05 s에 `phase_done` feedback 도착 / 끝내 없음 / `STOPPED` result | feedback의 metrics 반환 / 짧은 대기 뒤 None / 대기 없이 None·`ROBOT_STOPPED` |
 | TC-ORC-011-01 | skill 결과의 정지 사유를 하드 이상으로 | U | `[ON]` | action 결과 `STOPPED` / `PROTECTIVE_STOP` / `CANCELED` / 빈 사유, phase 대기 중 `STOPPED`, 자체 감시가 controller heartbeat 손실을 먼저 봄, `ROBOT_STOPPED` latch 뒤 보호정지 확인 | `ROBOT_STOPPED` / `PROTECTIVE_STOP` / 장애 없음 / 장애 없음, `ROBOT_STOPPED`, `CONTROLLER_HEARTBEAT_LOST`, `PROTECTIVE_STOP` |
 | TC-ORC-012-01 | controller 정지 유지·보호정지 감시 | U | `[ON]` | controller heartbeat `error_code` 100 / 101 / 0, 100 뒤 101; `ROBOT_STOPPED`가 DETECT_STONE(`DetectObjects.MAT` 뒤) / WAIT_CAP(`SelectTarget` 뒤) / 단계 사이(`PickStone` 성공 뒤) / PRECHECK에서 latch | `PROTECTIVE_STOP` / `ROBOT_STOPPED` / 장애 없음, `PROTECTIVE_STOP` 유지; 각 경우 L4·WAIT_OPERATOR, latch 뒤 Stop 외 로봇 skill 호출 0회 |
+| TC-ORC-013-01 | WAIT_CAP 계획 시점 | U | `[ON]` | 다른 조건 모두 통과, `t_to_window_s` 3.001 / 3.000 / 2.999 s(`plan_lead_s` 3.0) | WAIT(`TOO_EARLY`) / OK / OK |
+| TC-ORC-014-01 | 해제 게이트 기준 분리 | U | `[ON]` | 설치 config로 만든 `place_start(MODE_SYNCHRONIZED)` goal | `position_std_max` = 0.0005 = `sync.release_position_std_max_m`, `plan.position_std_max_m` = 0.00325와 다름 |
 
 ### 3.4 ABT — 중단·제한시간·감시
 
@@ -364,10 +368,11 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-PLN-005-01 | 도달 불가 | U | `[ON]` | 해제점이 작업영역 밖 | status `UNREACHABLE` |
 | TC-PLN-006-01 | revision·만료 | C | `[ON]` | 같은 plan을 3회 갱신 / `valid_until` 경과 | revision 1, 2, 3 단조 증가, plan_id 불변 / `EXPIRED` |
 | TC-PLN-007-01 | epoch 불일치 | C | `[ON]` | 요청 epoch ≠ 현재 epoch | result FAILED, reason `EPOCH_MISMATCH` |
-| TC-PLN-008-01 | 불확실성 | U | `[ON]` | position_std 0.51 mm | status `UNCERTAIN` |
+| TC-PLN-008-01 | 불확실성 | U | `[ON]` | position_std 3.24 / 3.25 / 3.26 mm | OK / OK / status `UNCERTAIN` |
 | TC-PLN-009-01 | earliest_release 준수 | U | `[ON]` | earliest_release가 계산 시각보다 늦음 | `release_time ≥ earliest_release` |
 | TC-PLN-010-01 | τ_max 계산 | U | `[ON]` | e_allow 2.75 mm, e_pos 0.3 mm, δv 0.5 mm/s, a 0, v 20 mm/s, δt 5 ms | 식을 만족하는 최대 τ(해석해와 1e-6 s 이내) |
 | TC-PLN-011-01 | I2 예측·예산 통합 | I2 | `[ON]` | fixture tracked → 실제 planner: 정상, `time_insufficient`, `UNCERTAIN`, 만료·epoch 불일치·clock reset | 시나리오별 status·reason이 기대표와 일치 |
+| TC-PLN-012-01 | 실제 planner·tracker bringup | I2 | `[ON]` | `drop.launch.py` mock vision·robot, (a) 실제 planner + mock tracking, (b) 실제 planner + 실제 tracker, orchestrator 없음 | 실제 노드 `ACTIVE` 자동 전이, 그 뒤 사람이 `deactivate`하면 1.5 s 뒤에도 `INACTIVE`(다시 켜지 않음) / `planner/compute_intercept` 서버·`drop/intercept_plan` 발행자 = `intercept_planner_node` 1개 / (b) `objects/tracked` 발행자 = `tracker_node` 1개 / planner·tracker 파라미터가 시나리오 기하(`T_base_conveyor` 원점 (0.30, −0.25), 도달 0.20~0.40, 관측 끝 0.45)와 같음 |
 
 ### 3.8 ROB — 로봇 제어
 
@@ -449,6 +454,8 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-CAL-010-01 | 독립 접촉점 검증 통계·기준 판정 | U | `[ON]` | n ≥ 20점 독립 접촉점, 포인터 보정 좌표와 카메라 추정 좌표 비교, p95 ≤ 1 mm 및 최대 ≤ 2 mm 기준 | 점별 XY 잔차, p50·p95·최대 오차 일치, 기준 만족 시 pass=True, 초과 시 pass=False |
 | TC-CAL-010-02 | 독립 접촉점 거부 규칙 | U | `[ON]` | 20점 미만, 중복 점/ID, fit 점 재사용, NaN/Inf/불량 변환, 단위 오류(>10 m 등), 미정의 포인터 TCP, 출처 누락/불일치, 합성 데이터 물리 검증 제출 | 지정된 거부 사유(예외 또는 refusal) 반환, 물리 게이트 pass 불가 |
 | TC-CAL-010-03 | 오프라인 캡처/가져오기 도구 | U | `[ON]` | 로봇 제어 서비스 미연결 오프라인 상태에서 템플릿 생성, CSV/YAML 검증, 스키마 왕복 | 로봇 이동 지령 0건, 스키마 검증 및 파싱 성공, 재현성 확인 |
+| TC-CAL-011-01 | 평면 좌표계 | U | `[ON]` | 기울어진 법선(아래쪽 부호 포함)·offset·`x_hint`·`origin_xy` / 법선과 평행한 `x_hint` | 원점 평면 위 ≤ 1e-12 m, xy = `origin_xy`, R 직교·det 1, z = 법선(z > 0), x = 투영 방향 ≤ 1e-9 rad / `ValueError` |
+| TC-CAL-012-01 | 고정 TF 발행 | C | `[ON]` | `static_frames_publisher`를 항등·회전 `T_base_conveyor`, `publish_world` 참·거짓으로 띄워 `/tf_static` 수신 / 강체가 아닌 행렬 / 두 config 비교 | 부모→자식 쌍 3개(+world 1개), 중복 0, conveyor 변환 ≤ 1e-9 / 발행 0건·종료 코드 1 / tracking·planner `T_base_conveyor` 같음 |
 
 ### 3.11 MCK — 대역
 

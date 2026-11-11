@@ -5,6 +5,7 @@ reason "WAIT"는 판정 보류(같은 단계에서 관측 계속)이며 result�
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import math
 from typing import Sequence
 
 from .common import FromDict, Judgement, Result, ge, le
@@ -25,7 +26,7 @@ METRIC_KEYS: dict[str, frozenset[str]] = {
     # 시간 예산 성분 budget_<성분>_s 가 추가된다
     'WAIT_CAP': frozenset({'track_observed', 'observation_count', 'speed_std_mps', 'belt_steady',
                            'stone_inside', 'stone_inside_valid', 't_available_s', 't_required_s',
-                           'time_margin_s'}),
+                           'time_margin_s', 't_to_window_s'}),
     'PLAN_INTERCEPT': frozenset({'plan_ok', 'epoch_match', 'time_margin_s', 'position_std_m',
                                  'valid_for_s'}),
     'APPROACH': frozenset({'plan_valid', 'pose_error_m'}),
@@ -191,6 +192,7 @@ class WaitCapMeas:
     t_available_s: float
     t_required_s: float
     budget_components: dict[str, float] = field(default_factory=dict)
+    t_to_window_s: float = 0.0   # 도달 구간 진입까지 남은 시간(SelectTarget t_enter_window − now), STATIC은 0
 
 
 @dataclass(frozen=True)
@@ -198,6 +200,7 @@ class WaitCapParams(FromDict):
     observation_count_min_count: int
     speed_std_max_mps: float
     margin_s: float
+    plan_lead_s: float = math.inf  # 도달 구간 진입 이 시간 전부터 계획한다(예측 구간 축소, REQ-ORC-013)
 
 
 def judge_wait_cap(m: WaitCapMeas, p: WaitCapParams) -> Judgement:
@@ -206,7 +209,7 @@ def judge_wait_cap(m: WaitCapMeas, p: WaitCapParams) -> Judgement:
                        speed_std_mps=m.speed_std_mps, belt_steady=m.belt_steady,
                        stone_inside=m.stone_inside, stone_inside_valid=m.stone_inside_valid,
                        t_available_s=m.t_available_s, t_required_s=m.t_required_s,
-                       time_margin_s=margin)
+                       time_margin_s=margin, t_to_window_s=m.t_to_window_s)
     metrics.update({f'budget_{k}_s': float(v) for k, v in m.budget_components.items()})
     return _judge([
         (not m.track_observed, WAIT, 'TRACK_NOT_OBSERVED'),
@@ -215,6 +218,7 @@ def judge_wait_cap(m: WaitCapMeas, p: WaitCapParams) -> Judgement:
         (not m.belt_steady, WAIT, 'BELT_UNSTEADY'),
         (not m.stone_inside_valid, PASS_SKIP, 'CAP_STATE_UNKNOWN'),
         (m.stone_inside, 'CAP_NOT_EMPTY'),
+        (not le(m.t_to_window_s, p.plan_lead_s), WAIT, 'TOO_EARLY'),
         (not ge(margin, p.margin_s), PASS_SKIP, 'TIME_MARGIN'),
     ], metrics)
 
@@ -284,6 +288,7 @@ class SyncParams(FromDict):
     v_rel_max_mps: float
     hold_s: float
     timeout_s: float
+    release_position_std_max_m: float = 0.0005   # 해제 게이트 기준, 계획 단계 기준과 독립(REQ-ORC-014)
 
 
 def judge_synchronize(samples: Sequence[SyncSample], p: SyncParams) -> Judgement:

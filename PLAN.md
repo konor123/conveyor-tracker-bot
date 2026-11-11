@@ -555,8 +555,8 @@ IDLE
 | DETECT_STONE | PRECHECK OK | 매트 ROI 공깃돌 ≥ 1, confidence ≥ 0.9, `position_valid`, 0.5 s 창 위치 표준편차 ≤ 0.5 mm, 주변 물체와 핑거 간섭 거리 이상 떨어짐 | 3 s | L2 | 0 |
 | PICK_STONE | 검출 시각이 1 s 이내 | 핑거 간격이 `[d_stone_min − 1, d_stone_max + 1] mm` 안(pulse 실측표 변환) / Present Current ≥ 파지 전류 하한 / 매트 ROI에서 해당 공깃돌 사라짐 / 로봇·그리퍼 오류 없음 | 15 s | L2(선행조건 불충족도 재검출 없이 L2) | 0 |
 | MOVE_STANDBY | holding | 대기 자세 오차 ≤ 2 mm / holding 유지(핑거 간격·전류) | 10 s | L3 | 0 |
-| WAIT_CAP | 대기 자세, holding | `SelectTarget` 병뚜껑 track `OBSERVED`, `observation_count ≥ 30`, `speed_std ≤ 1 mm/s`, `steady` / 뚜껑 안에 공깃돌 없음(`stone_inside_valid == true`이고 `stone_inside == false`, 판정 불가는 통과 보내기) / `T_available − T_required ≥ margin` | `T_lap × (max_passes + 1)`(`T_lap` = 한 바퀴 주기, G0 측정) | 판정 실패한 통과는 보내고 다음 통과 대기. `max_passes`를 넘으면 L3(결과 `NOT_ATTEMPTED`) | `max_passes` |
-| PLAN_INTERCEPT | holding, track `OBSERVED`, epoch 일치 | `status == OK`, `time_margin ≥ 1.0 s`, `position_std ≤ 0.5 mm`, `valid_until > now + T_approach` | 0.5 s | 동적 deadline 안에서 재계획, 넘으면 이번 통과를 보내고 WAIT_CAP(남은 통과가 없으면 L3) | deadline까지 |
+| WAIT_CAP | 대기 자세, holding | `SelectTarget` 병뚜껑 track `OBSERVED`, `observation_count ≥ 30`, `speed_std ≤ 1 mm/s`, `steady` / 뚜껑 안에 공깃돌 없음(`stone_inside_valid == true`이고 `stone_inside == false`, 판정 불가는 통과 보내기) / `T_available − T_required ≥ margin` / 도달 구간 진입 예상 시각까지 ≤ 3.0 s(그 전에는 대기, 예측 구간을 줄인다) | `T_lap × (max_passes + 1)`(`T_lap` = 한 바퀴 주기, G0 측정) | 판정 실패한 통과는 보내고 다음 통과 대기. `max_passes`를 넘으면 L3(결과 `NOT_ATTEMPTED`) | `max_passes` |
+| PLAN_INTERCEPT | holding, track `OBSERVED`, epoch 일치 | `status == OK`, `time_margin ≥ 1.0 s`, `position_std ≤ 3.25 mm`(계획 단계, `e_xy_max`와 같음), `valid_until > now + T_approach` | 0.5 s | 동적 deadline 안에서 재계획, 넘으면 이번 통과를 보내고 WAIT_CAP(남은 통과가 없으면 L3) | deadline까지 |
 | APPROACH | plan 유효 | 해제점 위 30 mm 도달, 오차 ≤ 2 mm / plan 유효 상태 유지 | 1.5 × T_transit(p99) | L3 | 0 |
 | SYNCHRONIZE | 접근 완료 | `e_xy ≤ e_xy_max`, `v_rel ≤ v_rel_max`가 연속 0.3 s 유지 | 2 s | L3 | 0 |
 | DESCEND | 동기 게이트 유지 | 해제 높이 ±0.5 mm 도달 / 하강 중 동기 게이트 계속 만족 / 핑거 끝이 테두리 + h_clear 위 | 1.5 s | L3(동기 유지하며 상승) | 0 |
@@ -574,7 +574,7 @@ IDLE
 - 공깃돌 중심(TCP + 파지 오프셋)과 뚜껑 중심 예측 사이 XY 오차 ≤ `e_xy_max`. 값은 `0.5 × (D_in − d_stone_max) / 2`로 계산한다(`D_in` 실측 OFF-1).
 - 상대 속도 ≤ `v_rel_max`(초기 5 mm/s, G4 결과로 조정).
 - 추적 상태 `OBSERVED`, 또는 `COASTING`이면서 `t_now − t_last_obs ≤ τ_max`. 컨베이어를 그리퍼가 뚜껑을 가리지 않는 위치에 두므로(1.1절) 해제 직전까지 관측을 유지하고, COASTING은 검출 누락 같은 짧은 구간에만 허용한다. 벨트 속도가 맥동하므로 예측만 쓰는 구간이 길면 오차가 빠르게 커진다(OFF-1 영상, `sigma_accel_mps2` 0.01: 0.1 s 앞 예측 XY p95 2.6~3.4 mm, `records/bench/belt-video-2026-11-07/README.md`). τ_max는 G3·G4 측정으로 정한다(초기 0.3 s).
-- 위치 예측 표준편차 ≤ 기준, `valid_until` 미경과, `epoch` 일치.
+- 위치 예측 표준편차 ≤ 0.5 mm(해제 게이트 기준, 계획 단계 기준 3.25 mm와 따로 둔다), `valid_until` 미경과, `epoch` 일치.
 - 핑거 끝 높이 ≥ 테두리 높이 + `h_clear`(초기 2 mm).
 
 ### 4.5 투입 판정 (보조 카메라 없음)

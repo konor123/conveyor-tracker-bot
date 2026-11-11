@@ -20,6 +20,6 @@
     "tool_quat_xyzw": [1, 0, 0, 0],
     "tcp_offset_m": [0.0, 0.0]
   },
-  "uncertainty": {"position_std_max_m": 0.0005},
+  "uncertainty": {"position_std_max_m": 0.00325},
   "T_base_conveyor": [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]
 }

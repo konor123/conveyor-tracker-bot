@@ -14,6 +14,10 @@
   <exec_depend>dsr_bringup2</exec_depend>
   <exec_depend>realsense2_camera</exec_depend>
   <exec_depend>calibration</exec_depend>
+  <exec_depend>tracking</exec_depend>
+  <exec_depend>intercept_planner</exec_depend>
+  <exec_depend>lifecycle_msgs</exec_depend>
+  <exec_depend>rviz2</exec_depend>
 
   <exec_depend>drop_mocks</exec_depend>
   <exec_depend>orchestrator</exec_depend>

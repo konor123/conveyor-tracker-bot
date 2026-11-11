@@ -1,6 +1,6 @@
 # SPEC-100 orchestrator
 
-- 버전: v0.11
+- 버전: v0.12
 - 근거: PLAN.md 4절
 - REQ 영역: ORC
 
@@ -8,6 +8,7 @@
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
+| v0.12 | 2026-11-11 | 계획 단계 위치 표준편차 기준(3.25 mm)과 해제 게이트 기준(0.5 mm) 분리, WAIT_CAP 계획 시점(도달 구간 진입 3.0 s 전부터, REQ-ORC-013·014) |
 | v0.11 | 2026-11-11 | controller heartbeat `error_code` 100·101을 사이클 전 구간 감시에 적용(REQ-ORC-012) |
 | v0.10 | 2026-11-11 | 병뚜껑 안쪽 지름 `D_in` 31 mm로 `sync.e_xy_max_m` 0.00325 |
 | v0.9 | 2026-11-10 | skill 결과 `STOPPED`·`PROTECTIVE_STOP`을 하드 이상으로 latch(REQ-ORC-011) |
@@ -53,13 +54,15 @@ SPEC-010 wire schema v0.2 / runtime contract v0.4 기준.
 | `wait_cap.observation_count_min_count` | 30 | PLAN.md 4.3절 |
 | `wait_cap.speed_std_max_mps` | 0.001 | PLAN.md 4.3절 |
 | `wait_cap.margin_s` | 1.0 | PLAN.md 9절 |
+| `wait_cap.plan_lead_s` | 3.0 | 도달 구간 진입 이 시간 전부터 계획한다. planner `release_lead` 2.8 s를 덮는 값. 2026-11-11 로컬 실험(worklog) |
 | `plan.time_margin_min_s` | 1.0 | PLAN.md 4.3절 |
-| `plan.position_std_max_m` | 0.0005 | PLAN.md 4.3절 |
+| `plan.position_std_max_m` | 0.00325 | 계획 단계 기준 = `sync.e_xy_max_m`. 해제 게이트와 분리(PLAN.md 4.3·4.4절) |
 | `plan.t_approach_s` | 1.0 | TBD(측정 G0) |
 | `sync.e_xy_max_m` | 0.00325 | `0.5 × (D_in − d_stone_max) / 2`, `D_in` 31 mm·`d_stone_max` 18 mm |
 | `sync.v_rel_max_mps` | 0.005 | PLAN.md 4.4절 |
 | `sync.hold_s` | 0.3 | PLAN.md 4.3절 |
 | `sync.timeout_s` | 2.0 | PLAN.md 4.3절 |
+| `sync.release_position_std_max_m` | 0.0005 | 해제 게이트 위치 표준편차 기준. `DynamicPlace.Goal.position_std_max`로 보낸다(PLAN.md 4.4절) |
 | `predicted.entry_time_tol_s` | 0.05 | TBD(측정 G4) |
 | `descend.height_tol_m` | 0.0005 | PLAN.md 4.3절 |
 | `descend.h_clear_m` | 0.002 | PLAN.md 4.4절 |
@@ -70,6 +73,8 @@ SPEC-010 wire schema v0.2 / runtime contract v0.4 기준.
 | `verify.timeout_s` | 3.0 | PLAN.md 4.3절 |
 
 `wait_cap.time_margin_s = t_available_s − t_required_s`이며 통과 조건은 `time_margin_s >= margin_s`다.
+
+`wait_cap.t_to_window_s = max(0, t_enter_window − now)`(`SelectTarget` 응답의 도달 구간 진입 예상 시각, 이미 지났거나 STATIC이면 0)이며 `t_to_window_s > plan_lead_s`면 `WAIT`(`TOO_EARLY`)다. 뚜껑을 처음 볼 때 계획하면 해제까지 예측 구간이 길어(nominal에서 약 10 s) 위치 표준편차가 커진다.
 
 단계 제한시간(`step_timeout:`)은 PLAN.md 4.3절 값을 쓰고 측정 후 SPEC-110 5절 식으로 바꾼다.
 
@@ -110,7 +115,7 @@ SPEC-010 wire schema v0.2 / runtime contract v0.4 기준.
 | DETECT_STONE | `NO_STONE`, `POSITION_INVALID`, `LOW_CONFIDENCE`, `POSITION_UNSTABLE`, `CLEARANCE` |
 | PICK_STONE | `ROBOT_ERROR`, `GRIPPER_ERROR`, `STONE_ON_MAT`, `GRIP_WIDTH`, `GRIP_CURRENT_LOW` |
 | MOVE_STANDBY | `DROPPED`, `POSE_ERROR` |
-| WAIT_CAP | `CAP_NOT_EMPTY`(FAILED), `PASS_SKIP`(detail `CAP_STATE_UNKNOWN` / `TIME_MARGIN`), `WAIT`(detail `TRACK_NOT_OBSERVED` / `OBSERVATION_COUNT` / `SPEED_STD` / `BELT_UNSTEADY`) |
+| WAIT_CAP | `CAP_NOT_EMPTY`(FAILED), `PASS_SKIP`(detail `CAP_STATE_UNKNOWN` / `TIME_MARGIN`), `WAIT`(detail `TRACK_NOT_OBSERVED` / `OBSERVATION_COUNT` / `SPEED_STD` / `BELT_UNSTEADY` / `TOO_EARLY`) |
 | PLAN_INTERCEPT | `PLAN_STATUS`, `EPOCH_MISMATCH`, `TIME_MARGIN`, `POSITION_STD`, `PLAN_EXPIRES` |
 | APPROACH | `PLAN_INVALID`, `POSE_ERROR` |
 | SYNCHRONIZE | `WAIT`(진행 중), `TIMEOUT`(result TIMEOUT) |
@@ -129,7 +134,7 @@ SPEC-010 wire schema v0.2 / runtime contract v0.4 기준.
 | DETECT_STONE | `stone_count`, `confidence`, `position_valid`, `window_std_m`, `clearance_m` |
 | PICK_STONE | `grip_width_m`, `grip_current_ma`, `stone_on_mat`, `robot_error`, `gripper_error` |
 | MOVE_STANDBY | `pose_error_m`, `holding` |
-| WAIT_CAP | `track_observed`, `observation_count`, `speed_std_mps`, `belt_steady`, `stone_inside`, `stone_inside_valid`, `t_available_s`, `t_required_s`, `time_margin_s`, 시간 예산 성분 `budget_<성분>_s` |
+| WAIT_CAP | `track_observed`, `observation_count`, `speed_std_mps`, `belt_steady`, `stone_inside`, `stone_inside_valid`, `t_available_s`, `t_required_s`, `time_margin_s`, `t_to_window_s`, 시간 예산 성분 `budget_<성분>_s` |
 | PLAN_INTERCEPT | `plan_ok`, `epoch_match`, `time_margin_s`, `position_std_m`, `valid_for_s` |
 | APPROACH | `plan_valid`, `pose_error_m` |
 | SYNCHRONIZE | `elapsed_s`, `hold_s`, `e_xy_m`, `v_rel_mps` |
@@ -234,6 +239,8 @@ planner의 `time_budget`이 생기기 전까지 WAIT_CAP 예산은 `orchestrator
 - REQ-ORC-009: WAIT_OPERATOR에서 사유 없는 `resume`은 거부하고, 사유 있는 `resume`은 PRECHECK부터 다시 시작하며 진입 시각·사유를 기록한다.
 - REQ-ORC-011: 실행 중 skill이 `STOPPED`로 끝나면 단계 판정 대신 하드 이상(L4)으로 처리한다. 같은 시점에 자체 감시가 보호정지·통신 단절·controller heartbeat 손실을 보고 있으면 그 사유를 남기고, 원인을 모르면 `ROBOT_STOPPED`를 남긴다. 클라이언트 cancel 결과(`CANCELED`)는 하드 이상이 아니다.
 - REQ-ORC-012: `robot_controller_node`의 `Heartbeat.error_code`가 100이면 `PROTECTIVE_STOP`, 101(정지 유지, SPEC-010 4.5절)이면 `ROBOT_STOPPED`를 감시 주기마다 latch한다. 실행 중 skill이 없을 때(PRECHECK, DETECT_STONE 서비스 대기, WAIT_CAP 선택·관측 대기, 단계 사이)도 L4로 끝나고 그 뒤 Stop 외 로봇 skill 호출은 0회다. 정지 유지가 풀리지 않은 채 시작한 사이클은 PRECHECK에서 L4다.
+- REQ-ORC-013: WAIT_CAP은 다른 조건이 모두 통과여도 `t_to_window_s > plan_lead_s`(3.0 s)면 `WAIT`(`TOO_EARLY`)이고 PLAN_INTERCEPT로 가지 않는다. 경계 3.001 / 3.000 / 2.999 s에서 WAIT / OK / OK다.
+- REQ-ORC-014: `DynamicPlace.Goal.position_std_max`는 `sync.release_position_std_max_m`(0.5 mm)이고 계획 단계 기준 `plan.position_std_max_m`(3.25 mm)와 독립이다.
 - REQ-ORC-010: 포트 대기는 해제 전에는 latch된 모든 장애로, RELEASE 응답 뒤에는 하드 이상으로만 끝난다. latch된 비하드 장애는 하드 이상으로 바뀌고, 하드 이상은 비하드 장애로 바뀌지 않는다.
 
 ## 7. 성공 판정(측정 가능)
@@ -244,7 +251,7 @@ planner의 `time_budget`이 생기기 전까지 WAIT_CAP 예산은 `orchestrator
 
 ## 8. 검증 방법(`TEST_SPEC.md` TC ID, 게이트)
 
-TC-ORC-001-01 ~ TC-ORC-012-01(U, M0). ROS 수준은 TC-INT-001-01, TC-INT-005-01, TC-INT-006-01, TC-INT-008-01.
+TC-ORC-001-01 ~ TC-ORC-012-01(U, M0), TC-ORC-013-01·TC-ORC-014-01(U, G4). ROS 수준은 TC-INT-001-01, TC-INT-005-01, TC-INT-006-01, TC-INT-008-01.
 
 ## 9. 미결 사항
 

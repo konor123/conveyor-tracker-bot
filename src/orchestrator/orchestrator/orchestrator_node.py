@@ -107,6 +107,7 @@ class RosSkillPort:
         self._released = False         # RELEASE 응답을 받았는가(REQ-ORC-010)
         self.drop_goal_handle = None
         self.target = None             # (track_id, epoch)
+        self.t_enter_window = 0.0
         self._skipped_tracks: set[int] = set()
         self.static_cap = None         # MODE_STATIC 목표(robot_base Point)
         self.plan_id = 0
@@ -123,6 +124,7 @@ class RosSkillPort:
             self._released = False
             self.drop_goal_handle = goal_handle
         self.target = self.static_cap = None
+        self.t_enter_window = 0.0
         self._skipped_tracks = set()
 
     def raise_fault(self, event: Event) -> None:
@@ -356,7 +358,8 @@ class RosSkillPort:
             speed_std_mps=belt.speed_std if belt else math.inf, belt_steady=bool(belt and belt.steady),
             stone_inside=any(d.stone_inside for d in caps),
             stone_inside_valid=bool(caps) and all(d.stone_inside_valid for d in caps),
-            t_available_s=t_avail, t_required_s=t_req, budget_components=comps)
+            t_available_s=t_avail, t_required_s=t_req, budget_components=comps,
+            t_to_window_s=max(0.0, self.t_enter_window - now))
         return CapObservation(meas, dyn)
 
     def select_target(self, pass_index, deadline):
@@ -370,6 +373,7 @@ class RosSkillPort:
                 return None
             if r.result == 0 and r.track_id not in self._skipped_tracks:
                 self.target = (r.track_id, r.epoch)
+                self.t_enter_window = _t(r.t_enter_window)   # 도달 구간 진입 예상 시각(ROS)
                 return self._cap_obs()
             if not self._wait(lambda: False, min(deadline, self.clock.ros_now() + retry)) and \
                     (self._interrupting() or self.clock.ros_now() >= deadline):
@@ -432,7 +436,7 @@ class RosSkillPort:
             goal = DynamicPlace.Goal(plan_id=self.plan_id, target_epoch=epoch, mode=int(mode),
                                      e_xy_max=c.sync.e_xy_max_m, v_rel_max=c.sync.v_rel_max_mps,
                                      tau_max=float(self.n.cfg_dict['watchdog']['obs_freshness_s']),
-                                     position_std_max=c.plan.position_std_max_m, rim_clearance=c.descend.h_clear_m,
+                                     position_std_max=c.sync.release_position_std_max_m, rim_clearance=c.descend.h_clear_m,
                                      open_width=open_width)
             name = 'robot/dynamic_place'
         if not self._send(name, goal, deadline):

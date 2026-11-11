@@ -127,7 +127,7 @@ def test_workspace_boundary(track, plan_request, params, axis, side, delta):
 @pytest.mark.req('REQ-PLN-008')
 @pytest.mark.tc('TC-PLN-008-01')
 @pytest.mark.level('U')
-@pytest.mark.parametrize('std,status', [(.00049, 0), (.0005, 0), (.00051, 3)])
+@pytest.mark.parametrize('std,status', [(.00324, 0), (.00325, 0), (.00326, 3)])
 def test_uncertainty(track, plan_request, params, std, status):
     cov = np.diag([std ** 2, std ** 2, 0., 0.])
     reply = compute_plan(replace(track, cov=cov), 10., plan_request, params)

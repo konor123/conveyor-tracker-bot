@@ -1,6 +1,6 @@
 # SPEC-400 planner
 
-- 버전: v0.2
+- 버전: v0.4
 - 근거: PLAN.md 3.1, 4.3, 4.4, 9절
 - REQ 영역: PLN
 
@@ -8,6 +8,8 @@
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
+| v0.4 | 2026-11-11 | `uncertainty.position_std_max_m` 3.25 mm(계획 단계 기준, 해제 게이트 0.5 mm는 SPEC-100 `sync.release_position_std_max_m`) |
+| v0.3 | 2026-11-11 | bringup: `use_mock_planner:=false`로 실제 planner 기동·자동 활성화, mock 임시 plan 끔(REQ-PLN-012) |
 | v0.2 | 2026-11-09 | `intercept_planner_node`: 시계 역행 시 `EXPIRED`·`CLOCK_RESET` 1회 발행, 빈 `TrackedObjectArray`에서는 마지막 epoch 유지 |
 | v0.1 | 2026-11-09 | 예측·공분산 전파, 시간 예산, 해제 시각 선택, 도달성, 상태 우선순위, plan_id·revision·만료, τ_max |
 
@@ -46,7 +48,7 @@ SPEC-010 wire schema v0.2 / runtime contract v0.4 기준.
 | `target.release_tcp_z_m` | 0.10 | 해제 직전 TCP 높이(`robot_base`). 핑거 끝 = 테두리 + `h_clear`가 되도록 TBD(보정 OFF-3, 기본 핑거 OFF-4) |
 | `target.tool_quat_xyzw` | [1, 0, 0, 0] | 수직 하향 고정 자세. TBD(G0) |
 | `target.tcp_offset_m` | [0.0, 0.0] | 공깃돌 중심 − TCP(XY, `robot_base`). TBD(측정 OFF-4, `tcp_offset.py`) |
-| `uncertainty.position_std_max_m` | 0.0005 | PLAN.md 4.3절 |
+| `uncertainty.position_std_max_m` | 0.00325 | PLAN.md 4.3절 계획 단계 기준(= `e_xy_max`). 해제 게이트 0.5 mm는 SPEC-100 |
 | `T_base_conveyor` | 단위 행렬 | `robot_base ← conveyor_frame` 4×4. TBD(보정 OFF-3) |
 
 `T_required = t_transit + t_sync + t_descend + t_release + t_clear`(제안값 합 4.0 s).
@@ -139,14 +141,15 @@ ok          = time_margin ≥ margin
 - REQ-PLN-005: 해제 TCP가 workspace 상자 밖이면 status `UNREACHABLE`이다.
 - REQ-PLN-006: 같은 계획을 갱신하면 `plan_id`는 그대로이고 revision이 1씩 단조 증가하며, `valid_until`이 지나면 `EXPIRED`를 발행한다.
 - REQ-PLN-007: 요청 epoch가 현재 epoch와 다르면 result `FAILED`, reason `EPOCH_MISMATCH`다.
-- REQ-PLN-008: 해제 시각 예측 표준편차가 `position_std_max`(0.5 mm)를 넘으면 status `UNCERTAIN`이다.
+- REQ-PLN-008: 해제 시각 예측 표준편차가 `position_std_max`(3.25 mm)를 넘으면 status `UNCERTAIN`이다.
 - REQ-PLN-009: `release_time ≥ earliest_release`이다.
 - REQ-PLN-010: `tau_max`는 4.6절 식을 만족하는 최대 τ를 해석해와 1e-6 s 이내로 돌려준다.
 - REQ-PLN-011: fixture tracked 입력 → 실제 planner(I2)에서 정상·`time_insufficient`·`UNCERTAIN`·만료·epoch 불일치·clock reset 시나리오의 status·reason이 기대표와 모두 일치한다.
+- REQ-PLN-012: `drop.launch.py use_mock_planner:=false`는 실제 `intercept_planner_node`를 띄워 기동 때 한 번만 `ACTIVE`까지 자동 전이하고(사람이 나중에 `deactivate`하면 다시 켜지 않는다) `mock_world_node`의 `publish_plan`을 끈다. 그때 `planner/compute_intercept` 서버와 `drop/intercept_plan` 발행자는 각각 `intercept_planner_node` 하나뿐이다. `use_mock_tracking:=false`도 같은 방식으로 실제 `tracker_node`를 `ACTIVE`로 띄우고 `objects/tracked` 발행자는 `tracker_node` 하나뿐이다. 검출이 mock 세계에서 오면(`use_mock_vision:=true`) 시나리오 `world.frames`·`world.zones`로 `T_base_conveyor`·관측 구간·도달 구간 시작·끝을 실제 tracker·planner에 넘긴다(실제 vision이면 각 config). 기본값(`use_mock_planner:=true`)은 기존 동작(mock 임시 plan)을 유지한다.
 
 ## 8. 검증 방법(`TEST_SPEC.md` TC ID, 게이트)
 
-- U: TC-PLN-001~005·008~010(`intercept_planner/test/`). C: TC-PLN-006·007(`intercept_planner/test/contract/`). I2: TC-PLN-011.
+- U: TC-PLN-001~005·008~010(`intercept_planner/test/`). C: TC-PLN-006·007(`intercept_planner/test/contract/`). I2: TC-PLN-011, TC-PLN-012(`drop_bringup/test/test_real_bringup.py`).
 - 게이트: G4(PLN 전부), G6(PLN 전부). 예측 오차 실측은 TC-BEN-011·TC-EXP-G4.
 
 ## 9. 미결 사항

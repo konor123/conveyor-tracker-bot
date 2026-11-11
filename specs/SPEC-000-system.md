@@ -1,6 +1,6 @@
 # SPEC-000 system
 
-- 버전: v0.4
+- 버전: v0.5
 - 근거: PLAN.md 0.2, 1, 2.3~2.5절
 - REQ 영역: SYS
 
@@ -8,6 +8,7 @@
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
+| v0.5 | 2026-11-11 | TF 사용 범위를 정적 검사로 고정(REQ-SYS-006) |
 | v0.4 | 2026-11-09 | 설정 파일 경로 규칙(상대 경로 = 저장소 루트 기준, 4.4절, REQ-SYS-005) |
 | v0.3 | 2026-11-09 | 현장 정지 pick-and-place 실행기 `static_pick_place` 추가(11개 패키지), 로봇 지령 주체 예외 범위 |
 | v0.2 | 2026-11-09 | M0 검증 범위·게이트 및 독립 계약 기대값 정합성 |
@@ -150,12 +151,14 @@ M0는 감시 판정 함수와 이벤트 입력의 U 검증 범위다. ROS 관측
 - REQ-SYS-003: 처리 지연(50~80 ms)이 주입되어도 `ObjectDetectionArray.header.stamp`는 입력 영상 노출 시각 `T`와 정확히 일치(오차 0 ns)하고, `TrackedObject.header.stamp`는 상태 시각 `t_state == T`와 정확히 일치(오차 0 ns)한다.
 - REQ-SYS-004: `src/**/*.py`(`build`·`install`·`test` 제외)에서 단위 변환 토큰 패턴(`* 1000`, `/ 1000`, `*= 1000`, `/= 1000`, `1000 *`, `math.degrees`, `math.radians`)은 `motion_adapter.py`와 `gripper_adapter.py` 두 파일에만 존재하며 그 외 파일에서의 검출 건수는 0건이다.
 - REQ-SYS-005: 설정 파일 경로의 상대 경로는 4.4절 규칙으로 저장소 루트 기준 절대 경로가 되며, 실행 위치를 바꿔도 같은 파일을 가리킨다. `DROP_REPO_ROOT`가 있으면 그 폴더를 루트로 쓴다.
+- REQ-SYS-006: `src/**/*.py`(`build`·`install`·`test` 제외)에서 TF 조회(`lookup_transform`·`can_transform`·`TransformListener`)는 `calibration/ros_nodes.py`(고정 카메라 TF 합성, 시각 `Time()` = 최신 고정값) 한 곳에만 있고, `TimePointZero`는 0건이다. TF 발행은 `/tf`가 `tracking/tracker_node.py`, `/tf_static`이 `calibration`(`ros_nodes.py`, `static_frames.py`)뿐이다. 예측·계획·지령(`tracking`의 판단 모듈, `intercept_planner`, `robot_control`, `orchestrator`)은 TF가 아니라 메시지 시각으로 계산한다(4.2절).
 
 ## 8. 검증 방법(`TEST_SPEC.md` TC ID, 게이트)
 
 - `TC-SYS-001-01`, `TC-SYS-002-01`, `TC-SYS-004-01`: 수준 U, 게이트 M0 (`tools/spec/test_sys_conventions.py`).
 - `TC-SYS-003-01`: 수준 C, 게이트 G1 (`vision_node` 계약 시험).
 - `TC-SYS-003-02`: 수준 C, 게이트 G3 (`tracker_node` 계약 시험).
+- `TC-SYS-006-01`: 수준 U, 게이트 G3 (`tools/spec/test_tf_usage.py`).
 
 ## 9. 미결 사항
 

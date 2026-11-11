@@ -20,9 +20,10 @@ judge:
     observation_count_min_count: 30
     speed_std_max_mps: 0.001
     margin_s: 1.0
+    plan_lead_s: 3.0                   # 도달 구간 진입 3 s 전부터 계획(예측 구간 축소), TBD(측정 G4)
   plan:
     time_margin_min_s: 1.0
-    position_std_max_m: 0.0005
+    position_std_max_m: 0.00325        # 계획 단계 기준 = sync.e_xy_max_m. 해제 게이트는 sync.release_position_std_max_m
     t_approach_s: 1.0                  # TBD(측정 G0)
   approach:
     pose_error_max_m: 0.002
@@ -31,6 +32,7 @@ judge:
     v_rel_max_mps: 0.005
     hold_s: 0.3
     timeout_s: 2.0
+    release_position_std_max_m: 0.0005 # 해제 게이트 위치 표준편차 기준(PLAN.md 4.4절)
   predicted:
     entry_time_tol_s: 0.05             # TBD(측정 G4)
     v_rel_max_mps: 0.005

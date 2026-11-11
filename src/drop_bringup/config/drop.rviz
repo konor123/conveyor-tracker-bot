@@ -1,0 +1,65 @@
+Panels:
+  - Class: rviz_common/Displays
+    Name: Displays
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Class: rviz_default_plugins/Grid
+      Name: Grid
+      Enabled: true
+      Reference Frame: robot_base
+      Cell Size: 0.1
+      Plane Cell Count: 20
+      Value: true
+    - Class: rviz_default_plugins/TF
+      Name: TF (고정 좌표계 + 관측 cap_<id>)
+      Enabled: true
+      Show Arrows: true
+      Show Axes: true
+      Show Names: true
+      Marker Scale: 0.3
+      Value: true
+    - Class: rviz_default_plugins/Marker
+      Name: 예측 해제 위치 (drop/predicted_marker)
+      Enabled: true
+      Topic:
+        Value: /drop/predicted_marker
+        Depth: 1
+        Reliability Policy: Best Effort
+        Durability Policy: Volatile
+        History Policy: Keep Last
+      Value: true
+    - Class: rviz_default_plugins/RobotModel
+      Name: E0509 (/dsr01/robot_description, 드라이버 실행 시)
+      Enabled: true
+      Description Source: Topic
+      Description Topic:
+        Value: /dsr01/robot_description
+        Depth: 1
+        Reliability Policy: Reliable
+        Durability Policy: Transient Local
+        History Policy: Keep Last
+      Value: true
+  Global Options:
+    Fixed Frame: robot_base
+    Background Color: 48; 48; 48
+    Frame Rate: 30
+  Tools:
+    - Class: rviz_default_plugins/MoveCamera
+    - Class: rviz_default_plugins/Select
+    - Class: rviz_default_plugins/Measure
+  Views:
+    Current:
+      Class: rviz_default_plugins/Orbit
+      Name: Current View
+      Distance: 1.6
+      Focal Point:
+        X: 0.5
+        Y: 0.0
+        Z: 0.0
+      Pitch: 0.75
+      Yaw: 3.6
+      Target Frame: robot_base
+Window Geometry:
+  Width: 1200
+  Height: 800

@@ -25,5 +25,6 @@ setup(
         'calibrate_camera = calibration.cli:calibrate_camera',
         'camera_tf_publisher = calibration.ros_nodes:camera_tf_publisher',
         'check_camera_info = calibration.ros_nodes:check_camera_info',
+        'static_frames_publisher = calibration.static_frames:main',
     ]},
 )
