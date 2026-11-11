@@ -42,4 +42,8 @@
 
 시험이 정말 그 동작을 보는지 확인하는 방법: 고친 코드의 핵심 조건을 잠시 지우고 시험이 실패하는지 본다. belt_sync의 "같은 revision 재수신" 시험은 원래 다른 감시(`LOOP_GAP`)만으로도 통과해서, 조건을 지워도 통과했다. ROS 시계를 멈추고 수신 감시만 남기도록 고친 뒤에는 조건을 지우면 실패한다.
 
+### 변이 시험의 함정: 오래된 바이트코드
+
+시험이 조건을 정말 보는지 확인하려고 코드를 잠깐 바꿨다가(변이) 되돌릴 때, 바꾼 줄의 길이가 같고(`3.0`→`5.0`) 같은 초 안에 되돌리면 Python이 `__pycache__`의 `.pyc`를 그대로 쓴다. `.pyc`는 원본 파일의 수정 시각(초 단위)과 크기로만 최신인지 판단하기 때문이다. 그러면 되돌린 뒤에도 변이된 동작이 남아 "고친 코드가 틀렸다"고 착각하게 된다. 변이 시험 중에는 `PYTHONDONTWRITEBYTECODE=1`을 쓰고 `__pycache__`를 지운 뒤 다시 돌린다.
+
 관련: [worklog 2026-11-11](../../records/worklog/2026-11-11.md), `src/static_pick_place/static_pick_place/doosan_client.py`(`run_cycle`), `src/static_pick_place/static_pick_place/drl/cycle.drl`.
