@@ -9,7 +9,7 @@
 |---|---|---|---:|---|
 | Codex | Orca worker | `gpt-6-astra`(기동 영수증의 적용 모델) | 12 | [review-astra.md](evidence/intro-doc-review-2026-11-12/review-astra.md) |
 | Antigravity | Orca worker | `gemini-3.8-flash-high`(기동 영수증의 적용 모델) | 11 | [review-gemini-flash.md](evidence/intro-doc-review-2026-11-12/review-gemini-flash.md) |
-| OpenCode | Orca worker | `exaone/k-exaone_v2.5`(OpenCode 세션 기록의 provider·model) | 미수령 | EXAONE API 혼잡으로 응답을 받지 못했다(아래 "K-EXAONE 의견" 절) |
+| OpenCode | Orca worker | `exaone/k-exaone_v2.5`(OpenCode 세션 기록의 provider·model) | 미수령 | 이 문서를 쓸 때까지 응답이 끝나지 않았다(아래 "K-EXAONE 의견" 절) |
 
 ## 결론
 
@@ -80,7 +80,7 @@
 ### F05 벨트 속도 맥동 (권장, coordinator 추가)
 
 - 문제: 3절과 5.2절은 다이얼을 그대로 두면 속도가 일정하다고 전제한다. 실측에서는 그렇지 않았고, 이것이 예측 오차의 가장 큰 원인이었다. "발생했던 문제"에 들어갈 내용인데 빠져 있다.
-- 확인: 다이얼을 고정한 상태에서도 1 s 창 속도가 43.1~58.4 mm/s로 흔들렸고, 가장 느린 조건에서는 벨트가 간헐적으로 멈췄다. 등속으로 가정한 예측의 XY 오차(p95)는 0.1 s 앞에서 1.2~4.2 mm, 1 s 앞에서 7~14 mm였다. 허용 오차 3.25 mm와 견주면 예측만으로 버틸 수 있는 시간은 0.1~0.2 s다(`records/bench/belt-video-2026-11-07/README.md`). 그래서 해제 직전까지 병뚜껑이 카메라에 보이도록 컨베이어를 배치했다(`PLAN.md` 1.1절, 4.4절).
+- 확인: 다이얼을 고정한 상태에서도 1 s 창 속도가 43.1~58.4 mm/s로 흔들렸고, 가장 느린 조건에서는 벨트가 간헐적으로 멈췄다. 등속으로 가정한 예측의 XY 오차(p95)는 0.1 s 앞에서 1.2~4.2 mm, 1 s 앞에서 7~14 mm였다. 허용 오차와 견주면 예측만으로 버틸 수 있는 시간은 0.1~0.2 s다(`records/bench/belt-video-2026-11-07/README.md`, 그 문서의 해석은 당시 초기값 2.75 mm 기준). 그래서 해제 직전까지 병뚜껑이 카메라에 보이는 위치에 컨베이어를 두기로 했다(`PLAN.md` 1.1절, 4.4절).
 - 제안: 5절에 세 번째 문제로 넣는다. 수치에는 "후보 보정 기준 잠정값"이라고 밝힌다.
 
 ### F06 픽셀에서 로봇 좌표까지 (권장)
@@ -166,7 +166,12 @@
 
 ## K-EXAONE 의견
 
-OpenCode worker를 `exaone/k-exaone_v2.5`로 띄웠고 원문 읽기까지 진행했으나, EXAONE API가 "service is busy, too many concurrent requests"를 두 번 낸 뒤 세 번째 요청의 응답이 오지 않았다. 이 문서에는 K-EXAONE 의견이 들어 있지 않다.
+이 문서에는 K-EXAONE 의견이 들어 있지 않다. OpenCode worker를 `exaone/k-exaone_v2.5`로 두 번 띄웠다.
+
+- 첫 시도: 원문을 읽은 뒤 EXAONE API가 "service is busy, too many concurrent requests"를 두 번 냈고, 세 번째 요청은 14분 30초 동안 끝나지 않아 중지했다. 중지하기 전에 수신량은 확인하지 않았다.
+- 재시도: 응답이 초당 1.3~2 KB로 계속 들어오고 있으나 12분이 지나도록 추론 단계가 끝나지 않았다. 첫 시도도 멈춘 것이 아니라 느렸을 가능성이 있다.
+
+응답이 도착하면 이 문서에 반영한다.
 
 ## 미검증
 
