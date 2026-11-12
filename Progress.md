@@ -137,7 +137,8 @@
 - [x] `[ON]` `test/fakes/`의 fake transport·fake gripper로 단위 변환·stale·cancel 단위 테스트
   - `test/fakes/transport.py`·`backend.py`·`resident.py`, TC-ROB-001~004·007-02, TC-GRP-007-01. 2026-11-12 집 PC WSL(`ce86f9b`) robot_control 115 passed.
 - [ ] `[ON]` Doosan `mode:=virtual`에서 E0509 모델·선정한 stream·`move_line` 형식이 동작하는지 확인. 지원하지 않으면 형식 확인용 최소 ROS stub을 두고 선택 근거를 기록(그리퍼 통신은 virtual에서 확인하지 않음)
-- [ ] `[ON]` `robot_controller` 계약 테스트를 `mock_robot_controller_node`와 실제 노드(virtual 또는 stub)에 모두 통과
+- [x] `[ON]` `robot_controller` 계약 테스트를 `mock_robot_controller_node`와 실제 노드(virtual 또는 stub)에 모두 통과
+  - 실제 `robot_controller_node`(`backend:=fake`, 가짜 로봇·해제 transport)가 mock과 같은 공용 계약(`tools/testing/contracts/robot_controller_contract.py`)을 통과한다(TC-ROB-008-04, skill 5종·DynamicPlace 두 모드·deadline·cancel·Stop·정지 유지·비활성 거부). 2026-11-13 집 PC WSL robot_control 236 passed, mock 계약 27 passed. Doosan virtual은 위 별도 항목이다.
 - [ ] `[OFF]` OFF-2: 실제 노드 계약 테스트를 실기에 대해 재실행(안전 높이)
 - [ ] `[OFF]` OFF-2: I3. `mock_world_node` + 실제 로봇·그리퍼로 오케스트레이터 연동(안전 높이). deadline 자체 중단, stale 지령(L0), `Stop` 확인
 - [ ] `[OFF]` OFF-2: skill별 소요시간 분포 측정
@@ -267,12 +268,18 @@
 ## 10. Moving Frame 기반 로봇 추종 제어 → G5 (트랙 A)
 
 - [ ] `[ON]` 2절에서 확정한 스트림으로 추종 루프 구현(비전 30 Hz와 분리된 고정 주기)
-- [ ] `[ON]` `v_cmd = v_ff(병뚜껑 속도) + Kp·(p_target(t) − p_tcp)`, 속도·가속 제한, freshness 초과 시 정지(L0) 단위 테스트(TC-ROB-*)
+  - `dynamic_place.DynamicPlaceSequencer`를 노드가 `sync.period_s` 0.01 s 고정 주기로 돌린다(입력 구독은 별도 callback group). speedl 스트림 transport `doosan_stream.py`(REQ-ROB-015, 실기 미검증)는 노드 backend에 연결하지 않았다. 스트림 계약 확정(OFF-2)과 연결이 남은 조건이다.
+- [x] `[ON]` `v_cmd = v_ff(병뚜껑 속도) + Kp·(p_target(t) − p_tcp)`, 속도·가속 제한, freshness 초과 시 정지(L0) 단위 테스트(TC-ROB-*)
+  - 지령식·제한 TC-ROB-006-01·013, 스트림 transport의 신선도 경계(지령 간격 19.999·20.000·20.001 ms)와 끊김 뒤 속도 0·래치 TC-ROB-015-01. 2026-11-13 집 PC WSL robot_control 236 passed.
   - XY 추종 코어 `robot_control/belt_sync.py`(REQ-ROB-013, TC-ROB-013-01~07 U)와 지령 없는 그림자 노드 `belt_sync_preview`(`/tracking_preview/cmd_vel`). 합성 데모(TCP 1차 지연 50 ms 가정) XY p95 0.14 mm는 합성값이다. 스트림 지령 연결과 L0 정지 경로는 이 항목의 남은 조건이다.
-- [ ] `[ON]` 초기 실험 조건 정의: 고정 자세, XY 동기 + Z 독립
-- [ ] `[ON]` `DynamicPlace` 액션의 접근·동기 구간 먼저 구현, `intercept_plan` revision·epoch 확인
+- [x] `[ON]` 초기 실험 조건 정의: 고정 자세, XY 동기 + Z 독립
+  - SPEC-500 4.5절: XY는 추종 코어(REQ-ROB-013) 지령, z는 `z_kp_hz` 비례 지령을 별도 속도·가속 한도로 제한, 자세는 계획의 고정 공구 자세(SPEC-400 `target.tool_quat_xyzw`, 수직 하향). 접근 높이는 해제 높이 + `approach_above_m`이다.
+- [x] `[ON]` `DynamicPlace` 액션의 접근·동기 구간 먼저 구현, `intercept_plan` revision·epoch 확인
+  - APPROACH → SYNCHRONIZE → DESCEND → RELEASE(해제 게이트, commit 1회) → RETREAT 전체를 구현했다(SPEC-500 v0.7 4.5절, REQ-ROB-008~010, TC-ROB-008·009·010). transport 경계는 해제 확정이라 스트림 + 상주 루프와 한 DRL 프로그램 방식을 같은 게이트로 바꿔 끼운다(`records/reviews/fable-decisions-2026-11-12.md` (a)). 가짜 transport: TCP 1차 지연 29 ms·개방 지연 0.1 s(가정값). 2026-11-13 집 PC WSL robot_control 236 passed.
 - [ ] `[ON*]` `mock_robot_controller_node`에 TCP 1차 지연 모델 추가(G0 측정값 사용)
-- [ ] `[ON]` plan 갱신 중단·epoch 변경·만료 시 `DynamicPlace`가 `PLAN_INVALID`로 끝나고, 이미 받은 것 이하의 revision은 무시하는지 확인(fake transport, TC-ROB-008-01)
+  - 실제 노드의 가짜 backend(`fake_place_transport.py`)에는 1차 지연 29 ms(2026-11-07 speedl 100 Hz 부하 측정 지연)를 넣었다. `drop_mocks`의 대역 controller에는 아직 없다.
+- [x] `[ON]` plan 갱신 중단·epoch 변경·만료 시 `DynamicPlace`가 `PLAN_INVALID`로 끝나고, 이미 받은 것 이하의 revision은 무시하는지 확인(fake transport, TC-ROB-008-01)
+  - TC-ROB-008-01·02·03, `UNCERTAIN` revision은 래치하지 않고 마지막 OK 계획을 `uncertain_hold_s` 0.6 s 동안 따른다(TC-ROB-013-08). 2026-11-13 집 PC WSL robot_control 236 passed.
 - [ ] `[OFF]` OFF-5: **비접촉 동기 추종**. 안전 높이(병뚜껑 테두리 위 30 mm)에서 추종만 시험(I3: 합성 tracked → 실제 planner → 실제 controller, 실제 planner가 낸 `plan_id`·`revision`·`epoch`을 controller가 따르는지 확인 → I5: 실제 병뚜껑)
 - [ ] `[OFF]` OFF-5: 추종 중 그리퍼 개방 명령(공깃돌 없이) 시 추종 오차 변화 측정
 - [ ] `[OFF]` OFF-5: 벨트 속도 변화에 대한 추종 성능, TCP 위치·속도 오차 측정 → `records/bench/tracking-<date>.csv`

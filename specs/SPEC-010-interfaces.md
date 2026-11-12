@@ -1,6 +1,6 @@
 # SPEC-010 interfaces
 
-- 버전: v0.6
+- 버전: v0.7
 - 근거: PLAN.md 2.2, 3, 7.4절, `src/drop_interfaces/`
 - REQ 영역: IF
 
@@ -8,6 +8,7 @@
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
+| v0.7 | 2026-11-13 | 계획 무효화 규칙에서 `UNCERTAIN` revision 제외: 버리고 마지막 OK 계획을 보류 상한까지 따름(SPEC-500 REQ-ROB-013) |
 | v0.6 | 2026-11-11 | Stop 정지 유지(latch)와 작업자 해제(`stop_release_reason`), `Heartbeat.error_code` 101 `STOP_LATCHED`, 100 우선 |
 | v0.5 | 2026-11-10 | `CANCELED` 이유 코드 구분: 클라이언트 cancel은 `CANCELED`, 실행 중 `Stop` 선점은 `STOPPED` |
 | v0.4 | 2026-11-09 | M0 검증 범위·게이트 및 독립 계약 기대값 정합성 |
@@ -23,7 +24,7 @@
 
 ## 2. 입력·출력(interface 버전)
 
-wire schema는 v0.2이며 v0.3~v0.6는 필드 선언을 바꾸지 않는 runtime contract다. 시도 기록의 `interface_version = SPEC-010 0.2`는 wire schema를 뜻한다.
+wire schema는 v0.2이며 v0.3~v0.7은 필드 선언을 바꾸지 않는 runtime contract다. 시도 기록의 `interface_version = SPEC-010 0.2`는 wire schema를 뜻한다.
 
 ### 2.1 데이터 및 상태 메시지 (`src/drop_interfaces/msg/`, 10종)
 
@@ -168,7 +169,7 @@ wire schema는 v0.2이며 v0.3~v0.6는 필드 선언을 바꾸지 않는 runtime
 - **트랙 `epoch`:** `tracker_node`는 기동 시 `epoch = 0`에서 시작하며, `ResetTracking` 서비스 호출 또는 트래커 리셋 시마다 `epoch`를 1씩 증가시켜 이전 세대 트랙과 계획을 무효화한다.
 - **계획 `revision`:** `intercept_planner_node`는 활성 `plan_id`에 대해 새로운 관측으로 계획을 갱신할 때마다 `revision`을 단조 증가시켜 `drop/intercept_plan`으로 발행한다.
 - **추종 제어기 검증:** 동기 추종(`DynamicPlace`) 중 `robot_controller_node`는 Goal에 지정된 `plan_id` 및 `target_epoch`와 일치하는 `InterceptPlan`만 적용하며, 이미 반영한 `revision` 이하(`plan.revision <= last_revision`)의 메시지는 버린다.
-- **계획 무효화:** 트랙/계획의 `epoch`가 `target_epoch`와 달라지거나, `valid_until`이 만료(`t_ros > valid_until`)되거나, `InterceptPlan.status != OK`이면 `robot_controller_node`는 해당 Goal을 즉시 `result = FAILED(1)`, `reason_code = "PLAN_INVALID"`로 끝낸다.
+- **계획 무효화:** 트랙/계획의 `epoch`가 `target_epoch`와 달라지거나, `valid_until`이 만료(`t_ros > valid_until`)되거나, `InterceptPlan.status`가 `OK`도 `UNCERTAIN`도 아니면 `robot_controller_node`는 해당 Goal을 즉시 `result = FAILED(1)`, `reason_code = "PLAN_INVALID"`로 끝낸다. `UNCERTAIN` revision은 버리고 마지막 `OK` 계획을 `uncertain_hold_s`(SPEC-500 REQ-ROB-013) 동안 따르며 그동안 해제 게이트는 닫힌다. 그 상한을 넘으면 `FAILED`, `reason_code = "UNCERTAIN_HOLD"`다.
 
 ### 4.3 Lifecycle 비활성 시 응답 계약 (PLAN.md 2.2절 5항, SPEC-700 4.6절)
 

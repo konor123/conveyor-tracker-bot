@@ -162,3 +162,14 @@ def test_tracking_command_rejects_bad_inputs():
     with pytest.raises(MotionError):
         tracking_command([math.nan, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0],
                          1.0, 0.05, 0.1, [0.0, 0.0, 0.0], 0.01)
+
+
+@pytest.mark.req('REQ-ROB-002')
+@pytest.mark.tc('TC-ROB-002-02')
+@pytest.mark.level('U')
+def test_accel_unit_conversion():
+    from robot_control.motion_adapter import accel_si_to_doosan
+    assert accel_si_to_doosan(0.3, math.pi / 3) == pytest.approx([300.0, 60.0], abs=1e-9)
+    for bad in ((float('nan'), 1.0), (0.3, float('inf'))):
+        with pytest.raises(MotionError):
+            accel_si_to_doosan(*bad)

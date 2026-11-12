@@ -1,4 +1,4 @@
-"""TC-ROB-007·008·009·010·012: 정적 skill 판단, cancel·deadline·Stop, 동시 goal 거부."""
+"""TC-ROB-005·007·008·010: 정적 skill 판단, cancel·deadline·Stop, 동시 goal 거부, transport 없는 DynamicPlace·동기 유지."""
 from __future__ import annotations
 
 import math
@@ -10,6 +10,7 @@ from fakes.clock import FakeClock
 from robot_control.skill_logic import (
     DisabledBackend,
     GripOutcome,
+    MoveOutcome,
     OpenOutcome,
     Result,
     SingleCommandAuthority,
@@ -80,6 +81,35 @@ def test_deadline_and_cancel_paths():
     assert ex.move_to_pose([0.0, 0.0, 0.0], QUAT, deadline_s=clock.ros_now()).result == Result.TIMEOUT
     assert ex.move_to_pose([0.0, 0.0, 0.0], QUAT,
                            cancel_requested=lambda: True).result == Result.CANCELED
+
+
+@pytest.mark.req('REQ-ROB-007')
+@pytest.mark.tc('TC-ROB-007-02')
+@pytest.mark.level('U')
+@pytest.mark.parametrize('skill', ['move', 'pick', 'place', 'retreat'])
+@pytest.mark.parametrize('why', ['cancel', 'deadline'])
+def test_interrupted_move_reports_cancel_or_deadline(skill, why):
+    # backend가 cancel·deadline으로 이동을 끊으면(완료 아님) FAILED가 아니라 CANCELED·TIMEOUT이다
+    backend = FakeStaticBackend()
+    backend.tcp_pos[2] = 0.05                          # SafeRetreat가 실제로 움직이게 안전 높이 아래
+    ex, clock = executor(backend=backend)
+    flag = {'on': False}
+
+    def interrupted(pos, quat):
+        flag['on'] = True
+        clock.advance(1.0)
+        return MoveOutcome(False, math.inf, 'CANCELED')
+    backend.move_line = interrupted
+    cancel = (lambda: flag['on']) if why == 'cancel' else None
+    deadline = clock.ros_now() + 0.5 if why == 'deadline' else None
+    call = {'move': lambda: ex.move_to_pose([0.1, 0.0, 0.1], QUAT, deadline, cancel),
+            'pick': lambda: ex.pick_stone([0.1, 0.0, 0.0], 0.05, 50, deadline, cancel),
+            'place': lambda: ex.place_stone(([0.1, 0.0, 0.1], QUAT), 0.01, 0.021, deadline, cancel),
+            'retreat': lambda: ex.safe_retreat(False, False, None, deadline, cancel)}[skill]
+    res = call()
+    assert (res.result, res.reason_code) == ((Result.CANCELED, 'CANCELED') if why == 'cancel'
+                                             else (Result.TIMEOUT, 'DEADLINE'))
+    assert not ex.authority.busy
 
 
 @pytest.mark.req('REQ-ROB-007')
@@ -176,8 +206,8 @@ def test_pick_missing_grip_criteria_precondition():
     assert ex.pick_stone([0.1, 0.0, 0.0], 0.05, 101).reason_code == 'CURRENT_OUT_OF_RANGE'
 
 
-@pytest.mark.req('REQ-ROB-009')
-@pytest.mark.tc('TC-ROB-009-01')
+@pytest.mark.req('REQ-ROB-007')
+@pytest.mark.tc('TC-ROB-007-01')
 @pytest.mark.level('U')
 def test_place_reads_measured_open_width():
     ex, _ = executor()
@@ -201,7 +231,7 @@ def test_place_reads_measured_open_width():
 
 
 @pytest.mark.req('REQ-ROB-010')
-@pytest.mark.tc('TC-ROB-010-01')
+@pytest.mark.tc('TC-ROB-010-02')
 @pytest.mark.level('U')
 def test_safe_retreat_unsupported_modes_fail_closed():
     ex, _ = executor()
@@ -213,7 +243,7 @@ def test_safe_retreat_unsupported_modes_fail_closed():
 
 
 @pytest.mark.req('REQ-ROB-008')
-@pytest.mark.tc('TC-ROB-008-01')
+@pytest.mark.tc('TC-ROB-008-03')
 @pytest.mark.level('U')
 def test_dynamic_place_fails_closed_until_ready():
     ex, _ = executor()

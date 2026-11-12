@@ -1,6 +1,7 @@
 {
   "max_position_std_m": 0.00325,
   "release_position_std_max_m": 0.0005,
+  "uncertain_hold_s": 0.6,
   "kp": 4.0,
   "max_speed_mps": 0.1,
   "max_accel_mps2": 0.3,

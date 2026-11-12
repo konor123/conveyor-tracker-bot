@@ -201,6 +201,15 @@ class StaticSkillExecutor:
         finally:
             self.authority.release(command_id)
 
+    def _interrupted(self, cancel_requested: Callable[[], bool] | None,
+                     deadline_s: float | None) -> SkillResult | None:
+        """이동이 끊겼을 때 원인이 cancel·deadline이면 그 결과(REQ-ROB-007), 아니면 None."""
+        if cancel_requested is not None and cancel_requested():
+            return SkillResult(Result.CANCELED, 'CANCELED')
+        if _deadline_passed(deadline_s, self._now()):
+            return SkillResult(Result.TIMEOUT, 'DEADLINE')
+        return None
+
     @staticmethod
     def _emit(feedback, phase: str, metrics: dict[str, float], phase_done: bool) -> None:
         if feedback is not None:
@@ -233,7 +242,8 @@ class StaticSkillExecutor:
             out = self.backend.move_line(pos, quat / np.linalg.norm(quat))
             metrics = {'pose_error_m': float(out.pose_error_m)}
             if not out.completed:
-                return SkillResult(Result.FAILED, out.reason_code or 'MOVE_FAILED', metrics)
+                return (self._interrupted(cancel_requested, deadline_s)
+                        or SkillResult(Result.FAILED, out.reason_code or 'MOVE_FAILED', metrics))
             if not math.isfinite(out.pose_error_m) or out.pose_error_m > self.cfg.pose_tolerance_m:
                 return SkillResult(Result.FAILED, 'POSE_ERROR', metrics)
             self._emit(feedback, 'MOVE', metrics, True)
@@ -270,7 +280,8 @@ class StaticSkillExecutor:
                     return SkillResult(Result.TIMEOUT, 'DEADLINE')
                 out = self.backend.move_line(pose, np.array([0.0, 0.0, 0.0, 1.0]))
                 if not out.completed or not math.isfinite(out.pose_error_m):
-                    return SkillResult(Result.FAILED, out.reason_code or 'MOVE_FAILED')
+                    return (self._interrupted(cancel_requested, deadline_s) if not out.completed else None) \
+                        or SkillResult(Result.FAILED, out.reason_code or 'MOVE_FAILED')
 
             self._emit(feedback, 'GRIP', {}, False)
             grip = self.backend.gripper_close(int(grip_current_limit_ma))
@@ -295,6 +306,9 @@ class StaticSkillExecutor:
                 return SkillResult(Result.TIMEOUT, 'DEADLINE', metrics)
             out = self.backend.move_line(approach, np.array([0.0, 0.0, 0.0, 1.0]))
             if not out.completed or out.pose_error_m > self.cfg.pose_tolerance_m:
+                interrupted = self._interrupted(cancel_requested, deadline_s) if not out.completed else None
+                if interrupted is not None:
+                    return SkillResult(interrupted.result, interrupted.reason_code, metrics, holding=holding)
                 return SkillResult(Result.FAILED, out.reason_code or 'LIFT_FAILED', metrics,
                                    holding=holding)
             metrics['pose_error_m'] = float(out.pose_error_m)
@@ -340,7 +354,8 @@ class StaticSkillExecutor:
             out = self.backend.move_line(approach, quat / np.linalg.norm(quat))
             metrics['pose_error_m'] = float(out.pose_error_m)
             if not out.completed or out.pose_error_m > self.cfg.pose_tolerance_m:
-                return SkillResult(Result.FAILED, out.reason_code or 'APPROACH_FAILED', metrics)
+                return (self._interrupted(cancel_requested, deadline_s) if not out.completed else None) \
+                    or SkillResult(Result.FAILED, out.reason_code or 'APPROACH_FAILED', metrics)
             metrics['plan_valid'] = 1.0
             self._emit(feedback, 'APPROACH', metrics, True)
 
@@ -352,7 +367,8 @@ class StaticSkillExecutor:
             metrics['rim_clearance_m'] = float(release_height_m)
             metrics['height_error_m'] = float(abs(out.pose_error_m)) if math.isfinite(out.pose_error_m) else math.nan
             if not out.completed or out.pose_error_m > self.cfg.pose_tolerance_m:
-                return SkillResult(Result.FAILED, out.reason_code or 'DESCEND_FAILED', metrics)
+                return (self._interrupted(cancel_requested, deadline_s) if not out.completed else None) \
+                    or SkillResult(Result.FAILED, out.reason_code or 'DESCEND_FAILED', metrics)
             self._emit(feedback, 'DESCEND', metrics, True)
 
             self._emit(feedback, 'RELEASE', {}, False)
@@ -378,6 +394,9 @@ class StaticSkillExecutor:
             metrics['outside_workspace'] = 1.0 if not out.completed else 0.0
             metrics['stone_in_gripper'] = 0.0
             if not out.completed:
+                interrupted = self._interrupted(cancel_requested, deadline_s)
+                if interrupted is not None:          # 개방 뒤이므로 released=True를 유지한다
+                    return SkillResult(interrupted.result, interrupted.reason_code, metrics, released=True)
                 return SkillResult(Result.FAILED, out.reason_code or 'RETREAT_FAILED', metrics)
             self._emit(feedback, 'RETREAT', metrics, True)
             return SkillResult(Result.OK, '', metrics, released=True)
@@ -416,7 +435,8 @@ class StaticSkillExecutor:
             out = self.backend.move_line(target, quat)
             metrics = {'tcp_z_m': float(target[2]), 'pose_error_m': float(out.pose_error_m)}
             if not out.completed:
-                return SkillResult(Result.FAILED, out.reason_code or 'RETREAT_FAILED', metrics)
+                return (self._interrupted(cancel_requested, deadline_s)
+                        or SkillResult(Result.FAILED, out.reason_code or 'RETREAT_FAILED', metrics))
             self._emit(feedback, 'RETREAT', metrics, True)
             return SkillResult(Result.OK, '', metrics)
         finally:

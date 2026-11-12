@@ -71,6 +71,11 @@ def _goal(h, name, deadline_s=None):
     g = SKILLS[name].Goal(cycle_id='contract', step_id=1)
     if deadline_s is not None:
         g.deadline = drop_ros.to_time(h.now() + deadline_s)
+    # 대상별 입력: 실제 노드가 실행에 필요로 하는 값(파지 전류, DynamicPlace 계획·mode)을 대상 시험 모듈이 채운다.
+    # mock은 비워 둔다. hook은 판정 조건을 바꾸지 않는다.
+    hook = getattr(h, 'goal_hook', None)
+    if hook is not None:
+        hook(name, g)
     return g
 
 

@@ -17,7 +17,7 @@ def sample(msg):
     return PlanSample(msg.plan_id,msg.target_track_id,msg.target_epoch,msg.revision,
                       seconds(msg.header.stamp),seconds(msg.source_state_stamp),
                       seconds(msg.release_time),seconds(msg.valid_until),
-                      (p.x,p.y),(v.x,v.y),msg.header.frame_id,msg.status,msg.position_std)
+                      (p.x,p.y),(v.x,v.y),msg.header.frame_id,msg.status,msg.position_std,p.z)
 
 
 def main():

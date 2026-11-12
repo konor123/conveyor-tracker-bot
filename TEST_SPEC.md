@@ -65,6 +65,8 @@ def test_l2_path_timeout_escalates_to_l4(fake_clock): ...
 | `FakeClock` | `orchestrator/test/fakes/clock.py`(다른 패키지의 fake clock도 같은 인터페이스를 따른다) | ROS 시각과 steady 시각을 따로 조작 | `ros_now()`, `steady_now()`, `advance(dt)`(둘 다 진행), `advance_ros(dt)`, `freeze_ros()`, `jump_ros(dt)`(음수 허용) |
 | `FakeSkillPort` | `orchestrator/test/fakes/skills.py` | skill 호출을 대본대로 응답 | skill별 `duration`, `result`, `hang`, `feedback` 열, 호출 기록 `calls` |
 | `FakeTransport` | `robot_control/test/fakes/transport.py` | Doosan 스트림·move_line 대역 | 송신 기록(steady 시각 포함), 지연·누락·단절 주입, 현재 TCP 상태 1차 지연 모델(선택) |
+| `SimulatedPlaceTransport` | `robot_control/robot_control/fake_place_transport.py`(`backend:=fake`와 U 시험이 함께 씀) | DynamicPlace 해제 transport 대역 | TCP 1차 지연(시정수 29 ms 가정), speedl처럼 마지막 지령 유지 시간, commit 뒤 개방 지연·공깃돌 낙하 위치, `abort(keep_sync)`, 프로그램 실행형(`mid_course_update=False`) 흉내, commit·개방·abort·지령 기록, 시험용 외란(XY 속도 배율, 표본 시각 지연) |
+| `PlaceWorld`·`Rig` | `robot_control/test/fakes/place_world.py` | DynamicPlace 순서기 U 시험 세계 | 등속 뚜껑, planner처럼 같은 `release_time`으로 revision을 올린 계획, track·벨트 상태 대본, FakeClock 10 ms tick |
 | `FakeGripper` | `robot_control/test/fakes/gripper.py` | 제어기 레지스터 + 상주 루프 DRL + RH-P12-RN(A) 대역 | 제어기 레지스터 쓰기 기록, 루프 주기(기본 20 ms) 모사, 생존 카운터, 그리퍼 Modbus 주소 맵, 응답 지연 분포, 무응답, Hardware Error 비트, pulse 실측표 기반 위치 응답, 파지 시 전류 응답, Model Number 35074 |
 | `SyntheticCamera` | `vision/test/fakes/camera.py` | 합성 영상·투영 | 내부 행렬·왜곡·외부 자세, `project(point)`, `render(objects, background)`(매트 검정·벨트 녹색·원형 물체·잡음·그림자 선택) |
 | `TrajectoryFixture` | `tracking/test/fixtures/` | 합성 병뚜껑 궤적 → `ObjectDetectionArray` 열 | 등속·속도 계단·가림 구간·프레임 누락·역순 stamp |
@@ -195,6 +197,21 @@ class GripperAdapter:                      # 그리퍼 지령은 이 클래스�
 class PulseTable:
     def width_to_pulse(self, w: float) -> int
     def pulse_to_width(self, p: int) -> float
+
+# dynamic_place.py — DynamicPlace(SPEC-500 4.5절). 시각은 ROS·steady를 따로 받는다
+def release_gate(inputs: GateInputs, limits: GateLimits, horizon_s: float) -> GateDecision   # ok, reason, terminal, metrics(gate_*)
+class PlaceTransport(Protocol):            # 경계 = 해제 확정(commit)
+    capabilities: TransportCaps            # mid_course_update, commit_lead_s, keep_sync_retreat
+    def update(self, ref: MotionRef) -> bool
+    def commit_release(self, permit: ReleasePermit) -> bool
+    def poll(self) -> TransportSample      # TCP·속도·시각·그리퍼 폭·released·fault
+    def abort(self, keep_sync: bool) -> bool
+class DynamicPlaceSequencer:
+    def __init__(self, transport: PlaceTransport, goal: PlaceGoal, cfg: DynamicPlaceCfg, sync_cfg: SyncConfig): ...
+    def tick(self, ros_now_s, steady_now_s, plans, tracks, belt, cancel=False, stop=False) -> TickOut   # feedback 열, 결과
+class KeepSyncRetreat:
+    def __init__(self, transport: PlaceTransport, velocity_xy_mps, cfg: DynamicPlaceCfg, deadline_s=0.): ...
+    def tick(self, ros_now_s, steady_now_s, cancel=False, stop=False) -> TickOut
 
 # ---------- calibration (SPEC-600) ----------
 def plane_frame(normal, offset_m: float, x_hint, origin_xy) -> np.ndarray   # frames.py, 4×4 robot_base ← 평면 좌표계
@@ -391,26 +408,39 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-ROB-001-01 | 자세 변환 기준값 | U | `[ON]` | identity, x = 0.1 m, z축 90° 회전 | `[0,0,0,0,0,0]`, `[100,0,0,…]`, ZYZ 기대값(`test/data/pose_pairs.csv`) |
 | TC-ROB-001-02 | 자세 변환 왕복 | U | `[ON]` | 무작위 quaternion 1000개 + 짐벌 특이(β = 0, π) | 왕복 회전 오차 ≤ 1e-9 rad(특이 자세는 같은 회전이면 통과) |
 | TC-ROB-002-01 | 속도 단위 변환 | U | `[ON]` | 0.02 m/s, 0.1 rad/s | 20 mm/s, 5.7296 deg/s |
+| TC-ROB-002-02 | 가속 단위 변환 | U | `[ON]` | 0.3 m/s², π/3 rad/s² / NaN·inf | `[300 mm/s², 60 deg/s²]` / 예외 |
 | TC-ROB-003-01 | freshness 감시(L0) | U | `[ON]` | 주기 10 ms, 지령 간격 20.000 / 20.001 ms | 유지 / 속도 0 지령 1회 송신, 이후 지령 거부(재무장 전까지) |
 | TC-ROB-004-01 | 지령 범위 제한 | U | `[ON]` | 작업영역 밖 목표, 속도 한도 초과 | 송신 안 함, L0, reason `RANGE` |
 | TC-ROB-005-01 | 지령 주체 단일 | C | `[ON]` | 전체 launch 후 그래프 조사 | 스트림 토픽·move_line·그리퍼 호출 경로의 클라이언트가 `robot_controller_node` 하나 |
 | TC-ROB-006-01 | 추종 지령 식과 제한 | U | `[ON]` | 오차 0 / 오차 큼 / 이전 속도와 차이 큼 | `v = v_ff` / `|v| = v_max` / `|Δv| ≤ a_max·dt` |
 | TC-ROB-007-01 | skill 계약 | C | `[ON]` | skill 5종 각각: 수락·feedback·결과 코드 | 3.2절 명세와 일치 |
-| TC-ROB-007-02 | cancel·deadline·Stop | C | `[ON]` | cancel / deadline 경과 / 실행 중 `Stop` | 0.5 s 안 CANCELED·이유 `CANCELED`(goal 상태 CANCELED) / `TIMEOUT` 자체 종료 / 실행 goal 선점해 CANCELED·이유 `STOPPED`(goal 상태 ABORTED), 정지 확인 뒤 `stopped = true` 응답 |
-| TC-ROB-008-01 | DynamicPlace plan 추종 | U | `[ON]` | 낮은 revision / epoch 변경 / 만료 | 무시 / FAILED `PLAN_INVALID` / FAILED `PLAN_INVALID` |
-| TC-ROB-009-01 | 해제 게이트 미통과 시 그리퍼를 열지 않는다 | U | `[ON]` | 게이트 항목을 하나씩 위반(5항목) | `FakeGripper` open 호출 0회, 결과 L3 요청 |
-| TC-ROB-010-01 | 동기 유지 후퇴 | U | `[ON]` | `SafeRetreat(keep_sync=true)` | z가 안전 높이에 닿을 때까지 XY 지령 속도 = 계획 속도 ± 1 mm/s |
+| TC-ROB-007-02 | cancel·deadline·Stop | C | `[ON]` | cancel / deadline 경과 / 실행 중 `Stop` / 정적 skill 이동이 cancel·deadline으로 끊김(U) | 0.5 s 안 CANCELED·이유 `CANCELED`(goal 상태 CANCELED) / `TIMEOUT` 자체 종료 / 실행 goal 선점해 CANCELED·이유 `STOPPED`(goal 상태 ABORTED), 정지 확인 뒤 `stopped = true` 응답 / `FAILED`가 아니라 `CANCELED`·`TIMEOUT` |
+| TC-ROB-007-03 | DynamicPlace cancel·Stop·deadline | U | `[ON]` | phase 5개(RELEASE는 벨트 경보로 commit 전에 머묾) × cancel / Stop / deadline | 같은 tick(≤ 0.5 s)에 `CANCELED`(`CANCELED`) / `CANCELED`(`STOPPED`) / `TIMEOUT`(`DEADLINE`). commit은 RETREAT만 1회, 나머지 0회, `released`는 commit 여부와 같음. cancel·deadline의 `abort(keep_sync)`는 APPROACH만 false |
+| TC-ROB-008-01 | DynamicPlace plan 추종 | U | `[ON]` | 낮은 revision(다른 해제 위치) / epoch 변경 / 만료 | 무시(revision·해제 위치 그대로) / FAILED `PLAN_INVALID`, commit 0 / FAILED `PLAN_INVALID`, commit 0 |
+| TC-ROB-008-02 | DynamicPlace 정상 순서 | U | `[ON]` | `SimulatedPlaceTransport`, MODE_SYNCHRONIZED / MODE_PREDICTED | phase 5개가 순서대로 시작(`phase_done=false`)·끝(`phase_done=true`), 끝 feedback이 SPEC-010 2.3.1절 키를 가짐, SYNCHRONIZE feedback 간격 ≤ 0.05 s, commit·개방 1회, 결과 OK·`released`, `gate_*` 유한, 낙하 XY와 뚜껑 중심 차 ≤ `e_xy_max`. goal 뒤 300 s 정지 구간은 적분 1단계, TCP 그대로(시뮬레이션 대역 조건) |
+| TC-ROB-008-03 | DynamicPlace 시작 조건 | U | `[ON]` | mode STATIC / 핑거 끝 오프셋·안전 높이·개방 폭 미설정 / 계획 핑거 끝 여유 < h_clear / goal plan_id 계획 없음 / UNCERTAIN 계속 / transport 없음(disabled) | `PRECONDITION`(`MODE_UNSUPPORTED` / `FINGERTIP_OFFSET_UNSET`·`SAFE_Z_UNSET`·`OPEN_WIDTH_UNSET`, 지령 0 / `RIM_CLEARANCE_UNREACHABLE`) / 0.5 s 뒤 FAILED `NO_PLAN` / FAILED `UNCERTAIN_HOLD`, commit 0 / `PRECONDITION`(`PLANNER_NOT_READY`) |
+| TC-ROB-008-04 | 실제 노드 계약 | C | `[ON]` | `robot_controller_node` `backend:=fake` + 계획·track·벨트 발행기, `tools/testing/contracts/robot_controller_contract.py` | mock과 같은 계약 시험 전부 통과(skill 5종 OK, PlaceStone·DynamicPlace 두 mode의 phase 키, deadline, cancel, 단일 지령 권한, 실행 중 Stop, 정지 유지, 비활성 거부) |
+| TC-ROB-008-91 | 표본 시각이 tick 시각보다 늦음 | U | `[ON]` | transport 표본 시각 = tick 시각 + 1 µs / + 1주기 / + 50 ms | OK / OK / FAILED `TCP_STALE` |
+| TC-ROB-009-01 | 해제 게이트 미통과 시 그리퍼를 열지 않는다 | U | `[ON]` | MODE_PREDICTED commit 시각에 항목 하나씩 위반(12가지: XY 오차, 상대 속도, track LOST, COASTING τ 초과, track 메시지 나이, 위치 표준편차, `valid_until`, epoch, 핑거 끝 여유, 벨트 `steady=false`, 벨트 메시지 없음, UNCERTAIN 보류) | commit·개방 0회, FAILED `GATE_<항목>`, `released=false`, L3 요청(`abort_request=3`), `abort(keep_sync=true)`, `gate_ok=0` |
+| TC-ROB-009-02 | MODE_SYNCHRONIZED는 게이트가 다시 열리기를 기다린다 | U | `[ON]` | RELEASE 진입 뒤 0.5 s 벨트 `steady=false` / 0.5 s UNCERTAIN revision / 끝까지 `steady=false` | 실패 없이 commit 1회(진입 + 0.5 s 이후), OK / 같음 / 대기 창 끝에 FAILED `GATE_BELT_UNSTEADY`, commit 0 |
+| TC-ROB-009-03 | MODE_PREDICTED는 기다리지 않는다 | U | `[ON]` | 정상 / commit 시각에 벨트 `steady=false` | commit 시각 = `release_time − commit_lead_s` 이후 첫 tick(1주기 안) / 그 tick에 FAILED `GATE_BELT_UNSTEADY`, commit 0 |
+| TC-ROB-009-04 | 해제 게이트 판정 함수 | U | `[ON]` | XY 오차·상대 속도·COASTING 관측 나이(해제 순간 기준)·위치 표준편차·핑거 끝 여유의 경계 세 점, horizon 외삽, `valid_until`·epoch·벨트·보류·비유한 값, goal 임계값 0·음수·NaN | 경계까지 열림·넘으면 `GATE_<항목>`, 상대 속도 4 mm/s × 1 s → 4 mm, terminal은 비유한·epoch·만료·핑거 끝 여유뿐, 기본값 사용 |
+| TC-ROB-009-05 | 긴 horizon(프로그램형) transport | U | `[ON]` | `mid_course_update=false`, `commit_lead_s` 1.0 s: MODE_PREDICTED / MODE_SYNCHRONIZED / 위치 표준편차 0.8 mm | 해제 1.0 s 전 commit 1회, commit 뒤 반영된 `update` 0회, phase 5개, 낙하 오차 ≤ `e_xy_max`, OK / `PRECONDITION`(`MODE_NEEDS_MID_COURSE_UPDATE`) / FAILED `GATE_POSITION_STD`, commit 0 |
+| TC-ROB-010-01 | 동기 유지 후퇴 | U | `[ON]` | 해제 뒤 RETREAT / 해제 전 게이트 실패(`abort(keep_sync=true)`) → 0.1 s 뒤 `SafeRetreat(keep_sync=true)` / 처음부터 안전 높이 이상 / `abort(keep_sync=true)` 뒤 300 s 지령 없음 | `poll()` 표본 XY 속도가 z가 안전 높이에 닿을 때까지 계획 속도 ± 1 mm/s, RETREAT 끝 키(`tcp_z_m` ≥ 안전 높이, `outside_workspace` 1, `stone_in_gripper` 0) / 같은 기준으로 OK / 지령 없이 OK / 유지 시간 뒤 정지(속도 0) |
+| TC-ROB-010-02 | 동기 유지를 못 하면 성공으로 보고하지 않는다 | U | `[ON]` | XY 속도 배율 0.9 외란 / `keep_sync_retreat=false` transport / 계획 속도 없음 / 정적 실행기(transport 없음) | FAILED `SYNC_SPEED`(안전 높이까지는 올림) / `PRECONDITION`(`SYNC_NOT_AVAILABLE`) / 같음 / 같음 |
 | TC-ROB-011-01 | virtual 모드 형식 확인 | C | `[ON]` | Doosan `mode:=virtual`(지원 시) | 선정 stream·`move_line` 요청이 거부 없이 수락. 미지원이면 stub로 대체하고 skip 사유 기록 |
 | TC-ROB-012-01 | Heartbeat | C | `[ON]` | 10 s 관찰 | 10 Hz ± 10%, seq 연속 |
 | TC-ROB-013-01 | XY 추종 목표·메시지 변환 | U | `[ON]` | release_xy (0.52, 0) m·v (0.02, 0) m/s·release 2 s, 현재 1 s / 새 revision에서 v 0.03 m/s / `InterceptPlan` 필드 | 목표 (0.50, 0) m, 전진 지령 / 목표 (0.49, 0) m / 시각·위치·속도·식별자 그대로 대응 |
-| TC-ROB-013-02 | 계획 수락 조건과 래치 | U | `[ON]` | epoch·track·plan_id 변경, status ≠ OK, frame ≠ `robot_base`, 비유한 속도, 만료, 시각 순서 위반, `position_std` 초과 / 같은 revision 재수신 / 입력 상태 나이 0.3 s | 거부, 이후 출력 비활성, 다음 revision도 거부 / 무시, 수신 감시 갱신 없음(0.25 s 뒤 `PLAN_STALE`) / 거부 |
+| TC-ROB-013-02 | 계획 수락 조건과 래치 | U | `[ON]` | epoch·track·plan_id 변경, status가 OK·UNCERTAIN이 아님, frame ≠ `robot_base`, 비유한 속도, 만료, 시각 순서 위반, `position_std` 초과 / 같은 revision 재수신 / 입력 상태 나이 0.3 s | 거부, 이후 출력 비활성, 다음 revision도 거부 / 무시, 수신 감시 갱신 없음(0.25 s 뒤 `PLAN_STALE`) / 거부 |
 | TC-ROB-013-03 | 감시 | U | `[ON]` | steady 간격 0.03 s 초과 / ROS 시계 역행 / TCP 나이 0.51 s·미래 시각 / ROS 시계 정지 + steady 진행 / 만료 / 계획 없음 / 비유한 TCP | `LOOP_GAP` / `CLOCK_BACKWARD` / `TCP_STALE` / `PLAN_STALE` / `PLAN_EXPIRED` / `WAIT_PLAN` / `NONFINITE`, 모두 비활성·속도 (0, 0) |
 | TC-ROB-013-04 | 제한·작업영역·설정 | U | `[ON]` | 큰 오차 15주기 / TCP (2, 0) m / 주기 0, Kp NaN, 작업영역 역전, 주기 > 간격 한도 | `|v| ≤ v_max`, `|Δv| ≤ a_max·dt` / `WORKSPACE` / 생성 시 예외 |
 | TC-ROB-013-05 | 정지와 명시적 재무장 | U | `[ON]` | `stop` 뒤 주기 / `arm` 후 같은 계획 | 비활성 / 수락·활성 |
 | TC-ROB-013-06 | 계획 수락 기준과 해제 불확실성 기준 분리 | U | `[ON]` | `position_std` 3.25 / 3.251 mm 계획 / 2 mm 계획 뒤 0.5 mm revision, 나이 0.3 s, `stop` / `release_position_std_max_m` 4 mm 설정 / `belt_sync.json`, orchestrator.yaml, planner.yaml | 수락 / 거부 / `release_uncertainty_ok` 거짓 → 참 → 거짓 → 거짓 / 생성 시 예외 / json = 코드 기본값, 3.25 mm·0.5 mm가 세 패키지에서 같음 |
 | TC-ROB-013-07 | 그림자 기록 CSV | U | `[ON]` | 활성 1행 + `stop` 1행 기록 뒤 요약 / 같은 경로로 다시 열기 / 행 없는 파일 | 표본 2·비활성 1, 오차 p95 1 mm, 이유 `TEST_STOP` 1 / `FileExistsError` / p95 `None` |
+| TC-ROB-013-08 | UNCERTAIN revision 보류 | U | `[ON]` | OK 계획 뒤 UNCERTAIN revision / 0.5 s 진행 / 보류 0.599·0.600·0.601 s / 보류 중 UNCERTAIN 추가 / 0.5 s 뒤 OK revision / 보류 중 해제 불확실성 / frame 위반 UNCERTAIN / OK 계획 전 UNCERTAIN / `uncertain_hold_s` 0·음수·NaN | 버림·래치 없음·활성 / 마지막 OK 계획 등속 목표(`max_plan_age_s` 무관) / 활성·활성·`UNCERTAIN_HOLD`(속도 0) / 보류 연장 없음 / 보류 해제, 수신 감시 재적용 / 거짓 / `PLAN_INVALID` / `WAIT_PLAN` 뒤 OK 수락, 0.601 s면 `UNCERTAIN_HOLD` / 생성 시 예외 |
 | TC-ROB-014-01 | 정지 유지 판정 | U | `[ON]` | Stop(사유) / 해제: 빈 사유, 실행 중 goal, 보호정지, 정상 사유 / 보호정지와 유지 동시 | 유지·`ready=false`·코드 101 / `REASON_REQUIRED`·`GOAL_ACTIVE`·`PROTECTIVE_STOP`으로 유지, 정상 사유는 해제·코드 0 / 코드 100; 유지 중이 아닐 때 해제 요청은 무동작 성공 |
 | TC-ROB-014-02 | 실제 노드 정지 유지 | C | `[ON]` | fake backend, Stop 뒤 skill goal, lifecycle 비활성·재활성, `stop_release_reason` 빈 값·정상 값 | goal 수락 후 백엔드 이동 지령 0회로 `CANCELED`(`STOPPED`), 재활성 뒤에도 heartbeat 101·`ready=false`, 빈 사유 설정 실패, 정상 사유 뒤 goal 실행 |
+| TC-ROB-015-01 | speedl 스트림 해제 transport(실기 미검증) | U | `[ON]` | 가짜 발행 함수·메시지 형식·TCP·그리퍼 세션: 지령 1회 / 지령 간격 19.999·20.000·20.001 ms / 지령 끊김 뒤 `tick` / 속도 한도 초과·NaN / `prepare` 뒤 commit 2회 / `prepare` 없이 commit / `abort(keep_sync)` / `stop` | `vel` [20, 0, −5, 0, 0, 0] mm/s·`acc` [300, 60]·`time` 0.02 s / 유지·유지·속도 0 1회 뒤 `rearm` 전까지 거부(`STREAM_STALE`) / 속도 0 1회 / 송신 없음, 속도 0 1회, `RANGE` / `fire_open`은 제어 주기 밖 1회, 두 번째 거부, 결과 뒤 `released` / 늦은 예약(`late_arm`) / 유지 시간 동안 계획 XY 속도(z 0) 뒤 속도 0 1회 / 속도 0, 피드백 속도 0일 때만 정지 확인 |
 
 ### 3.9 GRP — 그리퍼(RH-P12-RN(A), 상주 루프 DRL 경유)
 

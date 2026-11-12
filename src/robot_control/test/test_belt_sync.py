@@ -129,3 +129,4 @@ def test_ros_message_mapping():
     p = sample(msg)
     assert p.source_stamp_s == 1.5 and p.release_s == 2.
     assert p.release_xy_m == (.5,.1) and p.velocity_xy_mps == (.02,.01)
+    assert p.release_z_m == .2

@@ -2,8 +2,8 @@
 
 `tools/spec/trace.py`가 생성한다. 손으로 고치지 않는다.
 
-- REQ 137개 중 TC 연결 137개
-- pytest 대상 TC 235개 중 테스트 연결 228개
+- REQ 138개 중 TC 연결 138개
+- pytest 대상 TC 248개 중 테스트 연결 241개
 
 | TC | 수준 | REQ | 테스트 |
 |---|---|---|---|
@@ -104,7 +104,7 @@
 | TC-IF-003-01 | U | REQ-IF-003 | `tools/spec/test_interfaces.py::test_interface_constants_match_spec` |
 | TC-IF-004-01 | C | REQ-IF-004 | `src/orchestrator/test/test_watch_timers_ros.py::test_actual_orchestrator_publishers_match_qos`<br>`tools/spec/test_qos_contract.py::test_qos_checker_accepts_fixture_publishers` |
 | TC-IF-004-02 | C | REQ-IF-004 | `tools/spec/test_qos_contract.py::test_qos_mismatch_best_effort_pub_reliable_sub_detected` |
-| TC-IF-005-01 | C | REQ-IF-005 | `src/drop_mocks/test/contract/test_mock_robot_controller_contract.py::<module>` |
+| TC-IF-005-01 | C | REQ-IF-005 | `src/drop_mocks/test/contract/test_mock_robot_controller_contract.py::<module>`<br>`src/robot_control/test/contract/test_robot_controller_contract.py::<module>` |
 | TC-IF-006-01 | C | REQ-IF-006 | `src/drop_mocks/test/test_mock_nodes.py::test_mock_nodes_have_no_qos_event_handlers`<br>`src/orchestrator/test/test_watch_timers_ros.py::test_orchestrator_nodes_have_no_qos_event_handlers`<br>`src/robot_control/test/test_robot_controller_heartbeat.py::test_robot_controller_has_no_qos_event_handlers` |
 | TC-INT-001-01 | I0 | REQ-INT-001(SPEC 없음) | `src/drop_bringup/test/test_i0_integration.py::test_i0_nominal_20_cycles_and_records` |
 | TC-INT-002-01 | I0 | REQ-INT-002(SPEC 없음) | `src/drop_bringup/test/test_i0_integration.py::test_i0_robot_hang_escalates_and_stops` |
@@ -202,15 +202,26 @@
 | TC-ROB-001-01 | U | REQ-ROB-001 | `src/robot_control/test/test_motion_adapter.py::test_pose_reference_values` |
 | TC-ROB-001-02 | U | REQ-ROB-001 | `src/robot_control/test/test_motion_adapter.py::test_pose_roundtrip_random_and_gimbal_singular` |
 | TC-ROB-002-01 | U | REQ-ROB-002 | `src/robot_control/test/test_motion_adapter.py::test_speed_unit_conversion` |
+| TC-ROB-002-02 | U | REQ-ROB-002 | `src/robot_control/test/test_motion_adapter.py::test_accel_unit_conversion` |
 | TC-ROB-003-01 | U | REQ-ROB-003 | `src/robot_control/test/test_motion_adapter.py::test_freshness_boundary_and_explicit_rearm` |
 | TC-ROB-004-01 | U | REQ-ROB-004 | `src/robot_control/test/test_motion_adapter.py::test_command_authority_rejects_range_and_nonfinite` |
 | TC-ROB-005-01 | C | REQ-ROB-005 | `src/robot_control/test/test_motion_adapter.py::test_single_command_authority_owner`<br>`src/robot_control/test/test_skill_logic.py::test_concurrent_goal_rejected` |
 | TC-ROB-006-01 | U | REQ-ROB-006 | `src/robot_control/test/test_belt_sync.py::test_speed_and_acceleration_limits`<br>`src/robot_control/test/test_motion_adapter.py::test_tracking_command_law_and_limits`<br>`src/robot_control/test/test_motion_adapter.py::test_tracking_command_rejects_bad_inputs` |
-| TC-ROB-007-01 | C | REQ-ROB-007 | `src/robot_control/test/test_skill_logic.py::test_move_to_pose_uses_measured_pose_error`<br>`src/robot_control/test/test_skill_logic.py::test_named_pose_and_missing_config_precondition`<br>`src/robot_control/test/test_skill_logic.py::test_inactive_lifecycle_rejects_skills`<br>`src/robot_control/test/test_skill_logic.py::test_disabled_backend_never_reports_success`<br>`src/robot_control/test/test_skill_logic.py::test_pick_success_requires_measured_holding`<br>`src/robot_control/test/test_skill_logic.py::test_pick_missing_grip_criteria_precondition` |
-| TC-ROB-007-02 | C | REQ-ROB-007 | `src/robot_control/test/test_robot_controller_stop.py::test_stop_preempts_goal_with_stopped_reason`<br>`src/robot_control/test/test_robot_controller_stop.py::test_client_cancel_keeps_canceled_reason`<br>`src/robot_control/test/test_skill_logic.py::test_deadline_and_cancel_paths`<br>`src/robot_control/test/test_skill_logic.py::test_stop_requires_confirmed_feedback` |
-| TC-ROB-008-01 | U | REQ-ROB-008 | `src/robot_control/test/test_skill_logic.py::test_dynamic_place_fails_closed_until_ready` |
-| TC-ROB-009-01 | U | REQ-ROB-009 | `src/robot_control/test/test_skill_logic.py::test_place_reads_measured_open_width` |
-| TC-ROB-010-01 | U | REQ-ROB-010 | `src/robot_control/test/test_skill_logic.py::test_safe_retreat_unsupported_modes_fail_closed` |
+| TC-ROB-007-01 | C | REQ-ROB-007 | `src/robot_control/test/contract/test_robot_controller_contract.py::<module>`<br>`src/robot_control/test/test_skill_logic.py::test_move_to_pose_uses_measured_pose_error`<br>`src/robot_control/test/test_skill_logic.py::test_named_pose_and_missing_config_precondition`<br>`src/robot_control/test/test_skill_logic.py::test_inactive_lifecycle_rejects_skills`<br>`src/robot_control/test/test_skill_logic.py::test_disabled_backend_never_reports_success`<br>`src/robot_control/test/test_skill_logic.py::test_pick_success_requires_measured_holding`<br>`src/robot_control/test/test_skill_logic.py::test_pick_missing_grip_criteria_precondition`<br>`src/robot_control/test/test_skill_logic.py::test_place_reads_measured_open_width` |
+| TC-ROB-007-02 | C | REQ-ROB-007 | `src/robot_control/test/test_robot_controller_stop.py::test_stop_preempts_goal_with_stopped_reason`<br>`src/robot_control/test/test_robot_controller_stop.py::test_client_cancel_keeps_canceled_reason`<br>`src/robot_control/test/test_skill_logic.py::test_deadline_and_cancel_paths`<br>`src/robot_control/test/test_skill_logic.py::test_interrupted_move_reports_cancel_or_deadline`<br>`src/robot_control/test/test_skill_logic.py::test_stop_requires_confirmed_feedback` |
+| TC-ROB-007-03 | U | REQ-ROB-007 | `src/robot_control/test/test_dynamic_place.py::test_cancel_stop_deadline_each_phase` |
+| TC-ROB-008-01 | U | REQ-ROB-008 | `src/robot_control/test/test_dynamic_place.py::test_lower_revision_ignored`<br>`src/robot_control/test/test_dynamic_place.py::test_epoch_change_or_expiry_fails_plan_invalid` |
+| TC-ROB-008-02 | U | REQ-ROB-008 | `src/robot_control/test/test_dynamic_place.py::test_nominal_sequence_feedback_and_single_commit`<br>`src/robot_control/test/test_dynamic_place.py::test_fake_transport_idle_after_goal_is_cheap_and_still` |
+| TC-ROB-008-03 | U | REQ-ROB-008 | `src/robot_control/test/test_dynamic_place.py::test_preconditions_and_missing_plan`<br>`src/robot_control/test/test_dynamic_place.py::test_uncertain_longer_than_hold_fails`<br>`src/robot_control/test/test_skill_logic.py::test_dynamic_place_fails_closed_until_ready` |
+| TC-ROB-008-04 | C | REQ-ROB-008 | `src/robot_control/test/contract/test_robot_controller_contract.py::<module>` |
+| TC-ROB-008-91 | U | REQ-ROB-008 | `src/robot_control/test/test_dynamic_place.py::test_sample_read_after_tick_time_is_not_stale` |
+| TC-ROB-009-01 | U | REQ-ROB-009 | `src/robot_control/test/test_dynamic_place.py::test_each_gate_violation_opens_zero_and_requests_l3` |
+| TC-ROB-009-02 | U | REQ-ROB-009 | `src/robot_control/test/test_dynamic_place.py::test_synchronized_waits_through_short_pulse`<br>`src/robot_control/test/test_dynamic_place.py::test_synchronized_gives_up_when_window_ends` |
+| TC-ROB-009-03 | U | REQ-ROB-009 | `src/robot_control/test/test_dynamic_place.py::test_predicted_commits_at_planned_time_or_fails_without_waiting` |
+| TC-ROB-009-04 | U | REQ-ROB-009 | `src/robot_control/test/test_release_gate.py::<module>` |
+| TC-ROB-009-05 | U | REQ-ROB-009 | `src/robot_control/test/test_dynamic_place.py::test_program_transport_commits_once_ahead_and_ignores_updates` |
+| TC-ROB-010-01 | U | REQ-ROB-010 | `src/robot_control/test/test_dynamic_place.py::test_post_release_retreat_keeps_plan_speed`<br>`src/robot_control/test/test_dynamic_place.py::test_safe_retreat_after_pre_release_abort_keeps_sync`<br>`src/robot_control/test/test_dynamic_place.py::test_keep_sync_already_at_safe_height_needs_no_motion`<br>`src/robot_control/test/test_dynamic_place.py::test_keep_sync_abort_hold_then_long_silence_is_bounded` |
+| TC-ROB-010-02 | U | REQ-ROB-010 | `src/robot_control/test/test_dynamic_place.py::test_keep_sync_never_succeeds_without_capability_or_speed`<br>`src/robot_control/test/test_skill_logic.py::test_safe_retreat_unsupported_modes_fail_closed` |
 | TC-ROB-011-01 | C | REQ-ROB-011(SPEC 없음) | — |
 | TC-ROB-012-01 | C | REQ-ROB-012 | `src/robot_control/test/test_robot_controller_heartbeat.py::test_heartbeat_and_status_10hz_for_10s` |
 | TC-ROB-013-01 | U | REQ-ROB-013 | `src/robot_control/test/test_belt_sync.py::test_release_time_reference_not_source_stamp`<br>`src/robot_control/test/test_belt_sync.py::test_new_revision_accepted`<br>`src/robot_control/test/test_belt_sync.py::test_ros_message_mapping` |
@@ -220,8 +231,10 @@
 | TC-ROB-013-05 | U | REQ-ROB-013 | `src/robot_control/test/test_belt_sync.py::test_stop_and_explicit_rearm` |
 | TC-ROB-013-06 | U | REQ-ROB-013 | `src/robot_control/test/test_sync_config.py::<module>`<br>`src/robot_control/test/test_sync_revision.py::<module>` |
 | TC-ROB-013-07 | U | REQ-ROB-013 | `src/robot_control/test/test_sync_metrics.py::<module>` |
+| TC-ROB-013-08 | U | REQ-ROB-013 | `src/robot_control/test/test_sync_uncertain_hold.py::<module>` |
 | TC-ROB-014-01 | U | REQ-ROB-014 | `src/robot_control/test/test_stop_latch.py::<module>` |
 | TC-ROB-014-02 | C | REQ-ROB-014 | `src/robot_control/test/test_robot_controller_stop.py::test_stop_latches_until_operator_release`<br>`src/robot_control/test/test_robot_controller_stop.py::test_release_refused_while_goal_active`<br>`src/robot_control/test/test_robot_controller_stop.py::test_accept_reserves_goal_and_noop_release_keeps_backend_stop` |
+| TC-ROB-015-01 | U | REQ-ROB-015 | `src/robot_control/test/test_doosan_stream.py::<module>` |
 | TC-SIM-001-01 | S | REQ-SIM-001(SPEC 없음) | 절차 시험 |
 | TC-SIM-002-01 | S | REQ-SIM-002(SPEC 없음) | 절차 시험 |
 | TC-SIM-003-01 | S | REQ-SIM-003(SPEC 없음) | 절차 시험 |
