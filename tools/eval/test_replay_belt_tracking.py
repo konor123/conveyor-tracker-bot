@@ -78,5 +78,9 @@ def test_reported_std_is_opt_in_and_consistent(tmp_path):
     assert 'wait_cap' not in base
     assert w['steady_ratio'] == 1.0 and 0.0 <= w['both_ok_ratio'] <= w['speed_std_ok_ratio'] <= 1.0
     assert e1['n_wait_ok'] <= e1['n']
+    assert w['passes'] == 3 and 0 <= w['passes_any_ok'] <= 3
+    if w['reported_std']:
+        assert w['reported_std']['3']['std_p50_mm'] > w['reported_std']['1']['std_p50_mm']
     loose = rbt.analyse(path, {}, horizons=(1.0,), std_limit_m=0.00325, speed_std_limit_mps=1.0)
     assert loose['wait_cap']['both_ok_ratio'] == 1.0 and loose['prediction_error']['1']['n_wait_ok'] == e1['n']
+    assert loose['wait_cap']['passes_any_ok'] == 3 and loose['wait_cap']['reported_std']['1']['le_limit_ratio'] == 1.0

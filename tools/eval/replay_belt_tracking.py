@@ -169,6 +169,8 @@ def analyse(path: Path, params: dict, horizons=HORIZONS_S, std_limit_m: float | 
     stds = {h: [] for h in horizons}
     wait_ok = {h: [] for h in horizons}          # 그 상태가 WAIT_CAP 조건(steady, speed_std)을 지났는가
     gate = []                                    # 관측 30회 이상 OBSERVED 상태마다 (steady, speed_std)
+    ok_tracks = set()                            # WAIT_CAP 조건을 한 번이라도 지난 track
+    ok_std = {h: [] for h in horizons}           # WAIT_CAP을 지난 상태의 보고 표준편차(미래 검출 유무와 무관)
     for s in states:
         if s.status != OBSERVED or s.observation_count < MIN_OBS:
             continue
@@ -177,6 +179,11 @@ def analyse(path: Path, params: dict, horizons=HORIZONS_S, std_limit_m: float | 
         steady, speed_std = belt.get(float(s.t_state), (False, float('inf')))
         gate.append((steady, speed_std))
         passes_wait = steady and speed_std <= speed_std_limit_mps
+        if passes_wait:
+            ok_tracks.add(s.track_id)
+            for h in horizons:
+                _, cov_h = predict(ts, s.t_state + h)
+                ok_std[h].append(float(np.sqrt(max(0., np.linalg.eigvalsh(cov_h)[-1]))))
         for h in horizons:
             i = np.searchsorted(t_arr, s.t_state + h)
             cand = [j for j in (i - 1, i) if 0 <= j < len(t_arr) and abs(t_arr[j] - s.t_state - h) <= MATCH_DT_S]
@@ -219,7 +226,13 @@ def analyse(path: Path, params: dict, horizons=HORIZONS_S, std_limit_m: float | 
             speed_std_ok_ratio=float(np.mean(sp <= speed_std_limit_mps)),
             both_ok_ratio=float(np.mean(st & (sp <= speed_std_limit_mps))),
             speed_std_p50_mmps=pct(sp[np.isfinite(sp)], 50) * 1e3, speed_std_p95_mmps=pct(sp[np.isfinite(sp)], 95) * 1e3,
-            speed_std_limit_mmps=speed_std_limit_mps * 1e3)
+            speed_std_limit_mmps=speed_std_limit_mps * 1e3,
+            # 통과 단위: 관측 30회 이상 통과 중 조건을 한 번이라도 지난 통과
+            passes=len(passes), passes_any_ok=sum(1 for q in passes if q['track_id'] in ok_tracks),
+            # 조건을 지난 모든 상태에서 예측 구간별 보고 표준편차(계획 요청 시점에 planner가 낼 값)
+            reported_std={f'{h:g}': dict(n=len(v), std_p50_mm=pct(v, 50) * 1e3, std_p95_mm=pct(v, 95) * 1e3,
+                                         le_limit_ratio=float(np.mean(np.array(v) <= std_limit_m)))
+                          for h, v in ok_std.items() if v})
     return dict(file=path.name, frames_with_detection=len(fr.t), detections=len(fr.xy),
                 span_s=float(fr.t[-1] - fr.t[0]), direction_base=ex.tolist(), origin_base_m=origin.tolist(),
                 lateral_std_mm=float(np.std(xy_c[:, 1]) * 1e3),
@@ -254,7 +267,11 @@ def main(argv=None) -> int:
             w = r['wait_cap']
             print(f"  WAIT_CAP: steady {w['steady_ratio']:.2f}, speed_std<=limit {w['speed_std_ok_ratio']:.2f}, "
                   f"both {w['both_ok_ratio']:.2f} of {w['eligible_states']} states, "
-                  f"speed_std p50 {w['speed_std_p50_mmps']:.2f} p95 {w['speed_std_p95_mmps']:.2f} mm/s")
+                  f"speed_std p50 {w['speed_std_p50_mmps']:.2f} p95 {w['speed_std_p95_mmps']:.2f} mm/s, "
+                  f"passes with an ok state {w['passes_any_ok']}/{w['passes']}")
+            print('  WAIT_CAP-ok reported std: ' + ', '.join(
+                f"H={h} p50 {v['std_p50_mm']:.2f} p95 {v['std_p95_mm']:.2f} mm le {v['le_limit_ratio']:.2f}"
+                for h, v in w['reported_std'].items()))
         for h, e in r['prediction_error'].items():
             extra = (f", std p50 {e['std_p50_mm']:.2f} p95 {e['std_p95_mm']:.2f} mm, "
                      f"std<=limit {e['std_le_limit_ratio']:.2f} (WAIT_CAP ok: n {e['n_wait_ok']}, "

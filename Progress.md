@@ -82,7 +82,7 @@
   - JSON Schema·StepRecord/trial JSONL 및 2026-11-09 devlog: unit 793/793·contract 72/72·I0 8/8(officepc WSL), 통합 커밋 `74013cf`. TC-MCK-005-01 실시간 실행은 `realtime_pc` 마커로 CI에서 기록만 하고 PC에서 판정한다(SPEC-700 v0.7). 2026-11-10 officepc WSL 판정 3/3 통과(발행 지연 최대 0.056 s). 커밋 `7c63b0b` CI run 42788599903 전체 실행 3회 연속 통과.
 - [x] `[ON]` `tools/spec/trace.py` 추적 행렬 생성(REQ·TC 연결 검사)
 - [ ] `[ON]` I0 nominal 간헐 `STEP_TIMEOUT`(결과 SAFE_ABORT) 원인 확정. officepc WSL에서 4회 중 2회(seed 7·18) 관찰, 실패 단계 미기록. 유력 후보는 RELEASE(제한 1.0 s, 대역 0.36 s)에서 WSL 교란으로 `phase_done` feedback 지연 또는 시계 전진, 또는 result 선처리(0.2 s 대기 추가로 완화). 재발하면 실패 메시지의 `last=`(마지막 단계·소요시간)로 판정하고, result 선처리 또는 feedback 지연이면 orchestrator action client를 전용 callback group으로 옮긴다. 근거: `records/reviews/fable-m0-risk-2026-11-11.md` 1절
-  - 2026-11-12 officepc WSL: 시스템 시계 역행(약 −0.78 s, 9분에 10회)이 있는 상태에서 3/3, 없는 상태에서 4/4 통과. 시계 역행만으로는 재현되지 않는다(`records/worklog/2026-11-12.md`).
+  - 2026-11-12 officepc WSL: 시스템 시계 역행(약 −0.78 s, 9분에 10회)이 있는 상태에서 3/3, 없는 상태에서 4/4 통과. 이 3회에서는 시계 역행으로 재현되지 않았다(`records/worklog/2026-11-12.md`).
 
 **M0 합격 기준(제안):** SPEC 6종 v0.1과 M0 대상 시험 케이스 리뷰 완료 / interface 빌드 / 단위 테스트에서 장애 10종 이벤트 열마다 기대 중단 등급 / I0 정상 시나리오 20/20, ROS I0 장애 시나리오 4종(`robot_hang`, `protective_stop`, `heartbeat_loss`, `time_insufficient`)마다 정의된 중단 등급 동작 / 오케스트레이터 REQ 연결률 100% / `records/`에 StepRecord·trial 기록 생성 확인.
 
@@ -248,7 +248,7 @@
 - [x] `[ON]` `ComputeIntercept` 서비스, 계약 테스트, I2(합성 tracked fixture 또는 replay → 실제 tracker 입력으로 예측·시간 예산 CI: 정상, `time_insufficient`, `UNCERTAIN`, 만료·epoch 불일치·clock reset)
   - TC-PLN-007-01, TC-PLN-011-01(합성 tracked fixture → 실제 planner 7개 시나리오), officepc WSL 2회 반복 통과. 해제 높이는 테두리 위 `release_above_rim_m` 0.1656 m(정지 투입 값, SPEC-400 v0.6, TC-PLN-004-01).
 - [x] `[ON]` 실제 planner가 계약 테스트를 통과하면 `mock_world_node`의 임시 plan 발행(`publish_plan`)을 쓰지 않음
-  - `drop.launch.py use_mock_planner:=false`(REQ-PLN-012, TC-PLN-012-01), 실제 tracker·planner I0 한 사이클(TC-INT-009-01, 두 모드 각 4/4). 전체 대역 `mock.launch.py`는 임시 plan을 쓴다(`PLAN.md` 7.5절). 계획 단계 기준 3.25 mm·`plan_lead_s` 3.0 s는 잡음 없는 mock 기준 값이다. OFF-1 영상 재생(`sigma_accel` 0.01)에서는 계획 단계 기준보다 WAIT_CAP 조건이 먼저 걸린다: `belt_steady`가 참인 상태 9~44%, `speed_std` 중앙값 0.94~1.06 mm/s(기준 1 mm/s), 둘 다 지난 상태 6~42%. 그 상태에서 planner 보고 표준편차는 2 s 앞까지 모두 3.25 mm 이하이고, 전체 상태 기준으로는 3 s 앞 중앙값 3.0~3.1 mm·실제 오차 / 보고 표준편차 p95 6~12다(`records/bench/belt-video-2026-11-07/README.md`). 속도 변화 검출 기준·`speed_std_max_mps`·계획 단계 기준·`plan_lead_s`는 OFF-5 bag으로 정한다(`records/reviews/fable-g3-open-items-2026-11-12.md` 3절).
+  - `drop.launch.py use_mock_planner:=false`(REQ-PLN-012, TC-PLN-012-01), 실제 tracker·planner I0 한 사이클(TC-INT-009-01, 두 모드 각 4/4). 전체 대역 `mock.launch.py`는 임시 plan을 쓴다(`PLAN.md` 7.5절). 계획 단계 기준 3.25 mm·`plan_lead_s` 3.0 s는 잡음 없는 mock 기준 값이다. OFF-1 영상 재생(`sigma_accel` 0.01)에서는 WAIT_CAP 조건이 먼저 걸린다: 관측 30회 이상 상태 가운데 `belt_steady`가 참인 몫 9~44%, `speed_std` 중앙값 0.94~1.06 mm/s(기준 1 mm/s), 조건을 한 번이라도 지난 통과 3/14 ~ 9/9. 조건을 지난 상태의 planner 보고 표준편차는 `speed_std × 예측 구간`과 같아 3 s 앞 2.95 mm(전부 3.25 mm 이하), 4 s 앞 3.9 mm(전부 초과)다. `speed_std_max_mps`·`plan_lead_s`·계획 단계 기준은 사실상 한 제약이며 속도 변화 검출 기준과 함께 OFF-5 bag으로 정한다(`records/bench/belt-video-2026-11-07/README.md`, `records/reviews/fable-g3-open-items-2026-11-12.md` 3절).
 - [ ] `[OFF]` OFF-5: 지연 구성 측정: 노출→수신→검출 완료→상태→계획→지령 송신→TCP 응답→그리퍼 개방 명령→개방 시작→공깃돌 이탈
 - [ ] `[ON*]` 가림 허용 시간 τ_max 산출: `e_pred ≤ e_pos + |δv|·τ + ½·a·τ² + |v|·δt` → 해제 게이트 값(`PLAN.md` 4.4절)
   - 계산 함수 `tau.py`(TC-PLN-010-01). G3·G4 측정값(e_pos·δv·a·δt)이 완료 조건이다.
