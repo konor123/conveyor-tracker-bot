@@ -222,6 +222,37 @@ def test_latest_frame_survives_processing_backlog(rig, monkeypatch):
     assert ds[1].header.stamp == latest.header.stamp
 
 
+@pytest.mark.req('REQ-SYS-003')
+@pytest.mark.tc('TC-SYS-003-01')
+def test_detection_stamp_is_exposure_time_with_processing_delay(rig, monkeypatch):
+    """처리에 50 ms가 걸려도 ObjectDetectionArray.header.stamp는 입력 영상 노출 시각 T와 ns까지 같다.
+
+    T는 epoch 규모에 ns 자리까지 있는 값이라 float 초를 거치면 바뀐다(1.76e9 s에서 분해능 약 240 ns).
+    """
+    import vision.vision_node as module
+    from builtin_interfaces.msg import Time
+    original = module.process_frame
+
+    def delayed(*args):
+        time.sleep(.05)                                # 처리 지연 주입
+        return original(*args)
+
+    monkeypatch.setattr(module, 'process_frame', delayed)
+    node, cn, pub, _, ds, _ = rig
+    assert node.trigger_configure().name == 'SUCCESS'
+    assert node.trigger_activate().name == 'SUCCESS'
+    for t_ns in (1_763_000_000_123_456_789, 1_763_000_000_156_790_123):
+        msg = image(cn)
+        msg.header.stamp = Time(sec=t_ns // 10**9, nanosec=t_ns % 10**9)
+        old = len(ds)
+        sent = time.monotonic()
+        pub.publish(msg)
+        wait_for(lambda: len(ds) > old)
+        assert time.monotonic() - sent >= .05            # 지연이 실제로 들어갔다
+        out = ds[-1]
+        assert (out.header.stamp.sec, out.header.stamp.nanosec) == (t_ns // 10**9, t_ns % 10**9)
+        assert len(out.detections) == 2
+
 def test_without_geometry_keeps_pixel_detections(rig):
     node, cn, pub, _, ds, _ = rig
     node.set_parameters([Parameter('calibration_file', value='')])

@@ -1,6 +1,6 @@
 # SPEC-000 system
 
-- 버전: v0.5
+- 버전: v0.6
 - 근거: PLAN.md 0.2, 1, 2.3~2.5절
 - REQ 영역: SYS
 
@@ -8,6 +8,7 @@
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
+| v0.6 | 2026-11-12 | TC-SYS-003-01·02를 실제 `vision_node`·`tracker_node` 계약 시험으로 검증(epoch 규모 ns 자리 stamp). tracker는 관측 프레임의 입력 stamp를 그대로 발행한다 |
 | v0.5 | 2026-11-11 | TF 사용 범위를 정적 검사로 고정(REQ-SYS-006) |
 | v0.4 | 2026-11-09 | 설정 파일 경로 규칙(상대 경로 = 저장소 루트 기준, 4.4절, REQ-SYS-005) |
 | v0.3 | 2026-11-09 | 현장 정지 pick-and-place 실행기 `static_pick_place` 추가(11개 패키지), 로봇 지령 주체 예외 범위 |
@@ -115,7 +116,7 @@ world
 
 - **관측 시각 보존:** `ObjectDetectionArray.header.stamp`는 카메라 **영상 노출 시각**(`sensor_msgs/Image.header.stamp`)을 그대로 복사한다. 노드가 영상을 수신하거나 처리를 끝낸 시각으로 덮어쓰지 않는다.
 - **추적·계획 시각 분리:**
-  - `TrackedObject.header.stamp` 및 `TrackedObjectArray.header.stamp`는 칼만 필터 상태의 기준 시각 `t_state`다.
+  - `TrackedObject.header.stamp` 및 `TrackedObjectArray.header.stamp`는 칼만 필터 상태의 기준 시각 `t_state`다. 검출을 받은 프레임에서는 입력 `ObjectDetectionArray.header.stamp`를 그대로 쓴다(float 초에서 되살리면 epoch 규모에서 ns 자리가 바뀐다).
   - 마지막으로 실제 검출이 연관된 시각 `last_observed_stamp`(`t_last_obs`)와 추정 유효 만료 시각 `valid_until`을 별도 필드로 둔다.
   - `InterceptPlan`은 계획 생성 시각(`header.stamp`), 입력 상태 시각(`source_state_stamp`), 목표 해제 시각(`release_time`), 계획 만료 시각(`valid_until`)을 별도 필드로 구분한다.
 - **시계 이원화:** 메시지 타임스탬프, `valid_until`, 관측 신선도(`t_now - t_last_obs`), 시간 예산, 단계·동적·사이클 `deadline`은 ROS 시각(`use_sim_time` 적용 대상)을 쓰고, heartbeat 감시·그리퍼 응답 시간·호출/취소/중단 경로 제한시간·사이클 steady 상한은 단조 증가(steady) 시계를 쓴다.
@@ -156,11 +157,10 @@ M0는 감시 판정 함수와 이벤트 입력의 U 검증 범위다. ROS 관측
 ## 8. 검증 방법(`TEST_SPEC.md` TC ID, 게이트)
 
 - `TC-SYS-001-01`, `TC-SYS-002-01`, `TC-SYS-004-01`: 수준 U, 게이트 M0 (`tools/spec/test_sys_conventions.py`).
-- `TC-SYS-003-01`: 수준 C, 게이트 G1 (`vision_node` 계약 시험).
-- `TC-SYS-003-02`: 수준 C, 게이트 G3 (`tracker_node` 계약 시험).
+- `TC-SYS-003-01`: 수준 C, 게이트 G1 (`vision_node` 계약 시험, `src/vision/test/contract/test_vision_node_contract.py`).
+- `TC-SYS-003-02`: 수준 C, 게이트 G3 (`tracker_node` 계약 시험, `src/tracking/test/contract/test_tracker_node_contract.py`).
 - `TC-SYS-006-01`: 수준 U, 게이트 G3 (`tools/spec/test_tf_usage.py`).
 
 ## 9. 미결 사항
 
 - 고정 TF 프레임(`conveyor_frame`, `mat_frame`, `camera_link`, `tcp`)의 실기 보정 수치: TBD(현장 보정 OFF-3 / G1, SPEC-600).
-- `vision_node`·`tracker_node` 실제 노드에 대한 `TC-SYS-003-01`·`TC-SYS-003-02` 실행 검증: 각 패키지 노드 구현 단계(G1·G3)에서 수행.

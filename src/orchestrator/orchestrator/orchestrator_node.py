@@ -296,7 +296,8 @@ class RosSkillPort:
             gripper_response_s=rs.gripper_response_s if rs else math.inf,
             gripper_error_bits=rs.gripper_error_bits if rs else 0xFFFF,
             gripper_open=bool(rs and rs.gripper_open),
-            belt_steady=bool(belt and belt.steady), belt_speed_mps=belt.speed if belt else math.inf)
+            belt_steady=bool(belt and belt.steady), belt_speed_mps=belt.speed if belt else math.inf,
+            calibration_mismatch=bool(calib) and bool(want) and calib != want)
 
     def detect_stones(self, deadline):
         r = self._call(DetectObjects, 'vision/detect_objects', deadline, region=ObjectDetection.REGION_MAT,

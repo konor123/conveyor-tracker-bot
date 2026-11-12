@@ -2,8 +2,8 @@
 
 `tools/spec/trace.py`가 생성한다. 손으로 고치지 않는다.
 
-- REQ 135개 중 TC 연결 135개
-- pytest 대상 TC 234개 중 테스트 연결 221개
+- REQ 137개 중 TC 연결 137개
+- pytest 대상 TC 235개 중 테스트 연결 228개
 
 | TC | 수준 | REQ | 테스트 |
 |---|---|---|---|
@@ -55,7 +55,7 @@
 | TC-CAL-003-04 | U | REQ-CAL-003 | `src/calibration/test/test_board_session.py::test_board_session_meets_verify_gate`<br>`src/calibration/test/test_board_session.py::test_bad_touch_is_flagged`<br>`src/calibration/test/test_cli.py::test_calibrate_camera_end_to_end` |
 | TC-CAL-004-01 | U | REQ-CAL-004 | `src/calibration/test/test_tcp_offset.py::test_tcp_offset_full_3d`<br>`src/calibration/test/test_tcp_offset.py::test_tcp_offset_xy_only_vertical_approach` |
 | TC-CAL-005-01 | U | REQ-CAL-005 | `src/calibration/test/test_calibration_file.py::test_roundtrip`<br>`src/calibration/test/test_calibration_file.py::test_missing_required_key_fails`<br>`src/calibration/test/test_calibration_file.py::test_invalid_values_fail` |
-| TC-CAL-005-02 | C | REQ-CAL-005 | — |
+| TC-CAL-005-02 | C | REQ-CAL-005 | `src/orchestrator/test/test_calibration_precheck_ros.py::test_calibration_id_mismatch_fails_precheck` |
 | TC-CAL-006-01 | U | REQ-CAL-006 | `src/calibration/test/test_eye_to_hand_calibration.py::test_pixel_to_plane_roundtrip`<br>`src/calibration/test/test_eye_to_hand_calibration.py::test_verify_xy_stats_and_gate` |
 | TC-CAL-007-01 | U | REQ-CAL-007 | `src/calibration/test/test_charuco.py::test_corners_and_pose_on_rendered_board`<br>`src/calibration/test/test_charuco.py::test_board_points_match_print_layout` |
 | TC-CAL-008-01 | U | REQ-CAL-008 | `src/calibration/test/test_camera_frames.py::test_base_to_camera_link_composes_back` |
@@ -112,7 +112,7 @@
 | TC-INT-004-01 | I0 | REQ-INT-004(SPEC 없음) | `src/drop_bringup/test/test_i0_integration.py::test_i0_heartbeat_loss_all_roles` |
 | TC-INT-005-01 | I0 | REQ-INT-005(SPEC 없음) | `src/drop_bringup/test/test_i0_integration.py::test_i0_time_insufficient_pass_skip_and_not_attempted_record` |
 | TC-INT-006-01 | I0 | REQ-INT-006(SPEC 없음) | `src/drop_bringup/test/test_i0_integration.py::test_i0_inactive_node_rejected_at_precheck` |
-| TC-INT-007-01 | I1 | REQ-INT-007(SPEC 없음) | — |
+| TC-INT-007-01 | I1 | REQ-INT-007(SPEC 없음) | `src/drop_bringup/test/test_replay_launch.py::<module>` |
 | TC-INT-008-01 | I0 | REQ-INT-008(SPEC 없음) | `src/drop_bringup/test/test_i0_integration.py::test_i0_supervisor_stop_without_running_skill` |
 | TC-INT-009-01 | I0 | REQ-INT-009(SPEC 없음) | `src/drop_bringup/test/test_i0_integration.py::test_i0_real_tracker_planner_cycle` |
 | TC-INT-010-01 | I0 | REQ-INT-010(SPEC 없음) | `src/drop_bringup/test/test_i0_integration.py::test_i0_realtime_scale_cycle` |
@@ -169,6 +169,7 @@
 | TC-ORC-016-01 | U | REQ-ORC-016 | `src/orchestrator/test/test_cycle_runner.py::test_lost_target_is_reselected_within_pass`<br>`src/orchestrator/test/test_cycle_runner.py::test_coasting_target_is_not_reselected` |
 | TC-ORC-016-02 | U | REQ-ORC-016 | `src/orchestrator/test/test_ros_skill_port.py::test_target_lost_uses_only_lists_received_after_selection`<br>`src/orchestrator/test/test_ros_skill_port.py::test_reselect_within_pass_does_not_skip_the_same_track` |
 | TC-ORC-017-01 | U | REQ-ORC-017 | `src/orchestrator/test/test_cycle_runner.py::test_wait_cap_ended_while_waiting_keeps_last_wait_reason`<br>`src/orchestrator/test/test_cycle_runner.py::test_wait_cap_without_any_target_is_no_target` |
+| TC-ORC-018-01 | U | REQ-ORC-018 | `src/orchestrator/test/test_ros_skill_port.py::test_time_to_window_follows_current_track_not_selection` |
 | TC-PLN-001-01 | U | REQ-PLN-001 | `src/intercept_planner/test/test_planner.py::test_budget_formula` |
 | TC-PLN-001-02 | U | REQ-PLN-001 | `src/intercept_planner/test/test_planner.py::test_budget_boundary` |
 | TC-PLN-001-03 | U | REQ-PLN-001 | `src/intercept_planner/test/test_planner.py::test_belt_boundary` |
@@ -211,7 +212,7 @@
 | TC-ROB-009-01 | U | REQ-ROB-009 | `src/robot_control/test/test_skill_logic.py::test_place_reads_measured_open_width` |
 | TC-ROB-010-01 | U | REQ-ROB-010 | `src/robot_control/test/test_skill_logic.py::test_safe_retreat_unsupported_modes_fail_closed` |
 | TC-ROB-011-01 | C | REQ-ROB-011(SPEC 없음) | — |
-| TC-ROB-012-01 | C | REQ-ROB-012 | — |
+| TC-ROB-012-01 | C | REQ-ROB-012 | `src/robot_control/test/test_robot_controller_heartbeat.py::test_heartbeat_and_status_10hz_for_10s` |
 | TC-ROB-013-01 | U | REQ-ROB-013 | `src/robot_control/test/test_belt_sync.py::test_release_time_reference_not_source_stamp`<br>`src/robot_control/test/test_belt_sync.py::test_new_revision_accepted`<br>`src/robot_control/test/test_belt_sync.py::test_ros_message_mapping` |
 | TC-ROB-013-02 | U | REQ-ROB-013 | `src/robot_control/test/test_belt_sync.py::test_invalid_plan_latches`<br>`src/robot_control/test/test_belt_sync.py::test_old_revision_ignored_without_refresh`<br>`src/robot_control/test/test_belt_sync.py::test_source_stale_even_with_recent_receipt` |
 | TC-ROB-013-03 | U | REQ-ROB-013 | `src/robot_control/test/test_belt_sync.py::test_watchdogs`<br>`src/robot_control/test/test_belt_sync.py::test_freeze_ros_clock_detected_by_steady_time`<br>`src/robot_control/test/test_belt_sync.py::test_expiration_without_loop_gap`<br>`src/robot_control/test/test_belt_sync.py::test_no_plan_and_nonfinite_tcp` |
@@ -227,8 +228,8 @@
 | TC-SIM-004-01 | S | REQ-SIM-004(SPEC 없음) | 절차 시험 |
 | TC-SYS-001-01 | U | REQ-SYS-001 | `tools/spec/test_sys_conventions.py::test_package_names_do_not_collide_with_underlay` |
 | TC-SYS-002-01 | U | REQ-SYS-002 | `tools/spec/test_sys_conventions.py::test_yaml_numeric_keys_have_unit_suffix` |
-| TC-SYS-003-01 | C | REQ-SYS-003 | — |
-| TC-SYS-003-02 | C | REQ-SYS-003 | — |
+| TC-SYS-003-01 | C | REQ-SYS-003 | `src/vision/test/contract/test_vision_node_contract.py::test_detection_stamp_is_exposure_time_with_processing_delay` |
+| TC-SYS-003-02 | C | REQ-SYS-003 | `src/tracking/test/contract/test_tracker_node_contract.py::test_track_stamp_is_exposure_time_exactly` |
 | TC-SYS-004-01 | U | REQ-SYS-004 | `tools/spec/test_sys_conventions.py::test_unit_conversions_only_in_adapters` |
 | TC-SYS-005-01 | U | REQ-SYS-005 | `src/calibration/test/test_repo_paths.py::test_relative_paths_resolve_against_repo_root_regardless_of_cwd`<br>`src/calibration/test/test_repo_paths.py::test_repo_root_from_install_tree_and_env_override`<br>`src/drop_mocks/test/test_repo_path.py::test_repo_path_rule`<br>`src/orchestrator/test/test_repo_path.py::test_repo_path_rule` |
 | TC-SYS-006-01 | U | REQ-SYS-006 | `tools/spec/test_tf_usage.py::test_tf_usage_is_confined`<br>`tools/spec/test_tf_usage.py::test_tf_usage_detects_violation` |
@@ -263,7 +264,7 @@
 | TC-VIS-007-01 | U | REQ-VIS-007 | `src/vision/test/test_detector.py::test_robot_mask_overlap_marks_occluded_and_is_not_counted` |
 | TC-VIS-008-01 | C | REQ-VIS-008 | `src/vision/test/contract/test_vision_node_contract.py::test_stable_window` |
 | TC-VIS-008-02 | C | REQ-VIS-008 | `src/vision/test/contract/test_vision_node_contract.py::test_deadlines` |
-| TC-VIS-009-01 | U | REQ-VIS-009(SPEC 없음) | — |
+| TC-VIS-009-01 | U | REQ-VIS-009 | `src/vision/test/test_verifier.py::test_verify_cases`<br>`src/vision/test/test_verifier.py::test_hold_time_boundary`<br>`src/vision/test/test_verifier.py::test_missing_cap_frames_bound_continuity`<br>`src/vision/test/test_verifier.py::test_no_frames_and_constants` |
 | TC-VIS-010-01 | I1 | REQ-VIS-010(SPEC 없음) | — |
 
 ## TC가 없는 REQ
@@ -276,12 +277,6 @@
 - TC-ABT-012-02
 - TC-ABT-013-02
 - TC-ABT-014-02
-- TC-CAL-005-02
-- TC-INT-007-01
 - TC-ROB-011-01
-- TC-ROB-012-01
-- TC-SYS-003-01
-- TC-SYS-003-02
 - TC-TRK-013-01
-- TC-VIS-009-01
 - TC-VIS-010-01

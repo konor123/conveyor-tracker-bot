@@ -90,6 +90,13 @@ jobs:
           python3 -m pytest src/tracking/test -v
           python3 -m pytest src/intercept_planner/test -v
 
+      - name: Run vision tests
+        shell: bash
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          source install/setup.bash
+          python3 -m pytest src/vision/test -v
+
       - name: Run contract and I0 integration tests
         shell: bash
         run: |

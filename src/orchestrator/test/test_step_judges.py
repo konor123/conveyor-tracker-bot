@@ -78,6 +78,7 @@ def test_precheck_gripper(change, result, reason):
 @pytest.mark.parametrize("change, reason", [
     ({'nodes_active': False}, 'NODE_INACTIVE'),
     ({'calibration_valid': False}, 'CALIBRATION_INVALID'),
+    ({'calibration_valid': False, 'calibration_mismatch': True}, 'CALIBRATION_MISMATCH'),
     ({'protective_stop': True}, 'PROTECTIVE_STOP'),
     ({'robot_ready': False}, 'ROBOT_NOT_READY'),
     ({'gripper_alive': False}, 'GRIPPER_DEAD'),

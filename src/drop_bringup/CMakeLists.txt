@@ -11,6 +11,7 @@ if(BUILD_TESTING)
   ament_add_pytest_test(test_i0_integration test/test_i0_integration.py TIMEOUT 900)
   ament_add_pytest_test(test_real_bringup test/test_real_bringup.py TIMEOUT 120)
   ament_add_pytest_test(test_frames_launch test/test_frames_launch.py TIMEOUT 120)
+  ament_add_pytest_test(test_replay_launch test/test_replay_launch.py TIMEOUT 180)
 endif()
 
 ament_package()

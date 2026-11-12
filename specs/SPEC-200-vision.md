@@ -1,6 +1,6 @@
 # SPEC-200 vision
 
-- 버전: v0.2
+- 버전: v0.3
 - 근거: PLAN.md 0.2-4, 4.5절
 - REQ 영역: VIS
 
@@ -8,12 +8,13 @@
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
+| v0.3 | 2026-11-12 | 투입 자동 확인 순수 모듈 `verifier.py`의 입력·판정 규칙(4.6절), `max_gap_s`, REQ-VIS-009 |
 | v0.2 | 2026-11-10 | 투입 자동 확인은 SUCCESS/UNKNOWN만 낸다(실패 판정은 관찰자) |
 | v0.1 | 2026-11-09 | 픽셀 검출(공깃돌 배경 색 거리·병뚜껑 색 범위+원 적합), `stone_inside`, 로봇 마스크 표시, 광선-평면 교차·공분산, 프레임 처리, DetectObjects 안정 창 |
 
 ## 1. 목적·범위
 
-공깃돌·병뚜껑 검출, 광선-평면 교차, 로봇 마스크, 투입 자동 확인. 투입 자동 확인은 `stone_inside`가 1 s 유지되면 SUCCESS, 그 밖에는 UNKNOWN이며 FAILURE를 내지 않는다(실패 판정은 관찰자, PLAN.md 4.5절). 판단 로직은 ROS와 무관한 순수 모듈(`detector.py`, `localizer.py`, `pipeline.py`, `stable_window.py`)이고 `vision_node`는 감싸기만 한다.
+공깃돌·병뚜껑 검출, 광선-평면 교차, 로봇 마스크, 투입 자동 확인. 투입 자동 확인은 `stone_inside`가 1 s 유지되면 SUCCESS, 그 밖에는 UNKNOWN이며 FAILURE를 내지 않는다(실패 판정은 관찰자, PLAN.md 4.5절). 판단 로직은 ROS와 무관한 순수 모듈(`detector.py`, `localizer.py`, `pipeline.py`, `stable_window.py`, `verifier.py`)이고 `vision_node`는 감싸기만 한다.
 
 ## 2. 입력·출력(interface 버전)
 
@@ -43,6 +44,8 @@ SPEC-010 wire schema v0.2 기준.
 | 안정 창 `std_max_px` | 1.0 | 보정이 없을 때 대체 기준(제안값) |
 | 안정 창 `presence_min_ratio` | 0.8 | 창 안 프레임 중 보인 비율 |
 | 안정 창 `gate_m` / `gate_px` | 0.005 / 8 | 프레임 간 같은 대상물 |
+| 투입 확인 `hold_time_s` | 1.0 | `VerifyDrop.hold_time`, PLAN.md 4.5절 |
+| 투입 확인 `max_gap_s` | 0.2 | 판정 가능한 관측 사이 최대 간격(30 Hz에서 6프레임, 제안값) |
 
 ## 4. 동작(상태·알고리즘)
 
@@ -67,6 +70,10 @@ SPEC-010 wire schema v0.2 기준.
 
 프레임별 검출을 노출 시각과 함께 모은다. 최신 프레임의 (region, class, 가리지 않음) 검출을 기준으로, 창(`stable_window`) 안 각 프레임에서 게이트 안 가장 가까운 검출을 묶는다. 보인 비율이 `presence_min_ratio` 이상이고 축별 표준편차 최대값이 `std_max_m`(위치가 없으면 `std_max_px`) 이하인 것만 안정으로 본다. 창 길이가 차지 않았으면 판정하지 않고 다음 프레임을 기다린다. stamp가 역행·반복하면 창을 비운다. 안정 개수 < `min_count`이면 FAILED(`NOT_ENOUGH_STABLE`).
 
+### 4.6 투입 자동 확인(`verifier.py`)
+
+후퇴 완료 뒤 프레임마다 선택한 병뚜껑 track의 관측(`stone_inside_valid`, `stone_inside`, 뚜껑 중심 → 안에 든 공깃돌 중심 XY)을 노출 시각 순으로 본다. 선택한 뚜껑이 없는 프레임과 `stone_inside_valid = false`(가림)인 프레임은 정보 없음으로 건너뛴다. 판정 가능한 관측 가운데 `stone_inside = true`가 이어지는 구간을 유지 구간으로 보며, `stone_inside = false` 관측이나 판정 가능한 관측 사이 간격 > `max_gap_s`에서 구간이 끊긴다. 가장 긴 유지 구간의 길이(첫 관측 → 마지막 관측) ≥ `hold_time_s`이면 SUCCESS, 아니면 UNKNOWN이다(이유: 판정 가능한 관측 없음 `NOT_OBSERVED`, 안에 든 관측 없음 `NOT_INSIDE`, 유지 부족 `HOLD_SHORT`). FAILURE는 내지 않는다. 안착 오프셋 `stone_offset`은 SUCCESS 유지 구간의 평균 오프셋 벡터 크기이며 기록용이다.
+
 - REQ-VIS-001: 공깃돌(매트 배경, 5색)과 병뚜껑(벨트 배경)의 중심 오차 p95 ≤ 0.2 px, 공깃돌 등가 지름 오차 ≤ 1 px(TEST_SPEC 3.5절 합성 조건).
 - REQ-VIS-002: 공깃돌·병뚜껑·흰 사각 표식이 섞인 장면에서 공깃돌은 STONE, 병뚜껑은 CAP으로 분류하고 표식은 검출하지 않는다(파란 공깃돌 포함).
 - REQ-VIS-003: `stone_inside`는 뚜껑 안 중앙·안쪽 테두리 접촉에서 true, 바깥 테두리 접촉·빈 뚜껑에서 false, 뚜껑이 로봇 마스크로 가려지면 None이다.
@@ -75,6 +82,7 @@ SPEC-010 wire schema v0.2 기준.
 - REQ-VIS-006: 픽셀 공분산 diag(0.25, 0.25) px²를 3×3 위치 공분산으로 전파하며 각 원소가 수치 야코비안 결과의 5% 이내다.
 - REQ-VIS-007: 로봇 마스크와 겹친 검출은 `occluded_partial = true`로 표시하고 `DetectObjects` 개수에서 뺀다.
 - REQ-VIS-008: `DetectObjects`는 4.5절 안정 창을 쓰며 지터 0.3 mm는 OK, 0.6 mm는 FAILED, 지난 deadline은 즉시 TIMEOUT이다.
+- REQ-VIS-009: 투입 자동 확인(4.6절)은 선택한 병뚜껑에서 `stone_inside`가 `hold_time_s`(1 s) 이상 끊기지 않을 때만 SUCCESS이고, 가림·0.9 s 유지 뒤 이탈·벨트 위로 튕겨 나감·그리퍼에 붙음은 UNKNOWN이며, 어떤 입력에도 FAILURE를 내지 않는다.
 
 ## 5. 시간 제약(주기·제한시간)
 
@@ -95,7 +103,7 @@ Progress.md 5절 G1 합격 기준.
 
 ## 8. 검증 방법(`TEST_SPEC.md` TC ID, 게이트)
 
-TC-VIS-001-01 ~ TC-VIS-007-01(U, `src/vision/test/test_detector.py`·`test_localizer.py`), TC-VIS-008-01·02(C), TC-VIS-010-01(I1, `off1_bags`). 게이트 G1.
+TC-VIS-001-01 ~ TC-VIS-007-01(U, `src/vision/test/test_detector.py`·`test_localizer.py`), TC-VIS-008-01·02(C), TC-VIS-009-01(U, `src/vision/test/test_verifier.py`), TC-VIS-010-01(I1, `off1_bags`). 게이트 G1.
 
 ## 9. 미결 사항
 
@@ -103,3 +111,5 @@ TC-VIS-001-01 ~ TC-VIS-007-01(U, `src/vision/test/test_detector.py`·`test_local
 - 매트 위 공깃돌 등가 지름이 실측(17~18 mm)보다 2~3 px 크게 나온다(그림자·경계 가중). 중심에는 영향이 작으나 지름으로 판정하지 않는다.
 - `inner_diameter_ratio`, `h_stone_offset_m`, `h_rim_m`, `floor_thickness_m`: TBD(OFF-1 실측).
 - ROI 자동 탐색은 확인용이다. 운용 ROI는 보정 뒤 고정값으로 둔다.
+- `vision/verify_drop` 서비스 연결: 요청의 `cap_track_id`(tracker, `conveyor_frame`)를 뚜껑 검출(`robot_base`)과 잇는 방법(`T_base_conveyor`를 vision에 줄지, tracker가 검출 번호를 넘길지)이 정해지지 않았다.
+- 그리퍼에 붙은 공깃돌이 뚜껑 원 안에 겹쳐 보이는 채로 벨트가 느리면(뚜껑 안쪽 반지름 12.8 mm를 1 s 안에 벗어나지 않음) 자동 확인이 SUCCESS를 낼 수 있다. 성공률은 관찰자 판독으로 계산한다(PLAN.md 4.5절).

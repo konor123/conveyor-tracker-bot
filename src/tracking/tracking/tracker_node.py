@@ -1,4 +1,5 @@
 """Managed lifecycle transport adapter for the pure conveyor TrackManager."""
+from collections import OrderedDict
 from pathlib import Path
 import numpy as np
 import yaml
@@ -53,6 +54,9 @@ class TrackerNode(LifecycleNode):
         self._last_received = None
         self._jumped = False
         self._seq = 0
+        # 관측 프레임 시각(float 초) → 입력 header.stamp. 1.76e9 s에서 float 분해능은 약 240 ns라
+        # 발행 stamp를 float에서 되살리면 ns 자리가 바뀐다(SPEC-000 REQ-SYS-003, 오차 0 ns).
+        self._input_stamps = OrderedDict()
         self._steady = Clock(clock_type=ClockType.STEADY_TIME)
         self._jump = self.get_clock().create_jump_callback(
             JumpThreshold(min_forward=None, min_backward=Duration(nanoseconds=-1), on_clock_change=False),
@@ -132,6 +136,7 @@ class TrackerNode(LifecycleNode):
         return TransitionCallbackReturn.SUCCESS
 
     IGNORED_WARN_COUNT = 90        # 30 Hz에서 3 s
+    INPUT_STAMPS_KEPT = 300        # 30 Hz에서 10 s(COASTING track의 last_observed_stamp까지 덮는다)
 
     def _on_jump(self, jump):
         if jump.delta.nanoseconds*1e-9 < -self.value('clock.backstep_tol_s'):
@@ -170,6 +175,9 @@ class TrackerNode(LifecycleNode):
             covariance = rotation @ np.asarray(d.position_cov).reshape(3,3) @ rotation.T
             dets.append(Det(position, covariance[:2,:2], d.object_class, d.position_valid))
         self._last_received = now
+        self._input_stamps[t] = msg.header.stamp
+        while len(self._input_stamps) > self.INPUT_STAMPS_KEPT:
+            self._input_stamps.popitem(last=False)
         self._publish(t, self.manager.process_frame(t,dets))
         m = self.manager
         if m.created_total == 0 and m.ignored_outside >= self.IGNORED_WARN_COUNT:
@@ -189,12 +197,17 @@ class TrackerNode(LifecycleNode):
                 and (self.manager.t_state is None or now > self.manager.t_state)):
             self._publish(now, self.manager.process_frame(now, []))
 
+    def _stamp(self, t):
+        """관측 프레임 시각이면 입력 stamp 그대로, 아니면(합성 빈 프레임·예측 시각) float에서 만든다."""
+        exact = self._input_stamps.get(t)
+        return exact if exact is not None else stamp(t)
+
     def _publish(self, t, tracks):
-        header = Header(stamp=stamp(t),frame_id='conveyor_frame')
+        header = Header(stamp=self._stamp(t),frame_id='conveyor_frame')
         messages, transforms = [], []
         for tr in tracks:
             messages.append(TrackedObject(header=header,track_id=tr.track_id,epoch=tr.epoch,
-                object_class=tr.object_class,status=tr.status,last_observed_stamp=stamp(tr.last_observed),
+                object_class=tr.object_class,status=tr.status,last_observed_stamp=self._stamp(tr.last_observed),
                 observation_count=tr.observation_count,position=Point(**dict(zip('xyz',map(float,tr.position)))),
                 velocity=Vector3(**dict(zip('xyz',map(float,tr.velocity)))),
                 state_cov=list(tr.state_cov.ravel()),valid_until=stamp(tr.valid_until)))
@@ -208,7 +221,7 @@ class TrackerNode(LifecycleNode):
             self._tf_pub.publish(TFMessage(transforms=transforms))
         belt = self.manager.belt_motion
         if belt is not None:
-            self._belt_pub.publish(BeltMotion(header=Header(stamp=stamp(belt.t_state),frame_id='conveyor_frame'),
+            self._belt_pub.publish(BeltMotion(header=Header(stamp=self._stamp(belt.t_state),frame_id='conveyor_frame'),
                 direction=Vector3(x=float(belt.direction[0]),y=float(belt.direction[1])),
                 speed=float(belt.speed),speed_std=float(belt.speed_std),window_sec=float(belt.window_sec),
                 source=belt.source,steady=belt.steady,last_change_stamp=stamp(belt.last_change_stamp or 0.)))

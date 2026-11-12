@@ -230,3 +230,33 @@ def _configure(cls, T):
 @pytest.mark.parametrize('digits, ok', [(6, True), (3, False)])
 def test_rigid_tolerance_matches_static_frames(digits, ok):
     assert (_configure(TrackerNode, _tilted_T(digits)) == 'SUCCESS') is ok
+
+
+@pytest.mark.req('REQ-SYS-003')
+@pytest.mark.tc('TC-SYS-003-02')
+def test_track_stamp_is_exposure_time_exactly(rig):
+    """노출 시각 T(epoch 규모, ns 자리까지)인 검출을 T+80 ms에 받아도 track stamp = t_state = T(오차 0 ns).
+
+    float 초를 거치면 1.76e9 s에서 분해능이 약 240 ns라 ns 자리가 바뀐다. 시각은 /clock 정수 ns로 맞춘다.
+    """
+    from builtin_interfaces.msg import Time
+    from rosgraph_msgs.msg import Clock
+    r = rig
+    det = ObjectDetection(object_class=2, position_valid=True, position=Point(x=-.2, y=.01, z=.02),
+                          position_cov=list((np.eye(3)*9e-8).ravel()))
+    for t_ns in (1_763_000_000_123_456_789, 1_763_000_000_156_790_123):        # 연속 두 프레임(33 ms 간격)
+        T = Time(sec=t_ns // 10**9, nanosec=t_ns % 10**9)
+        recv_ns = t_ns + 80_000_000
+        r.clock.publish(Clock(clock=Time(sec=recv_ns // 10**9, nanosec=recv_ns % 10**9)))
+        r.wait(lambda: r.node.get_clock().now().nanoseconds == recv_ns)
+        before = len(r.tracks)
+        r.pub.publish(ObjectDetectionArray(header=Header(stamp=T, frame_id='robot_base'), detections=[det]))
+        r.wait(lambda: len(r.tracks) > before)
+        out = r.tracks[-1]
+        assert r.node.get_clock().now().nanoseconds == recv_ns            # 처리 시점은 T + 80 ms
+        assert r.node.manager.t_state == seconds(T)
+        assert (out.header.stamp.sec, out.header.stamp.nanosec) == (T.sec, T.nanosec)
+        assert len(out.tracks) == 1
+        tr = out.tracks[0]
+        assert (tr.header.stamp.sec, tr.header.stamp.nanosec) == (T.sec, T.nanosec)
+        assert (tr.last_observed_stamp.sec, tr.last_observed_stamp.nanosec) == (T.sec, T.nanosec)

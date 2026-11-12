@@ -1,6 +1,6 @@
 # SPEC-600 calibration
 
-- 버전: v0.4
+- 버전: v0.5
 - 근거: PLAN.md 2.3, 2.4, 2.5절, Progress.md 4절
 - REQ 영역: CAL
 
@@ -8,6 +8,7 @@
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
+| v0.5 | 2026-11-12 | TC-CAL-005-02를 orchestrator_node 계약 시험으로 검증(검출의 calibration_id ↔ orchestrator 파라미터) |
 | v0.4 | 2026-11-12 | `frames.launch.py scenario:=<이름>`: mock 시나리오의 컨베이어 변환으로 `conveyor_frame` 발행 |
 | v0.3 | 2026-11-12 | `T_base_conveyor` 강체 판정 허용오차 1e-5(소수 6자리로 적은 보정 행렬 수용) |
 | v0.2 | 2026-11-11 | 고정 좌표계 static TF(`base_link → robot_base → conveyor_frame·mat_frame`), 평면 좌표계 계산, RViz 설정(REQ-CAL-011, 012) |
@@ -151,7 +152,7 @@ robot_base ─ mat_frame            mat_plane.yaml에서 계산(아래)
 ## 8. 검증 방법(`TEST_SPEC.md` TC ID, 게이트)
 
 - U: TC-CAL-001-01, TC-CAL-002-01, TC-CAL-002-02, TC-CAL-003-01~04, TC-CAL-004-01, TC-CAL-005-01, TC-CAL-006-01, TC-CAL-007-01, TC-CAL-008-01, TC-CAL-009-01, TC-CAL-010-01~03, TC-CAL-011-01 (`src/calibration/test/`)
-- C: TC-CAL-005-02(vision_node 구현 후), TC-CAL-012-01. U: TC-CAL-012-02(`drop_mocks/test/test_scenario_engine.py`). I2: TC-CAL-012-03(`drop_bringup/test/test_frames_launch.py`). I0: TC-INT-012-01(관측 TF와 예측 Marker의 좌표 일치, `test_i0_integration.py`)
+- C: TC-CAL-005-02(`orchestrator/test/test_calibration_precheck_ros.py`), TC-CAL-012-01. U: TC-CAL-012-02(`drop_mocks/test/test_scenario_engine.py`). I2: TC-CAL-012-03(`drop_bringup/test/test_frames_launch.py`). I0: TC-INT-012-01(관측 TF와 예측 Marker의 좌표 일치, `test_i0_integration.py`)
 - B: TC-BEN-012-01(OFF-3 검증 점)
 - 게이트: G1
 

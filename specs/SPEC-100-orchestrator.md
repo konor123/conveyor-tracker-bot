@@ -1,6 +1,6 @@
 # SPEC-100 orchestrator
 
-- 버전: v0.13
+- 버전: v0.15
 - 근거: PLAN.md 4절
 - REQ 영역: ORC
 
@@ -8,6 +8,7 @@
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
+| v0.15 | 2026-11-12 | PRECHECK 이유 코드 `CALIBRATION_MISMATCH`: vision 검출과 orchestrator `calibration_id`가 둘 다 있고 다르면(SPEC-600 REQ-CAL-005). vision 쪽이 비었으면 `CALIBRATION_INVALID`, orchestrator 쪽이 비었으면 비교하지 않는다 |
 | v0.14 | 2026-11-12 | WAIT_CAP `t_to_window_s`를 매 관측의 현재 track 위치·속도로 다시 계산(REQ-ORC-018). 선택 순간 한 번 받은 진입 예상 시각은 갓 생긴 track의 속도 추정을 그대로 담아 실영상에서 수~수십 s 늦었다 |
 | v0.13 | 2026-11-12 | 여러 단계에 걸친 goal의 서버 deadline = goal 전체 상한(REQ-ORC-015), WAIT_CAP 대상 track 소실 시 같은 통과 안 재선택(REQ-ORC-016), 대기 중 끝난 WAIT_CAP의 기록·실패 단계 로그(REQ-ORC-017) |
 | v0.12 | 2026-11-11 | 계획 단계 위치 표준편차 기준(3.25 mm)과 해제 게이트 기준(0.5 mm) 분리, WAIT_CAP 계획 시점(도달 구간 진입 3.0 s 전부터, REQ-ORC-013·014) |
@@ -113,7 +114,7 @@ SPEC-010 wire schema v0.2 / runtime contract v0.4 기준.
 
 | 상태 | 이유 코드(검사 순서) |
 |---|---|
-| PRECHECK | `NODE_INACTIVE`, `HEARTBEAT_STALE`, `CALIBRATION_INVALID`, `PROTECTIVE_STOP`, `ROBOT_NOT_READY`, `GRIPPER_DEAD`, `GRIPPER_ERROR`, `GRIPPER_SLOW`, `GRIPPER_NOT_OPEN`, `BELT_UNSTEADY`, `BELT_TOO_FAST` |
+| PRECHECK | `NODE_INACTIVE`, `HEARTBEAT_STALE`, `CALIBRATION_MISMATCH`, `CALIBRATION_INVALID`, `PROTECTIVE_STOP`, `ROBOT_NOT_READY`, `GRIPPER_DEAD`, `GRIPPER_ERROR`, `GRIPPER_SLOW`, `GRIPPER_NOT_OPEN`, `BELT_UNSTEADY`, `BELT_TOO_FAST` |
 | DETECT_STONE | `NO_STONE`, `POSITION_INVALID`, `LOW_CONFIDENCE`, `POSITION_UNSTABLE`, `CLEARANCE` |
 | PICK_STONE | `ROBOT_ERROR`, `GRIPPER_ERROR`, `STONE_ON_MAT`, `GRIP_WIDTH`, `GRIP_CURRENT_LOW` |
 | MOVE_STANDBY | `DROPPED`, `POSE_ERROR` |

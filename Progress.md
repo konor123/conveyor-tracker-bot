@@ -132,7 +132,8 @@
     - 그리퍼 통신 설정(통신 속도·ID·Protocol Type) 변경과 PC 쪽 배선은 대상이 아니다(사용자 승인 사항).
 - [x] `[ON]` `motion_adapter` 구현: SI/quaternion ↔ mm/deg/ZYZ 변환 + 단위 테스트, 단일 지령 권한, freshness 감시(L0)(TC-ROB-*)
   - TC-ROB-001~006(`test_motion_adapter.py`), 2026-11-12 집 PC WSL(`ce86f9b`) robot_control 115 passed. 스트림 지령 경로에 붙이는 것은 10절 항목이다.
-- [ ] `[ON]` `robot_controller_node` skill 서버: `PickStone`, `MoveToPose`, `PlaceStone`(move_line 기반), `SafeRetreat`, `Stop`, Heartbeat 발행, goal deadline 자체 중단
+- [x] `[ON]` `robot_controller_node` skill 서버: `PickStone`, `MoveToPose`, `PlaceStone`(move_line 기반), `SafeRetreat`, `Stop`, Heartbeat 발행, goal deadline 자체 중단
+  - `skill_logic.StaticSkillExecutor`(backend의 `move_line`·그리퍼 계약) + 노드, backend는 `disabled`(기본)·`fake`. TC-ROB-007·009·010·014, Heartbeat·`robot/status` 10 Hz(TC-ROB-012-01, 2026-11-13 집 PC WSL robot_control 116 passed). Doosan 실제 backend와 virtual 확인은 아래 별도 항목이다.
 - [x] `[ON]` `test/fakes/`의 fake transport·fake gripper로 단위 변환·stale·cancel 단위 테스트
   - `test/fakes/transport.py`·`backend.py`·`resident.py`, TC-ROB-001~004·007-02, TC-GRP-007-01. 2026-11-12 집 PC WSL(`ce86f9b`) robot_control 115 passed.
 - [ ] `[ON]` Doosan `mode:=virtual`에서 E0509 모델·선정한 stream·`move_line` 형식이 동작하는지 확인. 지원하지 않으면 형식 확인용 최소 ROS stub을 두고 선택 근거를 기록(그리퍼 통신은 virtual에서 확인하지 않음)
@@ -217,6 +218,7 @@
   - `tracker_node`(Managed Lifecycle) + 순수 모듈. 계약 TC-TRK-009~012와 공용 tracker 계약(`tools/testing/contracts/tracker_contract.py`)을 officepc WSL에서 2회 반복 통과(SPEC-300 v0.2).
 - [ ] `[ON*]` OFF-1 bag으로 실데이터 추적 확인, 병뚜껑 검출 시각은 노출 시각 기준
   - 압축 영상(`records/media/2026-11-07/`) 5조건 재생: 통과마다 track 1개, 한 바퀴 10.5·7.0·4.5 s, 검출 잡음 0.1~0.3 mm, 벨트 속도 맥동 확인(`records/bench/belt-video-2026-11-07/README.md`). 원본 bag 기반 I1(TC-TRK-013-01)과 독립 GT 비교가 완료 조건이다.
+  - 노출 시각 보존: vision 검출 stamp = 영상 노출 시각(처리 지연 50 ms 주입), tracker track stamp·`last_observed_stamp` = 입력 검출 stamp(수신 80 ms 뒤)를 ns까지 확인(TC-SYS-003-01·02). tracker가 stamp를 float 초로 바꿨다가 되살리며 21 ns 어긋나던 것을 입력 stamp를 그대로 쓰도록 고쳤다.
 - [ ] `[ON*]` rosbag 회귀 자료(정상·가림·프레임 누락·속도 변화) 정리 → I1 CI 자료. 프레임을 뺀 편집 bag으로 `frame_drop_10pct` 시험
 - [x] `[ON]` `occlusion_long`·`speed_change`·`frame_drop_10pct`·`clock_jump` 단위 테스트(`PLAN.md` 7.3절)
   - TC-TRK-004-01(가림 초과 LOST), 006-01, 007-01(10% 누락: 유효 추적 100%, 위치 p95 최대 0.209 mm), 008-01.
@@ -294,6 +296,7 @@
 - [ ] `[ON]` 지속 갱신 목표 + 10절 추종 루프로 하강·해제, 해제 게이트 미통과 시 SAFE_ABORT(동기 유지하며 상승). I0·S에서 시퀀스 확인
   - I0: 실제 tracker·planner 한 사이클(TC-INT-009-01), 대역 소요시간 축척 1.0(TC-INT-010-01, goal deadline = goal 전체 상한 REQ-ORC-015), WAIT_CAP 대상 재선택(TC-INT-011-01, REQ-ORC-016). 실제 `DynamicPlace`(10절)와 S 확인이 남은 조건이다.
 - [ ] `[OFF]` OFF-6: 실제 E0509 동적 투입, 투입 후 공깃돌이 뚜껑과 함께 1 s 이동하는지 확인
+  - 자동 확인 순수 모듈 `vision/verifier.py`(SUCCESS/UNKNOWN만, REQ-VIS-009, TC-VIS-009-01). `vision/verify_drop` 서비스 연결은 vision에 `T_base_conveyor`가 없어 track과 검출을 잇는 방법을 정한 뒤 한다(SPEC-200 미결).
 - [ ] `[ON*]` 해제 오차·성공률 분석
 
 **G6 합격 기준(제안):** 저·중·고 3속도 각 50회, 초기 ≥ 80%(개선 목표 ≥ 90%), 해제 오차(추정) p95 ≤ `e_xy_max`, 1 s 이상 유지(관찰자 판독 기준). 게이트 미통과로 시도하지 않은 횟수와 통과 보내기 횟수도 공개.
@@ -301,6 +304,7 @@
 ## 12. 전체 시스템 통합 → G7
 
 - [ ] `[ON]` ROS 2 노드·Launch 통합(real / sim / replay / mock 분리, replay는 로봇 지령 경로 미연결)
+  - replay: `drop_bringup/launch/replay.launch.py`(영상 토픽만 재생, 실제 vision·tracker·planner, robot·orchestrator·그리퍼·스트림 경로 없음), TC-INT-007-01이 그래프에서 지령 경로 0개를 확인한다(합성 bag 포함). sim은 Isaac Sim을 돌릴 장비가 없어(부록 A) 남는다.
 - [ ] `[ON]` 상태 머신·단계 판정·중단 등급(`PLAN.md` 4, 5절): PRECHECK, WAIT_CAP, SAFE_ABORT, PROTECTIVE_STOP, WAIT_OPERATOR 포함. I0 전 시나리오 통과
 - [ ] `[ON]` 공깃돌 파지부터 투입까지 자동화(시도 사이 공깃돌 회수는 작업자)
 - [ ] `[ON]` 추적 손실·속도 급변: 해제 전이면 SAFE_ABORT(L3)

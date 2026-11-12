@@ -66,6 +66,7 @@ class PrecheckMeas:
     gripper_open: bool
     belt_steady: bool
     belt_speed_mps: float
+    calibration_mismatch: bool = False  # vision과 orchestrator의 calibration_id가 둘 다 있고 다름. 이유 코드만 가른다
 
 
 @dataclass(frozen=True)
@@ -85,6 +86,7 @@ def judge_precheck(m: PrecheckMeas, p: PrecheckParams) -> Judgement:
     return _judge([
         (not m.nodes_active, 'NODE_INACTIVE'),
         (not le(m.heartbeat_age_max_s, p.heartbeat_age_max_s), 'HEARTBEAT_STALE'),
+        (m.calibration_mismatch, 'CALIBRATION_MISMATCH'),
         (not m.calibration_valid, 'CALIBRATION_INVALID'),
         (m.protective_stop, 'PROTECTIVE_STOP'),
         (not m.robot_ready, 'ROBOT_NOT_READY'),
