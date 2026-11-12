@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Protocol
 
+from robot_control.drl_common import expand
 from robot_control.gripper_adapter import MODBUS, MODEL_NUMBER_RH_P12_RN_A, GripperFault, encode7, next_seq
 
 _DRL = Path(__file__).with_name('drl') / 'gripper_resident.drl'
@@ -52,7 +53,7 @@ def render_resident_drl(read_timeout_s: float = 0.5, spin_s: float = 0.005, arm_
         raise ValueError('spin_s must be in 0.001..0.05 s')
     if not 1.0 <= arm_timeout_s <= 60.0:
         raise ValueError('arm_timeout_s must be in 1..60 s')
-    return (_DRL.read_text(encoding='utf-8').replace('__READ_TIMEOUT__', repr(float(read_timeout_s)))
+    return (expand(_DRL.read_text(encoding='utf-8')).replace('__READ_TIMEOUT__', repr(float(read_timeout_s)))
             .replace('__SPIN__', repr(float(spin_s))).replace('__ARM_TIMEOUT__', repr(float(arm_timeout_s))))
 
 

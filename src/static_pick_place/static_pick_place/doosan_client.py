@@ -10,12 +10,14 @@ from pathlib import Path
 
 import numpy as np
 
+from robot_control.drl_common import expand
 from robot_control.motion_adapter import (joints_doosan_to_si, pose_doosan_to_si, pose_si_to_doosan,
                                           speed_si_to_doosan)
 
 ROBOT_STATE_STANDBY = 1
 ROBOT_MODE_AUTONOMOUS = 1
 DRL_STATE_PLAY, DRL_STATE_STOP, DRL_STATE_LAST = 0, 1, 3
+DRL_IDLE_STATES = (DRL_STATE_STOP, DRL_STATE_LAST)      # 새 프로그램을 시작할 수 있는 상태(LAST = 연결 뒤 미실행)
 DRL_DONE = 250
 DRL_START_GRACE_S = 2.0          # drl_start 뒤 PLAY나 실행 번호가 보여야 하는 시간
 RUN_ID_REGISTER = 26             # cycle.drl이 결과 레지스터를 지운 뒤 쓰는 실행 번호
@@ -49,7 +51,7 @@ def render_gripper_drl(pulse: int, current_ma: int, grasp: bool, read_timeout_s:
         raise ValueError('current must be an integer in 1..150 mA (2026-11-09 사용자 승인 상한)')
     if not 0.01 <= read_timeout_s <= 0.5:
         raise ValueError('read_timeout_s must be in 0.01..0.5 s')
-    return (_DRL.read_text().replace('__PULSE__', str(pulse)).replace('__CURRENT__', str(current_ma))
+    return (expand(_DRL.read_text(encoding='utf-8')).replace('__PULSE__', str(pulse)).replace('__CURRENT__', str(current_ma))
             .replace('__GRASP__', 'True' if grasp else 'False').replace('__READ_TIMEOUT__', repr(float(read_timeout_s))))
 
 
@@ -93,7 +95,7 @@ def render_cycle_drl(steps, quat_xyzw, read_timeout_s: float = 0.5, ang_v_radps:
         else:
             raise ValueError(f'unknown step kind: {s.kind}')
     ang = speed_si_to_doosan([0.0, 0.0, 0.0], [ang_v_radps, ang_a_radps2, 0.0])
-    return (_CYCLE_DRL.read_text(encoding='utf-8').replace('__STEPS__', '[' + ', '.join(rows) + ']')
+    return (expand(_CYCLE_DRL.read_text(encoding='utf-8')).replace('__STEPS__', '[' + ', '.join(rows) + ']')
             .replace('__READ_TIMEOUT__', repr(float(read_timeout_s)))
             .replace('__ANG_V__', f'{ang[3]:.3f}').replace('__ANG_A__', f'{ang[4]:.3f}')
             .replace('__RUN_ID__', str(run_id)))
@@ -145,9 +147,29 @@ class DoosanClient:
             raise RobotError('NOT_STANDBY', str(st))
         if st['robot_mode'] != ROBOT_MODE_AUTONOMOUS:
             raise RobotError('NOT_AUTONOMOUS', '수동 모드에서는 DRL(그리퍼)이 거부된다. 펜던트/set_robot_mode 1')
-        if st['drl_state'] not in (DRL_STATE_STOP, DRL_STATE_LAST):
+        if st['drl_state'] not in DRL_IDLE_STATES:
             raise RobotError('DRL_BUSY', str(st))
         return st
+
+    # ------------------------------------------------------------ DRL 공통
+    def _drl_state(self) -> int:
+        from dsr_msgs2.srv import GetDrlState
+        return self._call(GetDrlState, 'drl/get_drl_state').drl_state
+
+    def _require_drl_idle(self) -> None:
+        state = self._drl_state()
+        if state not in DRL_IDLE_STATES:
+            raise RobotError('DRL_BUSY', f'drl_state={state}')
+
+    def _reg_byte(self, address: int) -> int:
+        """제어기 출력 레지스터에서 DRL이 쓴 바이트 하나."""
+        from dsr_msgs2.srv import GetOutputRegisterInt
+        return decode_register_byte(self._call(GetOutputRegisterInt, 'plc/get_output_register_int',
+                                               address=address, timeout_ms=1000).value)
+
+    def _start_drl(self, code: str) -> None:
+        from dsr_msgs2.srv import DrlStart
+        self._call(DrlStart, 'drl/drl_start', robot_system=0, code=code)
 
     def tcp_pose(self) -> tuple[np.ndarray, np.ndarray]:
         from dsr_msgs2.srv import GetCurrentPosx
@@ -180,19 +202,12 @@ class DoosanClient:
 
     def gripper(self, pulse: int, current_ma: int, grasp: bool = False, timeout_s: float = 15.0,
                 read_timeout_s: float = 0.5) -> GripperOutcome:
-        from dsr_msgs2.srv import DrlStart, GetDrlState, GetOutputRegisterInt
         code = render_gripper_drl(pulse, current_ma, grasp, read_timeout_s)
-        state = self._call(GetDrlState, 'drl/get_drl_state').drl_state
-        if state not in (DRL_STATE_STOP, DRL_STATE_LAST):
-            raise RobotError('DRL_BUSY', f'drl_state={state}')
-
-        def byte(addr):
-            return decode_register_byte(self._call(GetOutputRegisterInt, 'plc/get_output_register_int',
-                                                   address=addr, timeout_ms=1000).value)
-
+        self._require_drl_idle()
+        byte = self._reg_byte
         # 지난 실행의 결과(250 등)를 이번 결과로 읽지 않도록 DRL이 15를 0으로 지운 것을 본 뒤에만 받는다
         reset_seen = byte(15) == 0
-        self._call(DrlStart, 'drl/drl_start', robot_system=0, code=code)
+        self._start_drl(code)
         deadline = time.monotonic() + timeout_s
         while time.monotonic() < deadline:
             marker = byte(15)
@@ -203,7 +218,7 @@ class DoosanClient:
             elif marker == DRL_DONE:
                 b = [byte(a) for a in range(16, 24)]
                 # 결과를 쓴 직후 DRL은 아직 종료 중(PLAY)이고, 그때 보낸 move_line은 움직이지 않고 끝난다(2026-11-09)
-                while self._call(GetDrlState, 'drl/get_drl_state').drl_state not in (DRL_STATE_STOP, DRL_STATE_LAST):
+                while self._drl_state() not in DRL_IDLE_STATES:
                     if time.monotonic() > deadline:
                         raise RobotError('DRL_NOT_STOPPED', 'gripper DRL finished but program still running')
                     time.sleep(0.05)
@@ -220,21 +235,10 @@ class DoosanClient:
         레지스터 14·15는 프로그램이 이번 실행 번호(26)를 쓴 뒤에만 이번 실행의 값으로 본다(지난 실행 값 무시).
         성공·실패 모두 프로그램이 STOP이 된 뒤에 돌아온다. 그 전에 감시를 멈추면 `RobotError.program_may_run`이 참이다.
         """
-        from dsr_msgs2.srv import DrlStart, GetDrlState, GetOutputRegisterInt
-        state = self._call(GetDrlState, 'drl/get_drl_state').drl_state
-        if state not in (DRL_STATE_STOP, DRL_STATE_LAST):
-            raise RobotError('DRL_BUSY', f'drl_state={state}')
-
-        def byte(addr):
-            return decode_register_byte(self._call(GetOutputRegisterInt, 'plc/get_output_register_int',
-                                                   address=addr, timeout_ms=1000).value)
-
-        def drl_state():
-            return self._call(GetDrlState, 'drl/get_drl_state').drl_state
-
+        self._require_drl_idle()
+        byte, drl_state = self._reg_byte, self._drl_state
         run_id = byte(RUN_ID_REGISTER) % 250 + 1          # 1~250, 시작 전 값과 다르다
-        code = render_cycle_drl(steps, quat_xyzw, read_timeout_s, run_id=run_id)
-        self._call(DrlStart, 'drl/drl_start', robot_system=0, code=code)
+        self._start_drl(render_cycle_drl(steps, quat_xyzw, read_timeout_s, run_id=run_id))
         started_at = time.monotonic()
         deadline = started_at + timeout_s
         times: list[tuple[str, float]] = []
@@ -256,7 +260,7 @@ class DoosanClient:
             return steps[current - 1].name if 1 <= current <= len(steps) else 'init'
 
         def wait_stopped(reason: str, detail: str) -> None:
-            while drl_state() not in (DRL_STATE_STOP, DRL_STATE_LAST):
+            while drl_state() not in DRL_IDLE_STATES:
                 if time.monotonic() > deadline:
                     raise RobotError(reason, detail + ' (program still running)', program_may_run=True)
                 time.sleep(0.05)
@@ -284,7 +288,7 @@ class DoosanClient:
             state = drl_state()
             if state == DRL_STATE_PLAY:
                 seen_play = True
-            elif state in (DRL_STATE_STOP, DRL_STATE_LAST):
+            elif state in DRL_IDLE_STATES:
                 if seen_play:
                     # 결과 표지 없이 멈췄다. 결과 쓰기가 마지막 문장이라 한 번 더 읽은 뒤에 판정한다
                     if stop_seen:
