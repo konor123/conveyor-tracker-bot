@@ -68,7 +68,7 @@ SPEC-010 wire schema v0.2 / runtime contract v0.4 기준.
 - 프레임마다 `CLASS_CAP`이고 `position_valid`인 검출만 쓴다.
 - 처리 순서: (1) 시각 검사 → (2) 모든 track을 검출 stamp로 예측 → (3) 마할라노비스 거리 `d² ≤ gate_chi2`인 쌍을 거리 오름차순으로 탐욕 배정 → (4) 배정된 track 갱신(`OBSERVED`, `observation_count += 1`, `last_observed_stamp` 갱신) → (5) 배정되지 않은 검출 중 관측 구간 안(`x_obs_min ≤ x ≤ x_obs_max`)의 것으로 새 track 생성 → (6) 배정되지 않은 track 상태 전이.
 - 예측 단계에서 `t − t_last_obs > coast.max_s`인 track은 연관 전에 `LOST`가 된다(프레임 공백 뒤 첫 검출이 만료된 track에 붙지 않는다).
-- 관측 구간 밖의 배정되지 않은 검출은 버린다. 구간 끝을 지나 `LOST`가 된 뒤에도 카메라에 계속 보이는 뚜껑이 프레임마다 새 track을 만들었다가 바로 `LOST`가 되는 것을 막는다. 이미 있는 track의 갱신은 구간과 무관하게 `x_obs_max + exit_margin`까지 이어진다.
+- 관측 구간 밖의 배정되지 않은 검출은 버린다. 구간 끝을 지나 `LOST`가 된 뒤에도 카메라에 계속 보이는 뚜껑이 프레임마다 새 track을 만들었다가 바로 `LOST`가 되는 것을 막는다. 이미 있는 track의 갱신은 구간과 무관하게 `x_obs_max + exit_margin`까지 이어진다. `tracker_node`는 track을 한 번도 만들지 못한 채 구간 밖 검출을 90개(30 Hz에서 3 s) 버리면 WARN을 남긴다(30 s에 한 번, 구간과 마지막 x 포함). `T_base_conveyor`나 구간 설정이 실제 배치와 맞지 않는 경우다.
 - 상태 전이: 관측이 있으면 `OBSERVED`. 관측이 없고 `t − t_last_obs ≤ coast.max_s`이면 `COASTING`(예측만, 공분산 증가). 초과하면 `LOST`. 예측 `x > x_obs_max + exit_margin`이면 즉시 `LOST`.
 - `LOST` track은 한 번 발행한 뒤 제거한다. 한번 `LOST`가 된 track_id는 다시 쓰지 않는다. 같은 병뚜껑이 `T_lap` 뒤 다시 관측 구간에 들어오면 새 track_id를 받는다(epoch는 바뀌지 않는다).
 - `track_id`는 노드 기동부터 단조 증가하며 epoch가 바뀌어도 되돌리지 않는다.
@@ -139,12 +139,12 @@ SPEC-010 wire schema v0.2 / runtime contract v0.4 기준.
 - REQ-TRK-010: `SelectTarget`은 도달 구간 상류의 가장 가까운 병뚜껑을 고르고 진입 시각 오차 ≤ 50 ms이며, 대상이 없거나 모두 도달 구간 안이면 `PRECONDITION`이다.
 - REQ-TRK-011: 등속 입력에서 `BeltMotion.source = SOURCE_CAP`, `|direction| = 1 ± 1e-9`, speed 오차 ≤ 0.5 mm/s다.
 - REQ-TRK-012: 관측 TF `cap_<id>`의 stamp는 `t_state`와 같고, 미래 stamp는 0건이며, orientation은 identity다.
-- REQ-TRK-014: 배정되지 않은 검출은 `x_obs_min ≤ x ≤ x_obs_max`일 때만 새 track을 만든다(경계 포함). 구간을 지나가는 뚜껑 하나는 track 하나를 만들고 `LOST`는 한 번만 나온다.
+- REQ-TRK-014: 배정되지 않은 검출은 `x_obs_min ≤ x ≤ x_obs_max`일 때만 새 track을 만든다(경계 포함). 구간을 지나가는 뚜껑 하나는 track 하나를 만들고 `LOST`는 한 번만 나온다. 모든 검출이 구간 밖이어서 track이 하나도 없으면 `tracker_node`가 WARN으로 알린다.
 - REQ-TRK-013: OFF-1 실제 bag replay에서 유효 추적 ≥ 99%(가림 구간은 별도 집계), 속도 변화 검출 지연 ≤ 1.0 s다.
 
 ## 8. 검증 방법(`TEST_SPEC.md` TC ID, 게이트)
 
-- U: TC-TRK-001~008·014(`tracking/test/`, `TrajectoryFixture`). C: TC-TRK-008-02·009~012(`tracking/test/contract/`). I1: TC-TRK-013(`needs_data("off1_bags")`).
+- U: TC-TRK-001~008·014(`tracking/test/`, `TrajectoryFixture`). C: TC-TRK-008-02·009~012·014-02(`tracking/test/contract/`). I1: TC-TRK-013(`needs_data("off1_bags")`).
 - 게이트: G3(TEST_SPEC 4절 게이트 표). G3 실측(독립 GT 대비 오차)은 TC-BEN·TC-EXP-G3.
 
 ## 9. 미결 사항

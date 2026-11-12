@@ -359,6 +359,7 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-TRK-012-01 | 관측 TF | C | `[ON]` | 추적 중 | `cap_<id>` stamp = t_state, 미래 stamp 0건, orientation identity |
 | TC-TRK-013-01 | 실데이터 추적 회귀 | I1 | `[ON*]` | `off1_bags`(정상·가림·누락·속도 변화) | 유효 추적 ≥ 99%(가림 구간 별도), 속도 변화 검출 지연 ≤ 1.0 s |
 | TC-TRK-014-01 | 관측 구간 밖 새 track 금지 | U | `[ON]` | 관측 구간 0~0.10 m: 상류 밖 검출 / 20 mm/s로 0 → 0.133 m 통과 / 경계 x −0.1 mm, 0, 0.10 m, 0.1001 m | track 없음 / track 1개·`LOST` 1회, 구간 끝 뒤 새 track 0 / 없음, 생성, 생성, 없음 |
+| TC-TRK-014-02 | 구간 밖 검출만 있을 때 경고 | C | `[ON]` | 항등 변환·구간 ±0.35 m에 x 0.8 m 검출 89프레임 / 90번째 프레임 | track 0개·WARN 0건 / WARN 1건(구간 밖, 마지막 x 0.800 포함) |
 
 ### 3.7 PLN — 계획
 

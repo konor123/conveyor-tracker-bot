@@ -199,3 +199,16 @@ def test_no_new_track_outside_observation_region():
 def test_new_track_region_boundary(x, created):
     m = TrackManager(x_obs_min_m=0., x_obs_max_m=.10)
     assert bool(m.process_frame(0., [Det([x, 0.])])) is created
+
+
+@pytest.mark.req('REQ-TRK-014')
+@pytest.mark.tc('TC-TRK-014-01')
+@pytest.mark.level('U')
+def test_ignored_detections_are_counted_until_first_track():
+    """구간 밖이라 버린 검출 수와 만든 track 수를 센다(보정·구간 설정 오류 진단용)."""
+    m = TrackManager(x_obs_min_m=0., x_obs_max_m=.10)
+    for k in range(5):
+        m.process_frame(k/30, [Det([.8, 0.])])
+    assert (m.created_total, m.ignored_outside, m.last_ignored_x) == (0, 5, pytest.approx(.8))
+    m.process_frame(5/30, [Det([.05, 0.])])
+    assert m.created_total == 1

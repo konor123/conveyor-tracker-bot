@@ -131,6 +131,8 @@ class TrackerNode(LifecycleNode):
         self.state_id = State.PRIMARY_STATE_FINALIZED
         return TransitionCallbackReturn.SUCCESS
 
+    IGNORED_WARN_COUNT = 90        # 30 Hz에서 3 s
+
     def _on_jump(self, jump):
         if jump.delta.nanoseconds*1e-9 < -self.value('clock.backstep_tol_s'):
             self._jumped = True
@@ -169,6 +171,14 @@ class TrackerNode(LifecycleNode):
             dets.append(Det(position, covariance[:2,:2], d.object_class, d.position_valid))
         self._last_received = now
         self._publish(t, self.manager.process_frame(t,dets))
+        m = self.manager
+        if m.created_total == 0 and m.ignored_outside >= self.IGNORED_WARN_COUNT:
+            # 보정(T_base_conveyor)·구간 설정이 맞지 않으면 모든 검출이 구간 밖이라 track이 하나도 안 생긴다.
+            self.get_logger().warn(
+                f'{m.ignored_outside} detections outside the observation region '
+                f'[{m.x_obs_min_m:.3f}, {m.x_obs_max_m:.3f}] m were ignored and no track was ever created '
+                f'(last x {m.last_ignored_x:.3f} m): check T_base_conveyor and region.*',
+                throttle_duration_sec=30.0)
 
     def _tick(self):
         now = self._check_clock()

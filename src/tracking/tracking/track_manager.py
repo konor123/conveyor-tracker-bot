@@ -63,6 +63,8 @@ class TrackManager:
         self._next_id = 1
         self._tracks = []
         self.t_state = self._clock = None
+        # 진단용 누계(reset과 무관): 만든 track 수, 관측 구간 밖이라 버린 검출 수와 마지막 x
+        self.created_total, self.ignored_outside, self.last_ignored_x = 0, 0, None
         self.dropped_frames = 0
         self.belt_motion = None
 
@@ -144,7 +146,10 @@ class TrackManager:
             # SPEC-300 4.2 (5): 관측 구간 밖 검출은 새 track을 만들지 않는다(REQ-TRK-014).
             # 구간 끝을 지나 계속 보이는 뚜껑이 프레임마다 track을 만들었다가 바로 LOST가 되는 것을 막는다.
             if not self.x_obs_min_m <= det.position[0] <= self.x_obs_max_m:
+                self.ignored_outside += 1
+                self.last_ignored_x = float(det.position[0])
                 continue
+            self.created_total += 1
             velocity = self.belt_motion.velocity if self.belt_motion is not None else np.zeros(2)
             p = np.zeros((4, 4))
             p[:2, :2] = det.position_cov

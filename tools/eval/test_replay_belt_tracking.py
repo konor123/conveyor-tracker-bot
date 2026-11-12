@@ -73,3 +73,10 @@ def test_reported_std_is_opt_in_and_consistent(tmp_path):
     assert 0.3 < e1['std_p50_mm'] < 3.0 and e3['std_p50_mm'] > e1['std_p50_mm']      # 예측 구간이 길수록 커진다
     assert 0.0 <= e3['std_le_limit_ratio'] <= e1['std_le_limit_ratio'] <= 1.0
     assert e1['norm_err_p95'] < 4.0            # 모델이 맞는 자료: 오차 / 보고 표준편차 p95가 2.45(χ²₂ 95%) 근처
+    # WAIT_CAP 조건(steady, speed_std)을 지난 상태만의 통계. 등속 합성이라 steady는 전부 참이다
+    w = r['wait_cap']
+    assert 'wait_cap' not in base
+    assert w['steady_ratio'] == 1.0 and 0.0 <= w['both_ok_ratio'] <= w['speed_std_ok_ratio'] <= 1.0
+    assert e1['n_wait_ok'] <= e1['n']
+    loose = rbt.analyse(path, {}, horizons=(1.0,), std_limit_m=0.00325, speed_std_limit_mps=1.0)
+    assert loose['wait_cap']['both_ok_ratio'] == 1.0 and loose['prediction_error']['1']['n_wait_ok'] == e1['n']

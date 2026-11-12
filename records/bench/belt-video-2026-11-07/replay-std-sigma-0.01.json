@@ -131,7 +131,10 @@
     "std_p50_mm": 0.2977145971831558,
     "std_p95_mm": 1.6433908632559868,
     "std_le_limit_ratio": 0.9559014267185474,
-    "norm_err_p95": 7.728275988912337
+    "norm_err_p95": 7.728275988912337,
+    "n_wait_ok": 41,
+    "std_le_limit_ratio_wait_ok": 1.0,
+    "xy_p95_mm_wait_ok": 3.288517594808376
    },
    "0.5": {
     "n": 728,
@@ -143,7 +146,10 @@
     "std_p50_mm": 0.7054107399034589,
     "std_p95_mm": 6.781281708327052,
     "std_le_limit_ratio": 0.8722527472527473,
-    "norm_err_p95": 11.753224964004175
+    "norm_err_p95": 11.753224964004175,
+    "n_wait_ok": 30,
+    "std_le_limit_ratio_wait_ok": 1.0,
+    "xy_p95_mm_wait_ok": 19.592185556820414
    },
    "1": {
     "n": 662,
@@ -155,7 +161,10 @@
     "std_p50_mm": 1.2374567516442392,
     "std_p95_mm": 13.21001686586077,
     "std_le_limit_ratio": 0.8293051359516617,
-    "norm_err_p95": 10.967030886487567
+    "norm_err_p95": 10.967030886487567,
+    "n_wait_ok": 24,
+    "std_le_limit_ratio_wait_ok": 1.0,
+    "xy_p95_mm_wait_ok": 37.86764300042209
    },
    "2": {
     "n": 498,
@@ -167,7 +176,10 @@
     "std_p50_mm": 2.2637124099546435,
     "std_p95_mm": 99.87586843270078,
     "std_le_limit_ratio": 0.7188755020080321,
-    "norm_err_p95": 11.651524915417923
+    "norm_err_p95": 11.651524915417923,
+    "n_wait_ok": 4,
+    "std_le_limit_ratio_wait_ok": 1.0,
+    "xy_p95_mm_wait_ok": 0.42255987851235316
    },
    "3": {
     "n": 354,
@@ -179,7 +191,10 @@
     "std_p50_mm": 3.131051941244335,
     "std_p95_mm": 149.93962328421594,
     "std_le_limit_ratio": 0.5508474576271186,
-    "norm_err_p95": 12.307428778474144
+    "norm_err_p95": 12.307428778474144,
+    "n_wait_ok": 0,
+    "std_le_limit_ratio_wait_ok": null,
+    "xy_p95_mm_wait_ok": null
    },
    "4": {
     "n": 253,
@@ -191,11 +206,23 @@
     "std_p50_mm": 4.02169302457936,
     "std_p95_mm": 200.00129031783965,
     "std_le_limit_ratio": 0.0,
-    "norm_err_p95": 9.01401081147917
+    "norm_err_p95": 9.01401081147917,
+    "n_wait_ok": 15,
+    "std_le_limit_ratio_wait_ok": 0.0,
+    "xy_p95_mm_wait_ok": 2.9508092395400496
    }
   },
   "params": {
    "sigma_accel_mps2": 0.01
+  },
+  "wait_cap": {
+   "eligible_states": 795,
+   "steady_ratio": 0.08930817610062892,
+   "speed_std_ok_ratio": 0.4238993710691824,
+   "both_ok_ratio": 0.06037735849056604,
+   "speed_std_p50_mmps": 1.0649566025110935,
+   "speed_std_p95_mmps": 12.866241608755104,
+   "speed_std_limit_mmps": 1.0
   }
  },
  {
@@ -331,7 +358,10 @@
     "std_p50_mm": 0.2562846967410976,
     "std_p95_mm": 0.9486004548100239,
     "std_le_limit_ratio": 0.9822580645161291,
-    "norm_err_p95": 7.2288201556036515
+    "norm_err_p95": 7.2288201556036515,
+    "n_wait_ok": 269,
+    "std_le_limit_ratio_wait_ok": 1.0,
+    "xy_p95_mm_wait_ok": 1.8956578249573877
    },
    "0.5": {
     "n": 562,
@@ -343,7 +373,10 @@
     "std_p50_mm": 0.6110026051962916,
     "std_p95_mm": 1.3331996159818746,
     "std_le_limit_ratio": 0.9733096085409253,
-    "norm_err_p95": 6.513913270422161
+    "norm_err_p95": 6.513913270422161,
+    "n_wait_ok": 248,
+    "std_le_limit_ratio_wait_ok": 1.0,
+    "xy_p95_mm_wait_ok": 4.265611137315672
    },
    "1": {
     "n": 487,
@@ -355,7 +388,10 @@
     "std_p50_mm": 1.0762457096982216,
     "std_p95_mm": 2.0655211623835683,
     "std_le_limit_ratio": 0.9671457905544147,
-    "norm_err_p95": 7.119161116860548
+    "norm_err_p95": 7.119161116860548,
+    "n_wait_ok": 191,
+    "std_le_limit_ratio_wait_ok": 1.0,
+    "xy_p95_mm_wait_ok": 7.814635770306992
    },
    "2": {
     "n": 336,
@@ -367,7 +403,10 @@
     "std_p50_mm": 2.0177044041107655,
     "std_p95_mm": 4.096096212759522,
     "std_le_limit_ratio": 0.9315476190476191,
-    "norm_err_p95": 5.966752532700777
+    "norm_err_p95": 5.966752532700777,
+    "n_wait_ok": 73,
+    "std_le_limit_ratio_wait_ok": 1.0,
+    "xy_p95_mm_wait_ok": 9.275716229480306
    },
    "3": {
     "n": 185,
@@ -379,7 +418,10 @@
     "std_p50_mm": 2.967831000277201,
     "std_p95_mm": 6.828784036286728,
     "std_le_limit_ratio": 0.8054054054054054,
-    "norm_err_p95": 7.042043938543938
+    "norm_err_p95": 7.042043938543938,
+    "n_wait_ok": 0,
+    "std_le_limit_ratio_wait_ok": null,
+    "xy_p95_mm_wait_ok": null
    },
    "4": {
     "n": 42,
@@ -391,11 +433,23 @@
     "std_p50_mm": 3.9191316191106,
     "std_p95_mm": 5.492828773330266,
     "std_le_limit_ratio": 0.0,
-    "norm_err_p95": 7.56179919186999
+    "norm_err_p95": 7.56179919186999,
+    "n_wait_ok": 0,
+    "std_le_limit_ratio_wait_ok": null,
+    "xy_p95_mm_wait_ok": null
    }
   },
   "params": {
    "sigma_accel_mps2": 0.01
+  },
+  "wait_cap": {
+   "eligible_states": 643,
+   "steady_ratio": 0.4416796267496112,
+   "speed_std_ok_ratio": 0.7978227060653188,
+   "both_ok_ratio": 0.42457231726283046,
+   "speed_std_p50_mmps": 0.9418543927105476,
+   "speed_std_p95_mmps": 6.1633834111781844,
+   "speed_std_limit_mmps": 1.0
   }
  },
  {
@@ -558,7 +612,10 @@
     "std_p50_mm": 0.25674906697223265,
     "std_p95_mm": 1.380241149988555,
     "std_le_limit_ratio": 0.9739921976592978,
-    "norm_err_p95": 6.904912674855669
+    "norm_err_p95": 6.904912674855669,
+    "n_wait_ok": 129,
+    "std_le_limit_ratio_wait_ok": 1.0,
+    "xy_p95_mm_wait_ok": 2.613338299299283
    },
    "0.5": {
     "n": 702,
@@ -570,7 +627,10 @@
     "std_p50_mm": 0.6116139229444798,
     "std_p95_mm": 3.4060657265316503,
     "std_le_limit_ratio": 0.9444444444444444,
-    "norm_err_p95": 7.485025995099528
+    "norm_err_p95": 7.485025995099528,
+    "n_wait_ok": 109,
+    "std_le_limit_ratio_wait_ok": 1.0,
+    "xy_p95_mm_wait_ok": 7.2031089665811185
    },
    "1": {
     "n": 613,
@@ -582,7 +642,10 @@
     "std_p50_mm": 1.0777457340015777,
     "std_p95_mm": 6.490175097697886,
     "std_le_limit_ratio": 0.9233278955954323,
-    "norm_err_p95": 5.981536106845915
+    "norm_err_p95": 5.981536106845915,
+    "n_wait_ok": 71,
+    "std_le_limit_ratio_wait_ok": 1.0,
+    "xy_p95_mm_wait_ok": 5.842959893868578
    },
    "2": {
     "n": 420,
@@ -594,7 +657,10 @@
     "std_p50_mm": 2.0218962639615814,
     "std_p95_mm": 8.123047005443592,
     "std_le_limit_ratio": 0.8523809523809524,
-    "norm_err_p95": 6.154518413299902
+    "norm_err_p95": 6.154518413299902,
+    "n_wait_ok": 30,
+    "std_le_limit_ratio_wait_ok": 1.0,
+    "xy_p95_mm_wait_ok": 8.863124743265343
    },
    "3": {
     "n": 236,
@@ -606,7 +672,10 @@
     "std_p50_mm": 2.9714043737323252,
     "std_p95_mm": 11.997505482867107,
     "std_le_limit_ratio": 0.7203389830508474,
-    "norm_err_p95": 6.312853745645645
+    "norm_err_p95": 6.312853745645645,
+    "n_wait_ok": 0,
+    "std_le_limit_ratio_wait_ok": null,
+    "xy_p95_mm_wait_ok": null
    },
    "4": {
     "n": 60,
@@ -618,11 +687,23 @@
     "std_p50_mm": 3.9873890731355037,
     "std_p95_mm": 20.97423005096397,
     "std_le_limit_ratio": 0.0,
-    "norm_err_p95": 7.9824178684659755
+    "norm_err_p95": 7.9824178684659755,
+    "n_wait_ok": 0,
+    "std_le_limit_ratio_wait_ok": null,
+    "xy_p95_mm_wait_ok": null
    }
   },
   "params": {
    "sigma_accel_mps2": 0.01
+  },
+  "wait_cap": {
+   "eligible_states": 793,
+   "steady_ratio": 0.1626733921815889,
+   "speed_std_ok_ratio": 0.7036569987389659,
+   "both_ok_ratio": 0.1626733921815889,
+   "speed_std_p50_mmps": 0.9428509221550523,
+   "speed_std_p95_mmps": 12.631655154146575,
+   "speed_std_limit_mmps": 1.0
   }
  },
  {
@@ -832,7 +913,10 @@
     "std_p50_mm": 0.25589719846738523,
     "std_p95_mm": 0.5604860725419731,
     "std_le_limit_ratio": 0.9815950920245399,
-    "norm_err_p95": 7.398061338329789
+    "norm_err_p95": 7.398061338329789,
+    "n_wait_ok": 176,
+    "std_le_limit_ratio_wait_ok": 1.0,
+    "xy_p95_mm_wait_ok": 2.901892390860813
    },
    "0.5": {
     "n": 550,
@@ -844,7 +928,10 @@
     "std_p50_mm": 0.6106211743280894,
     "std_p95_mm": 0.8021359465932695,
     "std_le_limit_ratio": 0.9872727272727273,
-    "norm_err_p95": 6.016408242950521
+    "norm_err_p95": 6.016408242950521,
+    "n_wait_ok": 98,
+    "std_le_limit_ratio_wait_ok": 1.0,
+    "xy_p95_mm_wait_ok": 7.396302865520709
    },
    "1": {
     "n": 416,
@@ -856,7 +943,10 @@
     "std_p50_mm": 1.0767416263177025,
     "std_p95_mm": 1.7188984167542711,
     "std_le_limit_ratio": 0.9759615384615384,
-    "norm_err_p95": 4.731606271410719
+    "norm_err_p95": 4.731606271410719,
+    "n_wait_ok": 17,
+    "std_le_limit_ratio_wait_ok": 1.0,
+    "xy_p95_mm_wait_ok": 5.401865026497743
    },
    "2": {
     "n": 146,
@@ -868,11 +958,23 @@
     "std_p50_mm": 2.0355727930047665,
     "std_p95_mm": 8.133371129976963,
     "std_le_limit_ratio": 0.8767123287671232,
-    "norm_err_p95": 5.397068179641474
+    "norm_err_p95": 5.397068179641474,
+    "n_wait_ok": 0,
+    "std_le_limit_ratio_wait_ok": null,
+    "xy_p95_mm_wait_ok": null
    }
   },
   "params": {
    "sigma_accel_mps2": 0.01
+  },
+  "wait_cap": {
+   "eligible_states": 686,
+   "steady_ratio": 0.2565597667638484,
+   "speed_std_ok_ratio": 0.8367346938775511,
+   "both_ok_ratio": 0.2565597667638484,
+   "speed_std_p50_mmps": 0.941123189658887,
+   "speed_std_p95_mmps": 7.362697258007727,
+   "speed_std_limit_mmps": 1.0
   }
  },
  {
@@ -1162,7 +1264,10 @@
     "std_p50_mm": 0.2558175154993335,
     "std_p95_mm": 0.28994745613537753,
     "std_le_limit_ratio": 0.988,
-    "norm_err_p95": 10.557011211398002
+    "norm_err_p95": 10.557011211398002,
+    "n_wait_ok": 66,
+    "std_le_limit_ratio_wait_ok": 1.0,
+    "xy_p95_mm_wait_ok": 2.4513147889045257
    },
    "0.5": {
     "n": 332,
@@ -1174,7 +1279,10 @@
     "std_p50_mm": 0.6108025745523777,
     "std_p95_mm": 0.6593532840536451,
     "std_le_limit_ratio": 1.0,
-    "norm_err_p95": 7.2775497106279365
+    "norm_err_p95": 7.2775497106279365,
+    "n_wait_ok": 43,
+    "std_le_limit_ratio_wait_ok": 1.0,
+    "xy_p95_mm_wait_ok": 4.170349581928463
    },
    "1": {
     "n": 122,
@@ -1186,11 +1294,23 @@
     "std_p50_mm": 1.0780694521987677,
     "std_p95_mm": 1.3013580434887488,
     "std_le_limit_ratio": 1.0,
-    "norm_err_p95": 6.630493899148851
+    "norm_err_p95": 6.630493899148851,
+    "n_wait_ok": 13,
+    "std_le_limit_ratio_wait_ok": 1.0,
+    "xy_p95_mm_wait_ok": 6.566450154510325
    }
   },
   "params": {
    "sigma_accel_mps2": 0.01
+  },
+  "wait_cap": {
+   "eligible_states": 536,
+   "steady_ratio": 0.13246268656716417,
+   "speed_std_ok_ratio": 0.9048507462686567,
+   "both_ok_ratio": 0.13246268656716417,
+   "speed_std_p50_mmps": 0.941364495709431,
+   "speed_std_p95_mmps": 6.161791445770545,
+   "speed_std_limit_mmps": 1.0
   }
  }
 ]

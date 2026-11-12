@@ -10,6 +10,8 @@ numpy만 쓴다. conveyor_frame은 보정 전이므로 검출 XY(robot_base)의 
 
 `--std-limit-mm 3.25`를 주면 planner가 보고하는 위치 표준편차(예측 공분산의 최대 고유값 제곱근,
 SPEC-400 `position_std`)를 같은 표본에서 함께 집계한다: std_p50/p95, 기준 이하 비율, 오차 / 표준편차 p95.
+같이 WAIT_CAP 조건(`BeltMotion.steady`, `speed_std ≤ --speed-std-limit-mmps`)을 지난 상태의 비율(`wait_cap`)과,
+그 상태만으로 낸 기준 이하 비율·오차(`*_wait_ok`)도 낸다. 계획은 WAIT_CAP을 지난 상태에서만 요청되기 때문이다.
 `--horizons 1,3,4`로 예측 구간을 바꿀 수 있다. 두 인자를 주지 않으면 출력은 이전과 같다.
 """
 from __future__ import annotations
@@ -89,7 +91,7 @@ def to_conv(p, c, origin, ex, ey):
 
 def run(fr: Frames, origin, ex, ey, params: dict):
     tm = TrackManager(x_obs_min_m=-10., x_obs_max_m=10., **params)
-    states, alarms = [], []
+    states, alarms, belt = [], [], {}
     prev_change = None
     for t in fr.t:
         dets = []
@@ -101,7 +103,9 @@ def run(fr: Frames, origin, ex, ey, params: dict):
             prev_change = tm.detector.last_change_stamp
             alarms.append(float(prev_change))
         states.extend(out)
-    return states, alarms
+        if tm.belt_motion is not None:                 # WAIT_CAP이 보는 값(BeltMotion.steady, speed_std)
+            belt[float(t)] = (bool(tm.belt_motion.steady), float(tm.belt_motion.speed_std))
+    return states, alarms, belt
 
 
 def conv_dets(fr: Frames, origin, ex, ey):
@@ -112,10 +116,11 @@ def pct(a, q):
     return float(np.percentile(a, q)) if len(a) else float('nan')
 
 
-def analyse(path: Path, params: dict, horizons=HORIZONS_S, std_limit_m: float | None = None) -> dict:
+def analyse(path: Path, params: dict, horizons=HORIZONS_S, std_limit_m: float | None = None,
+            speed_std_limit_mps: float = 0.001) -> dict:
     fr = load(path)
     origin, ex, ey = conveyor_axes(fr)
-    states, alarms = run(fr, origin, ex, ey, params)
+    states, alarms, belt = run(fr, origin, ex, ey, params)
     cd = conv_dets(fr, origin, ex, ey)
     xy_c = (fr.xy - origin) @ np.vstack([ex, ey]).T
 
@@ -162,11 +167,16 @@ def analyse(path: Path, params: dict, horizons=HORIZONS_S, std_limit_m: float | 
     t_arr = fr.t
     errs = {h: [] for h in horizons}
     stds = {h: [] for h in horizons}
+    wait_ok = {h: [] for h in horizons}          # 그 상태가 WAIT_CAP 조건(steady, speed_std)을 지났는가
+    gate = []                                    # 관측 30회 이상 OBSERVED 상태마다 (steady, speed_std)
     for s in states:
         if s.status != OBSERVED or s.observation_count < MIN_OBS:
             continue
         ts = TrackState(s.track_id, s.epoch, s.status, s.t_state, s.position[:2], s.velocity[:2],
                         s.state_cov, s.valid_until, s.last_observed)
+        steady, speed_std = belt.get(float(s.t_state), (False, float('inf')))
+        gate.append((steady, speed_std))
+        passes_wait = steady and speed_std <= speed_std_limit_mps
         for h in horizons:
             i = np.searchsorted(t_arr, s.t_state + h)
             cand = [j for j in (i - 1, i) if 0 <= j < len(t_arr) and abs(t_arr[j] - s.t_state - h) <= MATCH_DT_S]
@@ -179,6 +189,7 @@ def analyse(path: Path, params: dict, horizons=HORIZONS_S, std_limit_m: float | 
                 z = min(near, key=lambda z: np.linalg.norm(z - pos))
                 errs[h].append(z - pos)
                 stds[h].append(float(np.sqrt(max(0., np.linalg.eigvalsh(cov)[-1]))))   # planner position_std
+                wait_ok[h].append(passes_wait)
     pred = {}
     for h, e in errs.items():
         e = np.array(e)
@@ -194,11 +205,26 @@ def analyse(path: Path, params: dict, horizons=HORIZONS_S, std_limit_m: float | 
                     std_p50_mm=pct(sd, 50) * 1e3, std_p95_mm=pct(sd, 95) * 1e3,
                     std_le_limit_ratio=float(np.mean(sd <= std_limit_m)),
                     norm_err_p95=pct(np.linalg.norm(e, axis=1) / sd, 95))
+                ok = np.array(wait_ok[h], bool)
+                pred[f'{h:g}'].update(
+                    n_wait_ok=int(ok.sum()),
+                    std_le_limit_ratio_wait_ok=float(np.mean(sd[ok] <= std_limit_m)) if ok.any() else None,
+                    xy_p95_mm_wait_ok=pct(np.linalg.norm(e[ok], axis=1), 95) * 1e3 if ok.any() else None)
+    extra = {}
+    if std_limit_m is not None and gate:
+        st = np.array([g[0] for g in gate], bool)
+        sp = np.array([g[1] for g in gate])
+        extra['wait_cap'] = dict(
+            eligible_states=len(gate), steady_ratio=float(st.mean()),
+            speed_std_ok_ratio=float(np.mean(sp <= speed_std_limit_mps)),
+            both_ok_ratio=float(np.mean(st & (sp <= speed_std_limit_mps))),
+            speed_std_p50_mmps=pct(sp[np.isfinite(sp)], 50) * 1e3, speed_std_p95_mmps=pct(sp[np.isfinite(sp)], 95) * 1e3,
+            speed_std_limit_mmps=speed_std_limit_mps * 1e3)
     return dict(file=path.name, frames_with_detection=len(fr.t), detections=len(fr.xy),
                 span_s=float(fr.t[-1] - fr.t[0]), direction_base=ex.tolist(), origin_base_m=origin.tolist(),
                 lateral_std_mm=float(np.std(xy_c[:, 1]) * 1e3),
                 passes=passes, lap_s=laps, speed_change_alarms_s=alarms,
-                tracks_total=len(by_track), prediction_error=pred, params=params)
+                tracks_total=len(by_track), prediction_error=pred, params=params, **extra)
 
 
 def main(argv=None) -> int:
@@ -212,19 +238,28 @@ def main(argv=None) -> int:
     ap.add_argument('--horizons', type=lambda s: tuple(float(v) for v in s.split(',')), default=HORIZONS_S,
                     help='예측 구간 [s], 쉼표로 구분')
     ap.add_argument('--std-limit-mm', type=float, help='보고 표준편차 통계를 추가하고 이 기준 이하 비율을 낸다')
+    ap.add_argument('--speed-std-limit-mmps', type=float, default=1.0,
+                    help='WAIT_CAP 속도 표준편차 기준 [mm/s](--std-limit-mm과 함께 쓴다)')
     a = ap.parse_args(argv)
     params = {k: v for k, v in dict(sigma_accel_mps2=a.sigma_accel, gate_chi2=a.gate_chi2,
                                     cusum_k=a.cusum_k, cusum_h=a.cusum_h).items() if v is not None}
     limit = None if a.std_limit_mm is None else a.std_limit_mm * 1e-3
-    results = [analyse(p, params, a.horizons, limit) for p in a.csv]
+    results = [analyse(p, params, a.horizons, limit, a.speed_std_limit_mmps * 1e-3) for p in a.csv]
     for r in results:
         sp = [p['speed_fit_mps'] * 1e3 for p in r['passes']]
         print(f"{r['file']}: passes {len(r['passes'])}/{r['tracks_total']} tracks, "
               f"speed {np.mean(sp) if sp else float('nan'):.2f} mm/s, lap {np.round(r['lap_s'], 2).tolist()} s, "
               f"alarms {len(r['speed_change_alarms_s'])}, lateral std {r['lateral_std_mm']:.2f} mm")
+        if 'wait_cap' in r:
+            w = r['wait_cap']
+            print(f"  WAIT_CAP: steady {w['steady_ratio']:.2f}, speed_std<=limit {w['speed_std_ok_ratio']:.2f}, "
+                  f"both {w['both_ok_ratio']:.2f} of {w['eligible_states']} states, "
+                  f"speed_std p50 {w['speed_std_p50_mmps']:.2f} p95 {w['speed_std_p95_mmps']:.2f} mm/s")
         for h, e in r['prediction_error'].items():
             extra = (f", std p50 {e['std_p50_mm']:.2f} p95 {e['std_p95_mm']:.2f} mm, "
-                     f"std<=limit {e['std_le_limit_ratio']:.2f}, err/std p95 {e['norm_err_p95']:.1f}"
+                     f"std<=limit {e['std_le_limit_ratio']:.2f} (WAIT_CAP ok: n {e['n_wait_ok']}, "
+                     f"{'-' if e['std_le_limit_ratio_wait_ok'] is None else format(e['std_le_limit_ratio_wait_ok'], '.2f')}), "
+                     f"err/std p95 {e['norm_err_p95']:.1f}"
                      if 'std_p50_mm' in e else '')
             print(f"  H={h:>4} s n={e['n']:5d} along p95 {e['along_p95_mm']:.2f} mm, "
                   f"xy p95 {e['xy_p95_mm']:.2f} mm, max {e['xy_max_mm']:.2f} mm{extra}")

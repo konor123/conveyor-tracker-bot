@@ -3,7 +3,7 @@
 `tools/spec/trace.py`가 생성한다. 손으로 고치지 않는다.
 
 - REQ 134개 중 TC 연결 134개
-- pytest 대상 TC 229개 중 테스트 연결 216개
+- pytest 대상 TC 230개 중 테스트 연결 217개
 
 | TC | 수준 | REQ | 테스트 |
 |---|---|---|---|
@@ -247,7 +247,8 @@
 | TC-TRK-011-01 | C | REQ-TRK-011 | `src/tracking/test/contract/test_tracker_node_contract.py::test_belt` |
 | TC-TRK-012-01 | C | REQ-TRK-012 | `src/tracking/test/contract/test_tracker_node_contract.py::test_tf_stamp_and_coasting` |
 | TC-TRK-013-01 | I1 | REQ-TRK-013 | — |
-| TC-TRK-014-01 | U | REQ-TRK-014 | `src/tracking/test/test_tracking_edges.py::test_no_new_track_outside_observation_region`<br>`src/tracking/test/test_tracking_edges.py::test_new_track_region_boundary` |
+| TC-TRK-014-01 | U | REQ-TRK-014 | `src/tracking/test/test_tracking_edges.py::test_no_new_track_outside_observation_region`<br>`src/tracking/test/test_tracking_edges.py::test_new_track_region_boundary`<br>`src/tracking/test/test_tracking_edges.py::test_ignored_detections_are_counted_until_first_track` |
+| TC-TRK-014-02 | C | REQ-TRK-014 | `src/tracking/test/contract/test_tracker_node_contract.py::test_all_detections_outside_region_is_warned` |
 | TC-VIS-001-01 | U | REQ-VIS-001 | `src/vision/test/test_detector.py::test_stone_center_accuracy_on_mat` |
 | TC-VIS-001-02 | U | REQ-VIS-001 | `src/vision/test/test_detector.py::test_cap_center_accuracy_on_belt` |
 | TC-VIS-002-01 | U | REQ-VIS-002 | `src/vision/test/test_detector.py::test_mixed_scene_classification` |

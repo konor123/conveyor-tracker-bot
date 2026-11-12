@@ -142,6 +142,27 @@ def test_clock_reset_is_logged(rig):
     assert len(warned) == 1 and '1.000 s' in warned[0] and f'epoch -> {epoch+1}' in warned[0], warned
 
 
+@pytest.mark.req('REQ-TRK-014')
+@pytest.mark.tc('TC-TRK-014-02')
+def test_all_detections_outside_region_is_warned(rig):
+    """보정·구간이 맞지 않아 모든 검출이 구간 밖이면 track이 없다는 것을 WARN으로 알린다."""
+    r = rig
+    real, warned = r.node.get_logger(), []
+
+    class Spy:
+        def warn(self, message, **kwargs):
+            warned.append(message)
+
+        def __getattr__(self, name):
+            return getattr(real, name)
+    r.node.get_logger = lambda: Spy()
+    for k in range(r.node.IGNORED_WARN_COUNT - 1):
+        assert frame(r, 100. + k/30, xs=(.8,)).tracks == []
+    assert warned == []
+    frame(r, 100. + r.node.IGNORED_WARN_COUNT/30, xs=(.8,))
+    assert len(warned) == 1 and 'no track was ever created' in warned[0] and '0.800' in warned[0], warned
+
+
 @pytest.mark.req('REQ-TRK-009')
 def test_deadline_and_lifecycle(rig):
     r = rig
