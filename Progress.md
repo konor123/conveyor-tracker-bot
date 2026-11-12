@@ -83,6 +83,7 @@
 - [x] `[ON]` `tools/spec/trace.py` 추적 행렬 생성(REQ·TC 연결 검사)
 - [ ] `[ON]` I0 nominal 간헐 `STEP_TIMEOUT`(결과 SAFE_ABORT) 원인 확정. officepc WSL에서 4회 중 2회(seed 7·18) 관찰, 실패 단계 미기록. 유력 후보는 RELEASE(제한 1.0 s, 대역 0.36 s)에서 WSL 교란으로 `phase_done` feedback 지연 또는 시계 전진, 또는 result 선처리(0.2 s 대기 추가로 완화). 재발하면 실패 메시지의 `last=`(마지막 단계·소요시간)로 판정하고, result 선처리 또는 feedback 지연이면 orchestrator action client를 전용 callback group으로 옮긴다. 근거: `records/reviews/fable-m0-risk-2026-11-11.md` 1절
   - 2026-11-12 officepc WSL: 시스템 시계 역행(약 −0.78 s, 9분에 10회)이 있는 상태에서 3/3, 없는 상태에서 4/4 통과. 이 3회에서는 시계 역행으로 재현되지 않았다(`records/worklog/2026-11-12.md`).
+  - ROS Jazzy rclpy `action/client.py`의 `ActionClient.execute`는 한 번 깨어날 때 result future를 feedback 콜백보다 먼저 완료한다(소스 확인). callback group을 바꿔도 이 순서는 바뀌지 않으므로 result 선처리는 지금의 짧은 feedback 대기(`FEEDBACK_DRAIN_S`)로 다루고, 재현 전에는 callback group을 바꾸지 않는다(`records/reviews/fable-decisions-2026-11-12.md` (f)).
 
 **M0 합격 기준(제안):** SPEC 6종 v0.1과 M0 대상 시험 케이스 리뷰 완료 / interface 빌드 / 단위 테스트에서 장애 10종 이벤트 열마다 기대 중단 등급 / I0 정상 시나리오 20/20, ROS I0 장애 시나리오 4종(`robot_hang`, `protective_stop`, `heartbeat_loss`, `time_insufficient`)마다 정의된 중단 등급 동작 / 오케스트레이터 REQ 연결률 100% / `records/`에 StepRecord·trial 기록 생성 확인.
 
@@ -96,7 +97,8 @@
 - [x] `[OFF]` 저속 단일 관절 이동
 - [x] `[OFF]` RH-P12-RN(A) 개폐(플랜지 RS-485 배선, 제어기 DRL이 통신 담당)
 - [ ] **연속 제어 인터페이스 계약 확정** (SPEC-500)
-  - [ ] `[ON]` 후보 조사·문서화: `servol_stream` / `speedl_stream`(일반), `servol_rt_stream` / `speedl_rt_stream`(RT, `realtime/connect_rt_control` 등 초기화 필요). 단위(mm, deg)·자세 규약·`time` 인수 의미·timeout 동작
+  - [x] `[ON]` 후보 조사·문서화: `servol_stream` / `speedl_stream`(일반), `servol_rt_stream` / `speedl_rt_stream`(RT, `realtime/connect_rt_control` 등 초기화 필요). 단위(mm, deg)·자세 규약·`time` 인수 의미·timeout 동작
+    - `records/reviews/stream-candidates-2026-11-12.md`: 메시지 필드·`time` 의미·RT 초기화(real 모드에서 드라이버가 기동 시 연결), 2026-11-07 실측 정리, 1순위 `speedl_stream` 100 Hz(`time` = 2주기, 제어기 0.1 s 무지령 timeout). RT 계열·servol stale·설치 커밋과 원문 일치는 OFF-2 확인 목록(문서 4절)이다.
   - [ ] `[ON]` 측정 스크립트(사인 궤적 지령, 주기·지연·지터·추종 오차 기록)를 `mode:=virtual`에서 동작 확인
     - `tools/bench/stream_bench.py`·`stop_bench.py`의 단위 시험·dry-run·실기 기록. virtual 확인과 구분한다.
   - [ ] `[OFF]` OFF-2: 안전 높이에서 작은 진폭 사인 궤적으로 지령 주기·지연 p50/p95/p99·지터·추종 오차 측정(비전·rosbag 부하 포함) → `records/bench/stream-<date>.csv`
@@ -139,7 +141,8 @@
 - [ ] `[OFF]` OFF-2: I3. `mock_world_node` + 실제 로봇·그리퍼로 오케스트레이터 연동(안전 높이). deadline 자체 중단, stale 지령(L0), `Stop` 확인
 - [ ] `[OFF]` OFF-2: skill별 소요시간 분포 측정
 - [ ] `[ON*]` 측정값으로 `PLAN.md` 6절 제한시간 1차 확정, `mock_robot_controller_node`·fake gripper의 소요시간·지연값 갱신
-- [ ] `[ON]` 안전 절차 문서: 속도·가속 제한, 작업영역 제한, 비상정지 위치, 관찰자 역할, 보호 정지 후 재개 절차
+- [x] `[ON]` 안전 절차 문서: 속도·가속 제한, 작업영역 제한, 비상정지 위치, 관찰자 역할, 보호 정지 후 재개 절차
+  - `docs/operations/safety-procedure.md`(역할, 시작 전 점검, 설정 파일 기준 속도·가속·작업영역 표, 정지 방법, DRL PLAY 잔류 대응, Stop 해제·재개 순서, 그리퍼 한도, 기록). 비상정지·펜던트 위치는 현장에서 기입한다(아래 OFF-2 현장 확인).
 - [ ] `[OFF]` OFF-2: 안전 절차 현장 확인(비상정지 동작, 작업영역 제한 설정)
 - [ ] `[OFF]` OFF-2: 감시 노드 기동 직후 controller heartbeat 수신 지연 확인. officepc WSL 대역 I0에서 기동 직후 감시 노드가 마지막 controller stamp를 0.30~0.34 s 전 것으로 보고 `CONTROLLER_HEARTBEAT_LOST` Stop을 냈다(같은 순간 독립 구독자 수신 공백 ≤ 0.10 s, 판정 타이머 간격 0.05 s, R1 이전 코드에서도 발생). 실기 bringup 5회에서 재현 여부를 본다. 시연 운용 절차: 기동 → 2 s 대기 → controller heartbeat `error_code` 확인, 101이고 Stop 사유가 `CONTROLLER_HEARTBEAT_LOST`이며 로봇이 정지·대기 자세면 `stop_release_reason`으로 사유를 남기고 해제(SPEC-010 4.5절). 재현이 잦으면 감시 노드가 controller heartbeat를 연속 5회 받은 뒤부터 손실을 판정하도록 바꾸는 안(REQ-ABT-010 변경)을 검토한다(`records/reviews/fable-m0-risk-2026-11-11.md` 2절)
   - 2026-11-12 CI(공유 러너): 실제 tracker·planner I0에서 기동 안정 대기 뒤 첫 사이클 0.44 s(PICK_STONE)에 같은 Stop이 1회 났고 재실행은 통과했다(run 43181006141, `records/worklog/2026-11-12.md`). controller 기동 3.2 s 뒤(controller 로그 시각 기준)여서 "연속 5회 수신 뒤 무장" 안으로는 막지 못할 것으로 본다(감시 노드의 수신 기록이 없어 추정). 대책은 운용 절차(위)를 유지하고 OFF-2 재현 결과로 정한다.
