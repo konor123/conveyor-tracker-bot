@@ -153,6 +153,26 @@ def test_speed_step(seed):
 
 
 @pytest.mark.req('REQ-TRK-006')
+@pytest.mark.tc('TC-TRK-006-04')
+@pytest.mark.level('U')
+@pytest.mark.parametrize('v0, v1', [(.02, .065), (.02, .08), (.02, .12), (.065, .02), (.082, .127)],
+                         ids=['+45', '+60', '+100', '-45', '82to127'])
+def test_large_step_alarms_or_replaces_the_track(v0, v1):
+    """큰 순간 계단은 경보보다 연관 게이트가 먼저 끊을 수 있다. 그때는 track이 바뀐다(같은 track·steady로 계속 가지 않는다)."""
+    for seed in range(20):
+        m, before, after, alarm = manager(), None, set(), False
+        for f in TrajectoryFixture(seed, duration=11., speed=v0, step=(10., v1)):
+            tracks = m.process_frame(f.t, f.dets)
+            live = [t.track_id for t in tracks if t.status != LOST]
+            if f.t < 10.:
+                before = live[0]
+            else:
+                after.update(live)
+                alarm = alarm or not m.belt_motion.steady
+        assert alarm or before not in {max(after)}, (seed, before, after)
+
+
+@pytest.mark.req('REQ-TRK-006')
 @pytest.mark.tc('TC-TRK-006-02')
 @pytest.mark.level('U')
 @pytest.mark.parametrize('seed', range(20))

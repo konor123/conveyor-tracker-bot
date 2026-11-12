@@ -133,7 +133,7 @@ SPEC-010 wire schema v0.2 / runtime contract v0.4 기준.
 - REQ-TRK-003: 관측이 끊기면 `coast.max_s`까지 `COASTING`이며 공분산 trace가 단조 증가하고, 재관측이 게이트(`gate_chi2`) 안이면 같은 track_id로 `OBSERVED`, 밖이면 새 track을 만든다.
 - REQ-TRK-004: 관측 없음이 `coast.max_s`(1.0 s)를 넘으면 `LOST`가 된다.
 - REQ-TRK-005: 관측 구간을 나갔다가 다시 들어온 병뚜껑은 새 track_id를 받고 epoch는 바뀌지 않는다.
-- REQ-TRK-006: 벨트 속도가 20 → 40 mm/s로 바뀌면 1.0 s 안에 `steady = false`가 되고, 60 s 등속(seed 20개)에서는 오검출이 0회다. 다이얼을 고정한 OFF-1 벨트 영상 5조건(속도 맥동 포함)에서는 관측 60 s당 경보 ≤ 25회, WAIT_CAP 조건(`steady`, `speed_std ≤ 1 mm/s`)을 지난 상태 비율 ≥ 0.85, 관측 30회 이상인 모든 통과가 첫 관측 뒤 1.6 s 안에 조건을 지나며, 그 상태의 3 s 앞 보고 표준편차는 모두 3.25 mm 이하다.
+- REQ-TRK-006: 벨트 속도가 20 → 40 mm/s로 바뀌면 1.0 s 안에 `steady = false`가 되고, 60 s 등속(seed 20개)에서는 오검출이 0회다. 다이얼을 고정한 OFF-1 벨트 영상 5조건(속도 맥동 포함)에서는 관측 60 s당 경보 ≤ 25회, WAIT_CAP 조건(`steady`, `speed_std ≤ 1 mm/s`)을 지난 상태 비율 ≥ 0.85, 관측 30회 이상인 모든 통과가 첫 관측 뒤 1.6 s 안에 조건을 지나며, 그 상태의 3 s 앞 보고 표준편차는 모두 3.25 mm 이하다. 45 mm/s 이상의 순간 계단은 경보가 쌓이기 전에 연관 게이트(`gate_chi2`)가 먼저 끊을 수 있으며, 그때는 1 s 안에 경보가 나거나 그 뚜껑의 track이 새 `track_id`로 바뀐다(같은 track이 `steady`인 채로 이어지지 않는다).
 - REQ-TRK-007: 프레임 10%를 무작위로 빼도 유효 추적(`OBSERVED`·`COASTING`) 비율 ≥ 99%, 위치·속도 오차가 REQ-TRK-001 기준의 1.1배 이내다.
 - REQ-TRK-008: ROS 시각이 역행하면 모든 track을 지우고 epoch를 1 올린다. `tracker_node`는 그때 역행 크기와 새 epoch를 WARN 로그 1건으로 남긴다(`ResetTracking`은 INFO).
 - REQ-TRK-009: `ResetTracking`은 `new_epoch = 이전 epoch + 1`을 돌려주고 track을 비운다.
@@ -151,5 +151,5 @@ SPEC-010 wire schema v0.2 / runtime contract v0.4 기준.
 ## 9. 미결 사항
 
 - 관측 구간·도달 구간 경계값: TBD(배치도 OFF-1, 보정 OFF-3).
-- 속도 변화 검출: 20 mm/s 미만 변화와 감속(20 → 10 mm/s)은 맥동과 구분되지 않아 검출하지 않는다. 남은 경보(다이얼 고정에서 관측 60 s당 11~18회)는 `steady`를 0.5 s 끄고 속도 공분산을 되돌릴 뿐이지만, `steady = false`를 해제 전 L3로 연결하면(PLAN.md 5절) 사이클의 상당수가 중단된다. 그 연결 여부와 다이얼 조작의 실제 검출 성능은 TBD(OFF-5 다이얼 조작 bag).
+- 속도 변화 검출: 20 mm/s 미만 변화(감속 포함)는 맥동과 구분되지 않아 검출하지 않는다. 45 mm/s 이상의 순간 계단은 대부분 경보 대신 track 교체로 나타난다(합성 20 → 65 mm/s에서 경보 2/20, 나머지는 새 track. 이전 설정은 16/20). 새 track은 관측 30회를 다시 채워야 하고 오케스트레이터는 대상을 다시 고른다(SPEC-100 REQ-ORC-016). 실제 다이얼 조작이 순간 계단인지 완만한 변화인지는 자료가 없다. 남은 경보(다이얼 고정에서 관측 60 s당 11~18회)는 `steady`를 0.5 s 끄고 속도 공분산을 되돌릴 뿐이지만, `steady = false`를 해제 전 L3로 연결하면(PLAN.md 5절) 사이클의 상당수가 중단된다. 그 연결 여부와 다이얼 조작의 실제 검출 성능은 TBD(OFF-5 다이얼 조작 bag).
 - `coast.max_s`: 그리퍼가 뚜껑을 가리지 않는 배치(TC-BEN-010-01)에서 검출 누락 구간 분포로 정한다. TBD(측정 G3, OFF-5).
