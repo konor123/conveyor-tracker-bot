@@ -218,11 +218,15 @@
 ## 8. Moving Reference Frame 구현 → G3
 
 - [ ] `[ON]` `world → robot_base → {conveyor_frame, mat_frame, camera_link}` static TF, 로봇 링크는 robot_state_publisher
+  - `calibration/static_frames.py`·`frames.launch.py`(SPEC-600 v0.2, TC-CAL-011-01·012-01, 팀원 노트북 통과, CI 미포함). `camera_link`는 `camera_tf_publisher`를 따로 띄운다. 실제 `T_base_conveyor`(OFF-3) 적용과 카메라 포함 전체 나무 확인이 완료 조건이다.
 - [x] `[ON]` tracker가 `conveyor_frame → cap_<track_id>` 동적 TF 발행(stamp = 상태 시각, orientation identity)
   - TC-TRK-012-01.
-- [ ] `[ON]` **미래 시각 TF 조회 금지**: tf2는 외삽하지 않으므로 예측은 9절 planner가 `TrackedObject`로 계산
-- [ ] `[ON]` TF Timestamp 동기화: 관측 시각 기준 변환, `TimePointZero`(최신값) 남용 금지, `/clock` 역행·재시작 시 track·계획 무효화(`PLAN.md` 5.3절)
+- [x] `[ON]` **미래 시각 TF 조회 금지**: tf2는 외삽하지 않으므로 예측은 9절 planner가 `TrackedObject`로 계산
+  - REQ-SYS-006 정적 검사(TC-SYS-006-01, `tools/spec/test_tf_usage.py`).
+- [x] `[ON]` TF Timestamp 동기화: 관측 시각 기준 변환, `TimePointZero`(최신값) 남용 금지, `/clock` 역행·재시작 시 track·계획 무효화(`PLAN.md` 5.3절)
+  - `TimePointZero` 0건(TC-SYS-006-01), 시계 역행·리셋은 TC-TRK-008-01·TC-PLN-011-01(`clock_reset`). 관측 시각 기준 변환은 vision이 보정 행렬로 한다(SPEC-200).
 - [ ] `[ON]` RViz2: 관측 TF + 예측 Marker 별도 표시
+  - `drop_bringup/config/drop.rviz`. mock 사이클에서 예측 Marker 표시를 육안 확인(2026-11-12). `cap_<id>` TF와 Marker의 위치 일치 확인이 완료 조건이다(mock 세계에서는 `frames.launch.py`의 `conveyor_frame`이 시나리오 변환과 달라 어긋난다, `records/reviews/fable-g3-review-2026-11-12.md` C-4).
 - [ ] `[OFF]` OFF-5: 실제 병뚜껑 위치와 TF 위치 비교, I4(실영상 → 계획까지 전체 인식 경로, 로봇 지령 없음)
 
 **G3 합격 기준(제안):** 속도 조건별 60 s 관측에서 독립 GT 대비 XY p95 ≤ 1 mm, 속도 오차 p95 ≤ 2 mm/s / timestamp 역행 0회 / 관측 가능 구간 유효 추적 ≥ 99%(가림 구간 별도 집계).
@@ -239,7 +243,8 @@
   - `plan_session.py` + `intercept_planner_node`, TC-PLN-006-01(SPEC-400 v0.2).
 - [x] `[ON]` `ComputeIntercept` 서비스, 계약 테스트, I2(합성 tracked fixture 또는 replay → 실제 tracker 입력으로 예측·시간 예산 CI: 정상, `time_insufficient`, `UNCERTAIN`, 만료·epoch 불일치·clock reset)
   - TC-PLN-007-01, TC-PLN-011-01(합성 tracked fixture → 실제 planner 7개 시나리오), officepc WSL 2회 반복 통과.
-- [ ] `[ON]` 실제 planner가 계약 테스트를 통과하면 `mock_world_node`의 임시 plan 발행(`publish_plan`)을 쓰지 않음
+- [x] `[ON]` 실제 planner가 계약 테스트를 통과하면 `mock_world_node`의 임시 plan 발행(`publish_plan`)을 쓰지 않음
+  - `drop.launch.py use_mock_planner:=false`(REQ-PLN-012, TC-PLN-012-01), 실제 tracker·planner I0 한 사이클(TC-INT-009-01, 두 모드 각 4/4). 계획 단계 기준 3.25 mm·`plan_lead_s` 3.0 s는 잡음 없는 mock 기준 값이며 OFF-5 bag으로 정한다(`records/reviews/fable-g3-review-2026-11-12.md` A-1~A-3).
 - [ ] `[OFF]` OFF-5: 지연 구성 측정: 노출→수신→검출 완료→상태→계획→지령 송신→TCP 응답→그리퍼 개방 명령→개방 시작→공깃돌 이탈
 - [ ] `[ON*]` 가림 허용 시간 τ_max 산출: `e_pred ≤ e_pos + |δv|·τ + ½·a·τ² + |v|·δt` → 해제 게이트 값(`PLAN.md` 4.4절)
   - 계산 함수 `tau.py`(TC-PLN-010-01). G3·G4 측정값(e_pos·δv·a·δt)이 완료 조건이다.

@@ -16,6 +16,7 @@ AI 에이전트(Codex, Claude Fable)가 쓴 독립 검수·분석 보고서 원�
 | `m0-rereview-2026-11-11.md` | 11-11 | Codex | M0 독립 재검수(R1 발견) |
 | `r1-review-2026-11-11.md` | 11-11 | Codex | R1(Stop 정지 유지) 수정 검수 |
 | `fable-m0-risk-2026-11-11.md` | 11-11 | Claude Fable | M0 남은 위험 분석과 수정안 |
+| `fable-g3-review-2026-11-12.md` | 11-12 | Claude Fable | G3·G4 준비 커밋 검토(static TF, 실제 tracker·planner bringup, 계획 시점·기준 분리, belt_sync) |
 
 - `evidence/`: 보고서가 인용한 시험 로그·실행 스크립트(`w9-evidence-2026-11-09`, `codex-ros-evidence-2026-11-09`).
 - 보고서 안의 `/tmp/...`, `~/ctb-...` 경로는 작성 당시 실행 장비의 임시 위치다. 저장소에는 없으며, 필요한 결과는 보고서 본문과 `evidence/`에 있다.
