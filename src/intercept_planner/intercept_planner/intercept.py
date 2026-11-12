@@ -52,7 +52,7 @@ class PlannerParams:
     x_reach_start_m: float = -.05
     workspace_min_m: tuple = (.20, -.40, .00)
     workspace_max_m: tuple = (.70, .40, .40)
-    release_tcp_z_m: float = .10
+    release_above_rim_m: float = .1656   # 해제 TCP z − 테두리 z. 정지 투입 성공 높이(SPEC-400 3절)
     tool_quat_xyzw: tuple = (1., 0., 0., 0.)
     tcp_offset_m: tuple = (0., 0.)
     position_std_max_m: float = .0005
@@ -149,9 +149,10 @@ def _compute_plan(track: TrackState | None, now: float, req: PlanRequest,
     margin = budget.t_available - required
     pos_rel, cov_rel = predict(track, release)
     transform = np.asarray(p.T_base_conveyor)
-    base = transform @ np.array([pos_rel[0], pos_rel[1], 0., 1.])
+    base = transform @ np.array([pos_rel[0], pos_rel[1], track.z, 1.])
+    # 해제 높이는 절대값이 아니라 테두리 위 상대 높이다: 벨트 평면·컨베이어 배치가 바뀌어도 따라간다.
     target = np.array([base[0] - p.tcp_offset_m[0], base[1] - p.tcp_offset_m[1],
-                       p.release_tcp_z_m])
+                       base[2] + p.release_above_rim_m])
     velocity = transform[:3, :3] @ np.array([*track.vel, 0.])
     std = math.sqrt(max(0., float(np.linalg.eigvalsh(cov_rel)[-1])))
     status, reason = Status.OK, ''

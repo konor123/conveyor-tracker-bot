@@ -113,7 +113,7 @@ class FakeSkillPort:
     def compute_intercept(self, deadline):
         return self._call('ComputeIntercept', deadline)
 
-    def place_start(self, mode, deadline):
+    def place_start(self, mode, deadline, goal_deadline=None):
         self.mode = mode.name
         key = 'PlaceStone' if mode.name == 'STATIC' else 'DynamicPlace'
         return self._call(key, deadline, mode=mode.name)

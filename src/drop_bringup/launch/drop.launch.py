@@ -54,15 +54,12 @@ def _scenario_params(scenario):
     시나리오 world.frames → robot_base ← conveyor_frame(row-major 16개),
     world.zones(conveyor_frame x) → 관측 구간·도달 구간 시작·끝. 검출이 mock 세계에서 올 때만 쓴다.
     """
-    import math
     import yaml
     from drop_mocks.ros_common import scenario_file
+    from drop_mocks.scenario_engine import scenario_geometry
     with open(scenario_file(scenario)) as fh:
-        world = yaml.safe_load(fh)['world']
-    (x, y, z), yaw = world['frames']['conveyor_xyz_m'], float(world['frames']['conveyor_yaw_rad'])
-    c, s = math.cos(yaw), math.sin(yaw)
-    T = [c, -s, 0.0, float(x), s, c, 0.0, float(y), 0.0, 0.0, 1.0, float(z), 0.0, 0.0, 0.0, 1.0]
-    zones = {k: float(v) for k, v in world['zones'].items()}
+        geo = scenario_geometry(yaml.safe_load(fh)['world'])
+    T, zones = geo['T_base_conveyor'], geo['zones']
     tracker = {'T_base_conveyor': T, 'region.x_obs_min_m': zones['obs_start_m'],
                'region.x_obs_max_m': zones['obs_end_m'], 'select.x_reach_start_m': zones['reach_start_m']}
     planner = {'T_base_conveyor': T, 'reach.x_reach_start_m': zones['reach_start_m'],

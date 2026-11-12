@@ -1,7 +1,7 @@
 """I0 전체 대역 통합 시험(PLAN.md 7.5절, TEST_SPEC.md 3.11·3.12·3.13절).
 
 TC-INT-001-01, TC-INT-002-01, TC-INT-003-01, TC-INT-004-01, TC-INT-005-01, TC-INT-006-01,
-TC-INT-008-01, TC-INT-009-01, TC-MCK-006-02, TC-REC-002-01, TC-REC-003-01을 격리된 ROS_DOMAIN_ID에서 검증한다.
+TC-INT-008-01, TC-INT-009-01, TC-INT-010-01, TC-INT-011-01, TC-MCK-006-02, TC-REC-002-01, TC-REC-003-01을 격리된 ROS_DOMAIN_ID에서 검증한다.
 """
 from __future__ import annotations
 
@@ -17,8 +17,8 @@ import pytest
 
 rclpy = pytest.importorskip('rclpy')
 from drop_interfaces.action import DropTask  # noqa: E402
-from drop_interfaces.msg import Heartbeat, RobotStatus, StepRecord, TaskStatus  # noqa: E402
-from drop_interfaces.srv import Stop  # noqa: E402
+from drop_interfaces.msg import Heartbeat, RobotStatus, StepRecord, TaskStatus, TrackedObjectArray  # noqa: E402
+from drop_interfaces.srv import ResetTracking, Stop  # noqa: E402
 from drop_mocks.ros_common import scenario_file  # noqa: E402
 from drop_mocks.scenario_engine import ScenarioEngine  # noqa: E402
 from drop_ros import DOMAIN, Harness, wait_future  # noqa: E402
@@ -662,6 +662,69 @@ def test_i0_real_tracker_planner_cycle(ros, tmp_path, mode):
             assert steps['WAIT_CAP']['t_to_window_s'] <= 3.0, (seed, steps['WAIT_CAP'])
             assert steps['PLAN_INTERCEPT']['position_std_m'] <= 0.00325, (seed, steps['PLAN_INTERCEPT'])
         assert _supervisor_stops_after_settle(h) == []
+    finally:
+        _stop(proc)
+        h.close()
+
+
+@pytest.mark.req('REQ-ORC-015')
+@pytest.mark.tc('TC-INT-010-01')
+@pytest.mark.level('I0')
+def test_i0_realtime_scale_cycle(ros, tmp_path):
+    """대역 소요시간을 줄이지 않아도(축척 1.0, DynamicPlace 3.0 s) goal 하나가 APPROACH~RETREAT를 끝낸다.
+
+    goal.deadline이 APPROACH 단계 제한시간(3.0 s)이면 서버가 RETREAT 도중 스스로 TIMEOUT으로 끝난다.
+    """
+    h = Harness()
+    task_msgs = h.record(TaskStatus, 'task/status')
+    step_msgs = h.record(StepRecord, 'task/step_record')
+    proc = _launch('scenario:=nominal_20mms', 'duration_scale_ratio:=1.0', f'records_dir:={tmp_path}',
+                   f'date:={DATE_STR}')
+    try:
+        _wait_ready(h, timeout_s=30.0)
+        _reset_cycle_clock(h, seed=0)
+        _, res = _send_goal(h, _drop_goal(timeout=60.0), timeout=75.0)
+        cyc_id = task_msgs[-1][1].cycle_id
+        steps = [(m.step_name, m.result, m.reason_code) for _, m in step_msgs if m.cycle_id == cyc_id]
+        assert res.result == DropTask.Result.SUCCESS, (res.result, res.reason_code, steps)
+        assert ('RETREAT', 0, '') in steps
+    finally:
+        _stop(proc)
+        h.close()
+
+
+@pytest.mark.req('REQ-ORC-016')
+@pytest.mark.tc('TC-INT-011-01')
+@pytest.mark.level('I0')
+def test_i0_lost_target_is_reselected(ros, tmp_path):
+    """WAIT_CAP 도중 tracker가 초기화되어 고른 track이 사라져도 같은 통과에서 다시 골라 사이클을 끝낸다."""
+    h = Harness()
+    task_msgs = h.record(TaskStatus, 'task/status')
+    step_msgs = h.record(StepRecord, 'task/step_record')
+    tracked = h.record(TrackedObjectArray, 'objects/tracked')
+    proc = _launch('use_mock_vision:=true', 'use_mock_robot:=true', 'use_mock_tracking:=false',
+                   'use_mock_planner:=false', 'scenario:=nominal_20mms', 'duration_scale_ratio:=0.12',
+                   f'records_dir:={tmp_path}', f'date:={DATE_STR}', launch_file='drop.launch.py')
+    try:
+        _wait_ready(h, timeout_s=30.0)
+        _reset_cycle_clock(h, seed=0, t0_offset_s=-2.5)
+        ac = h.action(DropTask, 'drop_task', timeout=5.0)
+        gh = wait_future(ac.send_goal_async(_drop_goal(timeout=30.0)), timeout=5.0)
+        assert gh.accepted
+        result = gh.get_result_async()
+
+        def target_chosen():
+            return (task_msgs[-1][1].state == 'WAIT_CAP' and bool(tracked)
+                    and any(t.observation_count >= 40 for t in tracked[-1][1].tracks))
+        h.wait_for(target_chosen, 15.0, 'WAIT_CAP에서 대상 선택')
+        epoch = tracked[-1][1].tracks[0].epoch
+        reset = h.call(ResetTracking, 'tracking/reset')
+        assert (reset.result, reset.new_epoch) == (0, epoch + 1)
+        res = wait_future(result, timeout=40.0).result
+        cyc_id = task_msgs[-1][1].cycle_id
+        steps = [(m.step_name, m.result, m.reason_code) for _, m in step_msgs if m.cycle_id == cyc_id]
+        assert res.result == DropTask.Result.SUCCESS, (res.result, res.reason_code, steps)
+        assert res.passes_skipped == 0
     finally:
         _stop(proc)
         h.close()

@@ -1,6 +1,6 @@
 # SPEC-400 planner
 
-- 버전: v0.5
+- 버전: v0.6
 - 근거: PLAN.md 3.1, 4.3, 4.4, 9절
 - REQ 영역: PLN
 
@@ -8,6 +8,7 @@
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
+| v0.6 | 2026-11-12 | 해제 높이를 절대값 `release_tcp_z_m`에서 테두리 위 상대 높이 `release_above_rim_m`으로(REQ-PLN-004) |
 | v0.5 | 2026-11-12 | bringup: `use_mock_planner` 기본값 `false`, mock planner + 실제 tracker 조합 거부, track만 mock일 때도 시나리오 기하 전달(REQ-PLN-012) |
 | v0.4 | 2026-11-11 | `uncertainty.position_std_max_m` 3.25 mm(계획 단계 기준, 해제 게이트 0.5 mm는 SPEC-100 `sync.release_position_std_max_m`) |
 | v0.3 | 2026-11-11 | bringup: `use_mock_planner:=false`로 실제 planner 기동·자동 활성화, mock 임시 plan 끔(REQ-PLN-012) |
@@ -46,7 +47,7 @@ SPEC-010 wire schema v0.2 / runtime contract v0.4 기준.
 | `reach.x_reach_start_m` | −0.05 | SPEC-300 `select.x_reach_start_m`과 같은 값. TBD(배치도 OFF-1) |
 | `reach.workspace_min_m` | [0.20, −0.40, 0.00] | `robot_base` 기준 해제 TCP 허용 상자 하한. TBD(배치도 OFF-1) |
 | `reach.workspace_max_m` | [0.70, 0.40, 0.40] | 상한. 같음 |
-| `target.release_tcp_z_m` | 0.10 | 해제 직전 TCP 높이(`robot_base`). 핑거 끝 = 테두리 + `h_clear`가 되도록 TBD(보정 OFF-3, 기본 핑거 OFF-4) |
+| `target.release_above_rim_m` | 0.1656 | 해제 직전 TCP z − 뚜껑 테두리 윗면 z(`robot_base`). TCP는 플랜지다(PLAN.md 1.1절). 정지 투입 성공 높이 0.1606 m에 5 mm 여유(`static_pick_place.yaml`과 같은 값, `records/worklog/2026-11-09.md`). 동적 투입에서의 값은 TBD(OFF-6) |
 | `target.tool_quat_xyzw` | [1, 0, 0, 0] | 수직 하향 고정 자세. TBD(G0) |
 | `target.tcp_offset_m` | [0.0, 0.0] | 공깃돌 중심 − TCP(XY, `robot_base`). TBD(측정 OFF-4, `tcp_offset.py`) |
 | `uncertainty.position_std_max_m` | 0.00325 | PLAN.md 4.3절 계획 단계 기준(= `e_xy_max`). 해제 게이트 0.5 mm는 SPEC-100 |
@@ -80,7 +81,7 @@ ok          = time_margin ≥ margin
 2. 도달 구간 진입 시각 `t_reach = t_state + (x_reach_start − x) / v_x`(이미 구간 안이면 `t_state`).
 3. `release_time = max(now + t_lead, earliest_release, t_reach)`.
 4. `x_cap`은 `now` 시점 예측 위치다. earliest_release로 해제가 늦춰지면 실효 필요 시간은 `max(T_required, (release_time − now) + t_release + t_clear)`이고 `time_margin`은 이 값으로 계산한다.
-5. 해제 위치 `p_rel = predict(track, release_time)`를 `T_base_conveyor`로 `robot_base`에 옮긴다. `target_tcp_pose.position.xy = p_rel.xy − tcp_offset`, `z = release_tcp_z_m`, orientation = `tool_quat_xyzw`.
+5. 해제 위치 `p_rel = predict(track, release_time)`를 `T_base_conveyor`로 `robot_base`에 옮긴다. `target_tcp_pose.position.xy = p_rel.xy − tcp_offset`, `z = (track의 z를 같은 변환으로 옮긴 테두리 z) + release_above_rim_m`, orientation = `tool_quat_xyzw`.
 6. `target_velocity = R_base_conveyor · [vx, vy, 0]`.
 7. `valid_until = release_time + t_release + t_clear`(해제 창 끝). 이후 갱신이 없거나 track이 끝나면 4.5절 규칙으로 무효화한다.
 
@@ -138,7 +139,7 @@ ok          = time_margin ≥ margin
 - REQ-PLN-001: `evaluate_budget`은 PLAN.md 9절 식으로 `t_available`·`t_required`(margin 미포함)를 1e-9 이내로 계산하고, `t_available − t_required ≥ margin`일 때만 통과하며, 동적 모드에서 `v ≤ v_min`이면 `BELT_STOPPED`, 역방향이면 `BELT_REVERSED`로 불통과한다.
 - REQ-PLN-002: 예측은 `t_state`를 기준으로 하며 지연을 중복 보상하지 않는다(위치 오차 1e-9 이내).
 - REQ-PLN-003: 예측 위치 분산은 축마다 `P_xx + 2·dt·P_xv + dt²·P_vv`와 1e-12 이내로 일치한다.
-- REQ-PLN-004: `target_tcp_pose`의 XY는 예측 뚜껑 중심 − `tcp_offset`과 1e-9 이내로 일치한다.
+- REQ-PLN-004: `target_tcp_pose`의 XY는 예측 뚜껑 중심 − `tcp_offset`과, z는 테두리 z(`robot_base`) + `release_above_rim_m`과 1e-9 이내로 일치한다.
 - REQ-PLN-005: 해제 TCP가 workspace 상자 밖이면 status `UNREACHABLE`이다.
 - REQ-PLN-006: 같은 계획을 갱신하면 `plan_id`는 그대로이고 revision이 1씩 단조 증가하며, `valid_until`이 지나면 `EXPIRED`를 발행한다.
 - REQ-PLN-007: 요청 epoch가 현재 epoch와 다르면 result `FAILED`, reason `EPOCH_MISMATCH`다.
@@ -156,5 +157,5 @@ ok          = time_margin ≥ margin
 ## 9. 미결 사항
 
 - 시간 예산 성분값: TBD(측정 G0 skill 소요시간, G4).
-- `x_exit`·`x_reach_start`·workspace 상자·`release_tcp_z_m`: TBD(배치도 OFF-1, 보정 OFF-3, 기본 핑거 OFF-4).
+- `x_exit`·`x_reach_start`·workspace 상자: TBD(배치도 OFF-1, 보정 OFF-3). `release_above_rim_m`의 동적 투입 값: TBD(OFF-6).
 - `MODE_PREDICTED`에서 해제 구간 속도 일치 시작 시각(`release_time − t_sync`)과 controller 계약: TBD(SPEC-500 `DynamicPlace`, G4).

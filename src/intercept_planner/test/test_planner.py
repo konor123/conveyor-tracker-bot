@@ -96,13 +96,16 @@ def test_target_offset_transform(track, plan_request, params):
     transform = np.array([[0., -1., 0., .4], [1., 0., 0., -.2],
                           [0., 0., 1., .03], [0., 0., 0., 1.]])
     p = replace(params, tcp_offset_m=(.001, -.0005), T_base_conveyor=transform)
+    track = replace(track, z=.022)                 # 뚜껑 테두리 윗면(conveyor_frame)
     reply = compute_plan(track, 10., plan_request, p)
     assert reply.result == 0
     plan = reply.plan
     pos, _ = predict(track, plan.release_time)
-    expected = transform @ np.array([*pos, 0., 1.])
+    expected = transform @ np.array([*pos, .022, 1.])
+    # z = 테두리 z(robot_base) + release_above_rim_m: 0.03 + 0.022 + 0.1656
     assert plan.target_tcp_pose.position == pytest.approx(
-        [expected[0] - .001, expected[1] + .0005, .1], abs=1e-9)
+        [expected[0] - .001, expected[1] + .0005, .2176], abs=1e-9)
+    assert p.release_above_rim_m == pytest.approx(.1656)
     assert plan.target_tcp_pose.orientation == pytest.approx([1., 0., 0., 0.])
     assert plan.target_velocity == pytest.approx([0., .02, 0.], abs=1e-9)
 

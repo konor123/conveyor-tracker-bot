@@ -178,3 +178,49 @@ def test_ready_response_after_original_cycle_deadline():
     port.raise_fault(Event.CYCLE_TIMEOUT)
     assert port._wait(lambda: True, deadline=90.0)
     assert not port._wait(lambda: False, deadline=90.0)
+
+
+def _tracking_port(track_id=7, epoch=1):
+    """SelectTarget이 항상 같은 track을 돌려주는 포트. 호출마다 가짜 ROS 시각이 1 s 흐른다."""
+    from builtin_interfaces.msg import Time
+    port = _port()
+    n = port.n
+    n.node_cfg = {'select_retry_s': 0.05}
+    n.budget = {'x_exit_m': 0.30, 'retreat_margin_s': 1.0, 't_transit_s': 1.5}
+    n.tracked, n.tracked_seq, n.belt, n.detections = SimpleNamespace(tracks=[]), 5, None, None
+
+    def call(*args, **kwargs):
+        n.clock.t += 1.0
+        return SimpleNamespace(result=0, track_id=track_id, epoch=epoch, t_enter_window=Time(sec=50))
+    port._call = call
+    return port
+
+
+def _track(track_id=7, epoch=1, status=0):
+    return SimpleNamespace(track_id=track_id, epoch=epoch, status=status, observation_count=40,
+                           position=SimpleNamespace(x=0.0), velocity=SimpleNamespace(x=0.02))
+
+
+@pytest.mark.req('REQ-ORC-016')
+@pytest.mark.tc('TC-ORC-016-02')
+@pytest.mark.level('U')
+def test_target_lost_uses_only_lists_received_after_selection():
+    port = _tracking_port()
+    n = port.n
+    assert port.select_target(1, deadline=20.0).target_lost is False     # 고르기 전 목록(비어 있음)은 소실이 아니다
+    for tracks, lost in [([_track()], False), ([_track(status=1)], False),           # OBSERVED, COASTING
+                         ([], True), ([_track(epoch=2)], True), ([_track(status=2)], True)]:
+        n.tracked, n.tracked_seq = SimpleNamespace(tracks=tracks), n.tracked_seq + 1
+        assert port._cap_obs().target_lost is lost, tracks
+
+
+@pytest.mark.req('REQ-ORC-016')
+@pytest.mark.tc('TC-ORC-016-02')
+@pytest.mark.level('U')
+def test_reselect_within_pass_does_not_skip_the_same_track():
+    """건너뛴 통과의 track만 다음 통과에서 제외한다. 같은 통과의 재선택은 같은 track을 다시 고를 수 있다."""
+    port = _tracking_port()
+    assert port.select_target(2, deadline=20.0) is not None
+    assert port.select_target(2, deadline=20.0) is not None              # 같은 통과: 다시 고름
+    assert port.target == (7, 1)
+    assert port.select_target(3, deadline=20.0) is None                  # 다음 통과: 그 track은 제외, deadline까지 대상 없음

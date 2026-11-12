@@ -209,6 +209,17 @@ def _rot(yaw):
     return np.array([[c, -s], [s, c]])
 
 
+def scenario_geometry(world: dict) -> dict:
+    """시나리오 world.frames·world.zones → mock 세계와 같은 기하(실제 노드 파라미터·고정 TF용).
+
+    T_base_conveyor: robot_base ← conveyor_frame row-major 16개, zones: conveyor_frame x 구간 [m].
+    """
+    (x, y, z), R = world['frames']['conveyor_xyz_m'], _rot(float(world['frames'].get('conveyor_yaw_rad', 0.0)))
+    T = [float(R[0, 0]), float(R[0, 1]), 0.0, float(x), float(R[1, 0]), float(R[1, 1]), 0.0, float(y),
+         0.0, 0.0, 1.0, float(z), 0.0, 0.0, 0.0, 1.0]
+    return {'T_base_conveyor': T, 'zones': {k: float(v) for k, v in world['zones'].items()}}
+
+
 class ScenarioEngine:
     def __init__(self, scenario: dict, seed: int | None = None):
         self.scenario = scenario

@@ -280,6 +280,9 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-ORC-012-01 | controller 정지 유지·보호정지 감시 | U | `[ON]` | controller heartbeat `error_code` 100 / 101 / 0, 100 뒤 101; `ROBOT_STOPPED`가 DETECT_STONE(`DetectObjects.MAT` 뒤) / WAIT_CAP(`SelectTarget` 뒤) / 단계 사이(`PickStone` 성공 뒤) / PRECHECK에서 latch | `PROTECTIVE_STOP` / `ROBOT_STOPPED` / 장애 없음, `PROTECTIVE_STOP` 유지; 각 경우 L4·WAIT_OPERATOR, latch 뒤 Stop 외 로봇 skill 호출 0회 |
 | TC-ORC-013-01 | WAIT_CAP 계획 시점 | U | `[ON]` | 다른 조건 모두 통과, `t_to_window_s` 3.001 / 3.000 / 2.999 s(`plan_lead_s` 3.0) | WAIT(`TOO_EARLY`) / OK / OK |
 | TC-ORC-014-01 | 해제 게이트 기준 분리 | U | `[ON]` | 설치 config로 만든 `place_start(MODE_SYNCHRONIZED)` goal | `position_std_max` = 0.0005 = `sync.release_position_std_max_m`, `plan.position_std_max_m` = 0.00325와 다름 |
+| TC-ORC-015-01 | 여러 단계 goal의 deadline | U | `[ON]` | `MODE_SYNCHRONIZED`·`MODE_PREDICTED`·`MODE_STATIC` 정상 사이클에서 `place_start`에 넘긴 값 | `goal_deadline` = 전송 시각 + 10.5 s(STATIC 8.5 s), 단계 deadline ≤ 전송 시각 + 3.0 s, 둘이 다름 |
+| TC-ORC-016-01 | 대상 소실 시 재선택 | U | `[ON]` | WAIT_CAP 관측이 `target_lost` / `COASTING`(`track_observed` 거짓, `target_lost` 거짓) | 같은 `pass_index`로 `select_target` 2회, `passes_skipped` 0, SUCCESS / `select_target` 1회 |
+| TC-ORC-016-02 | 소실 판정과 재선택 대상(ROS 포트) | U | `[ON]` | 고르기 전 빈 목록 / 고른 뒤 목록: OBSERVED, COASTING, 없음, epoch 다름, LOST / 같은 통과에서 다시 선택 뒤 다음 통과 | `target_lost` 거짓 / 거짓, 거짓, 참, 참, 참 / 같은 track 다시 선택, 다음 통과에서는 그 track 제외 |
 
 ### 3.4 ABT — 중단·제한시간·감시
 
@@ -349,11 +352,13 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-TRK-006-02 | 속도 변화 오검출 없음 | U | `[ON]` | 60 s 등속, seed 20 | 오검출 0회 |
 | TC-TRK-007-01 | 프레임 10% 누락 | U | `[ON]` | 무작위 10% 누락 | 유효 추적 ≥ 99%, 오차가 TC-TRK-001-01 기준의 1.1배 이내 |
 | TC-TRK-008-01 | 시각 역행 시 초기화 | U | `[ON]` | `jump_ros(−1 s)` | 모든 track 제거, epoch +1 |
+| TC-TRK-008-02 | 시각 역행 로그 | C | `[ON]` | 추적 중 시뮬레이션 시각 100 → 99 s | WARN 1건(역행 `1.000 s`, 새 epoch), 역행 전 0건 |
 | TC-TRK-009-01 | `ResetTracking` | C | `[ON]` | 호출 | `new_epoch = 이전 + 1`, track 비움 |
 | TC-TRK-010-01 | `SelectTarget` | C | `[ON]` | 도달 구간 상류의 뚜껑 1개 / 없음 / 이미 구간 안 | track 반환, 진입 시각 오차 ≤ 50 ms / `PRECONDITION` / 다음 통과 대상 없음 `PRECONDITION` |
 | TC-TRK-011-01 | `BeltMotion` | C | `[ON]` | 등속 입력 | `source = SOURCE_CAP`, `|direction| = 1 ± 1e-9`, speed 오차 ≤ 0.5 mm/s |
 | TC-TRK-012-01 | 관측 TF | C | `[ON]` | 추적 중 | `cap_<id>` stamp = t_state, 미래 stamp 0건, orientation identity |
 | TC-TRK-013-01 | 실데이터 추적 회귀 | I1 | `[ON*]` | `off1_bags`(정상·가림·누락·속도 변화) | 유효 추적 ≥ 99%(가림 구간 별도), 속도 변화 검출 지연 ≤ 1.0 s |
+| TC-TRK-014-01 | 관측 구간 밖 새 track 금지 | U | `[ON]` | 관측 구간 0~0.10 m: 상류 밖 검출 / 20 mm/s로 0 → 0.133 m 통과 / 경계 x −0.1 mm, 0, 0.10 m, 0.1001 m | track 없음 / track 1개·`LOST` 1회, 구간 끝 뒤 새 track 0 / 없음, 생성, 생성, 없음 |
 
 ### 3.7 PLN — 계획
 
@@ -364,7 +369,7 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-PLN-001-03 | 벨트 정지·역방향 | U | `[ON]` | 동적 모드에서 `v ≤ v_min` 또는 진행 방향 반대 | not ok, reason `BELT_STOPPED` / `BELT_REVERSED` |
 | TC-PLN-002-01 | 예측은 t_state 기준이다(지연 중복 보상 없음) | U | `[ON]` | t_state = now − 0.1 s, v = 20 mm/s, t_release = now + 2 s | 예측 위치 = p + v·2.1 s(±1e-9) |
 | TC-PLN-003-01 | 예측 공분산 전파 | U | `[ON]` | 임의 P, dt | `σ² = P_xx + 2·dt·P_xv + dt²·P_vv`(축별)와 일치 |
-| TC-PLN-004-01 | 파지 오프셋 반영 | U | `[ON]` | tcp_offset (1, −0.5) mm | `target_tcp_pose` XY = 뚜껑 중심 − 오프셋 |
+| TC-PLN-004-01 | 파지 오프셋·해제 높이 | U | `[ON]` | tcp_offset (1, −0.5) mm, track z 0.022 m, 변환 z 0.03 m | `target_tcp_pose` XY = 뚜껑 중심 − 오프셋, z = 0.03 + 0.022 + 0.1656 = 0.2176 m |
 | TC-PLN-005-01 | 도달 불가 | U | `[ON]` | 해제점이 작업영역 밖 | status `UNREACHABLE` |
 | TC-PLN-006-01 | revision·만료 | C | `[ON]` | 같은 plan을 3회 갱신 / `valid_until` 경과 | revision 1, 2, 3 단조 증가, plan_id 불변 / `EXPIRED` |
 | TC-PLN-007-01 | epoch 불일치 | C | `[ON]` | 요청 epoch ≠ 현재 epoch | result FAILED, reason `EPOCH_MISMATCH` |
@@ -458,6 +463,8 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-CAL-010-03 | 오프라인 캡처/가져오기 도구 | U | `[ON]` | 로봇 제어 서비스 미연결 오프라인 상태에서 템플릿 생성, CSV/YAML 검증, 스키마 왕복 | 로봇 이동 지령 0건, 스키마 검증 및 파싱 성공, 재현성 확인 |
 | TC-CAL-011-01 | 평면 좌표계 | U | `[ON]` | 기울어진 법선(아래쪽 부호 포함)·offset·`x_hint`·`origin_xy` / 법선과 평행한 `x_hint` | 원점 평면 위 ≤ 1e-12 m, xy = `origin_xy`, R 직교·det 1, z = 법선(z > 0), x = 투영 방향 ≤ 1e-9 rad / `ValueError` |
 | TC-CAL-012-01 | 고정 TF 발행 | C | `[ON]` | `static_frames_publisher`를 항등·회전 `T_base_conveyor`, `publish_world` 참·거짓으로 띄워 `/tf_static` 수신 / 강체가 아닌 행렬 / 기울어진 회전을 소수 6·3자리로 적은 행렬, 배율 1.001 / 두 config 비교 | 부모→자식 쌍 3개(+world 1개), 중복 0, conveyor 변환 ≤ 1e-9 / 발행 0건·종료 코드 1 / 6자리 수용(발행, 변환 ≤ 1e-5), 3자리·배율 거부, `tracker_node`·`intercept_planner_node` configure도 6자리 성공·3자리 실패 / tracking·planner `T_base_conveyor` 같음 |
+| TC-CAL-012-02 | 시나리오 컨베이어 변환 | U | `[ON]` | yaw 0.3 rad 시나리오의 `scenario_geometry` | 변환이 mock 세계 `conveyor_to_base`와 ≤ 1e-12, 구간 값 같음 |
+| TC-CAL-012-03 | `frames.launch.py`의 컨베이어 변환 출처 | I2 | `[ON]` | `frames.launch.py` 인자 없음 / `scenario:=nominal_20mms` | `static_frames_publisher`의 `T_base_conveyor` 원점 (0, 0) / (0.30, −0.25) |
 
 ### 3.11 MCK — 대역
 
@@ -507,6 +514,8 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-INT-006-01 | lifecycle 비활성 | I0 | `[ON]` | 노드 하나 `INACTIVE` | PRECHECK FAILED, skill 호출 0회 |
 | TC-INT-008-01 | skill 없는 구간의 감시 노드 Stop | I0 | `[ON]` | nominal, WAIT_CAP 진입 뒤 `robot/stop`(SUPERVISOR) 직접 호출, `resume`만 하고 로봇을 해제하지 않은 새 `DropTask`, 로봇 해제 + `resume` 뒤 새 `DropTask`(DETECT_STONE·단계 사이는 TC-ORC-012-01) | WAIT_CAP: 결과 `PROTECTIVE_STOP`(`ROBOT_STOPPED`), WAIT_OPERATOR L4; 미해제 새 goal: `ROBOT_STOPPED`·L4, 대역 `skill_run_count` 증가 0; 해제·재개 뒤 SUCCESS |
 | TC-INT-009-01 | I0 실제 tracker·planner 한 사이클 | I0 | `[ON]` | `drop.launch.py` mock vision·robot + 실제 tracker·planner + 오케스트레이터, `nominal_20mms`, seed 0~3, `MODE_SYNCHRONIZED`·`MODE_PREDICTED` 각각 | 모드별 4/4 SUCCESS, 상태 열 TC-INT-001-01과 같음 / `drop/intercept_plan` 발행자 = `intercept_planner_node` 1개 / WAIT_CAP `t_to_window_s` ≤ `plan_lead_s`(3.0 s) / PLAN_INTERCEPT `position_std_m` ≤ 3.25 mm |
+| TC-INT-010-01 | I0 실시간 축척 한 사이클 | I0 | `[ON]` | `mock.launch.py` `nominal_20mms`, `duration_scale_ratio:=1.0`(`DynamicPlace` 3.0 s), `MODE_SYNCHRONIZED` 1회 | SUCCESS, RETREAT 기록 OK |
+| TC-INT-011-01 | I0 대상 재선택 | I0 | `[ON]` | `drop.launch.py` mock vision·robot + 실제 tracker·planner, WAIT_CAP에서 대상 관측 40회 뒤 `tracking/reset` 1회 호출 | `new_epoch` = 이전 + 1, 사이클 SUCCESS, `passes_skipped` 0 |
 | TC-INT-007-01 | replay는 지령 경로가 없다 | I1 | `[ON]` | `replay.launch.py` | 스트림 토픽 발행자·robot action 클라이언트·그리퍼 호출 0개 |
 | TC-INT-020-01 | I3 실기 skill·감시 | I3 | `[OFF]` | 안전 높이: deadline 자체 중단, stale 지령, `Stop`, plan 갱신 중단, 추종 중 그리퍼 개방 | 각 20회, 정의된 동작 20/20, 예기치 않은 재개 0회 |
 | TC-INT-021-01 | I4 인식 경로 | I4 | `[OFF]` | 실영상 → 계획, 로봇 mock | stale·추적 손실·계획 유효성 판정이 기대표와 일치 |

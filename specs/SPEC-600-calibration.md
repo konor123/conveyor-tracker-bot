@@ -1,6 +1,6 @@
 # SPEC-600 calibration
 
-- 버전: v0.3
+- 버전: v0.4
 - 근거: PLAN.md 2.3, 2.4, 2.5절, Progress.md 4절
 - REQ 영역: CAL
 
@@ -8,6 +8,7 @@
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
+| v0.4 | 2026-11-12 | `frames.launch.py scenario:=<이름>`: mock 시나리오의 컨베이어 변환으로 `conveyor_frame` 발행 |
 | v0.3 | 2026-11-12 | `T_base_conveyor` 강체 판정 허용오차 1e-5(소수 6자리로 적은 보정 행렬 수용) |
 | v0.2 | 2026-11-11 | 고정 좌표계 static TF(`base_link → robot_base → conveyor_frame·mat_frame`), 평면 좌표계 계산, RViz 설정(REQ-CAL-011, 012) |
 | v0.1 | 2026-11-07 | 내부 파라미터는 D455 공장값 사용, ChArUco 보드 + TCP 접촉 eye-to-hand 절차, 평면·진행 방향·TCP 오프셋·보정 파일·검증 판정, static TF 발행, CameraInfo 비교 |
@@ -110,10 +111,10 @@ robot_base ─ mat_frame            mat_plane.yaml에서 계산(아래)
 
 - `plane_frame(normal, offset_m, x_hint, origin_xy)`: z축 = 평면 법선(위쪽, z 성분 > 0으로 맞춤), x축 = `x_hint`를 평면에 투영해 정규화, y = z × x, 원점 = robot_base `origin_xy`를 지나는 수직선과 평면의 교점. 평면은 `normal · p = offset_m`이다. `x_hint`가 법선과 평행(투영 길이 < 1e-6)이면 `ValueError`다.
 - 노드는 시작할 때 한 번 `/tf_static`으로 발행한다. `T_base_conveyor`가 강체 변환(`RᵀR − I`의 각 성분과 `det − 1`이 1e-5 이내, 마지막 행 0 0 0 1)이 아니면 발행하지 않고 종료 코드 1로 끝낸다. 허용오차는 소수 6자리로 적은 보정 행렬(직교성 오차 약 1e-6)을 받기 위한 값이다. 같은 행렬을 읽는 `tracker_node`·`intercept_planner_node`도 configure에서 같은 허용오차로 판정한다.
-- `drop_bringup/launch/frames.launch.py`가 `tracking.yaml`의 `T_base_conveyor`와 `records/calib/2026-11-09-planes/mat_plane.yaml`을 넘겨 노드를 띄운다. `rviz:=true`면 `drop_bringup/config/drop.rviz`(고정 프레임 `robot_base`, TF, `drop/predicted_marker`)로 RViz2를 띄운다. `publish_world:=true`는 로봇 드라이버 없이(mock·replay) 볼 때만 쓴다.
+- `drop_bringup/launch/frames.launch.py`가 `tracking.yaml`의 `T_base_conveyor`와 `records/calib/2026-11-09-planes/mat_plane.yaml`을 넘겨 노드를 띄운다. `rviz:=true`면 `drop_bringup/config/drop.rviz`(고정 프레임 `robot_base`, TF, `drop/predicted_marker`)로 RViz2를 띄운다. `publish_world:=true`는 로봇 드라이버 없이(mock·replay) 볼 때만 쓴다. `scenario:=<drop_mocks 시나리오>`를 주면 `tracking.yaml` 대신 그 시나리오 `world.frames`의 변환을 쓴다(`drop_mocks.scenario_engine.scenario_geometry`, `drop.launch.py`가 mock 세계일 때 실제 tracker·planner에 넘기는 값과 같다).
 
 - REQ-CAL-011: `plane_frame()`의 원점은 평면 위(|normal·p − offset| ≤ 1e-12 m)이고 xy가 `origin_xy`와 같은 수직선 위다. 회전은 직교·det = 1이고 z축 = 정규화 법선, x축은 `x_hint`의 평면 투영 방향과 1e-9 rad 이내로 같다. 법선과 평행한 `x_hint`는 `ValueError`다.
-- REQ-CAL-012: `static_frames_publisher`가 낸 `/tf_static`의 부모→자식 쌍은 `base_link→robot_base`, `robot_base→conveyor_frame`, `robot_base→mat_frame`(+ `publish_world`일 때 `world→base_link`)이고, 중복 쌍은 0이며, `robot_base→conveyor_frame` 변환은 정확한 강체 `T_base_conveyor`와 1e-9 이내, 소수 6자리로 적은 행렬과는 1e-5 이내로 같다. 강체가 아닌 `T_base_conveyor`면 아무것도 발행하지 않는다. 기울어진 회전을 소수 6자리로 적은 행렬은 받고 3자리로 적은 행렬과 배율 1.001은 거부한다. `tracker_node`·`intercept_planner_node`의 configure도 6자리 행렬에서 성공하고 3자리 행렬에서 실패한다. tracking.yaml과 planner.yaml의 `T_base_conveyor`는 같다.
+- REQ-CAL-012: `static_frames_publisher`가 낸 `/tf_static`의 부모→자식 쌍은 `base_link→robot_base`, `robot_base→conveyor_frame`, `robot_base→mat_frame`(+ `publish_world`일 때 `world→base_link`)이고, 중복 쌍은 0이며, `robot_base→conveyor_frame` 변환은 정확한 강체 `T_base_conveyor`와 1e-9 이내, 소수 6자리로 적은 행렬과는 1e-5 이내로 같다. 강체가 아닌 `T_base_conveyor`면 아무것도 발행하지 않는다. 기울어진 회전을 소수 6자리로 적은 행렬은 받고 3자리로 적은 행렬과 배율 1.001은 거부한다. `tracker_node`·`intercept_planner_node`의 configure도 6자리 행렬에서 성공하고 3자리 행렬에서 실패한다. tracking.yaml과 planner.yaml의 `T_base_conveyor`는 같다. `frames.launch.py`는 `scenario`가 없으면 tracking.yaml의 변환을, 있으면 그 시나리오의 컨베이어 변환(mock 세계의 `conveyor_frame`과 1e-12 이내)을 노드에 넘긴다.
 
 ## 5. 시간 제약(주기·제한시간)
 
@@ -150,7 +151,7 @@ robot_base ─ mat_frame            mat_plane.yaml에서 계산(아래)
 ## 8. 검증 방법(`TEST_SPEC.md` TC ID, 게이트)
 
 - U: TC-CAL-001-01, TC-CAL-002-01, TC-CAL-002-02, TC-CAL-003-01~04, TC-CAL-004-01, TC-CAL-005-01, TC-CAL-006-01, TC-CAL-007-01, TC-CAL-008-01, TC-CAL-009-01, TC-CAL-010-01~03, TC-CAL-011-01 (`src/calibration/test/`)
-- C: TC-CAL-005-02(vision_node 구현 후), TC-CAL-012-01
+- C: TC-CAL-005-02(vision_node 구현 후), TC-CAL-012-01. U: TC-CAL-012-02(`drop_mocks/test/test_scenario_engine.py`). I2: TC-CAL-012-03(`drop_bringup/test/test_frames_launch.py`)
 - B: TC-BEN-012-01(OFF-3 검증 점)
 - 게이트: G1
 

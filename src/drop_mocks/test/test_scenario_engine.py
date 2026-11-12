@@ -246,3 +246,20 @@ def test_compute_intercept_and_time_insufficient(load_scenario):
     s4 = eng_ti.select_target(10.5, min_observation_count=30)
     p4 = eng_ti.compute_intercept(10.5, s4.track_id, s4.epoch)
     assert p4.result == RESULT['OK'] and p4.time_margin_s > 5.0
+
+
+@pytest.mark.req('REQ-CAL-012')
+@pytest.mark.tc('TC-CAL-012-02')
+@pytest.mark.level('U')
+def test_scenario_geometry_matches_engine(load_scenario):
+    """실제 노드·고정 TF에 넘기는 변환이 mock 세계의 conveyor_frame과 같다."""
+    import numpy as np
+    from drop_mocks.scenario_engine import scenario_geometry
+    sc = copy.deepcopy(load_scenario('nominal_20mms'))
+    sc['world']['frames']['conveyor_yaw_rad'] = 0.3
+    geo = scenario_geometry(sc['world'])
+    T = np.asarray(geo['T_base_conveyor']).reshape(4, 4)
+    engine = ScenarioEngine(sc)
+    p = np.array([0.12, -0.03, 0.01])
+    np.testing.assert_allclose((T @ [*p, 1.0])[:3], engine.conveyor_to_base(p), atol=1e-12)
+    assert geo['zones'] == {k: float(v) for k, v in sc['world']['zones'].items()}

@@ -528,3 +528,58 @@ def test_cleanup_after_real_cycle_deadline(fake_clock, cfg, point, failed):
         assert out.result == 'SUCCESS'
         assert out.states[-3:] == [S.RETREAT, S.VERIFY, S.DONE]
         assert port.names().count('VerifyDrop') == 1
+
+
+# ---------------------------------------------------------------- 여러 단계에 걸친 goal의 deadline
+class _PlaceSpy(FakeSkillPort):
+    def place_start(self, mode, deadline, goal_deadline=None):
+        self.place = (self.clock.ros_now(), deadline, goal_deadline)
+        return super().place_start(mode, deadline, goal_deadline=goal_deadline)
+
+
+@pytest.mark.req("REQ-ORC-015")
+@pytest.mark.tc("TC-ORC-015-01")
+@pytest.mark.level("U")
+@pytest.mark.parametrize("mode, steps", [
+    (Mode.SYNCHRONIZED, ('approach_s', 'synchronize_s', 'descend_s', 'release_s', 'retreat_s')),
+    (Mode.PREDICTED, ('approach_s', 'synchronize_s', 'descend_s', 'release_s', 'retreat_s')),
+    (Mode.STATIC, ('approach_s', 'descend_s', 'release_s', 'retreat_s')),
+])
+def test_place_goal_deadline_covers_all_phases(fake_clock, cfg, orch_cfg, mode, steps):
+    port = _PlaceSpy(fake_clock, mode_entry=M.OK_ENTRY if mode is Mode.PREDICTED else None)
+    out = CycleRunner(port, fake_clock, cfg).run(goal(mode=mode))
+    assert out.result == 'SUCCESS'
+    t_send, step_deadline, goal_deadline = port.place
+    total = sum(float(orch_cfg['step_timeout'][k]) for k in steps)
+    assert goal_deadline == pytest.approx(t_send + total)
+    assert step_deadline <= t_send + float(orch_cfg['step_timeout']['approach_s']) + 1e-9
+    assert goal_deadline > step_deadline            # goal 전체 상한은 APPROACH 단계 deadline과 다르다
+
+
+# ---------------------------------------------------------------- 대상 track 소실 → 같은 통과에서 다시 선택
+@pytest.mark.req("REQ-ORC-016")
+@pytest.mark.tc("TC-ORC-016-01")
+@pytest.mark.level("U")
+def test_lost_target_is_reselected_within_pass(fake_clock, cfg):
+    counting = replace(M.OK_WAIT, observation_count=10)
+    lost = replace(M.OK_WAIT, track_observed=False, observation_count=0)
+    script = {'SelectTarget': [Reply(wait_cap_obs(counting)), Reply(wait_cap_obs(M.OK_WAIT))],
+              'observe_cap': [Reply(lambda port: CapObservation(lost, port.clock.ros_now() + 8.0, target_lost=True))]}
+    _, port, out = run(fake_clock, cfg, script)
+    selects = [kw['pass_index'] for name, kw in port.calls if name == 'SelectTarget']
+    assert selects == [1, 1]                         # 같은 통과 안에서 다시 고른다
+    assert port.names().count('observe_cap') == 1
+    assert out.passes_skipped == 0
+    assert out.result == 'SUCCESS'
+
+
+@pytest.mark.req("REQ-ORC-016")
+@pytest.mark.tc("TC-ORC-016-01")
+@pytest.mark.level("U")
+def test_coasting_target_is_not_reselected(fake_clock, cfg):
+    coasting = replace(M.OK_WAIT, track_observed=False)
+    script = {'SelectTarget': [Reply(wait_cap_obs(coasting))],
+              'observe_cap': [Reply(wait_cap_obs(coasting)), Reply(wait_cap_obs(M.OK_WAIT))]}
+    _, port, out = run(fake_clock, cfg, script)
+    assert port.names().count('SelectTarget') == 1   # 가림(COASTING)은 기다린다
+    assert out.result == 'SUCCESS'

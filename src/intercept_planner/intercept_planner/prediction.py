@@ -19,6 +19,7 @@ class TrackState:
     cov: np.ndarray
     valid_until: float
     last_observed: float
+    z: float = 0.          # 뚜껑 테두리 윗면 높이(conveyor_frame, m). 해제 높이 계산에 쓴다
 
 
 def predict(track: TrackState, t: float) -> tuple[np.ndarray, np.ndarray]:

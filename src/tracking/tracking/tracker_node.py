@@ -138,12 +138,16 @@ class TrackerNode(LifecycleNode):
     def _check_clock(self):
         now = self.now()
         if self.manager is not None:
+            previous = self.manager.last_clock
             reset = self.manager.on_clock(now)
             if self._jumped and not reset:
                 self.manager.reset()
                 reset = True
             if reset:
                 self._last_received = None
+                back = 'unknown' if previous is None else f'{previous-now:.3f} s'
+                self.get_logger().warn(
+                    f'ROS time went backwards ({back}): tracks cleared, epoch -> {self.manager.epoch}')
         self._jumped = False
         return now
 
@@ -214,6 +218,7 @@ class TrackerNode(LifecycleNode):
         if self._guard(req,res):
             result = self.manager.reset(req.region)
             self._last_received = None
+            self.get_logger().info(f'ResetTracking: tracks cleared, epoch -> {result.new_epoch}')
             res.result,res.new_epoch = result.result,result.new_epoch
         return res
 

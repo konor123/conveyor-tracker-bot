@@ -108,6 +108,8 @@ class RosSkillPort:
         self.drop_goal_handle = None
         self.target = None             # (track_id, epoch)
         self.t_enter_window = 0.0
+        self._select_seq = -1          # 대상을 고를 때의 tracked 수신 번호(그 뒤 메시지로만 소실을 판정)
+        self._pass_index = 0           # 마지막으로 대상을 고른 통과 번호
         self._skipped_tracks: set[int] = set()
         self.static_cap = None         # MODE_STATIC 목표(robot_base Point)
         self.plan_id = 0
@@ -125,6 +127,7 @@ class RosSkillPort:
             self.drop_goal_handle = goal_handle
         self.target = self.static_cap = None
         self.t_enter_window = 0.0
+        self._pass_index = 0
         self._skipped_tracks = set()
 
     def raise_fault(self, event: Event) -> None:
@@ -195,7 +198,7 @@ class RosSkillPort:
                                          deadline=_to_time(deadline), **fields))
         return fut.result() if self._wait(fut.done, deadline) else None
 
-    def _send(self, name: str, goal, deadline: float):
+    def _send(self, name: str, goal, deadline: float, goal_deadline: float | None = None):
         self._accept_pending()
         if self._abandoned_send and self._result_future is not None and self._result_future.done():
             self.cancel_active(0.)
@@ -204,7 +207,9 @@ class RosSkillPort:
         ac = self.n.actions[name]
         if not self._wait(ac.server_is_ready, deadline):
             return None
-        goal.cycle_id, goal.step_id, goal.deadline = self.n.cycle_id, self.n.step_id, _to_time(deadline)
+        # 여러 단계에 걸친 goal은 goal 전체 상한을 서버 deadline으로 준다(REQ-ORC-015)
+        goal.cycle_id, goal.step_id = self.n.cycle_id, self.n.step_id
+        goal.deadline = _to_time(deadline if goal_deadline is None else goal_deadline)
         self._feedback = []
         token = self._feedback_token = object()
         def feedback(fb):
@@ -339,8 +344,12 @@ class RosSkillPort:
 
     def _cap_obs(self) -> CapObservation:
         n, b = self.n, self.n.budget
-        track_id, _ = self.target
+        track_id, epoch = self.target
         tr = next((t for t in (n.tracked.tracks if n.tracked else []) if t.track_id == track_id), None)
+        # 고른 뒤에 받은 목록에 대상이 없거나(LOST는 한 번 발행 뒤 제거) epoch가 다르면 소실이다.
+        # COASTING(가림)은 소실이 아니다(REQ-ORC-016).
+        lost = (n.tracked is not None and n.tracked_seq != self._select_seq
+                and (tr is None or tr.epoch != epoch or tr.status == TrackedObject.LOST))
         belt = n.belt
         caps = [d for d in (n.detections.detections if n.detections else [])
                 if d.object_class == ObjectDetection.CLASS_CAP]
@@ -360,11 +369,13 @@ class RosSkillPort:
             stone_inside_valid=bool(caps) and all(d.stone_inside_valid for d in caps),
             t_available_s=t_avail, t_required_s=t_req, budget_components=comps,
             t_to_window_s=max(0.0, self.t_enter_window - now))
-        return CapObservation(meas, dyn)
+        return CapObservation(meas, dyn, target_lost=lost)
 
     def select_target(self, pass_index, deadline):
-        if pass_index > 1 and self.target is not None:
+        # 통과가 바뀔 때만 앞 통과의 대상을 제외한다. 같은 통과 안의 재선택(REQ-ORC-016)은 제외하지 않는다.
+        if pass_index > max(1, self._pass_index) and self.target is not None:
             self._skipped_tracks.add(self.target[0])
+        self._pass_index = pass_index
         retry = float(self.n.node_cfg['select_retry_s'])
         while True:
             r = self._call(SelectTarget, 'tracking/select_target', deadline,
@@ -373,6 +384,7 @@ class RosSkillPort:
                 return None
             if r.result == 0 and r.track_id not in self._skipped_tracks:
                 self.target = (r.track_id, r.epoch)
+                self._select_seq = self.n.tracked_seq
                 self.t_enter_window = _t(r.t_enter_window)   # 도달 구간 진입 예상 시각(ROS)
                 return self._cap_obs()
             if not self._wait(lambda: False, min(deadline, self.clock.ros_now() + retry)) and \
@@ -420,7 +432,7 @@ class RosSkillPort:
                            time_margin_s=plan.time_margin, position_std_m=plan.position_std,
                            valid_until=_t(plan.valid_until), now=self.clock.ros_now())
 
-    def place_start(self, mode, deadline):
+    def place_start(self, mode, deadline, goal_deadline=None):
         self._mode = mode
         c = self.n.cfg
         open_width = c.release.d_stone_max_m + c.release.delta_open_m
@@ -439,7 +451,7 @@ class RosSkillPort:
                                      position_std_max=c.sync.release_position_std_max_m, rim_clearance=c.descend.h_clear_m,
                                      open_width=open_width)
             name = 'robot/dynamic_place'
-        if not self._send(name, goal, deadline):
+        if not self._send(name, goal, deadline, goal_deadline):
             return None
         m = self._phase_done('APPROACH', deadline)
         return None if m is None else meas_from_metrics(sj.ApproachMeas, m)

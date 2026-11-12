@@ -1,6 +1,6 @@
 # SPEC-100 orchestrator
 
-- 버전: v0.12
+- 버전: v0.13
 - 근거: PLAN.md 4절
 - REQ 영역: ORC
 
@@ -8,6 +8,7 @@
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
+| v0.13 | 2026-11-12 | 여러 단계에 걸친 goal의 서버 deadline = goal 전체 상한(REQ-ORC-015), WAIT_CAP 대상 track 소실 시 같은 통과 안 재선택(REQ-ORC-016) |
 | v0.12 | 2026-11-11 | 계획 단계 위치 표준편차 기준(3.25 mm)과 해제 게이트 기준(0.5 mm) 분리, WAIT_CAP 계획 시점(도달 구간 진입 3.0 s 전부터, REQ-ORC-013·014) |
 | v0.11 | 2026-11-11 | controller heartbeat `error_code` 100·101을 사이클 전 구간 감시에 적용(REQ-ORC-012) |
 | v0.10 | 2026-11-11 | 병뚜껑 안쪽 지름 `D_in` 31 mm로 `sync.e_xy_max_m` 0.00325 |
@@ -152,6 +153,7 @@ SPEC-010 wire schema v0.2 / runtime contract v0.4 기준.
 - 단계 실패는 재시도하지 않는다. DETECT_STONE·PICK_STONE 실패(`STONE_ON_MAT` 포함)는 L2이며 작업자가 확인한 뒤 `resume`으로 PRECHECK부터 다시 시작한다.
 - WAIT_CAP에서 `PASS_SKIP`이면 그 통과를 보내고 `passes_skipped`를 1 올린다. PLAN_INTERCEPT가 동적 deadline까지 OK를 내지 못해도 같다. `passes_skipped`가 `max_passes`를 넘으면 L3(`SafeRetreat(keep_sync=false, place_back=true, place_back_pose=매트)`), 결과 `NOT_ATTEMPTED`.
 - 통과 보내기는 로봇이 대기 자세에 있을 때만 한다. APPROACH 이후에는 통과 보내기를 하지 않는다.
+- WAIT_CAP에서 고른 track이 사라지면(대상을 고른 뒤 받은 `objects/tracked`에 그 track이 없거나 `LOST`이거나 epoch가 다름: 가림 초과, `ResetTracking`, 시각 역행) 통과를 보내지 않고 같은 통과 안에서 `SelectTarget`을 다시 호출한다(`CapObservation.target_lost`). `COASTING`은 소실이 아니며 기다린다. 다음 통과에서 제외하는 track은 통과가 바뀔 때의 대상뿐이고, 같은 통과의 재선택은 같은 track을 다시 고를 수 있다.
 
 ### 4.6 WAIT_OPERATOR
 
@@ -241,6 +243,8 @@ planner의 `time_budget`이 생기기 전까지 WAIT_CAP 예산은 `orchestrator
 - REQ-ORC-012: `robot_controller_node`의 `Heartbeat.error_code`가 100이면 `PROTECTIVE_STOP`, 101(정지 유지, SPEC-010 4.5절)이면 `ROBOT_STOPPED`를 감시 주기마다 latch한다. 실행 중 skill이 없을 때(PRECHECK, DETECT_STONE 서비스 대기, WAIT_CAP 선택·관측 대기, 단계 사이)도 L4로 끝나고 그 뒤 Stop 외 로봇 skill 호출은 0회다. 정지 유지가 풀리지 않은 채 시작한 사이클은 PRECHECK에서 L4다.
 - REQ-ORC-013: WAIT_CAP은 다른 조건이 모두 통과여도 `t_to_window_s > plan_lead_s`(3.0 s)면 `WAIT`(`TOO_EARLY`)이고 PLAN_INTERCEPT로 가지 않는다. 경계 3.001 / 3.000 / 2.999 s에서 WAIT / OK / OK다.
 - REQ-ORC-014: `DynamicPlace.Goal.position_std_max`는 `sync.release_position_std_max_m`(0.5 mm)이고 계획 단계 기준 `plan.position_std_max_m`(3.25 mm)와 독립이다.
+- REQ-ORC-015: `PlaceStone`·`DynamicPlace`처럼 여러 단계(APPROACH~RETREAT)를 한 goal이 수행할 때 `goal.deadline`은 전송 시각 + 그 goal이 거치는 단계 제한시간의 합(동적: `approach_s + synchronize_s + descend_s + release_s + retreat_s` = 10.5 s, STATIC: SYNCHRONIZE 제외 8.5 s)이다. APPROACH 단계 deadline을 넣지 않는다. 단계·동적·사이클 deadline은 실행기가 포트 대기와 cancel로 집행한다. 대역 소요시간 축척 1.0(`DynamicPlace` 3.0 s)에서 한 사이클이 SUCCESS다.
+- REQ-ORC-016: WAIT_CAP 대기 중 관측이 `target_lost`이면 `passes_skipped`를 올리지 않고 같은 `pass_index`로 `select_target`을 다시 호출한다. 실제 tracker가 WAIT_CAP 도중 초기화(epoch +1)되어도 그 통과에서 사이클이 SUCCESS로 끝난다.
 - REQ-ORC-010: 포트 대기는 해제 전에는 latch된 모든 장애로, RELEASE 응답 뒤에는 하드 이상으로만 끝난다. latch된 비하드 장애는 하드 이상으로 바뀌고, 하드 이상은 비하드 장애로 바뀌지 않는다.
 
 ## 7. 성공 판정(측정 가능)
@@ -251,7 +255,7 @@ planner의 `time_budget`이 생기기 전까지 WAIT_CAP 예산은 `orchestrator
 
 ## 8. 검증 방법(`TEST_SPEC.md` TC ID, 게이트)
 
-TC-ORC-001-01 ~ TC-ORC-012-01(U, M0), TC-ORC-013-01·TC-ORC-014-01(U, G4). ROS 수준은 TC-INT-001-01, TC-INT-005-01, TC-INT-006-01, TC-INT-008-01, TC-INT-009-01(실제 tracker·planner, REQ-ORC-013).
+TC-ORC-001-01 ~ TC-ORC-012-01(U, M0), TC-ORC-013-01~TC-ORC-016-02(U, G4). ROS 수준은 TC-INT-001-01, TC-INT-005-01, TC-INT-006-01, TC-INT-008-01, TC-INT-009-01(실제 tracker·planner, REQ-ORC-013), TC-INT-010-01(실시간 축척, REQ-ORC-015), TC-INT-011-01(대상 재선택, REQ-ORC-016).
 
 ## 9. 미결 사항
 

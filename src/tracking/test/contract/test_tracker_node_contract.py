@@ -121,6 +121,27 @@ def test_silence_and_clock_reset(rig):
     assert new.epoch == tr.epoch+1
 
 
+@pytest.mark.req('REQ-TRK-008')
+@pytest.mark.tc('TC-TRK-008-02')
+def test_clock_reset_is_logged(rig):
+    """시각 역행으로 초기화하면 역행 크기와 새 epoch를 WARN으로 남긴다(원인 추적용)."""
+    r = rig
+    real, warned = r.node.get_logger(), []
+
+    class Spy:
+        def warn(self, message, **kwargs):
+            warned.append(message)
+            return real.warn(message, **kwargs)
+
+        def __getattr__(self, name):
+            return getattr(real, name)
+    r.node.get_logger = lambda: Spy()
+    epoch = frame(r, 100.).tracks[0].epoch
+    assert warned == []
+    frame(r, 99.)
+    assert len(warned) == 1 and '1.000 s' in warned[0] and f'epoch -> {epoch+1}' in warned[0], warned
+
+
 @pytest.mark.req('REQ-TRK-009')
 def test_deadline_and_lifecycle(rig):
     r = rig

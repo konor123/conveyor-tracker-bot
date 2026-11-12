@@ -174,3 +174,28 @@ def test_track_past_coast_limit_is_lost_even_without_intermediate_frames():
     by_id = {s.track_id: s for s in out}
     assert by_id[first].status == LOST
     assert [s.status for s in out if s.track_id != first] == [OBSERVED]
+
+
+@pytest.mark.req('REQ-TRK-014')
+@pytest.mark.tc('TC-TRK-014-01')
+@pytest.mark.level('U')
+def test_no_new_track_outside_observation_region():
+    """구간 끝을 지나 계속 보이는 뚜껑이 프레임마다 새 track을 만들지 않는다."""
+    m = TrackManager(x_obs_min_m=0., x_obs_max_m=.10, exit_margin_m=.01)
+    assert m.process_frame(0., [Det([-.01, 0.])]) == []              # 상류 끝 밖
+    ids, lost = set(), 0
+    for k in range(1, 200):                                           # 20 mm/s, 30 Hz: x 0 → 0.133
+        tracks = m.process_frame(k/30, [Det([.02*k/30, 0.])])
+        ids.update(t.track_id for t in tracks)
+        lost += sum(t.status == LOST for t in tracks)
+    assert len(ids) == 1 and lost == 1                                # 통과 하나에 track 하나, LOST 한 번
+    assert m.process_frame(200/30, [Det([.02*200/30, 0.])]) == []
+
+
+@pytest.mark.req('REQ-TRK-014')
+@pytest.mark.tc('TC-TRK-014-01')
+@pytest.mark.level('U')
+@pytest.mark.parametrize('x, created', [(-.0001, False), (0., True), (.10, True), (.1001, False)])
+def test_new_track_region_boundary(x, created):
+    m = TrackManager(x_obs_min_m=0., x_obs_max_m=.10)
+    assert bool(m.process_frame(0., [Det([x, 0.])])) is created

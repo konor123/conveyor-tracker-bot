@@ -35,7 +35,7 @@
 | OFF-2 G0 제어 계약 | `motion_adapter`·`gripper_adapter`·skill 서버 U·C 통과, I0 통과, 스트림·그리퍼 측정 스크립트 | 스트림 주기·지연 측정, 그리퍼 명령 지연, 스트림 동작 중 그리퍼 개방, stale·cancel·통신 단절 정지, I3, skill 소요시간, Goal Current 결정, 그리퍼 동작 시간 단축 후보 측정 | `records/bench/stream-*.csv`, `gripper-*.csv`, I3 로그 | G0 합격 기준 측정 완료 |
 | OFF-3 G1 평면·최적화 | 보정 도구 U, OFF-1 bag으로 `vision` 검출 `[ON*]` 통과 | 재배치 뒤 매트·벨트 평면과 벨트 진행 방향, 4절 최적화 검토에서 고른 측정 | 평면·진행 방향 기록, 추가 bag | 평면·진행 방향 기록 완료 |
 | OFF-4 G2 정지 투입 | — | 2026-11-09 정지 파지·투입(`records/sessions/OFF-4-2026-11-09.md`). 반복 시험은 사용자 판정으로 통과(2026-11-11) | 시도 기록 | 완료 |
-| OFF-5 G3 추적 + G5 추종 | `tracking` U·I1(OFF-1 bag) 통과, `tracking_controller` U, I2 통과 | 속도별 60 s 관측(한 바퀴 시간 GT), 지연 구성 측정, 컨베이어 배치(그리퍼가 뚜껑을 가리지 않음) 확인, I4, 비접촉 추종 60 s × 조건, 추종 중 그리퍼 개방 | `tracking-*.csv`, 지연 CSV, bag | G3·G5 합격 기준 측정 완료 |
+| OFF-5 G3 추적 + G5 추종 | `tracking` U·I1(OFF-1 bag) 통과, `tracking_controller` U, I2 통과 | 시스템 시계 계단 확인(`check_clock_steps.py`), 속도별 60 s 관측(한 바퀴 시간 GT), 지연 구성 측정, 컨베이어 배치(그리퍼가 뚜껑을 가리지 않음) 확인, I4, 비접촉 추종 60 s × 조건, 추종 중 그리퍼 개방 | `tracking-*.csv`, 지연 CSV, bag | G3·G5 합격 기준 측정 완료 |
 | OFF-6 G4·G6 동적 투입 | G3 통과(G6은 G5 통과), `DynamicPlace` C, I2 통과 | 저속 30회(G4), 3속도 각 50회(G6) | 시도 기록, 관찰자 판독, bag | G4·G6 합격 기준 측정 완료 |
 | OFF-7 G7 통합 | G4 이상 통과 | 100 사이클, 시연 녹화 | 시도 기록, 시연 영상 | G7 합격 기준 측정 완료 |
 
@@ -82,6 +82,7 @@
   - JSON Schema·StepRecord/trial JSONL 및 2026-11-09 devlog: unit 793/793·contract 72/72·I0 8/8(officepc WSL), 통합 커밋 `74013cf`. TC-MCK-005-01 실시간 실행은 `realtime_pc` 마커로 CI에서 기록만 하고 PC에서 판정한다(SPEC-700 v0.7). 2026-11-10 officepc WSL 판정 3/3 통과(발행 지연 최대 0.056 s). 커밋 `7c63b0b` CI run 42788599903 전체 실행 3회 연속 통과.
 - [x] `[ON]` `tools/spec/trace.py` 추적 행렬 생성(REQ·TC 연결 검사)
 - [ ] `[ON]` I0 nominal 간헐 `STEP_TIMEOUT`(결과 SAFE_ABORT) 원인 확정. officepc WSL에서 4회 중 2회(seed 7·18) 관찰, 실패 단계 미기록. 유력 후보는 RELEASE(제한 1.0 s, 대역 0.36 s)에서 WSL 교란으로 `phase_done` feedback 지연 또는 시계 전진, 또는 result 선처리(0.2 s 대기 추가로 완화). 재발하면 실패 메시지의 `last=`(마지막 단계·소요시간)로 판정하고, result 선처리 또는 feedback 지연이면 orchestrator action client를 전용 callback group으로 옮긴다. 근거: `records/reviews/fable-m0-risk-2026-11-11.md` 1절
+  - 2026-11-12 officepc WSL: 시스템 시계 역행(약 −0.78 s, 9분에 10회)이 있는 상태에서 3/3, 없는 상태에서 4/4 통과. 시계 역행만으로는 재현되지 않는다(`records/worklog/2026-11-12.md`).
 
 **M0 합격 기준(제안):** SPEC 6종 v0.1과 M0 대상 시험 케이스 리뷰 완료 / interface 빌드 / 단위 테스트에서 장애 10종 이벤트 열마다 기대 중단 등급 / I0 정상 시나리오 20/20, ROS I0 장애 시나리오 4종(`robot_hang`, `protective_stop`, `heartbeat_loss`, `time_insufficient`)마다 정의된 중단 등급 동작 / 오케스트레이터 REQ 연결률 100% / `records/`에 StepRecord·trial 기록 생성 확인.
 
@@ -201,7 +202,7 @@
 - [x] `[ON]` 벨트 좌표계 등속 칼만 필터 `[x, y, vx, vy]`(진행 방향 성분이 주, 횡방향은 작음) 합성 궤적으로 단위 테스트(TC-TRK-*)
   - SPEC-300 v0.3, `tracking/kalman.py`. `sigma_accel_mps2` 0.01(OFF-1 벨트 영상 근거). TC-TRK-001-01·02: 60 s × seed 20에서 위치 p95 최대 0.334 mm, 속도 p95 최대 1.16 mm/s, NEES는 같은 잡음 모델 궤적으로 판정.
 - [x] `[ON]` 상태 `OBSERVED / COASTING / LOST`, 가림 중 공분산 증가, 재획득 시 게이팅, 통과마다 새 track
-  - `tracking/track_manager.py`·`association.py`, TC-TRK-002~005 U.
+  - `tracking/track_manager.py`·`association.py`, TC-TRK-002~005 U. 관측 구간 밖 검출은 새 track을 만들지 않는다(REQ-TRK-014, TC-TRK-014-01).
 - [x] `[ON]` 다이얼 조작에 따른 속도 변화 검출(혁신값 누적) → `BeltMotion.steady = false`
   - 양쪽 CUSUM(`tracking/speed_change.py`). TC-TRK-006: 20 → 30 mm/s 검출 지연 최대 0.167 s, 60 s 등속 오검출 0(seed 20).
 - [x] `[ON]` `ResetTracking`, `SelectTarget`(도달 구간에 들어오기 전 가장 가까운 병뚜껑 선택, 진입 시각 예측) 서비스, Heartbeat, 계약 테스트
@@ -214,11 +215,13 @@
 - [ ] `[OFF]` OFF-5: 독립 GT로 오차 측정. 실기는 벨트 길이 ÷ 한 바퀴 시간, 또는 별도 영상(같은 카메라 결과끼리 비교하지 않음). sim GT는 `[ON]`
 - [ ] `[OFF]` OFF-5: 대기·접근·하강·해제 자세의 그리퍼·공깃돌이 카메라 시야에서 병뚜껑을 가리지 않는지 확인(컨베이어 배치 검증)
 - [ ] `[OFF]` OFF-5: 영상 처리 지연, 프레임 누락, 추적 손실 조건 확인
+- [ ] `[OFF]` OFF-5: 현장 장비(LEGION)의 시스템 시계가 계단 보정되지 않는지 확인. `python3 tools/bench/check_clock_steps.py --duration 300`에서 계단 0건, `timedatectl timesync-status` 기록
+  - 시스템 시각이 뒤로 가면 tracker가 모든 track을 지우고 epoch를 올린다(REQ-TRK-008, WARN 로그). 사무실 PC WSL에서 31.5 s마다 약 1 s 역행을 관측했고 원인은 WSL 안 `systemd-timesyncd`와 호스트 시간 동기의 충돌이었다(`records/worklog/2026-11-12.md`).
 
 ## 8. Moving Reference Frame 구현 → G3
 
 - [ ] `[ON]` `world → robot_base → {conveyor_frame, mat_frame, camera_link}` static TF, 로봇 링크는 robot_state_publisher
-  - `calibration/static_frames.py`·`frames.launch.py`(SPEC-600 v0.3, TC-CAL-011-01·012-01). `camera_link`는 `camera_tf_publisher`를 따로 띄운다. 실제 `T_base_conveyor`(OFF-3) 적용과 카메라 포함 전체 나무 확인이 완료 조건이다.
+  - `calibration/static_frames.py`·`frames.launch.py`(SPEC-600 v0.4, TC-CAL-011-01·012-01). `camera_link`는 `camera_tf_publisher`를 따로 띄운다. 실제 `T_base_conveyor`(OFF-3) 적용과 카메라 포함 전체 나무 확인이 완료 조건이다.
 - [x] `[ON]` tracker가 `conveyor_frame → cap_<track_id>` 동적 TF 발행(stamp = 상태 시각, orientation identity)
   - TC-TRK-012-01.
 - [x] `[ON]` **미래 시각 TF 조회 금지**: tf2는 외삽하지 않으므로 예측은 9절 planner가 `TrackedObject`로 계산
@@ -226,7 +229,7 @@
 - [x] `[ON]` TF Timestamp 동기화: 관측 시각 기준 변환, `TimePointZero`(최신값) 남용 금지, `/clock` 역행·재시작 시 track·계획 무효화(`PLAN.md` 5.3절)
   - `TimePointZero` 0건(TC-SYS-006-01), 시계 역행·리셋은 TC-TRK-008-01·TC-PLN-011-01(`clock_reset`). 관측 시각 기준 변환은 vision이 TF 조회 없이 `camera_extrinsics.yaml`로 한다(SPEC-200).
 - [ ] `[ON]` RViz2: 관측 TF + 예측 Marker 별도 표시
-  - `drop_bringup/config/drop.rviz`. mock 사이클에서 예측 Marker 표시를 육안 확인(2026-11-12). `cap_<id>` TF와 Marker의 위치 일치 확인이 완료 조건이다(mock 세계에서는 `frames.launch.py`의 `conveyor_frame`이 시나리오 변환과 달라 어긋난다, `records/reviews/fable-g3-review-2026-11-12.md` C-4).
+  - `drop_bringup/config/drop.rviz`. mock 사이클에서 예측 Marker 표시를 육안 확인(2026-11-12). `frames.launch.py scenario:=nominal_20mms`가 mock 세계와 같은 `conveyor_frame`을 낸다(TC-CAL-012-02·03). 그 구성의 mock 사이클에서 `cap_<id>` TF와 Marker가 겹치는지 육안 확인이 완료 조건이다.
 - [ ] `[OFF]` OFF-5: 실제 병뚜껑 위치와 TF 위치 비교, I4(실영상 → 계획까지 전체 인식 경로, 로봇 지령 없음)
 
 **G3 합격 기준(제안):** 속도 조건별 60 s 관측에서 독립 GT 대비 XY p95 ≤ 1 mm, 속도 오차 p95 ≤ 2 mm/s / timestamp 역행 0회 / 관측 가능 구간 유효 추적 ≥ 99%(가림 구간 별도 집계).
@@ -242,9 +245,9 @@
 - [x] `[ON]` 벨트 속도 변화 시 예측 갱신(revision 증가), 계획 만료 처리
   - `plan_session.py` + `intercept_planner_node`, TC-PLN-006-01(SPEC-400 v0.2).
 - [x] `[ON]` `ComputeIntercept` 서비스, 계약 테스트, I2(합성 tracked fixture 또는 replay → 실제 tracker 입력으로 예측·시간 예산 CI: 정상, `time_insufficient`, `UNCERTAIN`, 만료·epoch 불일치·clock reset)
-  - TC-PLN-007-01, TC-PLN-011-01(합성 tracked fixture → 실제 planner 7개 시나리오), officepc WSL 2회 반복 통과.
+  - TC-PLN-007-01, TC-PLN-011-01(합성 tracked fixture → 실제 planner 7개 시나리오), officepc WSL 2회 반복 통과. 해제 높이는 테두리 위 `release_above_rim_m` 0.1656 m(정지 투입 값, SPEC-400 v0.6, TC-PLN-004-01).
 - [x] `[ON]` 실제 planner가 계약 테스트를 통과하면 `mock_world_node`의 임시 plan 발행(`publish_plan`)을 쓰지 않음
-  - `drop.launch.py use_mock_planner:=false`(REQ-PLN-012, TC-PLN-012-01), 실제 tracker·planner I0 한 사이클(TC-INT-009-01, 두 모드 각 4/4). 전체 대역 `mock.launch.py`는 임시 plan을 쓴다(`PLAN.md` 7.5절). 계획 단계 기준 3.25 mm·`plan_lead_s` 3.0 s는 잡음 없는 mock 기준 값이며 OFF-5 bag으로 정한다(`records/reviews/fable-g3-review-2026-11-12.md` A-1~A-3).
+  - `drop.launch.py use_mock_planner:=false`(REQ-PLN-012, TC-PLN-012-01), 실제 tracker·planner I0 한 사이클(TC-INT-009-01, 두 모드 각 4/4). 전체 대역 `mock.launch.py`는 임시 plan을 쓴다(`PLAN.md` 7.5절). 계획 단계 기준 3.25 mm·`plan_lead_s` 3.0 s는 잡음 없는 mock 기준 값이다. OFF-1 영상 재생(`sigma_accel` 0.01)에서 planner 보고 표준편차는 3 s 앞 중앙값 3.0~3.1 mm, 3.25 mm 이하 비율 55~81%이고 실제 오차 / 보고 표준편차 p95는 6~12다(`records/bench/belt-video-2026-11-07/replay-std-sigma-0.01.json`). 기준과 `plan_lead_s`는 OFF-5 bag으로 정한다(`records/reviews/fable-g3-open-items-2026-11-12.md` 3절).
 - [ ] `[OFF]` OFF-5: 지연 구성 측정: 노출→수신→검출 완료→상태→계획→지령 송신→TCP 응답→그리퍼 개방 명령→개방 시작→공깃돌 이탈
 - [ ] `[ON*]` 가림 허용 시간 τ_max 산출: `e_pred ≤ e_pos + |δv|·τ + ½·a·τ² + |v|·δt` → 해제 게이트 값(`PLAN.md` 4.4절)
   - 계산 함수 `tau.py`(TC-PLN-010-01). G3·G4 측정값(e_pos·δv·a·δt)이 완료 조건이다.
@@ -281,6 +284,7 @@
 ### 11B. 속도 동기 추종 투입 (MODE_SYNCHRONIZED)
 
 - [ ] `[ON]` 지속 갱신 목표 + 10절 추종 루프로 하강·해제, 해제 게이트 미통과 시 SAFE_ABORT(동기 유지하며 상승). I0·S에서 시퀀스 확인
+  - I0: 실제 tracker·planner 한 사이클(TC-INT-009-01), 대역 소요시간 축척 1.0(TC-INT-010-01, goal deadline = goal 전체 상한 REQ-ORC-015), WAIT_CAP 대상 재선택(TC-INT-011-01, REQ-ORC-016). 실제 `DynamicPlace`(10절)와 S 확인이 남은 조건이다.
 - [ ] `[OFF]` OFF-6: 실제 E0509 동적 투입, 투입 후 공깃돌이 뚜껑과 함께 1 s 이동하는지 확인
 - [ ] `[ON*]` 해제 오차·성공률 분석
 

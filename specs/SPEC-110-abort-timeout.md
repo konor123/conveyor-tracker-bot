@@ -81,6 +81,7 @@ M0는 감시 판정 함수와 이벤트 입력의 U 검증 범위다. ROS 관측
 
 - 해제 후 RETREAT·VERIFY는 원 사이클·동적 deadline과 독립적으로 각 단계 진입 ROS 시각 + 기존 단계 제한시간(각 3 s 제안값)을 쓴다. 각 포트 대기는 남은 ROS 시간 × cycle_steady_factor_ratio의 유한 steady 상한을 유지한다. 하드 이상·실제 RETREAT 실패는 L4다.
 - 그 외 실제 deadline = `min(now + 단계 제한시간, 동적 deadline, 사이클 deadline)`. 동적 deadline이 없으면 빼고 계산한다.
+- 위 deadline은 실행기의 단계 대기에 쓴다. 여러 단계를 수행하는 goal에 싣는 서버 `deadline`은 goal 전체 상한이다(SPEC-100 REQ-ORC-015).
 - 측정 기반 단계 제한시간 = `max(ceil(1.5 × p99), p95 + 0.5)` [s].
 - 시계 정책: ROS 시각은 메시지 stamp, `valid_until`, `t_last_obs`, 시간 예산, 단계·동적·사이클 deadline에 쓴다. steady 시계는 heartbeat, 그리퍼 응답, 호출 제한시간, cancel 응답, 중단 경로 제한시간, 사이클 steady 상한에 쓴다.
 

@@ -145,7 +145,8 @@ class InterceptPlannerNode(LifecycleNode):
         self.session.params = replace(self.session.params,current_epoch=self._epoch)
         self._tracks = {t.track_id:TrackState(t.track_id,t.epoch,t.status,seconds(t.header.stamp),
             np.array([t.position.x,t.position.y]),np.array([t.velocity.x,t.velocity.y]),
-            np.asarray(t.state_cov).reshape(4,4),seconds(t.valid_until),seconds(t.last_observed_stamp))
+            np.asarray(t.state_cov).reshape(4,4),seconds(t.valid_until),seconds(t.last_observed_stamp),
+            float(t.position.z))
             for t in msg.tracks}
         active = self.session.active
         if active is not None:

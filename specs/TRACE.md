@@ -2,8 +2,8 @@
 
 `tools/spec/trace.py`가 생성한다. 손으로 고치지 않는다.
 
-- REQ 131개 중 TC 연결 131개
-- pytest 대상 TC 220개 중 테스트 연결 207개
+- REQ 134개 중 TC 연결 134개
+- pytest 대상 TC 229개 중 테스트 연결 216개
 
 | TC | 수준 | REQ | 테스트 |
 |---|---|---|---|
@@ -65,6 +65,8 @@
 | TC-CAL-010-03 | U | REQ-CAL-010 | `src/calibration/test/test_contact_verification.py::test_offline_template_generation_and_roundtrip` |
 | TC-CAL-011-01 | U | REQ-CAL-011 | `src/calibration/test/test_frames.py::test_plane_frame`<br>`src/calibration/test/test_frames.py::test_plane_frame_rejects_hint_along_normal` |
 | TC-CAL-012-01 | C | REQ-CAL-012 | `src/calibration/test/test_static_frames.py::<module>`<br>`src/intercept_planner/test/contract/test_planner_node_contract.py::test_rigid_tolerance_matches_static_frames`<br>`src/tracking/test/contract/test_tracker_node_contract.py::test_rigid_tolerance_matches_static_frames` |
+| TC-CAL-012-02 | U | REQ-CAL-012 | `src/drop_mocks/test/test_scenario_engine.py::test_scenario_geometry_matches_engine` |
+| TC-CAL-012-03 | I2 | REQ-CAL-012 | `src/drop_bringup/test/test_frames_launch.py::<module>` |
 | TC-EXP-CMP-01 | E | — | 절차 시험 |
 | TC-EXP-G2-01 | E | — | 절차 시험 |
 | TC-EXP-G3-01 | E | — | 절차 시험 |
@@ -113,6 +115,8 @@
 | TC-INT-007-01 | I1 | REQ-INT-007(SPEC 없음) | — |
 | TC-INT-008-01 | I0 | REQ-INT-008(SPEC 없음) | `src/drop_bringup/test/test_i0_integration.py::test_i0_supervisor_stop_without_running_skill` |
 | TC-INT-009-01 | I0 | REQ-INT-009(SPEC 없음) | `src/drop_bringup/test/test_i0_integration.py::test_i0_real_tracker_planner_cycle` |
+| TC-INT-010-01 | I0 | REQ-INT-010(SPEC 없음) | `src/drop_bringup/test/test_i0_integration.py::test_i0_realtime_scale_cycle` |
+| TC-INT-011-01 | I0 | REQ-INT-011(SPEC 없음) | `src/drop_bringup/test/test_i0_integration.py::test_i0_lost_target_is_reselected` |
 | TC-INT-020-01 | I3 | REQ-INT-020(SPEC 없음) | 절차 시험 |
 | TC-INT-021-01 | I4 | REQ-INT-021(SPEC 없음) | 절차 시험 |
 | TC-MCK-001-01 | U | REQ-MCK-001 | `src/drop_mocks/test/test_scenario_engine.py::test_same_scenario_and_seed_give_same_output` |
@@ -160,6 +164,9 @@
 | TC-ORC-012-01 | U | REQ-ORC-012 | `src/orchestrator/test/test_controller_stop_watch.py::<module>` |
 | TC-ORC-013-01 | U | REQ-ORC-013 | `src/orchestrator/test/test_step_judges.py::test_wait_cap_plan_lead` |
 | TC-ORC-014-01 | U | REQ-ORC-014 | `src/orchestrator/test/test_release_gate.py::test_dynamic_place_uses_release_gate_threshold` |
+| TC-ORC-015-01 | U | REQ-ORC-015 | `src/orchestrator/test/test_cycle_runner.py::test_place_goal_deadline_covers_all_phases` |
+| TC-ORC-016-01 | U | REQ-ORC-016 | `src/orchestrator/test/test_cycle_runner.py::test_lost_target_is_reselected_within_pass`<br>`src/orchestrator/test/test_cycle_runner.py::test_coasting_target_is_not_reselected` |
+| TC-ORC-016-02 | U | REQ-ORC-016 | `src/orchestrator/test/test_ros_skill_port.py::test_target_lost_uses_only_lists_received_after_selection`<br>`src/orchestrator/test/test_ros_skill_port.py::test_reselect_within_pass_does_not_skip_the_same_track` |
 | TC-PLN-001-01 | U | REQ-PLN-001 | `src/intercept_planner/test/test_planner.py::test_budget_formula` |
 | TC-PLN-001-02 | U | REQ-PLN-001 | `src/intercept_planner/test/test_planner.py::test_budget_boundary` |
 | TC-PLN-001-03 | U | REQ-PLN-001 | `src/intercept_planner/test/test_planner.py::test_belt_boundary` |
@@ -234,11 +241,13 @@
 | TC-TRK-006-02 | U | REQ-TRK-006 | `src/tracking/test/test_tracking.py::test_no_false_alarm` |
 | TC-TRK-007-01 | U | REQ-TRK-007 | `src/tracking/test/test_tracking.py::test_dropped_frames` |
 | TC-TRK-008-01 | U | REQ-TRK-008 | `src/tracking/test/test_tracking.py::test_clock_reset` |
+| TC-TRK-008-02 | C | REQ-TRK-008 | `src/tracking/test/contract/test_tracker_node_contract.py::test_clock_reset_is_logged` |
 | TC-TRK-009-01 | C | REQ-TRK-009 | `src/tracking/test/contract/test_tracker_node_contract.py::test_reset` |
 | TC-TRK-010-01 | C | REQ-TRK-010 | `src/tracking/test/contract/test_tracker_node_contract.py::test_select` |
 | TC-TRK-011-01 | C | REQ-TRK-011 | `src/tracking/test/contract/test_tracker_node_contract.py::test_belt` |
 | TC-TRK-012-01 | C | REQ-TRK-012 | `src/tracking/test/contract/test_tracker_node_contract.py::test_tf_stamp_and_coasting` |
 | TC-TRK-013-01 | I1 | REQ-TRK-013 | — |
+| TC-TRK-014-01 | U | REQ-TRK-014 | `src/tracking/test/test_tracking_edges.py::test_no_new_track_outside_observation_region`<br>`src/tracking/test/test_tracking_edges.py::test_new_track_region_boundary` |
 | TC-VIS-001-01 | U | REQ-VIS-001 | `src/vision/test/test_detector.py::test_stone_center_accuracy_on_mat` |
 | TC-VIS-001-02 | U | REQ-VIS-001 | `src/vision/test/test_detector.py::test_cap_center_accuracy_on_belt` |
 | TC-VIS-002-01 | U | REQ-VIS-002 | `src/vision/test/test_detector.py::test_mixed_scene_classification` |

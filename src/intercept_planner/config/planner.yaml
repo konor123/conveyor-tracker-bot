@@ -16,7 +16,7 @@
     "workspace_max_m": [0.70, 0.40, 0.40]
   },
   "target": {
-    "release_tcp_z_m": 0.10,
+    "release_above_rim_m": 0.1656,
     "tool_quat_xyzw": [1, 0, 0, 0],
     "tcp_offset_m": [0.0, 0.0]
   },

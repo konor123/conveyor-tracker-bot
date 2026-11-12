@@ -29,9 +29,10 @@ def test_dynamic_place_uses_release_gate_threshold():
     port = RosSkillPort(node)
     port.target, port.plan_id = (7, 0), 3
     sent = []
-    port._send = lambda name, goal, deadline: sent.append((name, goal)) and False
-    assert port.place_start(Mode.SYNCHRONIZED, deadline=1.0) is None
-    name, goal = sent[0]
+    port._send = lambda name, goal, deadline, goal_deadline=None: sent.append((name, goal, goal_deadline)) and False
+    assert port.place_start(Mode.SYNCHRONIZED, deadline=1.0, goal_deadline=9.5) is None
+    name, goal, goal_deadline = sent[0]
+    assert goal_deadline == 9.5                      # goal 전체 상한을 _send에 그대로 넘긴다(REQ-ORC-015)
     assert name == 'robot/dynamic_place'
     assert goal.position_std_max == pytest.approx(0.0005)
     assert cfg.sync.release_position_std_max_m == pytest.approx(0.0005)

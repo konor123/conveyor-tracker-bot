@@ -57,3 +57,19 @@ def test_passes_lap_and_prediction(tmp_path):
     # 등속 합성: 1 s 앞 오차 = 측정 잡음(σ 0.3 mm) + 속도 추정 오차(sigma_accel 0.01에서 p95 약 1.2 mm/s) × 1 s
     e = r['prediction_error']['1']
     assert e['n'] > 100 and e['xy_p95_mm'] < 2.0
+
+
+@pytest.mark.req('REQ-TRK-013')
+@pytest.mark.level('U')
+def test_reported_std_is_opt_in_and_consistent(tmp_path):
+    """보고 표준편차 통계는 요청할 때만 나오고(기본 출력은 그대로), 등속 합성에서는 실제 오차와 같은 크기다."""
+    path = synth_csv(tmp_path / 'c.caps.csv')
+    base = rbt.analyse(path, {})
+    assert 'std_p95_mm' not in base['prediction_error']['1']
+    r = rbt.analyse(path, {}, horizons=(1.0, 3.0), std_limit_m=0.00325)
+    assert set(r['prediction_error']) == {'1', '3'}
+    e1, e3 = r['prediction_error']['1'], r['prediction_error']['3']
+    assert e1['xy_p95_mm'] == pytest.approx(base['prediction_error']['1']['xy_p95_mm'])
+    assert 0.3 < e1['std_p50_mm'] < 3.0 and e3['std_p50_mm'] > e1['std_p50_mm']      # 예측 구간이 길수록 커진다
+    assert 0.0 <= e3['std_le_limit_ratio'] <= e1['std_le_limit_ratio'] <= 1.0
+    assert e1['norm_err_p95'] < 4.0            # 모델이 맞는 자료: 오차 / 보고 표준편차 p95가 2.45(χ²₂ 95%) 근처

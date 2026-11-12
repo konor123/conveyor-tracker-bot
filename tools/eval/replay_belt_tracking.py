@@ -7,6 +7,10 @@
 numpy만 쓴다. conveyor_frame은 보정 전이므로 검출 XY(robot_base)의 주성분 방향을 x축(진행 방향,
 시간에 따라 증가하도록 부호 결정), 검출 평균을 원점으로 둔 임시 좌표계다(SPEC-300 2절의 T_base_conveyor 대용).
 독립 GT가 없으므로 예측 오차는 "나중에 실제로 검출된 위치" 대비이며 검출 잡음을 포함한다.
+
+`--std-limit-mm 3.25`를 주면 planner가 보고하는 위치 표준편차(예측 공분산의 최대 고유값 제곱근,
+SPEC-400 `position_std`)를 같은 표본에서 함께 집계한다: std_p50/p95, 기준 이하 비율, 오차 / 표준편차 p95.
+`--horizons 1,3,4`로 예측 구간을 바꿀 수 있다. 두 인자를 주지 않으면 출력은 이전과 같다.
 """
 from __future__ import annotations
 
@@ -108,7 +112,7 @@ def pct(a, q):
     return float(np.percentile(a, q)) if len(a) else float('nan')
 
 
-def analyse(path: Path, params: dict) -> dict:
+def analyse(path: Path, params: dict, horizons=HORIZONS_S, std_limit_m: float | None = None) -> dict:
     fr = load(path)
     origin, ex, ey = conveyor_axes(fr)
     states, alarms = run(fr, origin, ex, ey, params)
@@ -156,23 +160,25 @@ def analyse(path: Path, params: dict) -> dict:
 
     # 예측 오차: 관측 30회 이상 OBSERVED 상태에서 planner predict → t+H 실제 검출(같은 뚜껑) 대비
     t_arr = fr.t
-    errs = {h: [] for h in HORIZONS_S}
+    errs = {h: [] for h in horizons}
+    stds = {h: [] for h in horizons}
     for s in states:
         if s.status != OBSERVED or s.observation_count < MIN_OBS:
             continue
         ts = TrackState(s.track_id, s.epoch, s.status, s.t_state, s.position[:2], s.velocity[:2],
                         s.state_cov, s.valid_until, s.last_observed)
-        for h in HORIZONS_S:
+        for h in horizons:
             i = np.searchsorted(t_arr, s.t_state + h)
             cand = [j for j in (i - 1, i) if 0 <= j < len(t_arr) and abs(t_arr[j] - s.t_state - h) <= MATCH_DT_S]
             if not cand:
                 continue
             j = min(cand, key=lambda j: abs(t_arr[j] - s.t_state - h))
-            pos, _ = predict(ts, float(t_arr[j]))
+            pos, cov = predict(ts, float(t_arr[j]))
             near = [z for z in cd[t_arr[j]] if np.linalg.norm(z - pos) <= MATCH_RADIUS_M]
             if near:
                 z = min(near, key=lambda z: np.linalg.norm(z - pos))
                 errs[h].append(z - pos)
+                stds[h].append(float(np.sqrt(max(0., np.linalg.eigvalsh(cov)[-1]))))   # planner position_std
     pred = {}
     for h, e in errs.items():
         e = np.array(e)
@@ -182,6 +188,12 @@ def analyse(path: Path, params: dict) -> dict:
                                   cross_p95_mm=pct(np.abs(e[:, 1]), 95) * 1e3,
                                   xy_p95_mm=pct(np.linalg.norm(e, axis=1), 95) * 1e3,
                                   xy_max_mm=float(np.linalg.norm(e, axis=1).max()) * 1e3)
+            if std_limit_m is not None:
+                sd = np.array(stds[h])
+                pred[f'{h:g}'].update(
+                    std_p50_mm=pct(sd, 50) * 1e3, std_p95_mm=pct(sd, 95) * 1e3,
+                    std_le_limit_ratio=float(np.mean(sd <= std_limit_m)),
+                    norm_err_p95=pct(np.linalg.norm(e, axis=1) / sd, 95))
     return dict(file=path.name, frames_with_detection=len(fr.t), detections=len(fr.xy),
                 span_s=float(fr.t[-1] - fr.t[0]), direction_base=ex.tolist(), origin_base_m=origin.tolist(),
                 lateral_std_mm=float(np.std(xy_c[:, 1]) * 1e3),
@@ -197,18 +209,25 @@ def main(argv=None) -> int:
     ap.add_argument('--gate-chi2', type=float)
     ap.add_argument('--cusum-k', type=float)
     ap.add_argument('--cusum-h', type=float)
+    ap.add_argument('--horizons', type=lambda s: tuple(float(v) for v in s.split(',')), default=HORIZONS_S,
+                    help='예측 구간 [s], 쉼표로 구분')
+    ap.add_argument('--std-limit-mm', type=float, help='보고 표준편차 통계를 추가하고 이 기준 이하 비율을 낸다')
     a = ap.parse_args(argv)
     params = {k: v for k, v in dict(sigma_accel_mps2=a.sigma_accel, gate_chi2=a.gate_chi2,
                                     cusum_k=a.cusum_k, cusum_h=a.cusum_h).items() if v is not None}
-    results = [analyse(p, params) for p in a.csv]
+    limit = None if a.std_limit_mm is None else a.std_limit_mm * 1e-3
+    results = [analyse(p, params, a.horizons, limit) for p in a.csv]
     for r in results:
         sp = [p['speed_fit_mps'] * 1e3 for p in r['passes']]
         print(f"{r['file']}: passes {len(r['passes'])}/{r['tracks_total']} tracks, "
               f"speed {np.mean(sp) if sp else float('nan'):.2f} mm/s, lap {np.round(r['lap_s'], 2).tolist()} s, "
               f"alarms {len(r['speed_change_alarms_s'])}, lateral std {r['lateral_std_mm']:.2f} mm")
         for h, e in r['prediction_error'].items():
+            extra = (f", std p50 {e['std_p50_mm']:.2f} p95 {e['std_p95_mm']:.2f} mm, "
+                     f"std<=limit {e['std_le_limit_ratio']:.2f}, err/std p95 {e['norm_err_p95']:.1f}"
+                     if 'std_p50_mm' in e else '')
             print(f"  H={h:>4} s n={e['n']:5d} along p95 {e['along_p95_mm']:.2f} mm, "
-                  f"xy p95 {e['xy_p95_mm']:.2f} mm, max {e['xy_max_mm']:.2f} mm")
+                  f"xy p95 {e['xy_p95_mm']:.2f} mm, max {e['xy_max_mm']:.2f} mm{extra}")
     if a.json:
         a.json.parent.mkdir(parents=True, exist_ok=True)
         a.json.write_text(json.dumps(results, indent=1, ensure_ascii=False))

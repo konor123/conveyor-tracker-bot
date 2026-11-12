@@ -84,6 +84,11 @@ class TrackManager:
         self.detector = SpeedChangeDetector(**self._detector_params)
         return ResetResult(0, self.epoch)
 
+    @property
+    def last_clock(self):
+        """마지막으로 본 ROS 시각(없으면 None). 역행 크기 로그용."""
+        return self._clock
+
     def on_clock(self, t_ros):
         backstep = self._clock is not None and self._clock-t_ros > self.backstep_tol_s
         self._clock = t_ros
@@ -136,6 +141,10 @@ class TrackManager:
                 track.status = COASTING if t_stamp-track.last_observed <= self.coast_max_s else LOST
         for j in assignment.unmatched_dets:
             det = valid[j]
+            # SPEC-300 4.2 (5): 관측 구간 밖 검출은 새 track을 만들지 않는다(REQ-TRK-014).
+            # 구간 끝을 지나 계속 보이는 뚜껑이 프레임마다 track을 만들었다가 바로 LOST가 되는 것을 막는다.
+            if not self.x_obs_min_m <= det.position[0] <= self.x_obs_max_m:
+                continue
             velocity = self.belt_motion.velocity if self.belt_motion is not None else np.zeros(2)
             p = np.zeros((4, 4))
             p[:2, :2] = det.position_cov

@@ -40,6 +40,7 @@ class DetectResult:
 class CapObservation:
     meas: sj.WaitCapMeas
     dynamic_deadline: float | None    # 이 통과의 동적 deadline(ROS). STATIC은 None
+    target_lost: bool = False         # 고른 track이 목록에서 사라졌거나 epoch가 바뀜(REQ-ORC-016)
 
 
 @dataclass(frozen=True)
@@ -92,7 +93,8 @@ class SkillPort(Protocol):
     def detect_cap(self, deadline: float) -> CapObservation | None: ...
     def observe_cap(self, deadline: float) -> CapObservation | None: ...
     def compute_intercept(self, deadline: float) -> sj.PlanMeas | None: ...
-    def place_start(self, mode: Mode, deadline: float) -> sj.ApproachMeas | None: ...
+    def place_start(self, mode: Mode, deadline: float,
+                    goal_deadline: float | None = None) -> sj.ApproachMeas | None: ...
     def place_feedback(self, phase: str, deadline: float) -> Any: ...
     def verify(self, deadline: float) -> sj.VerifyMeas | None: ...
     def safe_retreat(self, keep_sync: bool, place_back: bool, deadline: float) -> Any: ...
@@ -344,9 +346,14 @@ class CycleRunner:
             if clock.ros_now() >= pass_end:
                 j = Judgement(Result.FAILED, sj.PASS_SKIP, j.metrics, 'PASS_TIMEOUT')
                 break
-            # 포트는 새 관측이 올 때까지(또는 deadline까지) 기다렸다가 돌려준다
-            obs = (self._port.detect_cap(pass_end) if g.mode is Mode.STATIC
-                   else self._port.observe_cap(pass_end))
+            if g.mode is Mode.STATIC:
+                obs = self._port.detect_cap(pass_end)
+            elif obs.target_lost:
+                # 고른 track이 사라졌다(가림 초과·리셋·시각 역행). 같은 통과 안에서 다시 고른다(REQ-ORC-016)
+                obs = self._port.select_target(c.pass_index, pass_end)
+            else:
+                # 포트는 새 관측이 올 때까지(또는 deadline까지) 기다렸다가 돌려준다
+                obs = self._port.observe_cap(pass_end)
         if j.result is Result.OK:
             c.cap = obs
             return j, None
@@ -372,9 +379,21 @@ class CycleRunner:
         # 동적 deadline까지 OK가 없으면 이번 통과를 보낸다(대기 자세, 동적 구간 아님)
         return j, self._skip_pass(c)
 
+    def _place_goal_deadline(self, c) -> float:
+        """APPROACH~RETREAT를 한 goal이 수행한다. goal.deadline은 goal 전체 상한이다(REQ-ORC-015).
+
+        단계·동적·사이클 deadline은 실행기가 cancel로 집행한다. 서버 쪽 deadline을 APPROACH 단계
+        제한시간으로 주면 서버가 뒤 단계 도중에 스스로 TIMEOUT으로 끝난다.
+        """
+        steps = [S.APPROACH, S.DESCEND, S.RELEASE, S.RETREAT]
+        if c.goal.mode is not Mode.STATIC:
+            steps.append(S.SYNCHRONIZE)
+        return self._clock.ros_now() + sum(self._cfg.step_limit_s(s) for s in steps)
+
     def _do_approach(self, c):
-        m = self._run_action(c, lambda d: self._port.place_start(c.goal.mode, d), S.APPROACH,
-                             keeps_running=True)
+        m = self._run_action(
+            c, lambda d: self._port.place_start(c.goal.mode, d, goal_deadline=self._place_goal_deadline(c)),
+            S.APPROACH, keeps_running=True)
         if m is None:
             return _timeout(), Event.STEP_TIMEOUT
         j = sj.judge_approach(m, self._cfg.approach)
