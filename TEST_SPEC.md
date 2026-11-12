@@ -457,7 +457,7 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-CAL-010-02 | 독립 접촉점 거부 규칙 | U | `[ON]` | 20점 미만, 중복 점/ID, fit 점 재사용, NaN/Inf/불량 변환, 단위 오류(>10 m 등), 미정의 포인터 TCP, 출처 누락/불일치, 합성 데이터 물리 검증 제출 | 지정된 거부 사유(예외 또는 refusal) 반환, 물리 게이트 pass 불가 |
 | TC-CAL-010-03 | 오프라인 캡처/가져오기 도구 | U | `[ON]` | 로봇 제어 서비스 미연결 오프라인 상태에서 템플릿 생성, CSV/YAML 검증, 스키마 왕복 | 로봇 이동 지령 0건, 스키마 검증 및 파싱 성공, 재현성 확인 |
 | TC-CAL-011-01 | 평면 좌표계 | U | `[ON]` | 기울어진 법선(아래쪽 부호 포함)·offset·`x_hint`·`origin_xy` / 법선과 평행한 `x_hint` | 원점 평면 위 ≤ 1e-12 m, xy = `origin_xy`, R 직교·det 1, z = 법선(z > 0), x = 투영 방향 ≤ 1e-9 rad / `ValueError` |
-| TC-CAL-012-01 | 고정 TF 발행 | C | `[ON]` | `static_frames_publisher`를 항등·회전 `T_base_conveyor`, `publish_world` 참·거짓으로 띄워 `/tf_static` 수신 / 강체가 아닌 행렬 / 기울어진 회전을 소수 6·3자리로 적은 행렬, 배율 1.001 / 두 config 비교 | 부모→자식 쌍 3개(+world 1개), 중복 0, conveyor 변환 ≤ 1e-9 / 발행 0건·종료 코드 1 / 6자리 수용(발행, 변환 ≤ 1e-5), 3자리·배율 거부 / tracking·planner `T_base_conveyor` 같음 |
+| TC-CAL-012-01 | 고정 TF 발행 | C | `[ON]` | `static_frames_publisher`를 항등·회전 `T_base_conveyor`, `publish_world` 참·거짓으로 띄워 `/tf_static` 수신 / 강체가 아닌 행렬 / 기울어진 회전을 소수 6·3자리로 적은 행렬, 배율 1.001 / 두 config 비교 | 부모→자식 쌍 3개(+world 1개), 중복 0, conveyor 변환 ≤ 1e-9 / 발행 0건·종료 코드 1 / 6자리 수용(발행, 변환 ≤ 1e-5), 3자리·배율 거부, `tracker_node`·`intercept_planner_node` configure도 6자리 성공·3자리 실패 / tracking·planner `T_base_conveyor` 같음 |
 
 ### 3.11 MCK — 대역
 

@@ -113,7 +113,7 @@ robot_base ─ mat_frame            mat_plane.yaml에서 계산(아래)
 - `drop_bringup/launch/frames.launch.py`가 `tracking.yaml`의 `T_base_conveyor`와 `records/calib/2026-11-09-planes/mat_plane.yaml`을 넘겨 노드를 띄운다. `rviz:=true`면 `drop_bringup/config/drop.rviz`(고정 프레임 `robot_base`, TF, `drop/predicted_marker`)로 RViz2를 띄운다. `publish_world:=true`는 로봇 드라이버 없이(mock·replay) 볼 때만 쓴다.
 
 - REQ-CAL-011: `plane_frame()`의 원점은 평면 위(|normal·p − offset| ≤ 1e-12 m)이고 xy가 `origin_xy`와 같은 수직선 위다. 회전은 직교·det = 1이고 z축 = 정규화 법선, x축은 `x_hint`의 평면 투영 방향과 1e-9 rad 이내로 같다. 법선과 평행한 `x_hint`는 `ValueError`다.
-- REQ-CAL-012: `static_frames_publisher`가 낸 `/tf_static`의 부모→자식 쌍은 `base_link→robot_base`, `robot_base→conveyor_frame`, `robot_base→mat_frame`(+ `publish_world`일 때 `world→base_link`)이고, 중복 쌍은 0이며, `robot_base→conveyor_frame` 변환은 정확한 강체 `T_base_conveyor`와 1e-9 이내, 소수 6자리로 적은 행렬과는 1e-5 이내로 같다. 강체가 아닌 `T_base_conveyor`면 아무것도 발행하지 않는다. 기울어진 회전을 소수 6자리로 적은 행렬은 받고 3자리로 적은 행렬과 배율 1.001은 거부한다. tracking.yaml과 planner.yaml의 `T_base_conveyor`는 같다.
+- REQ-CAL-012: `static_frames_publisher`가 낸 `/tf_static`의 부모→자식 쌍은 `base_link→robot_base`, `robot_base→conveyor_frame`, `robot_base→mat_frame`(+ `publish_world`일 때 `world→base_link`)이고, 중복 쌍은 0이며, `robot_base→conveyor_frame` 변환은 정확한 강체 `T_base_conveyor`와 1e-9 이내, 소수 6자리로 적은 행렬과는 1e-5 이내로 같다. 강체가 아닌 `T_base_conveyor`면 아무것도 발행하지 않는다. 기울어진 회전을 소수 6자리로 적은 행렬은 받고 3자리로 적은 행렬과 배율 1.001은 거부한다. `tracker_node`·`intercept_planner_node`의 configure도 6자리 행렬에서 성공하고 3자리 행렬에서 실패한다. tracking.yaml과 planner.yaml의 `T_base_conveyor`는 같다.
 
 ## 5. 시간 제약(주기·제한시간)
 

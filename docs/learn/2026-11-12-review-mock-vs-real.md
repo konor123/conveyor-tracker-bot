@@ -33,3 +33,14 @@ python3 tools/eval/replay_belt_tracking.py records/bench/belt-video-2026-11-07/*
 - **허용오차는 실제 입력으로 계산해 정한다.** 강체 판정 허용오차를 1e-6으로 하자고 했지만, 기울어진 회전을 소수 6자리로 반올림하면 직교성 오차가 1.1e-6이라 여전히 거부된다. `np.round(R, 6)`으로 직접 재 보고 1e-5로 정했다. `np.allclose`는 기본 `rtol` 1e-5가 대각 성분(값 1)에 더해지므로 `rtol=0`으로 두어야 허용오차가 한 값으로 읽힌다.
 - **쓸 수 없는 인자 조합은 launch에서 바로 거부한다.** mock 임시 plan은 tracking 대역이 낸다. 실제 tracker + mock planner는 계획을 내는 노드가 없는데도 조용히 뜨고, 사이클은 한참 뒤 시간 초과로 끝난다. `OpaqueFunction` 안에서 예외를 던지면 `ros2 launch`가 안내 문구와 함께 0이 아닌 코드로 끝난다.
 - **같은 기준값이 여러 패키지에 있으면 일치 시험을 둔다.** 3.25 mm·0.5 mm가 orchestrator.yaml, planner.yaml, `SyncConfig` 기본값, `belt_sync.json`에 있다. `test_sync_config.py`가 서로 같은지 본다.
+
+## 다른 장비에서 다시 돌리면 보이는 것
+
+같은 시험을 사무실 PC WSL에서 돌리자 CI에서 통과하던 실제 tracker·planner I0 시험이 실패했다. 찾은 과정과 배운 점이다. 수치와 제안은 [분석 보고서](../../records/reviews/fable-g3-open-items-2026-11-12.md)에 있다.
+
+- **실패한 단계의 기록부터 본다.** 시험의 assert는 성공한 단계 기록만 보여 줬다. 실패 사이클의 모든 `StepRecord`와 `objects/tracked`(track ID, epoch, 관측 수)를 찍자 "WAIT_CAP 도중 track ID가 바뀌고 epoch가 올랐다"가 바로 보였다.
+- **epoch가 오르면 초기화다.** track이 가림으로 끊기면 `COASTING`을 거치고 epoch는 그대로다. epoch가 오르면 `ResetTracking` 호출 아니면 시계 역행이다(SPEC-300 4.2절).
+- **벽시계는 뒤로 갈 수 있다.** `time.time() − time.monotonic()`을 5 ms마다 비교하는 감시를 같이 돌려 31.5 s마다 −1.0 s 계단을 잡았다. ROS 시각(시스템 시각)을 쓰는 노드는 NTP·가상머신 시간 동기의 계단 보정을 그대로 받는다. 시뮬레이션 시각을 쓰는 계약 시험은 영향이 없어서 이 문제가 그동안 보이지 않았다.
+- **원인이 환경이어도 드러난 약점은 제품 것이다.** 시계가 뒤로 간 것은 WSL 문제지만, 대상 track이 사라졌을 때 오케스트레이터가 다시 고르지 않고 30 s를 기다리는 것은 현장에서도 가림·검출 튐으로 생길 수 있다.
+- **시간을 줄인 mock은 시간 관련 결함을 숨긴다.** I0는 대역 소요시간을 0.12배로 줄여 돈다. 축척 1.0으로 한 사이클만 돌려도 `DynamicPlace` goal이 APPROACH 제한시간(3 s)에 끊기는 것이 드러난다. 축척 0.8(2.4 s)은 통과, 제한시간을 6 s로 늘리면 통과하는 식으로 조건을 하나씩 바꿔 원인을 확정했다.
+- **원격 실행은 출력이 끊길 것을 전제로 한다.** 원격 명령 제한시간(10분)을 넘기면 화면 출력이 사라진다. 긴 시험은 단계로 나누고 결과를 파일에 남긴다.

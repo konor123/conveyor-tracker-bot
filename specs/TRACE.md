@@ -64,7 +64,7 @@
 | TC-CAL-010-02 | U | REQ-CAL-010 | `src/calibration/test/test_contact_verification.py::test_refuse_insufficient_points`<br>`src/calibration/test/test_contact_verification.py::test_refuse_duplicate_points`<br>`src/calibration/test/test_contact_verification.py::test_refuse_fit_points_reuse`<br>`src/calibration/test/test_contact_verification.py::test_refuse_nonfinite_inputs`<br>`src/calibration/test/test_contact_verification.py::test_refuse_malformed_transform`<br>`src/calibration/test/test_contact_verification.py::test_refuse_invalid_units`<br>`src/calibration/test/test_contact_verification.py::test_refuse_unknown_pointer_tcp`<br>`src/calibration/test/test_contact_verification.py::test_refuse_missing_provenance_and_mismatches`<br>`src/calibration/test/test_contact_verification.py::test_refuse_synthetic_data_for_physical_verification` |
 | TC-CAL-010-03 | U | REQ-CAL-010 | `src/calibration/test/test_contact_verification.py::test_offline_template_generation_and_roundtrip` |
 | TC-CAL-011-01 | U | REQ-CAL-011 | `src/calibration/test/test_frames.py::test_plane_frame`<br>`src/calibration/test/test_frames.py::test_plane_frame_rejects_hint_along_normal` |
-| TC-CAL-012-01 | C | REQ-CAL-012 | `src/calibration/test/test_static_frames.py::<module>` |
+| TC-CAL-012-01 | C | REQ-CAL-012 | `src/calibration/test/test_static_frames.py::<module>`<br>`src/intercept_planner/test/contract/test_planner_node_contract.py::test_rigid_tolerance_matches_static_frames`<br>`src/tracking/test/contract/test_tracker_node_contract.py::test_rigid_tolerance_matches_static_frames` |
 | TC-EXP-CMP-01 | E | — | 절차 시험 |
 | TC-EXP-G2-01 | E | — | 절차 시험 |
 | TC-EXP-G3-01 | E | — | 절차 시험 |

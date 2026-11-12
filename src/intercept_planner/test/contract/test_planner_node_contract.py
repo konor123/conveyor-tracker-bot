@@ -150,3 +150,37 @@ def test_lifecycle_deadline_marker_and_qos(rig):
     assert counts == (len(r.plans),len(r.markers))
     assert r.beats[-1].lifecycle_state == 2
     assert r.beats[-1].seq > r.beats[0].seq
+
+
+def _tilted_T(digits):
+    """기울기 0.02 rad + yaw 1.3 rad 회전을 소수 digits자리로 적은 변환(보정 결과 파일 모양, SPEC-600 4.9절)."""
+    cx, sx, cz, sz = np.cos(.02), np.sin(.02), np.cos(1.3), np.sin(1.3)
+    T = np.eye(4)
+    T[:3, :3] = np.array([[cz, -sz, 0], [sz, cz, 0], [0, 0, 1]]) @ np.array([[1, 0, 0], [0, cx, -sx], [0, sx, cx]])
+    T[:3, 3] = [.6, .05, .07]
+    return np.round(T, digits)
+
+
+def _configure(cls, T):
+    """노드를 만들어 configure 결과 이름만 돌려준다."""
+    import rclpy
+    from rclpy.context import Context
+    from rclpy.parameter import Parameter
+    context = Context()
+    rclpy.init(context=context)
+    try:
+        node = cls(context=context, parameter_overrides=[
+            Parameter('T_base_conveyor', value=[float(v) for v in T.ravel()])])
+        try:
+            return node.trigger_configure().name
+        finally:
+            node.destroy_node()
+    finally:
+        context.shutdown()
+
+
+@pytest.mark.req('REQ-CAL-012')
+@pytest.mark.tc('TC-CAL-012-01')
+@pytest.mark.parametrize('digits, ok', [(6, True), (3, False)])
+def test_rigid_tolerance_matches_static_frames(digits, ok):
+    assert (_configure(InterceptPlannerNode, _tilted_T(digits)) == 'SUCCESS') is ok
