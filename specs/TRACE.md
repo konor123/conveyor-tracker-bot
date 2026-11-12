@@ -2,8 +2,8 @@
 
 `tools/spec/trace.py`가 생성한다. 손으로 고치지 않는다.
 
-- REQ 134개 중 TC 연결 134개
-- pytest 대상 TC 231개 중 테스트 연결 218개
+- REQ 135개 중 TC 연결 135개
+- pytest 대상 TC 232개 중 테스트 연결 219개
 
 | TC | 수준 | REQ | 테스트 |
 |---|---|---|---|
@@ -168,6 +168,7 @@
 | TC-ORC-015-01 | U | REQ-ORC-015 | `src/orchestrator/test/test_cycle_runner.py::test_place_goal_deadline_covers_all_phases` |
 | TC-ORC-016-01 | U | REQ-ORC-016 | `src/orchestrator/test/test_cycle_runner.py::test_lost_target_is_reselected_within_pass`<br>`src/orchestrator/test/test_cycle_runner.py::test_coasting_target_is_not_reselected` |
 | TC-ORC-016-02 | U | REQ-ORC-016 | `src/orchestrator/test/test_ros_skill_port.py::test_target_lost_uses_only_lists_received_after_selection`<br>`src/orchestrator/test/test_ros_skill_port.py::test_reselect_within_pass_does_not_skip_the_same_track` |
+| TC-ORC-017-01 | U | REQ-ORC-017 | `src/orchestrator/test/test_cycle_runner.py::test_wait_cap_ended_while_waiting_keeps_last_wait_reason`<br>`src/orchestrator/test/test_cycle_runner.py::test_wait_cap_without_any_target_is_no_target` |
 | TC-PLN-001-01 | U | REQ-PLN-001 | `src/intercept_planner/test/test_planner.py::test_budget_formula` |
 | TC-PLN-001-02 | U | REQ-PLN-001 | `src/intercept_planner/test/test_planner.py::test_budget_boundary` |
 | TC-PLN-001-03 | U | REQ-PLN-001 | `src/intercept_planner/test/test_planner.py::test_belt_boundary` |

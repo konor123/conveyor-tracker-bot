@@ -583,3 +583,30 @@ def test_coasting_target_is_not_reselected(fake_clock, cfg):
     _, port, out = run(fake_clock, cfg, script)
     assert port.names().count('SelectTarget') == 1   # 가림(COASTING)은 기다린다
     assert out.result == 'SUCCESS'
+
+
+# ---------------------------------------------------------------- 대기 중 끝난 WAIT_CAP의 기록
+@pytest.mark.req("REQ-ORC-017")
+@pytest.mark.tc("TC-ORC-017-01")
+@pytest.mark.level("U")
+def test_wait_cap_ended_while_waiting_keeps_last_wait_reason(fake_clock, cfg):
+    """대기 중 사이클 제한으로 끝난 WAIT_CAP 기록에 마지막 대기 사유와 지표가 남는다(원인 추적용)."""
+    counting = replace(M.OK_WAIT, observation_count=10)
+    script = {'SelectTarget': [Reply(wait_cap_obs(counting))], 'observe_cap': [Reply(hang=True)]}
+    port = FakeSkillPort(fake_clock, script)
+    out = CycleRunner(port, fake_clock, cfg).run(replace(goal(), timeout_s=20.0))
+    rec = next(r for r in out.records if r.step_name == 'WAIT_CAP')
+    assert rec.reason_code == 'CYCLE_TIMEOUT'
+    assert rec.detail == 'OBSERVATION_COUNT'
+    assert dict(zip(rec.metric_keys, rec.metric_values))['observation_count'] == 10
+
+
+@pytest.mark.req("REQ-ORC-017")
+@pytest.mark.tc("TC-ORC-017-01")
+@pytest.mark.level("U")
+def test_wait_cap_without_any_target_is_no_target(fake_clock, cfg):
+    script = {'SelectTarget': [Reply(hang=True)]}
+    port = FakeSkillPort(fake_clock, script)
+    out = CycleRunner(port, fake_clock, cfg).run(replace(goal(), timeout_s=20.0))
+    rec = next(r for r in out.records if r.step_name == 'WAIT_CAP')
+    assert (rec.detail, rec.metric_keys) == ('NO_TARGET', [])

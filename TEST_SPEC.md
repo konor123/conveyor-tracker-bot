@@ -283,6 +283,7 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-ORC-015-01 | 여러 단계 goal의 deadline | U | `[ON]` | `MODE_SYNCHRONIZED`·`MODE_PREDICTED`·`MODE_STATIC` 정상 사이클에서 `place_start`에 넘긴 값 | `goal_deadline` = 전송 시각 + 10.5 s(STATIC 8.5 s), 단계 deadline ≤ 전송 시각 + 3.0 s, 둘이 다름 |
 | TC-ORC-016-01 | 대상 소실 시 재선택 | U | `[ON]` | WAIT_CAP 관측이 `target_lost` / `COASTING`(`track_observed` 거짓, `target_lost` 거짓) | 같은 `pass_index`로 `select_target` 2회, `passes_skipped` 0, SUCCESS / `select_target` 1회 |
 | TC-ORC-016-02 | 소실 판정과 재선택 대상(ROS 포트) | U | `[ON]` | 고르기 전 빈 목록 / 고른 뒤 목록: OBSERVED, COASTING, 없음, epoch 다름, LOST / 같은 통과에서 다시 선택 뒤 다음 통과 | `target_lost` 거짓 / 거짓, 거짓, 참, 참, 참 / 같은 track 다시 선택, 다음 통과에서는 그 track 제외 |
+| TC-ORC-017-01 | 대기 중 끝난 WAIT_CAP 기록 | U | `[ON]` | 관측 수 10으로 대기 중 사이클 제한 20 s 경과 / 대상 선택이 응답 없이 사이클 제한 경과 | 기록 `CYCLE_TIMEOUT`, `detail` `OBSERVATION_COUNT`, 지표 `observation_count` 10 / `detail` `NO_TARGET`, 지표 없음 |
 
 ### 3.4 ABT — 중단·제한시간·감시
 

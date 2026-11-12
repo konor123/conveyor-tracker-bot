@@ -249,7 +249,7 @@ class CycleRunner:
                 fault = self._pending_event(c, state) or pending
                 # RETREAT 실패 등 하드 이상은 latch된 비하드 장애보다 우선한다.
                 if fault is not None and (event not in HARD_FAULTS or fault in HARD_FAULTS):
-                    j, event = Judgement(Result.FAULT, fault.name, j.metrics), fault
+                    j, event = Judgement(Result.FAULT, fault.name, j.metrics, j.detail), fault
                 level = self._level(c, state, event, j) if event is not None else L.NONE
                 if j.reason_code != sj.WAIT:
                     self._record(records, c, state, j, t_start, level)
@@ -336,13 +336,16 @@ class CycleRunner:
             obs = self._port.detect_cap(pass_end)
         else:
             obs = self._port.select_target(c.pass_index, pass_end)
+        waiting = None                # 마지막 대기(WAIT) 판정: 대기 중에 끝나면 그 사유·지표를 기록에 남긴다(REQ-ORC-017)
         while True:
             if obs is None:
-                j = Judgement(Result.FAILED, sj.PASS_SKIP, {}, 'NO_TARGET')
+                j = (Judgement(Result.FAILED, sj.PASS_SKIP, {}, 'NO_TARGET') if waiting is None
+                     else Judgement(Result.FAILED, sj.PASS_SKIP, waiting.metrics, waiting.detail))
                 break
             j = sj.judge_wait_cap(obs.meas, self._cfg.wait_cap)
             if j.reason_code != sj.WAIT:
                 break
+            waiting = j
             if clock.ros_now() >= pass_end:
                 j = Judgement(Result.FAILED, sj.PASS_SKIP, j.metrics, 'PASS_TIMEOUT')
                 break

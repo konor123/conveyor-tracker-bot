@@ -8,7 +8,7 @@
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
-| v0.13 | 2026-11-12 | 여러 단계에 걸친 goal의 서버 deadline = goal 전체 상한(REQ-ORC-015), WAIT_CAP 대상 track 소실 시 같은 통과 안 재선택(REQ-ORC-016) |
+| v0.13 | 2026-11-12 | 여러 단계에 걸친 goal의 서버 deadline = goal 전체 상한(REQ-ORC-015), WAIT_CAP 대상 track 소실 시 같은 통과 안 재선택(REQ-ORC-016), 대기 중 끝난 WAIT_CAP의 기록·실패 단계 로그(REQ-ORC-017) |
 | v0.12 | 2026-11-11 | 계획 단계 위치 표준편차 기준(3.25 mm)과 해제 게이트 기준(0.5 mm) 분리, WAIT_CAP 계획 시점(도달 구간 진입 3.0 s 전부터, REQ-ORC-013·014) |
 | v0.11 | 2026-11-11 | controller heartbeat `error_code` 100·101을 사이클 전 구간 감시에 적용(REQ-ORC-012) |
 | v0.10 | 2026-11-11 | 병뚜껑 안쪽 지름 `D_in` 31 mm로 `sync.e_xy_max_m` 0.00325 |
@@ -245,6 +245,7 @@ planner의 `time_budget`이 생기기 전까지 WAIT_CAP 예산은 `orchestrator
 - REQ-ORC-014: `DynamicPlace.Goal.position_std_max`는 `sync.release_position_std_max_m`(0.5 mm)이고 계획 단계 기준 `plan.position_std_max_m`(3.25 mm)와 독립이다.
 - REQ-ORC-015: `PlaceStone`·`DynamicPlace`처럼 여러 단계(APPROACH~RETREAT)를 한 goal이 수행할 때 `goal.deadline`은 전송 시각 + 그 goal이 거치는 단계 제한시간의 합(동적: `approach_s + synchronize_s + descend_s + release_s + retreat_s` = 10.5 s, STATIC: SYNCHRONIZE 제외 8.5 s)이다. APPROACH 단계 deadline을 넣지 않는다. 단계·동적·사이클 deadline은 실행기가 포트 대기와 cancel로 집행한다. 대역 소요시간 축척 1.0(`DynamicPlace` 3.0 s)에서 한 사이클이 SUCCESS다.
 - REQ-ORC-016: WAIT_CAP 대기 중 관측이 `target_lost`이면 `passes_skipped`를 올리지 않고 같은 `pass_index`로 `select_target`을 다시 호출한다. 실제 tracker가 WAIT_CAP 도중 초기화(epoch +1)되어도 그 통과에서 사이클이 SUCCESS로 끝난다.
+- REQ-ORC-017: WAIT_CAP이 대기(`WAIT`) 중에 통과 제한·사이클 제한·장애로 끝나면 그 기록에 마지막 대기 판정의 지표와 사유(`detail`, 예 `OBSERVATION_COUNT`·`TOO_EARLY`·`TRACK_NOT_OBSERVED`)를 남긴다. 대상을 한 번도 얻지 못했으면 `detail`은 `NO_TARGET`이고 지표는 없다. `orchestrator_node`는 실패한 단계 기록마다 단계·사유·`detail`·지표를 WARN 로그로 남긴다.
 - REQ-ORC-010: 포트 대기는 해제 전에는 latch된 모든 장애로, RELEASE 응답 뒤에는 하드 이상으로만 끝난다. latch된 비하드 장애는 하드 이상으로 바뀌고, 하드 이상은 비하드 장애로 바뀌지 않는다.
 
 ## 7. 성공 판정(측정 가능)
@@ -255,7 +256,7 @@ planner의 `time_budget`이 생기기 전까지 WAIT_CAP 예산은 `orchestrator
 
 ## 8. 검증 방법(`TEST_SPEC.md` TC ID, 게이트)
 
-TC-ORC-001-01 ~ TC-ORC-012-01(U, M0), TC-ORC-013-01~TC-ORC-016-02(U, G4). ROS 수준은 TC-INT-001-01, TC-INT-005-01, TC-INT-006-01, TC-INT-008-01, TC-INT-009-01(실제 tracker·planner, REQ-ORC-013), TC-INT-010-01(실시간 축척, REQ-ORC-015), TC-INT-011-01(대상 재선택, REQ-ORC-016).
+TC-ORC-001-01 ~ TC-ORC-012-01(U, M0), TC-ORC-013-01~TC-ORC-017-01(U, G4). ROS 수준은 TC-INT-001-01, TC-INT-005-01, TC-INT-006-01, TC-INT-008-01, TC-INT-009-01(실제 tracker·planner, REQ-ORC-013), TC-INT-010-01(실시간 축척, REQ-ORC-015), TC-INT-011-01(대상 재선택, REQ-ORC-016).
 
 ## 9. 미결 사항
 

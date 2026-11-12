@@ -694,6 +694,10 @@ class OrchestratorNode(Node):
         msg.header.stamp = self.get_clock().now().to_msg()
         self.abort_level = max(self.abort_level, rec.abort_level)
         self.step_pub.publish(msg)
+        if int(rec.result) != 0:
+            # 실패한 단계의 사유·지표를 로그에 남긴다(StepRecord에는 detail이 없다)
+            metrics = ', '.join(f'{k}={v:.4g}' for k, v in zip(rec.metric_keys, rec.metric_values))
+            self.get_logger().warning(f'{rec.step_name} {rec.reason_code} {rec.detail} [{metrics}]')
 
     def _publish_status(self):
         rs = self.robot_status
