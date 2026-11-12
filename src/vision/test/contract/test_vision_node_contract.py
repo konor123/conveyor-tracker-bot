@@ -115,6 +115,7 @@ def image(client_node, offset=0., rgb=False, padded=False):
     return msg
 
 
+@pytest.mark.realtime_pc                # 처리 시간·10 Hz 타이머에 의존: CI는 기록만, 판정은 PC
 @pytest.mark.tc('TC-VIS-008-01')
 @pytest.mark.parametrize('jitter_m,expected', [(.0003, 0), (.0006, 1)])
 def test_stable_window(rig, jitter_m, expected):
@@ -188,6 +189,7 @@ def test_lifecycle_topics_and_heartbeat(rig):
     assert future.result().result == 3
 
 
+@pytest.mark.realtime_pc                # 처리 시간·10 Hz 타이머에 의존: CI는 기록만, 판정은 PC
 def test_latest_frame_survives_processing_backlog(rig, monkeypatch):
     import vision.vision_node as module
     node, cn, pub, _, ds, beats = rig
@@ -265,6 +267,7 @@ def test_without_geometry_keeps_pixel_detections(rig):
     assert all(not d.position_valid for d in ds[-1].detections)
 
 
+@pytest.mark.realtime_pc                # 처리 시간·10 Hz 타이머에 의존: CI는 기록만, 판정은 PC
 def test_heartbeat_steady_timer_with_frozen_ros_clock(rig):
     node, cn, _, _, _, _ = rig
     received = []
