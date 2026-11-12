@@ -110,7 +110,8 @@
   - [x] `[OFF]` 일회성 0→500→0 pulse 실제 개폐 관찰 및 `gripper open` 동작 기록(`records/sessions/gripper-takeover-2026-11-07.md`).
   - [ ] `[OFF]` OFF-1: 그리퍼 Protocol Type(Modbus-RTU = 10, RH-P12-RN(A)는 펌웨어 V12 이상 필요)·통신 속도·ID와 현재 쓰는 DRL 코드 확인
     - 플랜지 RS-485 57600 bps 8N1, Modbus ID 1, Model Number 35074 응답. 일회성 DRL 경로이며 펌웨어·Protocol Type 값 조회 및 상주 루프 계약은 별도 검증 대상(`records/sessions/gripper-takeover-2026-11-07.md`).
-  - [ ] `[ON]` 상주 루프 DRL 작성(`PLAN.md` 1.1절): 참고 구현 `dsr_study`의 `gripper_service`(상주 루프) 구조에 트리거 레지스터 1개, FC03 상태 읽기, 생존 카운터 추가. Modbus 프레임·레지스터 인코딩은 단위 테스트(TC-GRP-011~013)
+  - [x] `[ON]` 상주 루프 DRL 작성(`PLAN.md` 1.1절): 참고 구현 `dsr_study`의 `gripper_service`(상주 루프) 구조에 트리거 레지스터 1개, FC03 상태 읽기, 생존 카운터 추가. Modbus 프레임·레지스터 인코딩은 단위 테스트(TC-GRP-011~013)
+    - `robot_control/drl/gripper_resident.drl`(seq 트리거·예약·생존 카운터·실행 결과 레지스터, REQ-GRP-016), 본문을 가짜 제어기(`test/fakes/drl_env.py`)에서 그대로 실행하는 TC-GRP-015·016과 TC-GRP-011~013. 2026-11-12 집 PC WSL(`ce86f9b`) robot_control 115 passed. 실기 동작은 OFF-2 항목이다.
   - [ ] `[ON]` `gripper_adapter` transport 구현(`drl_start`, `set_output_register_int`), fake gripper로 지연·무응답·오류·생존 카운터 정지 단위 테스트(TC-GRP-*)
   - [ ] `[ON]` `mode:=virtual`에서 `drl_start`·레지스터 서비스 형식 확인(시리얼·그리퍼 동작은 확인하지 않음)
     - 실기 일회성 경로: `/dsr01/drl/drl_start`, 레지스터 `/dsr01/plc/*`. 하위 1바이트 반환 관측은 `records/sessions/OFF-2-2026-11-07.md`를 기준으로 하며 virtual 시험을 대체하지 않는다.
@@ -127,9 +128,11 @@
     - 개방 쓰기 응답 생략: 해제 개방은 쓰기 응답을 기다리지 않고 보낸 뒤, 다음 상태 읽기로 개방 시작을 확인한다.
     - 팔 이동과 겹치기: 공깃돌 위로 이동하는 동안 미리 열고, 파지 확인과 들기를 한 DRL 안에서 잇는다(`amovel`).
     - 그리퍼 통신 설정(통신 속도·ID·Protocol Type) 변경과 PC 쪽 배선은 대상이 아니다(사용자 승인 사항).
-- [ ] `[ON]` `motion_adapter` 구현: SI/quaternion ↔ mm/deg/ZYZ 변환 + 단위 테스트, 단일 지령 권한, freshness 감시(L0)(TC-ROB-*)
+- [x] `[ON]` `motion_adapter` 구현: SI/quaternion ↔ mm/deg/ZYZ 변환 + 단위 테스트, 단일 지령 권한, freshness 감시(L0)(TC-ROB-*)
+  - TC-ROB-001~006(`test_motion_adapter.py`), 2026-11-12 집 PC WSL(`ce86f9b`) robot_control 115 passed. 스트림 지령 경로에 붙이는 것은 10절 항목이다.
 - [ ] `[ON]` `robot_controller_node` skill 서버: `PickStone`, `MoveToPose`, `PlaceStone`(move_line 기반), `SafeRetreat`, `Stop`, Heartbeat 발행, goal deadline 자체 중단
-- [ ] `[ON]` `test/fakes/`의 fake transport·fake gripper로 단위 변환·stale·cancel 단위 테스트
+- [x] `[ON]` `test/fakes/`의 fake transport·fake gripper로 단위 변환·stale·cancel 단위 테스트
+  - `test/fakes/transport.py`·`backend.py`·`resident.py`, TC-ROB-001~004·007-02, TC-GRP-007-01. 2026-11-12 집 PC WSL(`ce86f9b`) robot_control 115 passed.
 - [ ] `[ON]` Doosan `mode:=virtual`에서 E0509 모델·선정한 stream·`move_line` 형식이 동작하는지 확인. 지원하지 않으면 형식 확인용 최소 ROS stub을 두고 선택 근거를 기록(그리퍼 통신은 virtual에서 확인하지 않음)
 - [ ] `[ON]` `robot_controller` 계약 테스트를 `mock_robot_controller_node`와 실제 노드(virtual 또는 stub)에 모두 통과
 - [ ] `[OFF]` OFF-2: 실제 노드 계약 테스트를 실기에 대해 재실행(안전 높이)
@@ -168,7 +171,8 @@
 - [x] `[ON]` 검출기 구현: 매트(검정) ROI 공깃돌, 벨트(녹색) ROI 병뚜껑·뚜껑 안 공깃돌·뚜껑 밖 공깃돌(색 마스크 + 원 적합). 합성 영상으로 단위 테스트(TC-VIS-*)
 - [ ] `[ON*]` OFF-1 영상으로 색 임계값·원 적합 조정, 하이라이트·그림자·부분 가림 사례 테스트 영상 세트 구성
     - 정지 영상 6장 매트 공깃돌 29/29, 마커·벨트 위 돌 오검출 0. 로봇 투입 뒤 장면(하이라이트로 끊긴 고리, 벨트와 색이 가까운 뚜껑 안 노란 돌)으로 원 적합·뚜껑 안 검출 조정. 라벨 세트(`off1_static_images`)와 회귀 시험은 미구성.
-- [ ] `[ON]` 중심 좌표 + 공분산 계산
+- [x] `[ON]` 중심 좌표 + 공분산 계산
+    - TC-VIS-001-01(중심 오차), TC-VIS-006-01(픽셀 공분산 → 3×3 위치 공분산, 수치 야코비안 대비 5% 이내). 2026-11-12 집 PC WSL(`ce86f9b`) vision 130 passed.
 - [x] `[ON]` 광선-평면 교차: 공깃돌 = 매트 + 높이 오프셋, 병뚜껑 = 벨트 + 테두리 높이, 뚜껑 안 공깃돌 = 벨트 + 바닥 두께 + 높이 오프셋
 - [x] `[ON]` `vision_node`의 `DetectObjects` 서비스(안정 창·최소 개수·deadline), Heartbeat, 계약 테스트(TC-VIS-008-01·02 포함 8개, LEGION 2026-11-09)
 - [ ] `[ON*]` I1: OFF-1 rosbag replay로 실데이터 검출 회귀 시험
@@ -298,8 +302,10 @@
 - [ ] `[ON]` 공깃돌 파지부터 투입까지 자동화(시도 사이 공깃돌 회수는 작업자)
 - [ ] `[ON]` 추적 손실·속도 급변: 해제 전이면 SAFE_ABORT(L3)
 - [ ] `[ON]` 작업 가능 시간 부족: 다음 통과 대기, 통과 보내기 소진 시 공깃돌을 매트에 내려놓고 NOT_ATTEMPTED
-- [ ] `[ON]` 보호 정지·통신 끊김: 자동 리셋·무조건 원점 복귀 금지, 작업자 확인 후 재개(L4)
-- [ ] `[ON]` 중단 경로 제한시간(L2 10 s, L3 15 s) 초과 시 승격 확인
+- [x] `[ON]` 보호 정지·통신 끊김: 자동 리셋·무조건 원점 복귀 금지, 작업자 확인 후 재개(L4)
+  - TC-INT-003-01(I0 보호정지 → WAIT_OPERATOR → 사유 있는 재개), TC-ORC-009-01, `ROBOT_COMM_LOST` L4(`test_node_failure_regressions.py`·`test_safety_supervisor.py`), TC-ORC-012-01. 2026-11-12 집 PC WSL(`ce86f9b`) orchestrator 716 passed, I0 해당 시험 통과.
+- [x] `[ON]` 중단 경로 제한시간(L2 10 s, L3 15 s) 초과 시 승격 확인
+  - TC-ABT-003-01·02(10.000 s 유지, 1 ms 뒤 L4). 2026-11-12 집 PC WSL(`ce86f9b`) orchestrator 716 passed.
 - [ ] `[OFF]` OFF-7: 실제 장비 반복 작업(I5)
 
 **G7 합격 기준(제안):** 100 사이클에서 성공·실패·안전 중단·UNKNOWN·NOT_ATTEMPTED·통과 보내기·cycle time 분포 공개 / 중단 경로 제한시간 초과 0회.
