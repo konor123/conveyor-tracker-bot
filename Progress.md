@@ -139,7 +139,7 @@
 - [ ] `[ON]` 안전 절차 문서: 속도·가속 제한, 작업영역 제한, 비상정지 위치, 관찰자 역할, 보호 정지 후 재개 절차
 - [ ] `[OFF]` OFF-2: 안전 절차 현장 확인(비상정지 동작, 작업영역 제한 설정)
 - [ ] `[OFF]` OFF-2: 감시 노드 기동 직후 controller heartbeat 수신 지연 확인. officepc WSL 대역 I0에서 기동 직후 감시 노드가 마지막 controller stamp를 0.30~0.34 s 전 것으로 보고 `CONTROLLER_HEARTBEAT_LOST` Stop을 냈다(같은 순간 독립 구독자 수신 공백 ≤ 0.10 s, 판정 타이머 간격 0.05 s, R1 이전 코드에서도 발생). 실기 bringup 5회에서 재현 여부를 본다. 시연 운용 절차: 기동 → 2 s 대기 → controller heartbeat `error_code` 확인, 101이고 Stop 사유가 `CONTROLLER_HEARTBEAT_LOST`이며 로봇이 정지·대기 자세면 `stop_release_reason`으로 사유를 남기고 해제(SPEC-010 4.5절). 재현이 잦으면 감시 노드가 controller heartbeat를 연속 5회 받은 뒤부터 손실을 판정하도록 바꾸는 안(REQ-ABT-010 변경)을 검토한다(`records/reviews/fable-m0-risk-2026-11-11.md` 2절)
-  - 2026-11-12 CI(공유 러너): 실제 tracker·planner I0에서 기동 안정 대기 뒤 첫 사이클 0.44 s(PICK_STONE)에 같은 Stop이 1회 났고 재실행은 통과했다(run 43181006141, `records/worklog/2026-11-12.md`). controller 기동 3.2 s 뒤여서 "연속 5회 수신 뒤 무장" 안으로는 막지 못하는 경우다. 대책은 운용 절차(위)를 유지하고 OFF-2 재현 결과로 정한다.
+  - 2026-11-12 CI(공유 러너): 실제 tracker·planner I0에서 기동 안정 대기 뒤 첫 사이클 0.44 s(PICK_STONE)에 같은 Stop이 1회 났고 재실행은 통과했다(run 43181006141, `records/worklog/2026-11-12.md`). controller 기동 3.2 s 뒤(controller 로그 시각 기준)여서 "연속 5회 수신 뒤 무장" 안으로는 막지 못할 것으로 본다(감시 노드의 수신 기록이 없어 추정). 대책은 운용 절차(위)를 유지하고 OFF-2 재현 결과로 정한다.
 
 **G0 합격 기준(제안):** 0절 항목 기록 완료 / 단위 변환·pulse 변환 테스트 통과 / 통신·추적 손실·cancel 모사 20회에서 정의된 정지·대기 전환 20/20, 예기치 않은 재개 0회 / I3에서 L0·L4 모사 20/20 / 스트림 주기·지연 분포 보고서 / 그리퍼 개방 지연 분포와 스트림 중 개방 결과 보고서.
 

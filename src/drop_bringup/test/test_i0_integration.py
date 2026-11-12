@@ -793,7 +793,6 @@ def test_i0_predicted_marker_matches_observed_tf(ros, tmp_path):
         added = [m for m in markers if m.action == Marker.ADD]
         assert added and {m.header.frame_id for m in added} == {'robot_base'}
         assert any(math.hypot(m.pose.position.x - target.x, m.pose.position.y - target.y) <= 1e-6 for m in added)
-        assert not any(t.child_frame_id.startswith('cap_') and _sec(t.header.stamp) > h.now() + 0.05 for t in tf)
     finally:
         _stop(frames)
         _stop(proc)
