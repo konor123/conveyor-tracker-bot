@@ -23,7 +23,7 @@ CI 실패 4건(`eb595e2`~`df095b9`)은 모두 "Install dependencies"의 apt 색�
 ### A. 설계·판정(현장 전에 정해야 함)
 
 **A-1. 계획 단계 기준 3.25 mm는 잡음 없는 mock에만 맞춘 값이다(높음).**
-I0에서 PLAN_INTERCEPT `position_std_m`은 2.7~2.8 mm로 기준까지 여유가 약 15%다. mock 검출은 잡음 0이다. 실제 벨트 영상 재생(`records/bench/belt-video-2026-11-07/replay-sigma-0.01.json`, `sigma_accel` 0.01)에서 2.8 s 앞 예측의 실제 오차는 XY p95 22~37 mm, 1 s 앞도 10~28 mm다. 즉 ① 실기에서는 필터가 보고하는 표준편차가 3.25 mm를 넘어 매 통과가 `UNCERTAIN`이 될 수 있고 ② 넘지 않더라도 보고 표준편차가 실제 오차(벨트 맥동)보다 한 자릿수 작아 이 판정이 실제 정확도를 보장하지 않는다. TC-INT-009-01은 배선(계획 시점·기준 전달)이 맞는다는 근거이고 G4 수치 근거가 아니다. OFF-5 bag으로 3 s 앞 `position_std`와 실제 오차를 함께 재서 `plan_lead_s`·`plan.position_std_max_m`을 정한다.
+I0에서 PLAN_INTERCEPT `position_std_m`은 2.7~2.8 mm로 기준까지 여유가 약 15%다. mock 검출은 잡음 0이다. 실제 벨트 영상 재생(`records/bench/belt-video-2026-11-07/replay-sigma-0.01.json`, `sigma_accel` 0.01)의 실제 예측 오차 XY p95는 1 s 앞 6~28 mm(5조건), 2.8 s 앞 22~37 mm(그 horizon이 있는 3조건)다. 이 재생값은 속도 변화 경보 구간을 포함한 통과 전체 집계이고 p95여서 mock의 1σ 2.7 mm와 같은 잣대는 아니지만, 같은 필터 설정에서 수 초 앞 오차가 3.25 mm보다 몇 배 크다는 것은 보여 준다. 실영상에서 planner가 보고하는 `position_std`는 아직 재지 않았다. 따라서 ① 실기에서 보고 표준편차가 3.25 mm를 넘어 매 통과가 `UNCERTAIN`이 될 수 있고 ② 넘지 않더라도 이 판정이 실제 정확도를 보장하는지는 확인되지 않았다. TC-INT-009-01은 배선(계획 시점·기준 전달)이 맞는다는 근거이고 G4 수치 근거가 아니다. OFF-5 bag으로 3 s 앞 `position_std`와 실제 오차를 함께 재서 `plan_lead_s`·`plan.position_std_max_m`을 정한다.
 
 **A-2. 해제 게이트 0.5 mm는 아직 어디서도 판정하지 않는다(높음, 기지 한계).**
 orchestrator는 `DynamicPlace.Goal.position_std_max = 0.0005`를 보내지만(TC-ORC-014-01) mock 로봇은 고정 값(`gate_position_std_m` 0.0003)을 돌려주고, 실제 `DynamicPlace`는 없다. `BeltSynchronizer.release_uncertainty_ok()`는 진단용이라고 스스로 밝힌다. planner 기준을 0.5 → 3.25 mm로 풀었으므로, 실제 `DynamicPlace`가 해제 순간 0.5 mm를 판정하기 전까지는 0.5 mm 기준이 사이클 어디에도 걸리지 않는다. 10절 `DynamicPlace` 구현의 완료 조건에 넣는다.
@@ -39,14 +39,14 @@ WAIT_CAP에서 `TOO_EARLY`로 기다리는 동안 벨트 속도가 바뀌어도 
 - **B-1. 명세·기록 없음.** `SyncConfig.max_position_std_m` 기본값 1 mm → 3.25 mm, `release_position_std_max_m`, `release_uncertainty_ok()`, `sync_metrics`·`sync_metrics_demo`, `--config`·`--csv` 인자가 SPEC-500·TEST_SPEC에 없다. worklog·학습 문서도 없다.
 - **B-2. TC 번호가 내용과 다르다.** `test_sync_metrics.py`는 TC-ROB-013-05(정지와 명시적 재무장), `test_sync_revision.py`는 TC-ROB-013-02(계획 수락 조건과 래치)로 표시했지만 내용은 CSV 기록·요약과 해제 불확실성 분리다. `specs/TRACE.md`가 그 번호 아래에 이 시험들을 싣게 된다. 새 TC를 TEST_SPEC에 추가하고 마커를 고친다.
 - **B-3. `config/belt_sync.json`은 설치되지 않고 읽는 코드도 없다.** `setup.py`가 `config/*.yaml`만 설치한다. `--config`로 직접 줄 때만 쓰이며 값은 코드 기본값과 같다. 0.5 / 3.25 mm가 orchestrator.yaml, planner.yaml, belt_sync.py 기본값, belt_sync.json 네 곳에 있고 일치 검사는 없다.
-- **B-4. CI "Diagnose DNS" 단계가 남아 있다.** 진단하려던 apt 설치 뒤에 놓여 실패 시 실행되지도 않는다. 지운다.
+- **B-4. CI "Diagnose DNS" 단계가 남아 있다.** 실패한 단계는 "Install dependencies"인데 진단 단계는 그 뒤에 있어 실패 때는 실행되지 않는다. 지운다.
 - **B-5. `summarize()`의 reason 집계가 O(n²)이다.** 60 s × 100 Hz(6000행)에서 수 초 걸린다. `collections.Counter`로 바꾼다(낮음).
 
 ### C. cy 커밋(`3659c8d`, `2862228`)
 
 - **C-1. `drop.launch.py` 기본 인자 조합은 계획을 내는 노드가 없다(중간).** 기본값이 vision·tracking 실제, planner mock이다. mock plan은 `mock_world_node`가 내는데 vision·tracking이 둘 다 실제면 `mock_world_node`가 뜨지 않는다. 실제 vision·tracker를 쓸 때는 `use_mock_planner:=false`가 사실상 필수다. 기본값을 맞추거나 이 조합을 launch에서 거부한다.
 - **C-2. 시나리오 기하 전달 조건(낮음).** `_scenario_params`는 `use_mock_vision:=true`일 때만 넘긴다. 실제 vision + mock tracking + 실제 planner 조합이면 mock track은 시나리오 좌표, planner는 config(항등)로 어긋난다. 쓰지 않는 조합이면 launch에서 막는다.
-- **C-3. `is_rigid` 허용오차 1e-9(낮음).** 보정 결과를 소수 6자리로 적은 `T_base_conveyor`는 직교성 오차가 1e-6 수준이라 발행이 거부된다. OFF-3 보정값을 넣을 때 걸린다. 허용오차를 1e-6으로 하거나 값을 전체 자릿수로 저장한다.
+- **C-3. `is_rigid` 허용오차 1e-9(낮음).** 기울기가 있는 회전을 소수 6자리로 적은 `T_base_conveyor`는 직교성 오차가 1e-6 수준이라 발행이 거부된다(yaw만 있는 회전은 통과, numpy로 확인). OFF-3 보정값을 넣을 때 걸린다. 허용오차를 1e-6으로 하거나 값을 전체 자릿수로 저장한다.
 - **C-4. `frames.launch.py`의 `conveyor_frame`과 mock 세계가 다르다(낮음, 작성자도 기록).** `frames.launch.py`는 tracking.yaml(항등), mock 세계의 tracker는 시나리오 변환 (0.30, −0.25)를 써서 RViz에서 `cap_<id>`와 예측 Marker가 약 0.39 m 어긋난다. `frames.launch.py`에 시나리오 인자를 주거나 mock 확인 절차에 적는다.
 - **C-5. `camera_link`는 `frames.launch.py`에 없다.** `camera_tf_publisher`를 따로 띄워야 8절 static TF 항목의 나무가 완성된다.
 - **C-6. 관측 구간 끝을 지난 검출이 새 track을 만든다(중간, 작성자 발견·미수정).** mock(135개 track)과 실영상 maximum 조건(관측 1~2회짜리 4개) 모두에서 보인다. 관측 수 30 미만이라 대상 선택에는 걸리지 않지만 track id·TF가 불어난다. tracking 담당이 구간 밖 검출의 새 track 생성 여부를 정한다.
@@ -59,5 +59,5 @@ WAIT_CAP에서 `TOO_EARLY`로 기다리는 동안 벨트 속도가 바뀌어도 
 
 - 8절 "미래 시각 TF 조회 금지": 완료(TC-SYS-006-01, CI).
 - 8절 "TF Timestamp 동기화·역행 무효화": 완료(`TimePointZero` 0건 TC-SYS-006-01, tracking·planner 시계 역행 시험, CI).
-- 9절 "실제 planner 사용 시 `publish_plan` 미사용": 완료(TC-PLN-012-01, TC-INT-009-01, CI).
+- 9절 "실제 planner 사용 시 `publish_plan` 미사용": 완료(TC-PLN-012-01, TC-INT-009-01, CI). 범위는 실제 planner 구성이다. 전체 대역 `mock.launch.py`(M0 I0 묶음)는 PLAN.md 7.5절대로 임시 plan을 계속 쓴다.
 - 8절 "static TF"·"RViz2": 유지. 남은 조건은 C-4·C-5, 실제 `T_base_conveyor`(OFF-3), `cap_<id>`와 Marker의 위치 일치 확인이다.
