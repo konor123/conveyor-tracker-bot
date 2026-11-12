@@ -109,11 +109,11 @@ robot_base ─ mat_frame            mat_plane.yaml에서 계산(아래)
 ```
 
 - `plane_frame(normal, offset_m, x_hint, origin_xy)`: z축 = 평면 법선(위쪽, z 성분 > 0으로 맞춤), x축 = `x_hint`를 평면에 투영해 정규화, y = z × x, 원점 = robot_base `origin_xy`를 지나는 수직선과 평면의 교점. 평면은 `normal · p = offset_m`이다. `x_hint`가 법선과 평행(투영 길이 < 1e-6)이면 `ValueError`다.
-- 노드는 시작할 때 한 번 `/tf_static`으로 발행한다. `T_base_conveyor`가 강체 변환(`RᵀR − I`의 각 성분과 `det − 1`이 1e-5 이내, 마지막 행 0 0 0 1)이 아니면 발행하지 않고 종료 코드 1로 끝낸다. 허용오차는 소수 6자리로 적은 보정 행렬(직교성 오차 약 1e-6)을 받기 위한 값이다.
+- 노드는 시작할 때 한 번 `/tf_static`으로 발행한다. `T_base_conveyor`가 강체 변환(`RᵀR − I`의 각 성분과 `det − 1`이 1e-5 이내, 마지막 행 0 0 0 1)이 아니면 발행하지 않고 종료 코드 1로 끝낸다. 허용오차는 소수 6자리로 적은 보정 행렬(직교성 오차 약 1e-6)을 받기 위한 값이다. 같은 행렬을 읽는 `tracker_node`·`intercept_planner_node`도 configure에서 같은 허용오차로 판정한다.
 - `drop_bringup/launch/frames.launch.py`가 `tracking.yaml`의 `T_base_conveyor`와 `records/calib/2026-11-09-planes/mat_plane.yaml`을 넘겨 노드를 띄운다. `rviz:=true`면 `drop_bringup/config/drop.rviz`(고정 프레임 `robot_base`, TF, `drop/predicted_marker`)로 RViz2를 띄운다. `publish_world:=true`는 로봇 드라이버 없이(mock·replay) 볼 때만 쓴다.
 
 - REQ-CAL-011: `plane_frame()`의 원점은 평면 위(|normal·p − offset| ≤ 1e-12 m)이고 xy가 `origin_xy`와 같은 수직선 위다. 회전은 직교·det = 1이고 z축 = 정규화 법선, x축은 `x_hint`의 평면 투영 방향과 1e-9 rad 이내로 같다. 법선과 평행한 `x_hint`는 `ValueError`다.
-- REQ-CAL-012: `static_frames_publisher`가 낸 `/tf_static`의 부모→자식 쌍은 `base_link→robot_base`, `robot_base→conveyor_frame`, `robot_base→mat_frame`(+ `publish_world`일 때 `world→base_link`)이고, 중복 쌍은 0이며, `robot_base→conveyor_frame` 변환은 `T_base_conveyor`와 1e-9 이내로 같다. 강체가 아닌 `T_base_conveyor`면 아무것도 발행하지 않는다. 기울어진 회전을 소수 6자리로 적은 행렬은 받고 3자리로 적은 행렬과 배율 1.001은 거부한다. tracking.yaml과 planner.yaml의 `T_base_conveyor`는 같다.
+- REQ-CAL-012: `static_frames_publisher`가 낸 `/tf_static`의 부모→자식 쌍은 `base_link→robot_base`, `robot_base→conveyor_frame`, `robot_base→mat_frame`(+ `publish_world`일 때 `world→base_link`)이고, 중복 쌍은 0이며, `robot_base→conveyor_frame` 변환은 정확한 강체 `T_base_conveyor`와 1e-9 이내, 소수 6자리로 적은 행렬과는 1e-5 이내로 같다. 강체가 아닌 `T_base_conveyor`면 아무것도 발행하지 않는다. 기울어진 회전을 소수 6자리로 적은 행렬은 받고 3자리로 적은 행렬과 배율 1.001은 거부한다. tracking.yaml과 planner.yaml의 `T_base_conveyor`는 같다.
 
 ## 5. 시간 제약(주기·제한시간)
 

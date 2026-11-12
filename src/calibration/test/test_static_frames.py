@@ -1,6 +1,7 @@
 """static_frames_publisher → /tf_static (no hardware)."""
 import json
 import math
+import os
 import threading
 import time
 from pathlib import Path
@@ -35,7 +36,7 @@ def _yaw_T(yaw, t):
 def _run(T, publish_world):
     """노드를 띄워 /tf_static을 모으고 (노드 ok 여부, {(부모, 자식): 4×4}, 받은 쌍 목록)을 돌려준다."""
     context = Context()
-    rclpy.init(context=context)
+    rclpy.init(context=context, domain_id=100 + os.getpid() % 100)   # 시험용 domain(다른 ROS 그래프와 격리)
     try:
         node = StaticFramesPublisher(context=context, parameter_overrides=[
             Parameter('T_base_conveyor', value=[float(v) for v in np.asarray(T).ravel()]),

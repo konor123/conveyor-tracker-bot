@@ -82,8 +82,9 @@ class TrackerNode(LifecycleNode):
         try:
             transform = np.asarray(self.value('T_base_conveyor'), dtype=float).reshape(4,4)
             if (not np.isfinite(transform).all() or not np.allclose(transform[3], [0,0,0,1])
-                    or not np.allclose(transform[:3,:3].T@transform[:3,:3], np.eye(3))
-                    or not np.isclose(np.linalg.det(transform[:3,:3]), 1.)):
+                    # 허용오차는 calibration.static_frames.RIGID_TOL과 같다(SPEC-600 4.9절)
+                    or not np.allclose(transform[:3,:3].T@transform[:3,:3], np.eye(3), atol=1e-5, rtol=0)
+                    or not np.isclose(np.linalg.det(transform[:3,:3]), 1., atol=1e-5, rtol=0)):
                 raise ValueError('T_base_conveyor must be a rigid transform')
             self._inverse = np.linalg.inv(transform)
             if self.value('input_timeout_s') <= 0:
