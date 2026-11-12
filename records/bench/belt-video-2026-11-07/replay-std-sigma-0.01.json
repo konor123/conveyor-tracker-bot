@@ -213,7 +213,10 @@
    }
   },
   "params": {
-   "sigma_accel_mps2": 0.01
+   "sigma_accel_mps2": 0.01,
+   "cusum_k": 1.0,
+   "cusum_h": 8.0,
+   "recover_s": 2.0
   },
   "wait_cap": {
    "eligible_states": 795,
@@ -225,6 +228,8 @@
    "speed_std_limit_mmps": 1.0,
    "passes": 4,
    "passes_any_ok": 2,
+   "first_ok_s_max": 1.3682758790000022,
+   "alarms_per_60s_observed": 71.16586896623049,
    "reported_std": {
     "0.1": {
      "n": 48,
@@ -480,7 +485,10 @@
    }
   },
   "params": {
-   "sigma_accel_mps2": 0.01
+   "sigma_accel_mps2": 0.01,
+   "cusum_k": 1.0,
+   "cusum_h": 8.0,
+   "recover_s": 2.0
   },
   "wait_cap": {
    "eligible_states": 643,
@@ -492,6 +500,8 @@
    "speed_std_limit_mmps": 1.0,
    "passes": 5,
    "passes_any_ok": 5,
+   "first_ok_s_max": 3.8048386240000056,
+   "alarms_per_60s_observed": 48.58705708726109,
    "reported_std": {
     "0.1": {
      "n": 273,
@@ -774,7 +784,10 @@
    }
   },
   "params": {
-   "sigma_accel_mps2": 0.01
+   "sigma_accel_mps2": 0.01,
+   "cusum_k": 1.0,
+   "cusum_h": 8.0,
+   "recover_s": 2.0
   },
   "wait_cap": {
    "eligible_states": 793,
@@ -786,6 +799,8 @@
    "speed_std_limit_mmps": 1.0,
    "passes": 6,
    "passes_any_ok": 4,
+   "first_ok_s_max": 5.2398552249999995,
+   "alarms_per_60s_observed": 58.7958367508242,
    "reported_std": {
     "0.1": {
      "n": 129,
@@ -1085,7 +1100,10 @@
    }
   },
   "params": {
-   "sigma_accel_mps2": 0.01
+   "sigma_accel_mps2": 0.01,
+   "cusum_k": 1.0,
+   "cusum_h": 8.0,
+   "recover_s": 2.0
   },
   "wait_cap": {
    "eligible_states": 686,
@@ -1097,6 +1115,8 @@
    "speed_std_limit_mmps": 1.0,
    "passes": 9,
    "passes_any_ok": 9,
+   "first_ok_s_max": 3.0706308600000014,
+   "alarms_per_60s_observed": 59.06387418606664,
    "reported_std": {
     "0.1": {
      "n": 176,
@@ -1461,7 +1481,10 @@
    }
   },
   "params": {
-   "sigma_accel_mps2": 0.01
+   "sigma_accel_mps2": 0.01,
+   "cusum_k": 1.0,
+   "cusum_h": 8.0,
+   "recover_s": 2.0
   },
   "wait_cap": {
    "eligible_states": 536,
@@ -1473,6 +1496,8 @@
    "speed_std_limit_mmps": 1.0,
    "passes": 14,
    "passes_any_ok": 3,
+   "first_ok_s_max": 2.169342041,
+   "alarms_per_60s_observed": 60.6834185791515,
    "reported_std": {
     "0.1": {
      "n": 71,

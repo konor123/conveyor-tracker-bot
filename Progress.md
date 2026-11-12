@@ -205,7 +205,7 @@
 - [x] `[ON]` 상태 `OBSERVED / COASTING / LOST`, 가림 중 공분산 증가, 재획득 시 게이팅, 통과마다 새 track
   - `tracking/track_manager.py`·`association.py`, TC-TRK-002~005 U. 관측 구간 밖 검출은 새 track을 만들지 않는다(REQ-TRK-014, TC-TRK-014-01).
 - [x] `[ON]` 다이얼 조작에 따른 속도 변화 검출(혁신값 누적) → `BeltMotion.steady = false`
-  - 양쪽 CUSUM(`tracking/speed_change.py`). TC-TRK-006: 20 → 30 mm/s 검출 지연 최대 0.167 s, 60 s 등속 오검출 0(seed 20).
+  - 양쪽 CUSUM(`tracking/speed_change.py`), `cusum_k` 2·`cusum_h` 16·`recover_s` 0.5 s(SPEC-300 v0.6). TC-TRK-006: 20 → 40 mm/s 검출 지연 최대 0.23 s, 60 s 등속 오검출 0(seed 20). 다이얼을 고정한 OFF-1 벨트 영상 5조건에서 관측 60 s당 경보 11~18회, WAIT_CAP 조건을 지난 상태 0.91~0.99, 모든 통과가 조건을 지남(TC-TRK-006-03, `records/bench/belt-video-2026-11-07/README.md`). 다이얼 조작 bag(OFF-5)으로 실제 검출 성능을 확인한다.
 - [x] `[ON]` `ResetTracking`, `SelectTarget`(도달 구간에 들어오기 전 가장 가까운 병뚜껑 선택, 진입 시각 예측) 서비스, Heartbeat, 계약 테스트
   - `tracker_node`(Managed Lifecycle) + 순수 모듈. 계약 TC-TRK-009~012와 공용 tracker 계약(`tools/testing/contracts/tracker_contract.py`)을 officepc WSL에서 2회 반복 통과(SPEC-300 v0.2).
 - [ ] `[ON*]` OFF-1 bag으로 실데이터 추적 확인, 병뚜껑 검출 시각은 노출 시각 기준
@@ -248,7 +248,7 @@
 - [x] `[ON]` `ComputeIntercept` 서비스, 계약 테스트, I2(합성 tracked fixture 또는 replay → 실제 tracker 입력으로 예측·시간 예산 CI: 정상, `time_insufficient`, `UNCERTAIN`, 만료·epoch 불일치·clock reset)
   - TC-PLN-007-01, TC-PLN-011-01(합성 tracked fixture → 실제 planner 7개 시나리오), officepc WSL 2회 반복 통과. 해제 높이는 테두리 위 `release_above_rim_m` 0.1656 m(정지 투입 값, SPEC-400 v0.6, TC-PLN-004-01).
 - [x] `[ON]` 실제 planner가 계약 테스트를 통과하면 `mock_world_node`의 임시 plan 발행(`publish_plan`)을 쓰지 않음
-  - `drop.launch.py use_mock_planner:=false`(REQ-PLN-012, TC-PLN-012-01), 실제 tracker·planner I0 한 사이클(TC-INT-009-01, 두 모드 각 4/4). 전체 대역 `mock.launch.py`는 임시 plan을 쓴다(`PLAN.md` 7.5절). 계획 단계 기준 3.25 mm·`plan_lead_s` 3.0 s는 잡음 없는 mock 기준 값이다. OFF-1 영상 재생(`sigma_accel` 0.01)에서는 WAIT_CAP 조건이 먼저 걸린다: 관측 30회 이상 상태 가운데 `belt_steady`가 참인 몫 9~44%, `speed_std` 중앙값 0.94~1.06 mm/s(기준 1 mm/s), 조건을 한 번이라도 지난 통과 3/14 ~ 9/9. 조건을 지난 상태의 planner 보고 표준편차는 `speed_std × 예측 구간`과 같아 3 s 앞 2.95 mm(전부 3.25 mm 이하), 4 s 앞 3.9 mm(전부 초과)다. `speed_std_max_mps`·`plan_lead_s`·계획 단계 기준은 사실상 한 제약이며 속도 변화 검출 기준과 함께 OFF-5 bag으로 정한다(`records/bench/belt-video-2026-11-07/README.md`, `records/reviews/fable-g3-open-items-2026-11-12.md` 3절).
+  - `drop.launch.py use_mock_planner:=false`(REQ-PLN-012, TC-PLN-012-01), 실제 tracker·planner I0 한 사이클(TC-INT-009-01, 두 모드 각 4/4). 전체 대역 `mock.launch.py`는 임시 plan을 쓴다(`PLAN.md` 7.5절). 계획 단계 기준 3.25 mm·`plan_lead_s` 3.0 s는 잡음 없는 mock 기준 값이다. OFF-1 영상 재생(`sigma_accel` 0.01)에서 WAIT_CAP을 막던 것은 속도 변화 검출의 맥동 경보였고, 검출 설정을 바꾼 뒤(7절, SPEC-300 v0.6) 조건을 지난 상태가 0.91~0.99, 모든 통과가 조건을 지난다. 그 상태의 planner 보고 표준편차는 `speed_std × 예측 구간`과 같아 3 s 앞 2.95 mm(전부 3.25 mm 이하), 4 s 앞 3.9 mm(전부 초과)다. `speed_std_max_mps`(1 mm/s)·`plan_lead_s`(3 s)·계획 단계 기준(3.25 mm)은 사실상 한 제약이며 여유는 약 10%다. OFF-5 bag으로 확인한다(`records/bench/belt-video-2026-11-07/README.md`).
 - [ ] `[OFF]` OFF-5: 지연 구성 측정: 노출→수신→검출 완료→상태→계획→지령 송신→TCP 응답→그리퍼 개방 명령→개방 시작→공깃돌 이탈
 - [ ] `[ON*]` 가림 허용 시간 τ_max 산출: `e_pred ≤ e_pos + |δv|·τ + ½·a·τ² + |v|·δt` → 해제 게이트 값(`PLAN.md` 4.4절)
   - 계산 함수 `tau.py`(TC-PLN-010-01). G3·G4 측정값(e_pos·δv·a·δt)이 완료 조건이다.

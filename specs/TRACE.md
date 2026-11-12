@@ -3,7 +3,7 @@
 `tools/spec/trace.py`가 생성한다. 손으로 고치지 않는다.
 
 - REQ 135개 중 TC 연결 135개
-- pytest 대상 TC 232개 중 테스트 연결 219개
+- pytest 대상 TC 233개 중 테스트 연결 220개
 
 | TC | 수준 | REQ | 테스트 |
 |---|---|---|---|
@@ -241,6 +241,7 @@
 | TC-TRK-005-01 | U | REQ-TRK-005 | `src/tracking/test/test_tracking.py::test_pass_new_id` |
 | TC-TRK-006-01 | U | REQ-TRK-006 | `src/tracking/test/test_tracking.py::test_speed_step` |
 | TC-TRK-006-02 | U | REQ-TRK-006 | `src/tracking/test/test_tracking.py::test_no_false_alarm` |
+| TC-TRK-006-03 | U | REQ-TRK-006 | `tools/eval/test_replay_belt_tracking.py::test_off1_belt_pulsation_does_not_block_wait_cap` |
 | TC-TRK-007-01 | U | REQ-TRK-007 | `src/tracking/test/test_tracking.py::test_dropped_frames` |
 | TC-TRK-008-01 | U | REQ-TRK-008 | `src/tracking/test/test_tracking.py::test_clock_reset` |
 | TC-TRK-008-02 | C | REQ-TRK-008 | `src/tracking/test/contract/test_tracker_node_contract.py::test_clock_reset_is_logged` |

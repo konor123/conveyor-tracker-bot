@@ -13,9 +13,9 @@ region:
   x_obs_max_m: 0.35
   exit_margin_m: 0.01
 speed_change:
-  cusum_k: 1.0
-  cusum_h: 8.0
-  recover_s: 2.0
+  cusum_k: 2.0
+  cusum_h: 16.0
+  recover_s: 0.5
 belt:
   window_max_s: 2.0
   v_min_mps: 0.002

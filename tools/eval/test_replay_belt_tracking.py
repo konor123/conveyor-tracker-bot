@@ -84,3 +84,20 @@ def test_reported_std_is_opt_in_and_consistent(tmp_path):
     loose = rbt.analyse(path, {}, horizons=(1.0,), std_limit_m=0.00325, speed_std_limit_mps=1.0)
     assert loose['wait_cap']['both_ok_ratio'] == 1.0 and loose['prediction_error']['1']['n_wait_ok'] == e1['n']
     assert loose['wait_cap']['passes_any_ok'] == 3 and loose['wait_cap']['reported_std']['1']['le_limit_ratio'] == 1.0
+
+
+OFF1 = sorted((Path(__file__).resolve().parents[2] / 'records/bench/belt-video-2026-11-07').glob('*.caps.csv'))
+
+
+@pytest.mark.req('REQ-TRK-006')
+@pytest.mark.tc('TC-TRK-006-03')
+@pytest.mark.level('U')
+@pytest.mark.parametrize('path', OFF1, ids=[p.name.split('analog-')[1].replace('.caps.csv', '') for p in OFF1])
+def test_off1_belt_pulsation_does_not_block_wait_cap(path):
+    """다이얼을 고정한 실제 벨트(맥동 있음)에서 기본 설정의 tracker가 WAIT_CAP 조건을 대부분 지난다."""
+    w = rbt.analyse(path, {}, horizons=(3.0,), std_limit_m=0.00325, speed_std_limit_mps=0.001)['wait_cap']
+    assert w['alarms_per_60s_observed'] <= 25.0
+    assert w['both_ok_ratio'] >= 0.85
+    assert w['passes_any_ok'] == w['passes'] >= 4
+    assert w['first_ok_s_max'] <= 1.6              # 첫 관측부터 조건 통과까지(관측 30회 = 1 s 포함)
+    assert w['reported_std']['3']['le_limit_ratio'] == 1.0     # 계획 시점(3 s 앞) 보고 표준편차 ≤ 3.25 mm

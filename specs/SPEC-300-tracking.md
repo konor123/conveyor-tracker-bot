@@ -1,6 +1,6 @@
 # SPEC-300 tracking
 
-- 버전: v0.5
+- 버전: v0.6
 - 근거: PLAN.md 2.5, 3.1, 4.3, 5.3, 7절
 - REQ 영역: TRK
 
@@ -8,6 +8,7 @@
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
+| v0.6 | 2026-11-12 | 속도 변화 검출 `cusum_k` 2·`cusum_h` 16·`recover_s` 0.5 s(OFF-1 벨트 영상의 맥동 기준), REQ-TRK-006 계단 크기 20 mm/s와 실영상 기준 |
 | v0.5 | 2026-11-12 | 관측 구간 밖 검출은 새 track을 만들지 않음(REQ-TRK-014), 시각 역행 초기화 WARN 로그(REQ-TRK-008) |
 | v0.4 | 2026-11-10 | `coast.max_s` 근거를 가림 시간 분포에서 가림 없는 배치의 검출 누락 구간으로 |
 | v0.3 | 2026-11-09 | `sigma_accel_mps2` 0.01(OFF-1 벨트 영상), REQ-TRK-001 정확도 기준, 병뚜껑 2개·가림 없는 배치 |
@@ -44,9 +45,9 @@ SPEC-010 wire schema v0.2 / runtime contract v0.4 기준.
 | `region.x_obs_min_m` | −0.35 | 관측 구간 상류 끝. 이 구간 밖 검출은 새 track을 만들지 않는다. TBD(배치도 OFF-1, 보정 OFF-3) |
 | `region.x_obs_max_m` | 0.35 | 관측 구간 하류 끝. 같음 |
 | `region.exit_margin_m` | 0.01 | 예측 위치가 `x_obs_max + exit_margin`을 넘으면 통과 종료(`LOST`) |
-| `speed_change.cusum_k` | 1.0 | 정규화 혁신값 CUSUM 허용 편차. 0.5는 등속 오검출. 1.0·`h` 8에서 계단 검출 지연 최대 0.167 s, 60 s 등속 오검출 0(seed 20개) |
-| `speed_change.cusum_h` | 8.0 | CUSUM 경보 임계. TC-TRK-006-01·02로 정한 값, TBD(OFF-5 실측 bag) |
-| `speed_change.recover_s` | 2.0 | 마지막 검출 뒤 이 시간 동안 재검출이 없으면 `steady = true` |
+| `speed_change.cusum_k` | 2.0 | 정규화 혁신값 CUSUM 허용 편차. 실제 벨트는 1 s 창 속도가 약 10 mm/s 폭으로 맥동해, 10 mm/s 계단을 잡는 설정(1.0·`h` 8)은 다이얼을 고정해도 관측 60 s당 49~71회 울렸다. 2.0·`h` 16은 20 mm/s 이상 계단을 1 s 안에 잡고(지연 최대 0.23 s) 같은 자료에서 11~18회다(`records/bench/belt-video-2026-11-07/wait-cap-sweep-2026-11-12.md`) |
+| `speed_change.cusum_h` | 16.0 | CUSUM 경보 임계. TC-TRK-006-01·02·03으로 정한 값, TBD(OFF-5 다이얼 조작 bag) |
+| `speed_change.recover_s` | 0.5 | 마지막 검출 뒤 이 시간 동안 재검출이 없으면 `steady = true`. 검출 때 속도 공분산을 되돌리므로 다시 수렴했는지는 WAIT_CAP의 `speed_std` 기준(약 0.3 s 뒤 충족)이 따로 본다. 2.0 s일 때는 맥동 경보만으로 `steady`가 참인 시간이 9~44%였다 |
 | `belt.window_max_s` | 2.0 | `BeltMotion.window_sec` 상한 |
 | `belt.v_min_mps` | 0.002 | 이 속력 이하이면 벨트 정지로 본다(SPEC-400과 같은 값) |
 | `select.x_reach_start_m` | −0.05 | 로봇 도달 구간 상류 끝. TBD(배치도 OFF-1) |
@@ -132,7 +133,7 @@ SPEC-010 wire schema v0.2 / runtime contract v0.4 기준.
 - REQ-TRK-003: 관측이 끊기면 `coast.max_s`까지 `COASTING`이며 공분산 trace가 단조 증가하고, 재관측이 게이트(`gate_chi2`) 안이면 같은 track_id로 `OBSERVED`, 밖이면 새 track을 만든다.
 - REQ-TRK-004: 관측 없음이 `coast.max_s`(1.0 s)를 넘으면 `LOST`가 된다.
 - REQ-TRK-005: 관측 구간을 나갔다가 다시 들어온 병뚜껑은 새 track_id를 받고 epoch는 바뀌지 않는다.
-- REQ-TRK-006: 벨트 속도가 20 → 30 mm/s로 바뀌면 1.0 s 안에 `steady = false`가 되고, 60 s 등속(seed 20개)에서는 오검출이 0회다.
+- REQ-TRK-006: 벨트 속도가 20 → 40 mm/s로 바뀌면 1.0 s 안에 `steady = false`가 되고, 60 s 등속(seed 20개)에서는 오검출이 0회다. 다이얼을 고정한 OFF-1 벨트 영상 5조건(속도 맥동 포함)에서는 관측 60 s당 경보 ≤ 25회, WAIT_CAP 조건(`steady`, `speed_std ≤ 1 mm/s`)을 지난 상태 비율 ≥ 0.85, 관측 30회 이상인 모든 통과가 첫 관측 뒤 1.6 s 안에 조건을 지나며, 그 상태의 3 s 앞 보고 표준편차는 모두 3.25 mm 이하다.
 - REQ-TRK-007: 프레임 10%를 무작위로 빼도 유효 추적(`OBSERVED`·`COASTING`) 비율 ≥ 99%, 위치·속도 오차가 REQ-TRK-001 기준의 1.1배 이내다.
 - REQ-TRK-008: ROS 시각이 역행하면 모든 track을 지우고 epoch를 1 올린다. `tracker_node`는 그때 역행 크기와 새 epoch를 WARN 로그 1건으로 남긴다(`ResetTracking`은 INFO).
 - REQ-TRK-009: `ResetTracking`은 `new_epoch = 이전 epoch + 1`을 돌려주고 track을 비운다.
@@ -144,11 +145,11 @@ SPEC-010 wire schema v0.2 / runtime contract v0.4 기준.
 
 ## 8. 검증 방법(`TEST_SPEC.md` TC ID, 게이트)
 
-- U: TC-TRK-001~008·014(`tracking/test/`, `TrajectoryFixture`). C: TC-TRK-008-02·009~012·014-02(`tracking/test/contract/`). I1: TC-TRK-013(`needs_data("off1_bags")`).
+- U: TC-TRK-001~008·014(`tracking/test/`, `TrajectoryFixture`), TC-TRK-006-03(`tools/eval/test_replay_belt_tracking.py`, OFF-1 검출 CSV). C: TC-TRK-008-02·009~012·014-02(`tracking/test/contract/`). I1: TC-TRK-013(`needs_data("off1_bags")`).
 - 게이트: G3(TEST_SPEC 4절 게이트 표). G3 실측(독립 GT 대비 오차)은 TC-BEN·TC-EXP-G3.
 
 ## 9. 미결 사항
 
 - 관측 구간·도달 구간 경계값: TBD(배치도 OFF-1, 보정 OFF-3).
-- 속도 변화 검출: `sigma_accel_mps2` 0.01에서 TC-TRK-006(10 mm/s 계단 1 s 안 검출)을 지키는 CUSUM은 `k` 1·`h` 8뿐이며, OFF-1 벨트 영상에서 약 60 s당 22~38회 경보가 난다(실제 맥동 범위가 시험 계단보다 크다). 다이얼 조작과 맥동을 구분하는 방법과 WAIT_CAP의 `steady` 조건은 TBD(OFF-5 다이얼 조작 bag).
+- 속도 변화 검출: 20 mm/s 미만 변화와 감속(20 → 10 mm/s)은 맥동과 구분되지 않아 검출하지 않는다. 남은 경보(다이얼 고정에서 관측 60 s당 11~18회)는 `steady`를 0.5 s 끄고 속도 공분산을 되돌릴 뿐이지만, `steady = false`를 해제 전 L3로 연결하면(PLAN.md 5절) 사이클의 상당수가 중단된다. 그 연결 여부와 다이얼 조작의 실제 검출 성능은 TBD(OFF-5 다이얼 조작 bag).
 - `coast.max_s`: 그리퍼가 뚜껑을 가리지 않는 배치(TC-BEN-010-01)에서 검출 누락 구간 분포로 정한다. TBD(측정 G3, OFF-5).

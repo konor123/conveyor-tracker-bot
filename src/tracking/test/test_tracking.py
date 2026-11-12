@@ -145,7 +145,7 @@ def test_pass_new_id():
 def test_speed_step(seed):
     m = manager()
     detected = []
-    for f in TrajectoryFixture(seed, duration=13., step=(10., .03)):
+    for f in TrajectoryFixture(seed, duration=13., step=(10., .04)):      # 20 → 40 mm/s(다이얼 한 단계 이상)
         m.process_frame(f.t, f.dets)
         if not m.belt_motion.steady:
             detected.append(f.t)

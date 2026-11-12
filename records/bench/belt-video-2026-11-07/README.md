@@ -57,7 +57,9 @@ python3 tools/eval/replay_belt_tracking.py records/bench/belt-video-2026-11-07/*
 
 ## planner 보고 표준편차와 실제 오차(2026-11-12)
 
-`python3 tools/eval/replay_belt_tracking.py records/bench/belt-video-2026-11-07/*.caps.csv --sigma-accel 0.01 --horizons 0.1,0.5,1,2,3,4 --std-limit-mm 3.25 --json records/bench/belt-video-2026-11-07/replay-std-sigma-0.01.json`
+`python3 tools/eval/replay_belt_tracking.py records/bench/belt-video-2026-11-07/*.caps.csv --sigma-accel 0.01 --cusum-k 1 --cusum-h 8 --recover-s 2 --horizons 0.1,0.5,1,2,3,4 --std-limit-mm 3.25 --json records/bench/belt-video-2026-11-07/replay-std-sigma-0.01.json`
+
+이 절의 수치는 속도 변화 검출 설정이 `cusum_k` 1·`cusum_h` 8·`recover_s` 2 s일 때의 값이다(2026-11-12 변경 전 기본값). 위쪽 `replay-sigma-*.json`도 같은 설정으로 만든 것이라, 지금 다시 만들려면 이 세 인자를 함께 준다.
 
 칸의 값은 보고 표준편차 중앙값 [mm] / 3.25 mm 이하 비율 / (실제 오차 ÷ 보고 표준편차)의 p95다. 보고 표준편차는 planner `position_std`(예측 공분산 최대 고유값의 제곱근)와 같은 계산이다.
 
@@ -86,3 +88,26 @@ WAIT_CAP 조건(SPEC-100 `belt_steady`, `speed_std ≤ 1 mm/s`)을 지난 상태
 - 상태 기준으로 `steady`가 참인 몫은 9~44%(약 60 s당 속도 변화 경보 22~38회), `speed_std` 중앙값 0.94~1.06 mm/s는 기준 1 mm/s와 같은 크기다(`sigma_accel` 0.01에서 필터가 수렴하는 값). 조건을 한 번이라도 지난 통과는 조건에 따라 3/14 ~ 9/9다. 통과 안에서 조건을 지나는 시점이 도달 구간 진입 전인지는 배치(OFF-3)가 정해져야 알 수 있어 계산하지 않았다.
 - 조건을 지난 상태의 보고 표준편차는 `speed_std × 예측 구간`과 거의 같다(0.94 mm/s에서 2 s 2.0 mm, 3 s 2.95 mm, 4 s 3.9 mm). 3 s 앞은 전부 3.25 mm 이하(여유 약 10%), 4 s 앞은 전부 초과다. 즉 `wait_cap.speed_std_max_mps`(1 mm/s) × `wait_cap.plan_lead_s`(3 s) ≈ `plan.position_std_max_m`(3.25 mm)로 세 값은 사실상 같은 제약이다. `speed_std` 기준만 풀면 계획 단계가 `UNCERTAIN`으로 막힌다.
 - 따라서 실제 벨트에서 사이클이 계획 단계까지 가는지는 속도 변화 검출(`speed_change.cusum_k`·`cusum_h`·`recover_s`)과 위 세 값을 함께 정해야 한다. SPEC-300 9절의 경보 빈도 미결 사항과 같은 문제다.
+
+## 속도 변화 검출 설정 변경(2026-11-12)
+
+다이얼을 고정한 다섯 조건에서 난 속도 변화 경보는 모두 벨트 맥동 때문이다(1 s 창 속도가 약 10 mm/s 폭으로 흔들린다). 후보 설정 35개를 실영상과 합성 궤적으로 비교한 표는 [wait-cap-sweep-2026-11-12.md](wait-cap-sweep-2026-11-12.md)에 있다(`tools/eval/sweep_wait_cap.py`).
+
+`cusum_k` 1·`cusum_h` 8·`recover_s` 2 s → `cusum_k` 2·`cusum_h` 16·`recover_s` 0.5 s(`sigma_accel` 0.01 유지). 결과 파일 `replay-std-k2-h16-r0.5.json`:
+
+`python3 tools/eval/replay_belt_tracking.py records/bench/belt-video-2026-11-07/*.caps.csv --sigma-accel 0.01 --cusum-k 2 --cusum-h 16 --recover-s 0.5 --horizons 0.1,0.5,1,2,3,4 --std-limit-mm 3.25 --json records/bench/belt-video-2026-11-07/replay-std-k2-h16-r0.5.json`
+
+| 조건 | 경보 / 관측 60 s | `steady` 비율 | WAIT_CAP 조건 통과 비율 | 조건을 지난 통과 | 첫 관측~조건 통과 최대 [s] | 0.1 s 앞 오차 p95 [mm] | 1 s 앞 오차 p95 [mm] | 3 s 앞 보고 std [mm] |
+|---|---|---|---|---|---|---|---|---|
+| stable-current | 71 → 11 | 0.09 → 0.95 | 0.06 → 0.91 | 2/4 → 4/4 | 1.47 | 2.7 → 2.4 | 27.6 → 13.4 | 2.95 |
+| fast-1 | 49 → 18 | 0.44 → 0.98 | 0.42 → 0.95 | 5/5 → 5/5 | 1.20 | 2.6 → 2.6 | 10.5 → 6.9 | 2.95 |
+| fast-1-long | 59 → 15 | 0.16 → 0.99 | 0.16 → 0.99 | 4/6 → 6/6 | 1.30 | 2.6 → 2.1 | 16.1 → 6.9 | 2.95 |
+| fast-2 | 59 → 14 | 0.26 → 1.00 | 0.26 → 0.99 | 9/9 → 9/9 | 1.13 | 2.7 → 2.6 | 6.0 → 5.3 | 2.95 |
+| maximum | 61 → 16 | 0.13 → 0.96 | 0.13 → 0.96 | 3/14 → 14/14 | 1.30 | 3.4 → 3.6 | 7.1 → 7.8 | 2.95 |
+
+- `sigma_accel`은 그대로 둔다. 0.02~0.1로 올려도 0.1 s·1 s 앞 오차는 줄지 않고(경보가 드물면 1 s 앞 13~15 mm로 같다) `speed_std`·계획 단계·해제 게이트 기준만 함께 올려야 한다.
+- 이전 설정의 1 s 앞 오차가 컸던 이유의 절반은 맥동 경보였다. 경보 때마다 속도 공분산을 되돌려 속도 추정이 다시 흔들렸다(stable 27.6 → 13.4 mm).
+- 합성 궤적에서 새 설정은 20 mm/s 계단을 20/20 검출하고(지연 최대 0.23 s) 30 mm/s도 20/20, 15 mm/s는 10/20, 10 mm/s와 감속 20 → 10 mm/s는 0/20이다. OFF-1의 이웃 조건 사이 속도 차는 23~45 mm/s다. 등속 60 s 오검출은 0, 위치·속도 정확도(REQ-TRK-001)는 그대로다.
+- `wait_cap.speed_std_max_mps`(1 mm/s)는 그대로 둔다. 기준을 1.2 mm/s로 올려도 통과 비율은 0.91 → 0.94 정도만 달라진다.
+- 짧은 track(관측 30회 미만)이 시야 입구·출구(x ≈ ±0.14 m)에서 더 많이 생긴다(fast-2 0 → 9개, maximum 4 → 16개). 가장자리에서 검출이 튈 때 이전에는 경보가 공분산을 넓혀 같은 track에 붙였다. 통과 중간에서 끊긴 track은 없다(긴 track은 모두 시야 끝까지 간다). 관측 구간을 시야 안쪽에 두면 구간 밖 검출은 새 track을 만들지 않는다(SPEC-300 4.2절).
+- 한계: 압축 영상·잠정 보정·다이얼 고정 자료다. 다이얼을 실제로 돌릴 때의 검출과 남은 경보(관측 60 s당 11~18회)의 처리는 OFF-5 bag으로 확인한다.

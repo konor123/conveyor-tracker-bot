@@ -349,8 +349,9 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-TRK-003-02 | 재획득 게이팅 | U | `[ON]` | 가림 후 게이트 안 / 밖 관측 | 같은 track_id `OBSERVED` / 새 track |
 | TC-TRK-004-01 | LOST 전환 | U | `[ON]` | 관측 없음이 coast 한도(config, 초기 1.0 s) 초과 | `LOST` |
 | TC-TRK-005-01 | 통과마다 새 track | U | `[ON]` | 뚜껑이 FOV를 나갔다가 `T_lap` 뒤 다시 들어옴 | 새 track_id, epoch 불변 |
-| TC-TRK-006-01 | 속도 변화 검출 | U | `[ON]` | t = 10 s에 20 → 30 mm/s | 1.0 s 안에 `steady=false` |
+| TC-TRK-006-01 | 속도 변화 검출 | U | `[ON]` | t = 10 s에 20 → 40 mm/s | 1.0 s 안에 `steady=false` |
 | TC-TRK-006-02 | 속도 변화 오검출 없음 | U | `[ON]` | 60 s 등속, seed 20 | 오검출 0회 |
+| TC-TRK-006-03 | 실제 벨트 맥동에서 WAIT_CAP 조건 통과 | U | `[ON]` | OFF-1 검출 CSV 5조건(다이얼 고정)을 기본 설정으로 재생 | 조건마다 관측 60 s당 경보 ≤ 25회, 조건을 지난 상태 비율 ≥ 0.85, 모든 통과(≥ 4개)가 조건을 지남, 첫 관측부터 ≤ 1.6 s, 3 s 앞 보고 표준편차 3.25 mm 이하 비율 1.0 |
 | TC-TRK-007-01 | 프레임 10% 누락 | U | `[ON]` | 무작위 10% 누락 | 유효 추적 ≥ 99%, 오차가 TC-TRK-001-01 기준의 1.1배 이내 |
 | TC-TRK-008-01 | 시각 역행 시 초기화 | U | `[ON]` | `jump_ros(−1 s)` | 모든 track 제거, epoch +1 |
 | TC-TRK-008-02 | 시각 역행 로그 | C | `[ON]` | 추적 중 시뮬레이션 시각 100 → 99 s | WARN 1건(역행 `1.000 s`, 새 epoch), 역행 전 0건 |
