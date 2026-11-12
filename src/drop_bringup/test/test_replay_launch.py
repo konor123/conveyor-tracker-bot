@@ -8,9 +8,11 @@ Doosan 스트림 지령(`/dsr01/servol_stream`)과 이전 파이프라인 출력
 금지 항목(스트림 토픽 발행자, `robot/*` action 클라이언트·서버, `/dsr01/*`·`/robot/*` 서비스 클라이언트)을 센다.
 조회가 금지 항목을 실제로 찾는지는 시험 프로세스의 탐침 노드(같은 금지 항목을 일부러 만든다)로 확인한다.
 """
+import collections
 import os
 import signal
 import subprocess
+import threading
 import time
 
 import pytest
@@ -78,9 +80,18 @@ def _write_bag(path, seconds=3.0, fps=30.0):
 
 
 def _launch(*args):
+    """launch 출력은 스레드가 계속 비운다. 비우지 않으면 파이프(64 KB)가 차서 launch와 노드가 출력에서 멈출 수 있다."""
     env = dict(os.environ, ROS_DOMAIN_ID=str(DOMAIN))
-    return subprocess.Popen(['ros2', 'launch', 'drop_bringup', 'replay.launch.py', *args], env=env,
+    proc = subprocess.Popen(['ros2', 'launch', 'drop_bringup', 'replay.launch.py', *args], env=env,
                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, start_new_session=True)
+    proc.lines = collections.deque(maxlen=2000)
+    proc.reader = threading.Thread(target=lambda: proc.lines.extend(proc.stdout), daemon=True)
+    proc.reader.start()
+    return proc
+
+
+def _tail(proc, n=40):
+    return '\n'.join(line.rstrip() for line in list(proc.lines)[-n:])
 
 
 def _stop(proc):
@@ -91,7 +102,8 @@ def _stop(proc):
         except subprocess.TimeoutExpired:
             os.killpg(proc.pid, signal.SIGKILL)
             proc.wait(timeout=5)
-    return proc.stdout.read()
+    proc.reader.join(timeout=5)
+    return ''.join(proc.lines)
 
 
 def _violations(h):
@@ -133,7 +145,11 @@ def test_replay_has_no_robot_command_path(ros, tmp_path, with_bag):
     try:
         def active():
             return {m.node_name for _, m in hbs[-30:] if m.lifecycle_state == 3}
-        h.wait_for(lambda: set(NODES) <= active(), timeout=30.0, what='vision·tracker·planner ACTIVE heartbeat')
+        try:
+            # 공유 CI 러너의 첫 기동은 느리다(2026-11-12 run 43249202773에서 30 s 초과 1회)
+            h.wait_for(lambda: set(NODES) <= active(), timeout=60.0, what='vision·tracker·planner ACTIVE heartbeat')
+        except TimeoutError as e:
+            raise TimeoutError(f'{e}; ACTIVE={sorted(active())}, launch 출력 끝:\n{_tail(proc)}') from None
         h.wait_for(lambda: {'/vision/detect_objects', '/tracking/select_target', '/planner/compute_intercept'}
                    <= set(h.service_types()), timeout=10.0, what='대상 노드 서비스 발견')
         if with_bag:
