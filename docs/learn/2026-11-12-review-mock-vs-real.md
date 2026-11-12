@@ -27,3 +27,9 @@ python3 tools/eval/replay_belt_tracking.py records/bench/belt-video-2026-11-07/*
 - **CI가 초록이어도 어떤 폴더를 돌렸는지 본다.** 현재 CI는 `src/robot_control/test`와 `src/calibration/test`를 돌리지 않는다. 그 폴더의 새 시험은 작성자 PC 결과만 근거다.
 - **TC 번호는 TEST_SPEC의 그 행과 내용이 맞아야 한다.** 다른 내용의 시험에 기존 번호를 달면 추적표(`specs/TRACE.md`)가 틀린 근거를 보여 준다.
 - **CI 실패는 로그의 실패 단계부터 본다.** 이번 4건은 apt 색인 내려받기 실패(exit 100)로 코드와 무관했다.
+
+## 검토 뒤 고친 것에서 배운 점
+
+- **허용오차는 실제 입력으로 계산해 정한다.** 강체 판정 허용오차를 1e-6으로 하자고 했지만, 기울어진 회전을 소수 6자리로 반올림하면 직교성 오차가 1.1e-6이라 여전히 거부된다. `np.round(R, 6)`으로 직접 재 보고 1e-5로 정했다. `np.allclose`는 기본 `rtol` 1e-5가 대각 성분(값 1)에 더해지므로 `rtol=0`으로 두어야 허용오차가 한 값으로 읽힌다.
+- **쓸 수 없는 인자 조합은 launch에서 바로 거부한다.** mock 임시 plan은 tracking 대역이 낸다. 실제 tracker + mock planner는 계획을 내는 노드가 없는데도 조용히 뜨고, 사이클은 한참 뒤 시간 초과로 끝난다. `OpaqueFunction` 안에서 예외를 던지면 `ros2 launch`가 안내 문구와 함께 0이 아닌 코드로 끝난다.
+- **같은 기준값이 여러 패키지에 있으면 일치 시험을 둔다.** 3.25 mm·0.5 mm가 orchestrator.yaml, planner.yaml, `SyncConfig` 기본값, `belt_sync.json`에 있다. `test_sync_config.py`가 서로 같은지 본다.

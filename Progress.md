@@ -218,7 +218,7 @@
 ## 8. Moving Reference Frame 구현 → G3
 
 - [ ] `[ON]` `world → robot_base → {conveyor_frame, mat_frame, camera_link}` static TF, 로봇 링크는 robot_state_publisher
-  - `calibration/static_frames.py`·`frames.launch.py`(SPEC-600 v0.2, TC-CAL-011-01·012-01, 팀원 노트북 통과, CI 미포함). `camera_link`는 `camera_tf_publisher`를 따로 띄운다. 실제 `T_base_conveyor`(OFF-3) 적용과 카메라 포함 전체 나무 확인이 완료 조건이다.
+  - `calibration/static_frames.py`·`frames.launch.py`(SPEC-600 v0.3, TC-CAL-011-01·012-01). `camera_link`는 `camera_tf_publisher`를 따로 띄운다. 실제 `T_base_conveyor`(OFF-3) 적용과 카메라 포함 전체 나무 확인이 완료 조건이다.
 - [x] `[ON]` tracker가 `conveyor_frame → cap_<track_id>` 동적 TF 발행(stamp = 상태 시각, orientation identity)
   - TC-TRK-012-01.
 - [x] `[ON]` **미래 시각 TF 조회 금지**: tf2는 외삽하지 않으므로 예측은 9절 planner가 `TrackedObject`로 계산

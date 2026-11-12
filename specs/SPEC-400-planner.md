@@ -1,6 +1,6 @@
 # SPEC-400 planner
 
-- 버전: v0.4
+- 버전: v0.5
 - 근거: PLAN.md 3.1, 4.3, 4.4, 9절
 - REQ 영역: PLN
 
@@ -8,6 +8,7 @@
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
+| v0.5 | 2026-11-12 | bringup: `use_mock_planner` 기본값 `false`, mock planner + 실제 tracker 조합 거부, track만 mock일 때도 시나리오 기하 전달(REQ-PLN-012) |
 | v0.4 | 2026-11-11 | `uncertainty.position_std_max_m` 3.25 mm(계획 단계 기준, 해제 게이트 0.5 mm는 SPEC-100 `sync.release_position_std_max_m`) |
 | v0.3 | 2026-11-11 | bringup: `use_mock_planner:=false`로 실제 planner 기동·자동 활성화, mock 임시 plan 끔(REQ-PLN-012) |
 | v0.2 | 2026-11-09 | `intercept_planner_node`: 시계 역행 시 `EXPIRED`·`CLOCK_RESET` 1회 발행, 빈 `TrackedObjectArray`에서는 마지막 epoch 유지 |
@@ -145,7 +146,7 @@ ok          = time_margin ≥ margin
 - REQ-PLN-009: `release_time ≥ earliest_release`이다.
 - REQ-PLN-010: `tau_max`는 4.6절 식을 만족하는 최대 τ를 해석해와 1e-6 s 이내로 돌려준다.
 - REQ-PLN-011: fixture tracked 입력 → 실제 planner(I2)에서 정상·`time_insufficient`·`UNCERTAIN`·만료·epoch 불일치·clock reset 시나리오의 status·reason이 기대표와 모두 일치한다.
-- REQ-PLN-012: `drop.launch.py use_mock_planner:=false`는 실제 `intercept_planner_node`를 띄워 기동 때 한 번만 `ACTIVE`까지 자동 전이하고(사람이 나중에 `deactivate`하면 다시 켜지 않는다) `mock_world_node`의 `publish_plan`을 끈다. 그때 `planner/compute_intercept` 서버와 `drop/intercept_plan` 발행자는 각각 `intercept_planner_node` 하나뿐이다. `use_mock_tracking:=false`도 같은 방식으로 실제 `tracker_node`를 `ACTIVE`로 띄우고 `objects/tracked` 발행자는 `tracker_node` 하나뿐이다. 검출이 mock 세계에서 오면(`use_mock_vision:=true`) 시나리오 `world.frames`·`world.zones`로 `T_base_conveyor`·관측 구간·도달 구간 시작·끝을 실제 tracker·planner에 넘긴다(실제 vision이면 각 config). 기본값(`use_mock_planner:=true`)은 기존 동작(mock 임시 plan)을 유지한다.
+- REQ-PLN-012: `drop.launch.py use_mock_planner:=false`는 실제 `intercept_planner_node`를 띄워 기동 때 한 번만 `ACTIVE`까지 자동 전이하고(사람이 나중에 `deactivate`하면 다시 켜지 않는다) `mock_world_node`의 `publish_plan`을 끈다. 그때 `planner/compute_intercept` 서버와 `drop/intercept_plan` 발행자는 각각 `intercept_planner_node` 하나뿐이다. `use_mock_tracking:=false`도 같은 방식으로 실제 `tracker_node`를 `ACTIVE`로 띄우고 `objects/tracked` 발행자는 `tracker_node` 하나뿐이다. 검출이나 track이 mock 세계에서 오면(`use_mock_vision:=true` 또는 `use_mock_tracking:=true`) 시나리오 `world.frames`·`world.zones`로 `T_base_conveyor`·관측 구간·도달 구간 시작·끝을 실제 tracker·planner에 넘긴다(둘 다 실제면 각 config). `use_mock_planner` 기본값은 다른 역할과 같이 `false`다. `use_mock_planner:=true`(mock 임시 plan)는 `use_mock_tracking:=true`일 때만 허용하고, 아니면 계획을 내는 노드가 없으므로 launch가 노드를 띄우지 않고 0이 아닌 종료 코드로 끝난다. `mock.launch.py`는 `use_mock_planner:=true`를 명시한다.
 
 ## 8. 검증 방법(`TEST_SPEC.md` TC ID, 게이트)
 

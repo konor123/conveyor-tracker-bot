@@ -3,7 +3,7 @@
 `tools/spec/trace.py`가 생성한다. 손으로 고치지 않는다.
 
 - REQ 131개 중 TC 연결 131개
-- pytest 대상 TC 218개 중 테스트 연결 205개
+- pytest 대상 TC 220개 중 테스트 연결 207개
 
 | TC | 수준 | REQ | 테스트 |
 |---|---|---|---|
@@ -204,10 +204,12 @@
 | TC-ROB-011-01 | C | REQ-ROB-011(SPEC 없음) | — |
 | TC-ROB-012-01 | C | REQ-ROB-012 | — |
 | TC-ROB-013-01 | U | REQ-ROB-013 | `src/robot_control/test/test_belt_sync.py::test_release_time_reference_not_source_stamp`<br>`src/robot_control/test/test_belt_sync.py::test_new_revision_accepted`<br>`src/robot_control/test/test_belt_sync.py::test_ros_message_mapping` |
-| TC-ROB-013-02 | U | REQ-ROB-013 | `src/robot_control/test/test_belt_sync.py::test_invalid_plan_latches`<br>`src/robot_control/test/test_belt_sync.py::test_old_revision_ignored_without_refresh`<br>`src/robot_control/test/test_belt_sync.py::test_source_stale_even_with_recent_receipt`<br>`src/robot_control/test/test_sync_revision.py::<module>` |
+| TC-ROB-013-02 | U | REQ-ROB-013 | `src/robot_control/test/test_belt_sync.py::test_invalid_plan_latches`<br>`src/robot_control/test/test_belt_sync.py::test_old_revision_ignored_without_refresh`<br>`src/robot_control/test/test_belt_sync.py::test_source_stale_even_with_recent_receipt` |
 | TC-ROB-013-03 | U | REQ-ROB-013 | `src/robot_control/test/test_belt_sync.py::test_watchdogs`<br>`src/robot_control/test/test_belt_sync.py::test_freeze_ros_clock_detected_by_steady_time`<br>`src/robot_control/test/test_belt_sync.py::test_expiration_without_loop_gap`<br>`src/robot_control/test/test_belt_sync.py::test_no_plan_and_nonfinite_tcp` |
 | TC-ROB-013-04 | U | REQ-ROB-013 | `src/robot_control/test/test_belt_sync.py::test_speed_and_acceleration_limits`<br>`src/robot_control/test/test_belt_sync.py::test_workspace_failure`<br>`src/robot_control/test/test_belt_sync.py::test_invalid_config` |
-| TC-ROB-013-05 | U | REQ-ROB-013 | `src/robot_control/test/test_belt_sync.py::test_stop_and_explicit_rearm`<br>`src/robot_control/test/test_sync_metrics.py::<module>` |
+| TC-ROB-013-05 | U | REQ-ROB-013 | `src/robot_control/test/test_belt_sync.py::test_stop_and_explicit_rearm` |
+| TC-ROB-013-06 | U | REQ-ROB-013 | `src/robot_control/test/test_sync_config.py::<module>`<br>`src/robot_control/test/test_sync_revision.py::<module>` |
+| TC-ROB-013-07 | U | REQ-ROB-013 | `src/robot_control/test/test_sync_metrics.py::<module>` |
 | TC-ROB-014-01 | U | REQ-ROB-014 | `src/robot_control/test/test_stop_latch.py::<module>` |
 | TC-ROB-014-02 | C | REQ-ROB-014 | `src/robot_control/test/test_robot_controller_stop.py::test_stop_latches_until_operator_release`<br>`src/robot_control/test/test_robot_controller_stop.py::test_release_refused_while_goal_active`<br>`src/robot_control/test/test_robot_controller_stop.py::test_accept_reserves_goal_and_noop_release_keeps_backend_stop` |
 | TC-SIM-001-01 | S | REQ-SIM-001(SPEC 없음) | 절차 시험 |

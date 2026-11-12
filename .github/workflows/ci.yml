@@ -28,6 +28,8 @@ jobs:
           apt-get install -y --no-install-recommends \
             python3-colcon-common-extensions \
             python3-jsonschema \
+            python3-numpy \
+            python3-opencv \
             python3-pytest \
             python3-yaml \
             ros-jazzy-launch-ros \
@@ -40,16 +42,6 @@ jobs:
         run: |
           source /opt/ros/jazzy/setup.bash
           colcon build --symlink-install
-
-      - name: Diagnose DNS
-        shell: bash
-        run: |
-          echo "=== DNS configuration ==="
-          cat /etc/resolv.conf
-          echo "=== Ubuntu archive ==="
-          getent hosts archive.ubuntu.com || true
-          echo "=== Ubuntu security ==="
-          getent hosts security.ubuntu.com || true
 
       - name: Run spec and eval unit tests
         shell: bash
@@ -81,6 +73,14 @@ jobs:
             echo "realtime_pc: FAILED on CI (record only; judged on PC, see step log)" >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
+
+      - name: Run robot_control and calibration tests
+        shell: bash
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          source install/setup.bash
+          python3 -m pytest src/robot_control/test -v
+          python3 -m pytest src/calibration/test -v
 
       - name: Run tracking and intercept_planner unit, contract and I2 tests
         shell: bash

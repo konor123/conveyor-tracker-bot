@@ -87,6 +87,31 @@ def test_static_tree(T, publish_world):
     np.testing.assert_allclose(mats[('base_link', 'robot_base')], np.eye(4), atol=1e-12)
 
 
+def _tilted_T(digits):
+    """기울기 0.02 rad + yaw 1.3 rad 회전을 소수 digits자리로 적은 변환(보정 결과 파일 모양)."""
+    cx, sx, cz, sz = math.cos(0.02), math.sin(0.02), math.cos(1.3), math.sin(1.3)
+    T = np.eye(4)
+    T[:3, :3] = np.array([[cz, -sz, 0], [sz, cz, 0], [0, 0, 1]]) @ np.array([[1, 0, 0], [0, cx, -sx], [0, sx, cx]])
+    T[:3, 3] = [0.6, 0.05, 0.07]
+    return np.round(T, digits)
+
+
+def test_is_rigid_tolerance():
+    from calibration.static_frames import is_rigid
+    assert is_rigid(_tilted_T(6))           # 직교성 오차 ~1e-6
+    assert not is_rigid(_tilted_T(3))       # ~1e-3
+    scaled = np.eye(4)
+    scaled[0, 0] = 1.001
+    assert not is_rigid(scaled)
+
+
+def test_accepts_six_digit_tilted_transform():
+    T = _tilted_T(6)
+    ok, mats, _ = _run(T, False)
+    assert ok
+    np.testing.assert_allclose(mats[('robot_base', 'conveyor_frame')], T, atol=1e-5)
+
+
 def test_rejects_non_rigid_transform():
     bad = np.eye(4)
     bad[0, 0] = 2.0

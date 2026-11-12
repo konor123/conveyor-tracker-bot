@@ -94,3 +94,30 @@ def test_real_planner_replaces_mock_plan(ros, real_tracker):
         h.close()
         out = _stop(proc)
     assert 'Traceback' not in out, out[-2000:]
+
+
+def test_mock_planner_without_mock_tracking_is_refused():
+    """임시 plan은 tracking 대역이 낸다. 실제 tracker + mock planner는 계획을 내는 노드가 없어 기동을 거부한다."""
+    proc = _launch('use_mock_planner:=true', 'use_mock_tracking:=false')
+    try:
+        code = proc.wait(timeout=20)
+    except subprocess.TimeoutExpired:
+        _stop(proc)
+        pytest.fail('launch가 끝나지 않았다')
+    out = proc.stdout.read()
+    assert code != 0
+    assert 'use_mock_planner:=true는 use_mock_tracking:=true가 필요하다' in out
+    assert 'tracker_node' not in out
+
+
+def test_planner_default_is_real(ros):
+    """use_mock_planner를 주지 않으면 실제 planner다(다른 역할과 같은 기본값)."""
+    proc = _launch('use_mock_tracking:=true')
+    h = Harness()
+    try:
+        h.wait_for(lambda: _active(h, 'intercept_planner_node'), 20.0, 'planner ACTIVE')
+        time.sleep(1.0)
+        assert _publishers(h, '/drop/intercept_plan') == ['intercept_planner_node']
+    finally:
+        h.close()
+        _stop(proc)

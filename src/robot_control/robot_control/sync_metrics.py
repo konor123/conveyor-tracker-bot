@@ -1,5 +1,6 @@
 """Offline preview telemetry. Does not send robot commands or authorize release."""
 import csv
+from collections import Counter
 import json
 import math
 from pathlib import Path
@@ -40,7 +41,7 @@ def summarize(path):
     times=np.array([float(r['steady_s']) for r in rows])
     gaps=np.diff(times)
     # Include faults, not only successful samples; never label this a G5 pass.
-    reasons={r['reason']:sum(x['reason']==r['reason'] for x in rows) for r in rows}
+    reasons=dict(Counter(r['reason'] for r in rows))
     return dict(samples=len(rows),active_samples=len(active),inactive_samples=len(rows)-len(active),
                 xy_error_p95_m=float(np.percentile(errors,95)) if len(errors) else None,
                 xy_error_max_m=float(errors.max()) if len(errors) else None,

@@ -19,7 +19,7 @@ ros2 launch drop_bringup drop.launch.py use_mock_vision:=true use_mock_tracking:
 
 - **한 역할에 한 노드**: 실제 planner를 띄우면 mock의 임시 계획(`publish_plan`)을 자동으로 끈다. 둘 다 계획을 내면 로봇이 어느 계획을 따를지 엉킨다.
 - **lifecycle 자동 활성화**: 실제 노드는 lifecycle 노드라 처음엔 "설정 안 됨" 상태다. launch가 `configure` 이벤트를 보내고, 노드가 `inactive`가 되면 `activate`를 보내도록 이어 두었다(`LifecycleNode` + `OnStateTransition`). mock은 `autostart` 파라미터로 스스로 켜지는 것과 달리 실제 노드는 바깥에서 켠다.
-- **기본값**: `use_mock_planner`만 기본 `true`(기존 동작). 다른 역할은 원래 기본이 실제 노드라, 인자 없이 띄우면 이제 실제 tracker도 뜬다.
+- **기본값**: 모든 역할의 기본이 실제 노드다(2026-11-12부터 `use_mock_planner`도 기본 `false`). mock 임시 plan은 tracking 대역이 내므로 `use_mock_planner:=true`는 `use_mock_tracking:=true`와 함께만 쓸 수 있고, 아니면 launch가 거부한다. 전체 대역 `mock.launch.py`가 이 조합을 명시한다.
 
 ## 시험
 

@@ -1,6 +1,6 @@
 # SPEC-500 robot-control
 
-- 버전: v0.5
+- 버전: v0.6
 - 근거: PLAN.md 1.1, 3.3, 5.1절
 - REQ 영역: ROB, GRP
 
@@ -8,6 +8,7 @@
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
+| v0.6 | 2026-11-12 | REQ-ROB-013: 계획 수락 기준 3.25 mm와 해제 불확실성 기준 0.5 mm 분리(`release_uncertainty_ok`, 진단용), 그림자 기록 CSV(`sync_metrics`), `config/belt_sync.json` |
 | v0.5 | 2026-11-11 | REQ-ROB-014 Stop 정지 유지·작업자 해제(`stop_latch.StopLatch`) |
 | v0.4 | 2026-11-11 | REQ-ROB-013 XY 추종 코어(`belt_sync.BeltSynchronizer`): 계획 수락 조건, 감시, 제한·작업영역, 정지 유지와 명시적 재무장, 그림자 미리보기. REQ-GRP-016 지령 결과 레지스터 40과 `RESIDENT_WRITE_FAILED`, 실행 확인 뒤 새 표본으로 판정, 표본 주기 대비 제한시간 검사(응답 5주기·생존 3주기), REQ-GRP-013 생존 감시 기준을 `loop_timeout_s`로 |
 | v0.3 | 2026-11-10 | REQ-GRP-014 공통 그리퍼 순서(`GripperSession`), 예약(prewrite) 무효화 규칙, REQ-GRP-015 막힘 파지 판정, REQ-GRP-016 상주 루프 transport·DRL 레지스터 계약, 그리퍼 전류 상한 100 → 150 mA |
@@ -85,7 +86,7 @@ Doosan 스트림·move_line 계약, 그리퍼 상주 루프 경로, 추종 제�
 - REQ-ROB-008: `DynamicPlace`는 plan revision·epoch·만료를 검사하고, 계획기·추종 제어가 준비되지 않은 동안 `PRECONDITION`(`PLANNER_NOT_READY`)으로 닫힌다.
 - REQ-ROB-009: 해제 게이트(높이·경사·폭·여유·정지) 중 하나라도 위반하면 그리퍼를 열지 않고 L3를 요청한다.
 - REQ-ROB-010: `SafeRetreat(keep_sync=true)`는 z가 안전 높이에 닿을 때까지 XY 속도를 계획 속도 ±1 mm/s로 유지한다. 동기 유지 또는 place-back을 지원하지 않는 경로는 성공으로 보고하지 않는다.
-- REQ-ROB-013: XY 추종 코어(`belt_sync.BeltSynchronizer`)는 ROS·로봇·그리퍼 입출력 없이 SI·`robot_base`로 동작한다. 목표는 `release_xy + v·(t − release_time)`이다(입력 상태 시각이 아니라 해제 시각 기준). `arm(plan_id, track_id, epoch)`으로 지정한 계획만 받고, 다른 식별자가 오면 `PLAN_IDENTITY_CHANGED`로 멈춘다. 받은 revision 이하는 무시하며 수신 감시를 갱신하지 않는다. `status`≠OK, `frame_id`≠`robot_base`, 비유한 값, `position_std` 초과, 시각 순서(`source_state_stamp ≤ 생성 ≤ 현재`) 위반, 입력 상태 나이 초과, 만료는 `PLAN_INVALID`다. 매 주기 계획 없음은 `WAIT_PLAN`, 비유한 TCP는 `NONFINITE`, ROS 시계 역행은 `CLOCK_BACKWARD`, steady 주기 간격 초과는 `LOOP_GAP`, 만료는 `PLAN_EXPIRED`, 수신(steady)·입력 상태(ROS) 나이 초과는 `PLAN_STALE`, TCP frame·나이 위반은 `TCP_STALE`, 목표·TCP·한 주기 예상 위치가 XY 작업영역 밖이면 `WORKSPACE`다. 지령은 REQ-ROB-006 식과 제한을 따른다. 멈춤(`stop` 포함)은 래치되어 출력은 비활성·속도 0이며, 같은 계획이라도 `arm`으로 다시 무장하기 전까지 계획을 받지 않는다. 비활성 출력의 0은 정지 증거가 아니다. 설정값은 유한한 양수이고 주기 ≤ 간격 한도, 작업영역 최소 < 최대여야 하며 아니면 생성 시 예외다. `belt_sync_preview`는 `/tracking_preview/cmd_vel`·`/tracking_preview/status`만 발행하고 Doosan·그리퍼 지령을 보내지 않는다.
+- REQ-ROB-013: XY 추종 코어(`belt_sync.BeltSynchronizer`)는 ROS·로봇·그리퍼 입출력 없이 SI·`robot_base`로 동작한다. 목표는 `release_xy + v·(t − release_time)`이다(입력 상태 시각이 아니라 해제 시각 기준). `arm(plan_id, track_id, epoch)`으로 지정한 계획만 받고, 다른 식별자가 오면 `PLAN_IDENTITY_CHANGED`로 멈춘다. 받은 revision 이하는 무시하며 수신 감시를 갱신하지 않는다. `status`≠OK, `frame_id`≠`robot_base`, 비유한 값, `position_std` 초과, 시각 순서(`source_state_stamp ≤ 생성 ≤ 현재`) 위반, 입력 상태 나이 초과, 만료는 `PLAN_INVALID`다. 매 주기 계획 없음은 `WAIT_PLAN`, 비유한 TCP는 `NONFINITE`, ROS 시계 역행은 `CLOCK_BACKWARD`, steady 주기 간격 초과는 `LOOP_GAP`, 만료는 `PLAN_EXPIRED`, 수신(steady)·입력 상태(ROS) 나이 초과는 `PLAN_STALE`, TCP frame·나이 위반은 `TCP_STALE`, 목표·TCP·한 주기 예상 위치가 XY 작업영역 밖이면 `WORKSPACE`다. 지령은 REQ-ROB-006 식과 제한을 따른다. 멈춤(`stop` 포함)은 래치되어 출력은 비활성·속도 0이며, 같은 계획이라도 `arm`으로 다시 무장하기 전까지 계획을 받지 않는다. 비활성 출력의 0은 정지 증거가 아니다. 설정값은 유한한 양수이고 주기 ≤ 간격 한도, 작업영역 최소 < 최대여야 하며 아니면 생성 시 예외다. `belt_sync_preview`는 `/tracking_preview/cmd_vel`·`/tracking_preview/status`만 발행하고 Doosan·그리퍼 지령을 보내지 않는다. 계획 수락의 `position_std` 한도는 `max_position_std_m`(3.25 mm, SPEC-100 `plan.position_std_max_m`·SPEC-400 `uncertainty.position_std_max_m`과 같은 값)이고, 해제 불확실성 한도 `release_position_std_max_m`(0.5 mm, SPEC-100 `sync.release_position_std_max_m`과 같은 값)은 그보다 클 수 없다(생성 시 예외). `release_uncertainty_ok()`는 멈춤이 없고 현재 계획의 `position_std` ≤ 0.5 mm, 입력 상태·수신 나이 ≤ `max_plan_age_s`, 미만료일 때만 참인 진단값이며 해제 허가가 아니다(높이·속도·그리퍼 게이트는 REQ-ROB-009). 설정은 `config/belt_sync.json`(코드 기본값과 같음)을 `belt_sync_preview --config`로 줄 수 있다. `--csv`를 주면 `sync_metrics.SyncCsv`가 주기마다 한 행(시각, 활성 여부·이유, 계획 식별자, TCP·목표·오차·지령, `position_std`, `release_uncertainty_ok`)을 새 파일에 쓰고 기존 파일은 덮어쓰지 않는다. `summarize()`는 비활성 행과 이유별 개수를 포함해 오차 p95·최대, 표본 간격 p99를 낸다. 이 기록은 그림자 관측이며 G5 판정 근거가 아니다.
 - REQ-ROB-014: `Stop`은 정지 유지(`stop_latch.StopLatch`)를 건다(SPEC-010 4.5절). 정지 유지 중 `ready=false`, heartbeat `error_code` 101(보호정지면 100), 새 goal은 지령 0회로 `CANCELED`(`STOPPED`)다. 해제는 `stop_release_reason`의 비어 있지 않은 사유로만 하고, 실행 중 goal·보호정지가 있으면 거부한다. lifecycle 비활성·재활성으로 풀리지 않는다.
 - REQ-ROB-012: `system/heartbeat`는 10 Hz ±10%로 `seq` 연속 증가, `lifecycle_state`를 싣는다. `robot/status`도 10 Hz로 연결·준비·TCP·파지 상태를 싣는다.
 
@@ -121,7 +122,7 @@ Doosan 스트림·move_line 계약, 그리퍼 상주 루프 경로, 추종 제�
 - `src/robot_control/test/test_motion_adapter.py`: TC-ROB-001~006.
 - `src/robot_control/test/test_gripper_adapter.py`: TC-GRP-001~013. `test_gripper_session.py`: TC-GRP-014. `test_resident_transport.py`: TC-GRP-015·016(가짜 제어기 `test/fakes/resident.py`, 시간은 모델 값. DRL 본문은 `test/fakes/drl_env.py`에서 그대로 실행).
 - `src/robot_control/test/test_skill_logic.py`: TC-ROB-007~010.
-- `src/robot_control/test/test_belt_sync.py`: TC-ROB-013(속도·가속 제한은 TC-ROB-006-01도 함께).
+- `src/robot_control/test/test_belt_sync.py`: TC-ROB-013-01~05(속도·가속 제한은 TC-ROB-006-01도 함께). `test_sync_revision.py`·`test_sync_config.py`: TC-ROB-013-06. `test_sync_metrics.py`: TC-ROB-013-07.
 - `src/robot_control/test/test_stop_latch.py`: TC-ROB-014-01. `test_robot_controller_stop.py`: TC-ROB-014-02.
 - `robot_controller_node` 계약: `tools/testing/contracts/robot_controller_contract.py`가 기대하는 feedback phase·metric, lifecycle, heartbeat, Stop.
 - `[ON]` 항목은 실행 전까지 완료로 표시하지 않는다.

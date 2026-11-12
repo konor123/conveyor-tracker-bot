@@ -372,7 +372,7 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-PLN-009-01 | earliest_release 준수 | U | `[ON]` | earliest_release가 계산 시각보다 늦음 | `release_time ≥ earliest_release` |
 | TC-PLN-010-01 | τ_max 계산 | U | `[ON]` | e_allow 2.75 mm, e_pos 0.3 mm, δv 0.5 mm/s, a 0, v 20 mm/s, δt 5 ms | 식을 만족하는 최대 τ(해석해와 1e-6 s 이내) |
 | TC-PLN-011-01 | I2 예측·예산 통합 | I2 | `[ON]` | fixture tracked → 실제 planner: 정상, `time_insufficient`, `UNCERTAIN`, 만료·epoch 불일치·clock reset | 시나리오별 status·reason이 기대표와 일치 |
-| TC-PLN-012-01 | 실제 planner·tracker bringup | I2 | `[ON]` | `drop.launch.py` mock vision·robot, (a) 실제 planner + mock tracking, (b) 실제 planner + 실제 tracker, orchestrator 없음 | 실제 노드 `ACTIVE` 자동 전이, 그 뒤 사람이 `deactivate`하면 1.5 s 뒤에도 `INACTIVE`(다시 켜지 않음) / `planner/compute_intercept` 서버·`drop/intercept_plan` 발행자 = `intercept_planner_node` 1개 / (b) `objects/tracked` 발행자 = `tracker_node` 1개 / planner·tracker 파라미터가 시나리오 기하(`T_base_conveyor` 원점 (0.30, −0.25), 도달 0.20~0.40, 관측 끝 0.45)와 같음 |
+| TC-PLN-012-01 | 실제 planner·tracker bringup | I2 | `[ON]` | `drop.launch.py` mock vision·robot, (a) 실제 planner + mock tracking, (b) 실제 planner + 실제 tracker, (c) mock planner + 실제 tracker, (d) `use_mock_planner` 생략 + mock tracking, orchestrator 없음 | 실제 노드 `ACTIVE` 자동 전이, 그 뒤 사람이 `deactivate`하면 1.5 s 뒤에도 `INACTIVE`(다시 켜지 않음) / `planner/compute_intercept` 서버·`drop/intercept_plan` 발행자 = `intercept_planner_node` 1개 / (b) `objects/tracked` 발행자 = `tracker_node` 1개 / planner·tracker 파라미터가 시나리오 기하(`T_base_conveyor` 원점 (0.30, −0.25), 도달 0.20~0.40, 관측 끝 0.45)와 같음 / (c) 종료 코드 ≠ 0, 안내 문구 출력, `tracker_node` 미기동 / (d) `drop/intercept_plan` 발행자 = `intercept_planner_node` 1개 |
 
 ### 3.8 ROB — 로봇 제어
 
@@ -397,6 +397,8 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-ROB-013-03 | 감시 | U | `[ON]` | steady 간격 0.03 s 초과 / ROS 시계 역행 / TCP 나이 0.51 s·미래 시각 / ROS 시계 정지 + steady 진행 / 만료 / 계획 없음 / 비유한 TCP | `LOOP_GAP` / `CLOCK_BACKWARD` / `TCP_STALE` / `PLAN_STALE` / `PLAN_EXPIRED` / `WAIT_PLAN` / `NONFINITE`, 모두 비활성·속도 (0, 0) |
 | TC-ROB-013-04 | 제한·작업영역·설정 | U | `[ON]` | 큰 오차 15주기 / TCP (2, 0) m / 주기 0, Kp NaN, 작업영역 역전, 주기 > 간격 한도 | `|v| ≤ v_max`, `|Δv| ≤ a_max·dt` / `WORKSPACE` / 생성 시 예외 |
 | TC-ROB-013-05 | 정지와 명시적 재무장 | U | `[ON]` | `stop` 뒤 주기 / `arm` 후 같은 계획 | 비활성 / 수락·활성 |
+| TC-ROB-013-06 | 계획 수락 기준과 해제 불확실성 기준 분리 | U | `[ON]` | `position_std` 3.25 / 3.251 mm 계획 / 2 mm 계획 뒤 0.5 mm revision, 나이 0.3 s, `stop` / `release_position_std_max_m` 4 mm 설정 / `belt_sync.json`, orchestrator.yaml, planner.yaml | 수락 / 거부 / `release_uncertainty_ok` 거짓 → 참 → 거짓 → 거짓 / 생성 시 예외 / json = 코드 기본값, 3.25 mm·0.5 mm가 세 패키지에서 같음 |
+| TC-ROB-013-07 | 그림자 기록 CSV | U | `[ON]` | 활성 1행 + `stop` 1행 기록 뒤 요약 / 같은 경로로 다시 열기 / 행 없는 파일 | 표본 2·비활성 1, 오차 p95 1 mm, 이유 `TEST_STOP` 1 / `FileExistsError` / p95 `None` |
 | TC-ROB-014-01 | 정지 유지 판정 | U | `[ON]` | Stop(사유) / 해제: 빈 사유, 실행 중 goal, 보호정지, 정상 사유 / 보호정지와 유지 동시 | 유지·`ready=false`·코드 101 / `REASON_REQUIRED`·`GOAL_ACTIVE`·`PROTECTIVE_STOP`으로 유지, 정상 사유는 해제·코드 0 / 코드 100; 유지 중이 아닐 때 해제 요청은 무동작 성공 |
 | TC-ROB-014-02 | 실제 노드 정지 유지 | C | `[ON]` | fake backend, Stop 뒤 skill goal, lifecycle 비활성·재활성, `stop_release_reason` 빈 값·정상 값 | goal 수락 후 백엔드 이동 지령 0회로 `CANCELED`(`STOPPED`), 재활성 뒤에도 heartbeat 101·`ready=false`, 빈 사유 설정 실패, 정상 사유 뒤 goal 실행 |
 
@@ -455,7 +457,7 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-CAL-010-02 | 독립 접촉점 거부 규칙 | U | `[ON]` | 20점 미만, 중복 점/ID, fit 점 재사용, NaN/Inf/불량 변환, 단위 오류(>10 m 등), 미정의 포인터 TCP, 출처 누락/불일치, 합성 데이터 물리 검증 제출 | 지정된 거부 사유(예외 또는 refusal) 반환, 물리 게이트 pass 불가 |
 | TC-CAL-010-03 | 오프라인 캡처/가져오기 도구 | U | `[ON]` | 로봇 제어 서비스 미연결 오프라인 상태에서 템플릿 생성, CSV/YAML 검증, 스키마 왕복 | 로봇 이동 지령 0건, 스키마 검증 및 파싱 성공, 재현성 확인 |
 | TC-CAL-011-01 | 평면 좌표계 | U | `[ON]` | 기울어진 법선(아래쪽 부호 포함)·offset·`x_hint`·`origin_xy` / 법선과 평행한 `x_hint` | 원점 평면 위 ≤ 1e-12 m, xy = `origin_xy`, R 직교·det 1, z = 법선(z > 0), x = 투영 방향 ≤ 1e-9 rad / `ValueError` |
-| TC-CAL-012-01 | 고정 TF 발행 | C | `[ON]` | `static_frames_publisher`를 항등·회전 `T_base_conveyor`, `publish_world` 참·거짓으로 띄워 `/tf_static` 수신 / 강체가 아닌 행렬 / 두 config 비교 | 부모→자식 쌍 3개(+world 1개), 중복 0, conveyor 변환 ≤ 1e-9 / 발행 0건·종료 코드 1 / tracking·planner `T_base_conveyor` 같음 |
+| TC-CAL-012-01 | 고정 TF 발행 | C | `[ON]` | `static_frames_publisher`를 항등·회전 `T_base_conveyor`, `publish_world` 참·거짓으로 띄워 `/tf_static` 수신 / 강체가 아닌 행렬 / 기울어진 회전을 소수 6·3자리로 적은 행렬, 배율 1.001 / 두 config 비교 | 부모→자식 쌍 3개(+world 1개), 중복 0, conveyor 변환 ≤ 1e-9 / 발행 0건·종료 코드 1 / 6자리 수용(발행), 3자리·배율 거부 / tracking·planner `T_base_conveyor` 같음 |
 
 ### 3.11 MCK — 대역
 

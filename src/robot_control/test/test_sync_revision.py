@@ -1,7 +1,7 @@
 from dataclasses import replace
 import pytest
 from robot_control.belt_sync import BeltSynchronizer, PlanSample, SyncConfig
-pytestmark = [pytest.mark.level('U'), pytest.mark.req('REQ-ROB-013'), pytest.mark.tc('TC-ROB-013-02')]
+pytestmark = [pytest.mark.level('U'), pytest.mark.req('REQ-ROB-013'), pytest.mark.tc('TC-ROB-013-06')]
 
 def test_plan_and_release_uncertainty_are_separate():
     c = BeltSynchronizer(); c.arm(1,7,2)

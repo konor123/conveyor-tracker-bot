@@ -3,7 +3,8 @@
 대역은 기동할 때 같은 역할의 서버가 이미 있으면 스스로 종료하고(REQ-MCK-007), 이 launch는 그때 전체를 내린다.
 vision·tracking·planner는 실제 lifecycle 노드 또는 대역을 선택한다. robot의 실제 경로는 별도 단계다.
 실제 tracker·planner는 launch가 configure → activate까지 자동으로 전이한다(SPEC-400 REQ-PLN-012).
-use_mock_planner:=false면 mock_world_node의 임시 plan(publish_plan)을 끈다.
+use_mock_planner:=false(기본)면 mock_world_node의 임시 plan(publish_plan)을 끈다.
+use_mock_planner:=true는 임시 plan을 내는 tracking 대역이 있어야 하므로 use_mock_tracking:=true가 아니면 기동을 거부한다.
 """
 import os
 import time
@@ -21,7 +22,6 @@ from launch.events import matches_action
 from lifecycle_msgs.msg import Transition
 
 ROLES = ('vision', 'tracking', 'planner', 'robot')
-MOCK_DEFAULT = {'vision': 'false', 'tracking': 'false', 'planner': 'true', 'robot': 'false'}
 REAL_PENDING = {'robot': 'robot_control robot_controller_node'}
 
 
@@ -86,6 +86,10 @@ def _autostart(node):
 
 def _nodes(context):
     mock = {r: _flag(context, f'use_mock_{r}') for r in ROLES}
+    if mock['planner'] and not mock['tracking']:
+        # 임시 plan은 mock_world_node의 tracking 역할이 낸다. 이 조합은 계획을 내는 노드가 없다.
+        raise RuntimeError('use_mock_planner:=true는 use_mock_tracking:=true가 필요하다. '
+                           '실제 tracker에는 use_mock_planner:=false(실제 planner)를 쓴다')
     scenario = LaunchConfiguration('scenario').perform(context)
     seed = int(LaunchConfiguration('seed').perform(context))
     sim_time = _flag(context, 'use_sim_time')
@@ -98,9 +102,9 @@ def _nodes(context):
     t0 = (0.0 if sim_time else time.time()) + t0_offset
     common = {'scenario': scenario, 'seed': seed, 't0_s': t0, 'use_sim_time': sim_time,
               'duration_scale_ratio': dur_scale, 'drop_role': drop_role, 'drop_at_s': drop_at}
-    # 검출이 mock 세계에서 오면 실제 tracker·planner도 같은 컨베이어 위치·구간을 써야 한다.
-    # 실제 vision이면 각 패키지 config(보정값·배치)를 그대로 쓴다.
-    tracker_geo, planner_geo = _scenario_params(scenario) if mock['vision'] else ({}, {})
+    # 검출이나 track이 mock 세계에서 오면 실제 tracker·planner도 같은 컨베이어 위치·구간을 써야 한다.
+    # 둘 다 실제면 각 패키지 config(보정값·배치)를 그대로 쓴다.
+    tracker_geo, planner_geo = _scenario_params(scenario) if mock['vision'] or mock['tracking'] else ({}, {})
     out = []
     world_roles = [r for r in ('vision', 'tracking') if mock[r]]
     if world_roles:
@@ -149,7 +153,7 @@ def _nodes(context):
 
 
 def generate_launch_description():
-    args = [DeclareLaunchArgument(f'use_mock_{r}', default_value=MOCK_DEFAULT[r], choices=['true', 'false'],
+    args = [DeclareLaunchArgument(f'use_mock_{r}', default_value='false', choices=['true', 'false'],
                                   description=(f'true면 {r} 대역을 띄운다' if r != 'planner' else
                                                'true면 mock_world_node의 임시 plan(publish_plan), false면 실제 planner'))
             for r in ROLES]

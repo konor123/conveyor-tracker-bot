@@ -11,7 +11,7 @@ setup(
     data_files=[
         ('share/ament_index/resource_index/packages', ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
-        ('share/robot_control/config', glob('config/*.yaml')),
+        ('share/robot_control/config', glob('config/*.yaml') + glob('config/*.json')),
     ],
     package_data={'robot_control': ['drl/*.drl']},
     install_requires=['setuptools'],

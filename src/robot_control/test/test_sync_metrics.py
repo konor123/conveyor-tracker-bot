@@ -1,7 +1,7 @@
 import pytest
 from robot_control.sync_metrics import SyncCsv,summarize
 from robot_control.belt_sync import BeltSynchronizer,PlanSample
-pytestmark = [pytest.mark.level('U'),pytest.mark.req('REQ-ROB-013'),pytest.mark.tc('TC-ROB-013-05')]
+pytestmark = [pytest.mark.level('U'),pytest.mark.req('REQ-ROB-013'),pytest.mark.tc('TC-ROB-013-07')]
 
 def test_csv_retains_faults_and_refuses_overwrite(tmp_path):
     path=tmp_path/'run.csv'; w=SyncCsv(path)

@@ -24,10 +24,13 @@ from .geometry import quat_from_R
 from .repo_paths import resolve_path
 
 
+RIGID_TOL = 1e-5   # 소수 6자리로 적은 보정 행렬(직교성 오차 ~1e-6)을 받는다(SPEC-600 4.9절)
+
+
 def is_rigid(T: np.ndarray) -> bool:
     R = T[:3, :3]
     return (T.shape == (4, 4) and bool(np.isfinite(T).all()) and np.allclose(T[3], [0, 0, 0, 1])
-            and np.allclose(R.T @ R, np.eye(3), atol=1e-9) and np.isclose(np.linalg.det(R), 1.0, atol=1e-9))
+            and np.allclose(R.T @ R, np.eye(3), atol=RIGID_TOL, rtol=0) and np.isclose(np.linalg.det(R), 1.0, atol=RIGID_TOL, rtol=0))
 
 
 class StaticFramesPublisher(Node):
