@@ -1,11 +1,12 @@
 """I0 전체 대역 통합 시험(PLAN.md 7.5절, TEST_SPEC.md 3.11·3.12·3.13절).
 
 TC-INT-001-01, TC-INT-002-01, TC-INT-003-01, TC-INT-004-01, TC-INT-005-01, TC-INT-006-01,
-TC-INT-008-01, TC-INT-009-01, TC-INT-010-01, TC-INT-011-01, TC-MCK-006-02, TC-REC-002-01, TC-REC-003-01을 격리된 ROS_DOMAIN_ID에서 검증한다.
+TC-INT-008-01, TC-INT-009-01, TC-INT-010-01, TC-INT-011-01, TC-INT-012-01, TC-MCK-006-02, TC-REC-002-01, TC-REC-003-01을 격리된 ROS_DOMAIN_ID에서 검증한다.
 """
 from __future__ import annotations
 
 import json
+import math
 import os
 import signal
 import subprocess
@@ -17,7 +18,8 @@ import pytest
 
 rclpy = pytest.importorskip('rclpy')
 from drop_interfaces.action import DropTask  # noqa: E402
-from drop_interfaces.msg import Heartbeat, RobotStatus, StepRecord, TaskStatus, TrackedObjectArray  # noqa: E402
+from drop_interfaces.msg import (Heartbeat, InterceptPlan, RobotStatus, StepRecord, TaskStatus,  # noqa: E402
+                                 TrackedObjectArray)
 from drop_interfaces.srv import ResetTracking, Stop  # noqa: E402
 from drop_mocks.ros_common import scenario_file  # noqa: E402
 from drop_mocks.scenario_engine import ScenarioEngine  # noqa: E402
@@ -726,5 +728,73 @@ def test_i0_lost_target_is_reselected(ros, tmp_path):
         assert res.result == DropTask.Result.SUCCESS, (res.result, res.reason_code, steps)
         assert res.passes_skipped == 0
     finally:
+        _stop(proc)
+        h.close()
+
+
+def _sec(stamp) -> float:
+    return stamp.sec + stamp.nanosec * 1e-9
+
+
+@pytest.mark.req('REQ-CAL-012', 'REQ-PLN-004')
+@pytest.mark.tc('TC-INT-012-01')
+@pytest.mark.level('I0')
+def test_i0_predicted_marker_matches_observed_tf(ros, tmp_path):
+    """예측 Marker(해제 시각의 TCP 목표)와 관측 TF(`cap_<id>`)가 같은 좌표계에서 맞는다(RViz 화면 대신 수치).
+
+    `frames.launch.py scenario:=…`가 낸 robot_base → conveyor_frame으로 관측 TF를 옮기면, 해제 시각의 뚜껑 위치가
+    그 시각을 예측한 계획·Marker의 XY와 같아야 한다.
+    """
+    from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
+    from tf2_msgs.msg import TFMessage
+    from visualization_msgs.msg import Marker
+    h = Harness()
+    plans = h.record(InterceptPlan, 'drop/intercept_plan')
+    tf, tf_static, markers = [], [], []
+    h.client.create_subscription(TFMessage, '/tf', lambda m: tf.extend(m.transforms), 100)
+    h.client.create_subscription(TFMessage, '/tf_static', lambda m: tf_static.extend(m.transforms),
+                                 QoSProfile(depth=10, reliability=ReliabilityPolicy.RELIABLE,
+                                            durability=DurabilityPolicy.TRANSIENT_LOCAL))
+    h.client.create_subscription(Marker, 'drop/predicted_marker', markers.append,
+                                 QoSProfile(depth=10, reliability=ReliabilityPolicy.BEST_EFFORT))
+    proc = _launch('use_mock_vision:=true', 'use_mock_robot:=true', 'use_mock_tracking:=false',
+                   'use_mock_planner:=false', 'scenario:=nominal_20mms', 'duration_scale_ratio:=0.12',
+                   f'records_dir:={tmp_path}', f'date:={DATE_STR}', launch_file='drop.launch.py')
+    frames = _launch('publish_world:=true', 'scenario:=nominal_20mms', launch_file='frames.launch.py')
+    try:
+        _wait_ready(h, timeout_s=30.0)
+        _reset_cycle_clock(h, seed=0, t0_offset_s=-2.5)
+        _, res = _send_goal(h, _drop_goal(timeout=30.0), timeout=40.0)
+        assert res.result == DropTask.Result.SUCCESS, (res.result, res.reason_code)
+        plan = [m for _, m in plans if m.status == InterceptPlan.OK][-1]
+        t_rel = _sec(plan.release_time)
+        h.wait_for(lambda: h.now() >= t_rel + 0.3, 15.0, '해제 시각 경과')
+
+        # 고정 TF: frames.launch.py가 mock 세계와 같은 컨베이어 변환을 낸다(yaw 0)
+        conv = next(t.transform for t in tf_static
+                    if (t.header.frame_id, t.child_frame_id) == ('robot_base', 'conveyor_frame'))
+        assert (conv.translation.x, conv.translation.y) == pytest.approx((0.30, -0.25))
+        assert abs(conv.rotation.w) == pytest.approx(1.0, abs=1e-9)
+
+        # 관측 TF: 해제 시각 앞뒤 표본을 보간한 뚜껑 위치(robot_base)
+        cap = sorted(((_sec(t.header.stamp), t.transform.translation) for t in tf
+                      if t.header.frame_id == 'conveyor_frame' and t.child_frame_id == f'cap_{plan.target_track_id}'),
+                     key=lambda r: r[0])
+        before = [r for r in cap if r[0] <= t_rel][-1]
+        after = [r for r in cap if r[0] > t_rel][0]
+        assert after[0] - before[0] <= 0.1, '해제 시각 주변 관측 TF 공백'
+        f = (t_rel - before[0]) / (after[0] - before[0])
+        x = conv.translation.x + before[1].x + f * (after[1].x - before[1].x)
+        y = conv.translation.y + before[1].y + f * (after[1].y - before[1].y)
+        target = plan.target_tcp_pose.position
+        assert math.hypot(x - target.x, y - target.y) <= 0.001, (x, y, target.x, target.y)
+
+        # Marker: robot_base에서 계획의 TCP 목표를 그대로 보여 준다(미래 위치는 TF가 아니라 Marker)
+        added = [m for m in markers if m.action == Marker.ADD]
+        assert added and {m.header.frame_id for m in added} == {'robot_base'}
+        assert any(math.hypot(m.pose.position.x - target.x, m.pose.position.y - target.y) <= 1e-6 for m in added)
+        assert not any(t.child_frame_id.startswith('cap_') and _sec(t.header.stamp) > h.now() + 0.05 for t in tf)
+    finally:
+        _stop(frames)
         _stop(proc)
         h.close()

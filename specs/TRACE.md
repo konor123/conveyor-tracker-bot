@@ -3,7 +3,7 @@
 `tools/spec/trace.py`가 생성한다. 손으로 고치지 않는다.
 
 - REQ 134개 중 TC 연결 134개
-- pytest 대상 TC 230개 중 테스트 연결 217개
+- pytest 대상 TC 231개 중 테스트 연결 218개
 
 | TC | 수준 | REQ | 테스트 |
 |---|---|---|---|
@@ -117,6 +117,7 @@
 | TC-INT-009-01 | I0 | REQ-INT-009(SPEC 없음) | `src/drop_bringup/test/test_i0_integration.py::test_i0_real_tracker_planner_cycle` |
 | TC-INT-010-01 | I0 | REQ-INT-010(SPEC 없음) | `src/drop_bringup/test/test_i0_integration.py::test_i0_realtime_scale_cycle` |
 | TC-INT-011-01 | I0 | REQ-INT-011(SPEC 없음) | `src/drop_bringup/test/test_i0_integration.py::test_i0_lost_target_is_reselected` |
+| TC-INT-012-01 | I0 | REQ-INT-012(SPEC 없음) | `src/drop_bringup/test/test_i0_integration.py::test_i0_predicted_marker_matches_observed_tf` |
 | TC-INT-020-01 | I3 | REQ-INT-020(SPEC 없음) | 절차 시험 |
 | TC-INT-021-01 | I4 | REQ-INT-021(SPEC 없음) | 절차 시험 |
 | TC-MCK-001-01 | U | REQ-MCK-001 | `src/drop_mocks/test/test_scenario_engine.py::test_same_scenario_and_seed_give_same_output` |

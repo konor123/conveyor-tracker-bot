@@ -151,7 +151,7 @@ robot_base ─ mat_frame            mat_plane.yaml에서 계산(아래)
 ## 8. 검증 방법(`TEST_SPEC.md` TC ID, 게이트)
 
 - U: TC-CAL-001-01, TC-CAL-002-01, TC-CAL-002-02, TC-CAL-003-01~04, TC-CAL-004-01, TC-CAL-005-01, TC-CAL-006-01, TC-CAL-007-01, TC-CAL-008-01, TC-CAL-009-01, TC-CAL-010-01~03, TC-CAL-011-01 (`src/calibration/test/`)
-- C: TC-CAL-005-02(vision_node 구현 후), TC-CAL-012-01. U: TC-CAL-012-02(`drop_mocks/test/test_scenario_engine.py`). I2: TC-CAL-012-03(`drop_bringup/test/test_frames_launch.py`)
+- C: TC-CAL-005-02(vision_node 구현 후), TC-CAL-012-01. U: TC-CAL-012-02(`drop_mocks/test/test_scenario_engine.py`). I2: TC-CAL-012-03(`drop_bringup/test/test_frames_launch.py`). I0: TC-INT-012-01(관측 TF와 예측 Marker의 좌표 일치, `test_i0_integration.py`)
 - B: TC-BEN-012-01(OFF-3 검증 점)
 - 게이트: G1
 

@@ -139,7 +139,7 @@
 - [ ] `[ON]` 안전 절차 문서: 속도·가속 제한, 작업영역 제한, 비상정지 위치, 관찰자 역할, 보호 정지 후 재개 절차
 - [ ] `[OFF]` OFF-2: 안전 절차 현장 확인(비상정지 동작, 작업영역 제한 설정)
 - [ ] `[OFF]` OFF-2: 감시 노드 기동 직후 controller heartbeat 수신 지연 확인. officepc WSL 대역 I0에서 기동 직후 감시 노드가 마지막 controller stamp를 0.30~0.34 s 전 것으로 보고 `CONTROLLER_HEARTBEAT_LOST` Stop을 냈다(같은 순간 독립 구독자 수신 공백 ≤ 0.10 s, 판정 타이머 간격 0.05 s, R1 이전 코드에서도 발생). 실기 bringup 5회에서 재현 여부를 본다. 시연 운용 절차: 기동 → 2 s 대기 → controller heartbeat `error_code` 확인, 101이고 Stop 사유가 `CONTROLLER_HEARTBEAT_LOST`이며 로봇이 정지·대기 자세면 `stop_release_reason`으로 사유를 남기고 해제(SPEC-010 4.5절). 재현이 잦으면 감시 노드가 controller heartbeat를 연속 5회 받은 뒤부터 손실을 판정하도록 바꾸는 안(REQ-ABT-010 변경)을 검토한다(`records/reviews/fable-m0-risk-2026-11-11.md` 2절)
-  - 2026-11-12 CI(공유 러너): 실제 tracker·planner I0에서 기동 안정 대기 뒤 첫 사이클 0.44 s(PICK_STONE)에 같은 Stop이 1회 났고 재실행은 통과했다(run 43181006141, `records/worklog/2026-11-12.md`).
+  - 2026-11-12 CI(공유 러너): 실제 tracker·planner I0에서 기동 안정 대기 뒤 첫 사이클 0.44 s(PICK_STONE)에 같은 Stop이 1회 났고 재실행은 통과했다(run 43181006141, `records/worklog/2026-11-12.md`). controller 기동 3.2 s 뒤여서 "연속 5회 수신 뒤 무장" 안으로는 막지 못하는 경우다. 대책은 운용 절차(위)를 유지하고 OFF-2 재현 결과로 정한다.
 
 **G0 합격 기준(제안):** 0절 항목 기록 완료 / 단위 변환·pulse 변환 테스트 통과 / 통신·추적 손실·cancel 모사 20회에서 정의된 정지·대기 전환 20/20, 예기치 않은 재개 0회 / I3에서 L0·L4 모사 20/20 / 스트림 주기·지연 분포 보고서 / 그리퍼 개방 지연 분포와 스트림 중 개방 결과 보고서.
 
@@ -229,8 +229,8 @@
   - REQ-SYS-006 정적 검사(TC-SYS-006-01, `tools/spec/test_tf_usage.py`).
 - [x] `[ON]` TF Timestamp 동기화: 관측 시각 기준 변환, `TimePointZero`(최신값) 남용 금지, `/clock` 역행·재시작 시 track·계획 무효화(`PLAN.md` 5.3절)
   - `TimePointZero` 0건(TC-SYS-006-01), 시계 역행·리셋은 TC-TRK-008-01·TC-PLN-011-01(`clock_reset`). 관측 시각 기준 변환은 vision이 TF 조회 없이 `camera_extrinsics.yaml`로 한다(SPEC-200).
-- [ ] `[ON]` RViz2: 관측 TF + 예측 Marker 별도 표시
-  - `drop_bringup/config/drop.rviz`. mock 사이클에서 예측 Marker 표시를 육안 확인(2026-11-12). `frames.launch.py scenario:=nominal_20mms`가 mock 세계와 같은 `conveyor_frame`을 낸다(TC-CAL-012-02·03). 그 구성의 mock 사이클에서 `cap_<id>` TF와 Marker가 겹치는지 육안 확인이 완료 조건이다.
+- [x] `[ON]` RViz2: 관측 TF + 예측 Marker 별도 표시
+  - `drop_bringup/config/drop.rviz`(TF, `drop/predicted_marker`). mock 사이클에서 예측 Marker 표시를 육안 확인(2026-11-12). `frames.launch.py scenario:=nominal_20mms`가 mock 세계와 같은 `conveyor_frame`을 낸다(TC-CAL-012-02·03). 관측 TF와 Marker의 좌표 일치는 화면 대신 수치로 확인한다: 해제 시각의 `cap_<id>` 위치와 계획·Marker의 XY 차 ≤ 1 mm(TC-INT-012-01).
 - [ ] `[OFF]` OFF-5: 실제 병뚜껑 위치와 TF 위치 비교, I4(실영상 → 계획까지 전체 인식 경로, 로봇 지령 없음)
 
 **G3 합격 기준(제안):** 속도 조건별 60 s 관측에서 독립 GT 대비 XY p95 ≤ 1 mm, 속도 오차 p95 ≤ 2 mm/s / timestamp 역행 0회 / 관측 가능 구간 유효 추적 ≥ 99%(가림 구간 별도 집계).
