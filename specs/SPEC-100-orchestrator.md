@@ -8,6 +8,7 @@
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
+| v0.14 | 2026-11-12 | WAIT_CAP `t_to_window_s`를 매 관측의 현재 track 위치·속도로 다시 계산(REQ-ORC-018). 선택 순간 한 번 받은 진입 예상 시각은 갓 생긴 track의 속도 추정을 그대로 담아 실영상에서 수~수십 s 늦었다 |
 | v0.13 | 2026-11-12 | 여러 단계에 걸친 goal의 서버 deadline = goal 전체 상한(REQ-ORC-015), WAIT_CAP 대상 track 소실 시 같은 통과 안 재선택(REQ-ORC-016), 대기 중 끝난 WAIT_CAP의 기록·실패 단계 로그(REQ-ORC-017) |
 | v0.12 | 2026-11-11 | 계획 단계 위치 표준편차 기준(3.25 mm)과 해제 게이트 기준(0.5 mm) 분리, WAIT_CAP 계획 시점(도달 구간 진입 3.0 s 전부터, REQ-ORC-013·014) |
 | v0.11 | 2026-11-11 | controller heartbeat `error_code` 100·101을 사이클 전 구간 감시에 적용(REQ-ORC-012) |
@@ -75,7 +76,7 @@ SPEC-010 wire schema v0.2 / runtime contract v0.4 기준.
 
 `wait_cap.time_margin_s = t_available_s − t_required_s`이며 통과 조건은 `time_margin_s >= margin_s`다.
 
-`wait_cap.t_to_window_s = max(0, t_enter_window − now)`(`SelectTarget` 응답의 도달 구간 진입 예상 시각, 이미 지났거나 STATIC이면 0)이며 `t_to_window_s > plan_lead_s`면 `WAIT`(`TOO_EARLY`)다. 뚜껑을 처음 볼 때 계획하면 해제까지 예측 구간이 길어(nominal에서 약 10 s) 위치 표준편차가 커진다.
+`wait_cap.t_to_window_s = max(0, (x_reach_start − x_cap) / v)`(매 관측의 대상 track 위치·속도, `budget.x_reach_start_m`; 이미 지났거나 STATIC이면 0, 속도 ≤ 0이면 ∞)이며 `t_to_window_s > plan_lead_s`면 `WAIT`(`TOO_EARLY`)다. 뚜껑을 처음 볼 때 계획하면 해제까지 예측 구간이 길어(nominal에서 약 10 s) 위치 표준편차가 커진다.
 
 단계 제한시간(`step_timeout:`)은 PLAN.md 4.3절 값을 쓰고 측정 후 SPEC-110 5절 식으로 바꾼다.
 
@@ -201,7 +202,7 @@ SPEC-010 wire schema v0.2 / runtime contract v0.4 기준.
 
 ### 4.9 시간 예산(M0 임시)
 
-planner의 `time_budget`이 생기기 전까지 WAIT_CAP 예산은 `orchestrator_node`가 conveyor_frame에서 계산한다: `t_available = (x_exit − x_cap) / v`, `t_required = Σ budget 성분`(설정 `budget:` 절). 실제 planner가 계약 시험을 통과하면 planner 결과로 바꾼다.
+planner의 `time_budget`이 생기기 전까지 WAIT_CAP 예산은 `orchestrator_node`가 conveyor_frame에서 계산한다: `t_available = (x_exit − x_cap) / v`, `t_to_window = (x_reach_start − x_cap) / v`, `t_required = Σ budget 성분`(설정 `budget:` 절). 실제 planner가 계약 시험을 통과하면 planner 결과로 바꾼다.
 
 ### 4.10 포트 대기와 미확정 action
 
@@ -242,6 +243,7 @@ planner의 `time_budget`이 생기기 전까지 WAIT_CAP 예산은 `orchestrator
 - REQ-ORC-011: 실행 중 skill이 `STOPPED`로 끝나면 단계 판정 대신 하드 이상(L4)으로 처리한다. 같은 시점에 자체 감시가 보호정지·통신 단절·controller heartbeat 손실을 보고 있으면 그 사유를 남기고, 원인을 모르면 `ROBOT_STOPPED`를 남긴다. 클라이언트 cancel 결과(`CANCELED`)는 하드 이상이 아니다.
 - REQ-ORC-012: `robot_controller_node`의 `Heartbeat.error_code`가 100이면 `PROTECTIVE_STOP`, 101(정지 유지, SPEC-010 4.5절)이면 `ROBOT_STOPPED`를 감시 주기마다 latch한다. 실행 중 skill이 없을 때(PRECHECK, DETECT_STONE 서비스 대기, WAIT_CAP 선택·관측 대기, 단계 사이)도 L4로 끝나고 그 뒤 Stop 외 로봇 skill 호출은 0회다. 정지 유지가 풀리지 않은 채 시작한 사이클은 PRECHECK에서 L4다.
 - REQ-ORC-013: WAIT_CAP은 다른 조건이 모두 통과여도 `t_to_window_s > plan_lead_s`(3.0 s)면 `WAIT`(`TOO_EARLY`)이고 PLAN_INTERCEPT로 가지 않는다. 경계 3.001 / 3.000 / 2.999 s에서 WAIT / OK / OK다.
+- REQ-ORC-018: WAIT_CAP의 `t_to_window_s`는 고른 순간 값이 아니라 매 관측의 대상 track으로 다시 계산한다. 대상의 `velocity.x`가 고른 뒤 바뀌면 `t_to_window_s`도 `(x_reach_start − x) / v`로 따라 바뀌고, `x ≥ x_reach_start`면 0, `v ≤ 0`이거나 대상이 목록에 없으면 ∞다.
 - REQ-ORC-014: `DynamicPlace.Goal.position_std_max`는 `sync.release_position_std_max_m`(0.5 mm)이고 계획 단계 기준 `plan.position_std_max_m`(3.25 mm)와 독립이다.
 - REQ-ORC-015: `PlaceStone`·`DynamicPlace`처럼 여러 단계(APPROACH~RETREAT)를 한 goal이 수행할 때 `goal.deadline`은 전송 시각 + 그 goal이 거치는 단계 제한시간의 합(동적: `approach_s + synchronize_s + descend_s + release_s + retreat_s` = 10.5 s, STATIC: SYNCHRONIZE 제외 8.5 s)이다. APPROACH 단계 deadline을 넣지 않는다. 단계·동적·사이클 deadline은 실행기가 포트 대기와 cancel로 집행한다. 대역 소요시간 축척 1.0(`DynamicPlace` 3.0 s)에서 한 사이클이 SUCCESS다.
 - REQ-ORC-016: WAIT_CAP 대기 중 관측이 `target_lost`이면 `passes_skipped`를 올리지 않고 같은 `pass_index`로 `select_target`을 다시 호출한다. 실제 tracker가 WAIT_CAP 도중 초기화(epoch +1)되어도 그 통과에서 사이클이 SUCCESS로 끝난다.
@@ -256,7 +258,7 @@ planner의 `time_budget`이 생기기 전까지 WAIT_CAP 예산은 `orchestrator
 
 ## 8. 검증 방법(`TEST_SPEC.md` TC ID, 게이트)
 
-TC-ORC-001-01 ~ TC-ORC-012-01(U, M0), TC-ORC-013-01~TC-ORC-017-01(U, G4). ROS 수준은 TC-INT-001-01, TC-INT-005-01, TC-INT-006-01, TC-INT-008-01, TC-INT-009-01(실제 tracker·planner, REQ-ORC-013), TC-INT-010-01(실시간 축척, REQ-ORC-015), TC-INT-011-01(대상 재선택, REQ-ORC-016).
+TC-ORC-001-01 ~ TC-ORC-012-01(U, M0), TC-ORC-013-01~TC-ORC-018-01(U, G4). ROS 수준은 TC-INT-001-01, TC-INT-005-01, TC-INT-006-01, TC-INT-008-01, TC-INT-009-01(실제 tracker·planner, REQ-ORC-013), TC-INT-010-01(실시간 축척, REQ-ORC-015), TC-INT-011-01(대상 재선택, REQ-ORC-016).
 
 ## 9. 미결 사항
 

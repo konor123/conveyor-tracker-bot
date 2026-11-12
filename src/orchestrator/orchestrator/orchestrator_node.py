@@ -107,7 +107,6 @@ class RosSkillPort:
         self._released = False         # RELEASE 응답을 받았는가(REQ-ORC-010)
         self.drop_goal_handle = None
         self.target = None             # (track_id, epoch)
-        self.t_enter_window = 0.0
         self._select_seq = -1          # 대상을 고를 때의 tracked 수신 번호(그 뒤 메시지로만 소실을 판정)
         self._pass_index = 0           # 마지막으로 대상을 고른 통과 번호
         self._skipped_tracks: set[int] = set()
@@ -126,7 +125,6 @@ class RosSkillPort:
             self._released = False
             self.drop_goal_handle = goal_handle
         self.target = self.static_cap = None
-        self.t_enter_window = 0.0
         self._pass_index = 0
         self._skipped_tracks = set()
 
@@ -357,10 +355,12 @@ class RosSkillPort:
         t_req = sum(comps.values())
         now = self.clock.ros_now()
         if tr is None or tr.velocity.x <= 0:
-            t_avail, dyn = 0.0, now
+            t_avail, dyn, t_window = 0.0, now, math.inf
         else:
             t_avail = (float(b['x_exit_m']) - tr.position.x) / tr.velocity.x
             dyn = now + t_avail - float(b['retreat_margin_s'])
+            # 고른 순간의 t_enter_window는 갓 생긴 track의 속도 추정을 담아 크게 늦을 수 있다(REQ-ORC-018)
+            t_window = max(0.0, (float(b['x_reach_start_m']) - tr.position.x) / tr.velocity.x)
         meas = sj.WaitCapMeas(
             track_observed=bool(tr and tr.status == TrackedObject.OBSERVED),
             observation_count=tr.observation_count if tr else 0,
@@ -368,7 +368,7 @@ class RosSkillPort:
             stone_inside=any(d.stone_inside for d in caps),
             stone_inside_valid=bool(caps) and all(d.stone_inside_valid for d in caps),
             t_available_s=t_avail, t_required_s=t_req, budget_components=comps,
-            t_to_window_s=max(0.0, self.t_enter_window - now))
+            t_to_window_s=t_window)
         return CapObservation(meas, dyn, target_lost=lost)
 
     def select_target(self, pass_index, deadline):
@@ -385,7 +385,6 @@ class RosSkillPort:
             if r.result == 0 and r.track_id not in self._skipped_tracks:
                 self.target = (r.track_id, r.epoch)
                 self._select_seq = self.n.tracked_seq
-                self.t_enter_window = _t(r.t_enter_window)   # 도달 구간 진입 예상 시각(ROS)
                 return self._cap_obs()
             if not self._wait(lambda: False, min(deadline, self.clock.ros_now() + retry)) and \
                     (self._interrupting() or self.clock.ros_now() >= deadline):

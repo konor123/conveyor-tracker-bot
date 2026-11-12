@@ -192,7 +192,7 @@ class WaitCapMeas:
     t_available_s: float
     t_required_s: float
     budget_components: dict[str, float] = field(default_factory=dict)
-    t_to_window_s: float = 0.0   # 도달 구간 진입까지 남은 시간(SelectTarget t_enter_window − now), STATIC은 0
+    t_to_window_s: float = 0.0   # 도달 구간 진입까지 남은 시간((x_reach_start − x) / v, REQ-ORC-018), STATIC은 0
 
 
 @dataclass(frozen=True)

@@ -186,7 +186,7 @@ def _tracking_port(track_id=7, epoch=1):
     port = _port()
     n = port.n
     n.node_cfg = {'select_retry_s': 0.05}
-    n.budget = {'x_exit_m': 0.30, 'retreat_margin_s': 1.0, 't_transit_s': 1.5}
+    n.budget = {'x_reach_start_m': 0.20, 'x_exit_m': 0.30, 'retreat_margin_s': 1.0, 't_transit_s': 1.5}
     n.tracked, n.tracked_seq, n.belt, n.detections = SimpleNamespace(tracks=[]), 5, None, None
 
     def call(*args, **kwargs):
@@ -224,3 +224,21 @@ def test_reselect_within_pass_does_not_skip_the_same_track():
     assert port.select_target(2, deadline=20.0) is not None              # 같은 통과: 다시 고름
     assert port.target == (7, 1)
     assert port.select_target(3, deadline=20.0) is None                  # 다음 통과: 그 track은 제외, deadline까지 대상 없음
+
+
+@pytest.mark.req('REQ-ORC-018')
+@pytest.mark.tc('TC-ORC-018-01')
+@pytest.mark.level('U')
+def test_time_to_window_follows_current_track_not_selection():
+    """갓 생긴 track은 속도 추정이 작아 고른 순간의 진입 시각이 크게 늦다. 매 관측의 track으로 다시 계산한다."""
+    import math
+    port = _tracking_port()
+    n = port.n
+    assert port.select_target(1, deadline=20.0) is not None          # t_enter_window = 50 s(무시돼야 함)
+    for x, v, want in [(0.0, 0.005, 40.0), (0.0, 0.02, 10.0), (0.25, 0.02, 0.0), (0.0, 0.0, math.inf)]:
+        tr = _track()
+        tr.position.x, tr.velocity.x = x, v
+        n.tracked, n.tracked_seq = SimpleNamespace(tracks=[tr]), n.tracked_seq + 1
+        assert port._cap_obs().meas.t_to_window_s == pytest.approx(want), (x, v)
+    n.tracked, n.tracked_seq = SimpleNamespace(tracks=[]), n.tracked_seq + 1
+    assert port._cap_obs().meas.t_to_window_s == math.inf
