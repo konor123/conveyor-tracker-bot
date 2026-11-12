@@ -8,7 +8,7 @@
 
 ### 1.1 `DynamicPlace` goal의 deadline이 APPROACH 단계 제한시간이다 (C-7의 RETREAT `STEP_TIMEOUT` 원인)
 
-- 코드: `cycle_runner._do_approach` → `place_start(mode, d)`의 `d`는 APPROACH 단계 deadline(`min(now + approach_s 3.0, 동적, 사이클)`)이고, `orchestrator_node._send`가 이것을 `goal.deadline`에 넣는다. 그런데 `DynamicPlace`·`PlaceStone` goal 하나가 APPROACH~RETREAT 5단계를 모두 수행한다. 서버는 SPEC-010 4.1절대로 `t_ros ≥ deadline`이면 스스로 `TIMEOUT(DEADLINE)`으로 끝난다.
+- 코드: `cycle_runner._do_approach` → `place_start(mode, d)`의 `d`는 APPROACH 단계 deadline(`min(now + approach_s 3.0, 동적, 사이클)`)이고, `orchestrator_node._send`가 이것을 `goal.deadline`에 넣는다. 그런데 goal 하나가 RETREAT까지 모두 수행한다(`DynamicPlace` 5단계, `PlaceStone` 4단계). 서버는 SPEC-010 4.1절대로 `t_ros ≥ deadline`이면 스스로 `TIMEOUT(DEADLINE)`으로 끝난다.
 - 실험(officepc WSL, 전체 대역 + 오케스트레이터, `nominal_20mms`, `MODE_SYNCHRONIZED`, 한 사이클):
 
 | 대역 소요시간 축척 | `step_timeout.approach_s` | `DynamicPlace` 길이 | 결과 |
@@ -17,7 +17,7 @@
 | 0.8 | 3.0 | 2.4 s | SUCCESS |
 | 1.0 | 6.0(임시) | 3.0 s | SUCCESS |
 
-- 뜻: goal 전체가 `approach_s`(3 s)보다 길면 반드시 실패한다. 자동 시험은 축척 0.12(1.8 s)라 드러나지 않았다. 실제 로봇의 접근 + 동기 + 하강 + 해제 + 후퇴는 3 s를 넘으므로(시간 예산 성분 합만 4.0 s) 실제 `DynamicPlace`를 붙이면 매 사이클 해제 뒤 후퇴 중에 끊긴다.
+- 뜻: goal 전체가 `approach_s`(3 s)보다 길면 반드시 실패한다. 자동 시험은 축척 0.12(1.8 s)라 드러나지 않았다. 끊기는 곳은 goal 시작 3 s 시점에 있던 단계다. 대역은 단계를 0.6 s씩 고르게 나눠 RETREAT에서 끊겼지만, 실제 로봇은 해제 전(하강·동기 중)일 수 있다. 시간 예산 성분 합만 4.0 s이므로 실제 `DynamicPlace`는 매 사이클 걸린다. 실제 제어기의 `PlaceStone`(`skill_logic.place_stone`)도 같은 goal deadline을 검사하므로 오케스트레이터로 정지 투입을 돌릴 때도 해당한다(실기 정지 투입은 지금까지 `static_pick_place`로 했다).
 - 제안: 여러 단계에 걸친 goal의 `goal.deadline`은 goal 전체 상한(`now + approach_s + synchronize_s + descend_s + release_s + retreat_s` = 10.5 s)으로 준다. 단계별·동적·사이클 제한은 지금처럼 오케스트레이터가 cancel로 집행한다. SPEC-100·SPEC-110에 한 줄, 단위 시험 1건(goal.deadline 값), I0 실시간 축척 1사이클을 회귀 시험으로 추가(약 20 s).
 
 ### 1.2 대상 track이 사라지면 WAIT_CAP이 통과 끝까지 기다린다 (C-7의 "WAIT_CAP 대상 없음"과 같은 증상)
@@ -25,7 +25,7 @@
 - 실험(officepc WSL, TC-INT-009-01): 파일 전체 실행 2회, 해당 시험만 실행 2회 모두 seed 2(동기)·seed 3(예측)에서 `SAFE_ABORT CYCLE_TIMEOUT`, `passes_skipped` 1. 단독 실행 1회는 통과.
 - 실패 사이클의 `objects/tracked`: goal 뒤 4.3~5.3 s에 track ID가 바뀌고(4 → 5, `observation_count` 134 → 6) epoch가 1 올랐다. 위치는 이어진다(같은 뚜껑). 같은 시각에 시스템 시계가 약 1.0 s 뒤로 갔다(시계 감시: 31.5 s마다 −1.0 s, WSL 커널 로그 `Time jumped backwards`). tracker는 ROS 시각 역행에 전체 초기화한다(REQ-TRK-008, 설계대로).
 - 문제는 그 다음이다. 오케스트레이터는 WAIT_CAP에서 처음 고른 `(track_id, epoch)`만 본다. 그 track이 없어지면 `TRACK_NOT_OBSERVED`로 통과 끝(`lap_s` 30 s 또는 사이클 제한)까지 기다리고, 같은 뚜껑의 새 track이 있어도 다시 고르지 않는다. 통과 하나 또는 사이클 전체를 잃는다.
-- 현장에서 track이 바뀌는 경우: 그리퍼 가림이 `coast.max_s`(1 s)를 넘을 때, 속도 변화·검출 튐으로 게이트를 벗어날 때, 시계 보정. 2026-11-12 팀원 노트북의 "WAIT_CAP 30 s 뒤 PASS_SKIP, 지표 없음"도 같은 증상이다(원인이 같은지는 미확인).
+- 현장에서 track이 바뀌는 경우: 그리퍼 가림이 `coast.max_s`(1 s)를 넘을 때, 속도 변화·검출 튐으로 게이트를 벗어날 때, 시계 보정. 이 경로는 `observe_cap`이 `track_observed = false`인 관측을 돌려주므로 통과 끝에 지표가 있는 `PASS_SKIP`(`PASS_TIMEOUT`)으로 기록된다. 2026-11-12 팀원 노트북의 "WAIT_CAP 30 s 뒤 PASS_SKIP, 지표 없음"은 지표가 없으므로 `SelectTarget`이 30 s 동안 대상을 주지 않은 다른 경로(`NO_TARGET`)이고, 그 원인은 이 분석으로 밝혀지지 않았다.
 - 제안:
   1. WAIT_CAP 대기 중 대상 track이 목록에 없거나 epoch가 달라지면 같은 통과 안에서 `SelectTarget`을 다시 호출한다(`COASTING`은 지금처럼 기다림). 단위 시험 1건 + 가짜 시계 역행을 넣은 I0 1건.
   2. tracker가 초기화할 때 사유와 역행 크기를 WARN 로그로 남긴다(지금은 로그가 없어 원인을 찾는 데 시계 감시가 필요했다).
@@ -41,15 +41,15 @@
 
 ### 2.1 관측 구간 밖 검출이 새 track을 만든다 (C-6)
 
-- `track_manager.process_frame`: 예측 위치가 `x_obs_max + exit_margin`을 넘은 track은 `LOST`로 지운다. 뚜껑이 카메라에 계속 보이면 다음 프레임의 검출은 짝이 없어 새 track이 되고, 그 track도 구간 밖이라 바로 `LOST`가 된다. 프레임마다 반복된다(mock에서 한 통과에 135개).
+- `track_manager.process_frame`: 예측 위치가 `x_obs_max + exit_margin`을 넘은 track은 `LOST`로 지운다. 뚜껑이 카메라에 계속 보이면 다음 프레임의 검출은 짝이 없어 새 track이 되고, 그 track도 구간 밖이라 바로 `LOST`가 된다. 프레임마다 반복된다. 조건은 `x_obs_max`가 카메라 검출 범위 안쪽에 있는 것이다. 근거는 코드 읽기이며, 2026-11-11 팀원 기록의 135개 track은 tracker 관측 구간(0.35)과 mock 세계(0.45)가 달랐을 때의 값이다. 구간을 맞춘 지금의 mock에서는 구간 끝 뒤 track 목록이 비어 있어(이번 WSL 기록) 생기지 않는다.
 - `x_obs_min_m`은 저장만 하고 쓰지 않는다. 상류 끝 밖의 검출도 track을 만든다.
-- 영향: 관측 수 30 미만이라 대상 선택에는 안 걸린다. 다만 track ID와 `cap_<id>` TF 프레임이 통과마다 수십~백여 개 늘고, 발행 메시지에 `LOST` track이 매 프레임 실린다. 실영상 최고속 조건의 시야 출구 짧은 track 4개도 `x_obs_max`를 시야 안쪽에 두면 같은 규칙으로 없어진다.
+- 영향: 관측 수 30 미만이라 대상 선택에는 안 걸린다. 다만 track ID와 `cap_<id>` TF 프레임이 통과마다 수십~백여 개 늘고, 발행 메시지에 `LOST` track이 매 프레임 실린다. 실영상 최고속 조건의 시야 출구 짧은 track 4개도 `x_obs_max`를 시야 안쪽에 두면 같은 규칙으로 없어질 것으로 본다(재생 도구는 구간을 ±10 m로 두므로 확인한 것은 아니다).
 - 제안: 짝 없는 검출은 `x_obs_min ≤ x ≤ x_obs_max`일 때만 새 track을 만든다(SPEC-300 4.2절 처리 순서 (5), REQ·TC 1건, 단위 시험). 기존 track의 갱신·종료 규칙은 그대로다.
 
 ### 2.2 `release_tcp_z_m` 0.10 (C-8)
 
-- 값의 출처: 2026-11-09 planner 첫 커밋(`d50f088`)의 기본값이고 SPEC-400 표에 TBD(보정 OFF-3, 기본 핑거 OFF-4)로 적혀 있다. 실측값이 아니다.
-- 계산: 잠정 벨트 평면 z 0.0697 m + 테두리 0.022 m = 테두리 윗면 0.092 m. 정지 투입 성공 높이는 플랜지 − 테두리 = 0.1606 m(설정 0.1656 m)이므로 해제 플랜지 z ≈ 0.257 m다. 0.10이면 플랜지가 테두리 위 8 mm이고, 길이 약 160 mm인 그리퍼가 벨트에 부딪친다.
+- 값의 출처: 2026-11-09 planner 첫 커밋(`d50f088`)의 기본값이고 SPEC-400 표에 TBD(보정 OFF-3, 기본 핑거 OFF-4)로 적혀 있다. 현장 측정 전에 넣은 자리 값으로 보인다(팀장 확인 필요).
+- 계산: 잠정 벨트 평면 z 0.0697 m + 테두리 0.022 m = 테두리 윗면 0.092 m. 정지 투입 성공 높이는 플랜지 − 테두리 = 0.1606 m(설정 0.1656 m)이므로 해제 플랜지 z ≈ 0.257 m다. 0.10이면 플랜지가 테두리 위 8 mm로, 투입에 성공한 높이보다 약 157 mm 낮다. 그 성공 높이에서 핑거 끝이 테두리 근처였으므로 0.10은 그리퍼가 벨트·뚜껑에 부딪치는 높이다.
 - 지금은 실제 `DynamicPlace`가 없어 쓰이지 않는다. workspace 검사(z 0~0.40 m)는 두 값 모두 통과시켜 막아 주지 않는다.
 - 제안: 절대 높이 대신 상대 높이로 바꾼다. planner가 `z = (뚜껑 테두리 z, robot_base) + target.release_above_rim_m`으로 계산하고 `release_above_rim_m`은 정지 투입에서 성공한 0.1656 m를 쓴다. 테두리 z는 track의 z(검출이 벨트 + `h_rim` 높이로 준다)를 `T_base_conveyor`로 옮겨 얻는다. 컨베이어를 다시 놓거나 벨트 평면을 다시 재도 값이 따라간다. 당장 바꾸지 않더라도 기본값 0.10은 충돌 값이므로 0.257로 고쳐 둔다.
 
@@ -71,10 +71,10 @@
 | maximum(127 mm/s) | 2.7 | 3.4 | 3.8 | 4.4 | 7.1 |
 
 - 투입 허용 오차 `e_xy_max`는 3.25 mm다. 실제 오차는 0.1 s 앞에서 이미 2.6~3.4 mm다. 해제 순간의 정확도는 "마지막 관측에서 해제까지 얼마나 짧게 예측하느냐"가 정하고, 계획 단계(3 s 앞)의 표준편차 기준은 정확도에 거의 기여하지 않는다.
-- 필터가 보고하는 표준편차(mock에서 3 s 앞 2.7 mm)는 실제 오차(1 s 앞 6~28 mm)보다 작다. 보고 표준편차 0.5 mm 해제 게이트는 실제 오차 0.5 mm를 뜻하지 않는다.
+- mock에서 필터가 보고한 표준편차는 3 s 앞 2.7 mm(1σ, 잡음 0)이고 실영상의 실제 오차는 1 s 앞 6~28 mm(p95, 검출 잡음 포함)다. 잣대가 달라 비율을 말할 수는 없지만, 보고 표준편차가 기준 안이라는 것이 실제 오차가 그만큼 작다는 뜻은 아니다. 실영상에서의 보고 표준편차는 아직 재지 않았다.
 - 제안:
   1. 계획 단계 기준(3.25 mm, `plan_lead_s` 3.0 s)은 "계획이 터무니없지 않은지" 보는 용도로 두고 잠정값으로 유지한다. 실영상에서 보고 표준편차가 이 값을 넘는지는 재생 도구에 보고 표준편차 출력을 추가해 기존 OFF-1 자료로 먼저 확인한다(현장 없이 가능).
-  2. 정확도 판정은 해제 게이트에 둔다. 게이트 항목은 보고 표준편차가 아니라 마지막 관측 나이(`tau_max`)와 추종 오차(`e_xy`, `v_rel`)를 주로 본다(PLAN.md 4.4절, 9절 `tau.py`). `tau_max`는 위 표 기준으로 0.1 s 안쪽이어야 한다.
+  2. 정확도 판정은 해제 게이트에 둔다. 게이트 항목은 보고 표준편차가 아니라 마지막 관측 나이(`tau_max`)와 추종 오차(`e_xy`, `v_rel`)를 주로 본다(PLAN.md 4.4절, 9절 `tau.py`). 위 표로는 `tau_max`가 0.1 s 안쪽이어야 `e_xy_max` 안에 든다(잠정: 표의 오차에는 검출 잡음이 들어 있고 압축 영상 기준이다). 현재 설정 `watchdog.obs_freshness_s`는 0.3 s(TBD)다.
   3. 시연은 `MODE_SYNCHRONIZED`와 낮은 속도(≤ 50 mm/s)를 기본으로 한다. 동기 추종은 계획을 계속 고치므로 3 s 앞 예측 오차의 영향이 가장 작다.
   4. `plan_lead_s`는 G6 속도 조건을 정할 때 `plan_lead_s + 도달 구간 길이 / v ≥ t_required + margin`을 함께 확인한다(구간 0.20 m면 약 100 mm/s까지).
   5. 해제 게이트(0.5 mm 포함)를 실제로 판정하는 것은 실제 `DynamicPlace` 구현의 완료 조건이다(Progress 10절).
