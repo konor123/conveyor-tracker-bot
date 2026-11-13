@@ -1,0 +1,143 @@
+
+===== 환경 =====
+2026-11-13T20:56:02+09:00
+fastcampus
+ROS_DISTRO=jazzy CAMERA_NS=/camera/camera
+/opt/ros/jazzy
+ros-jazzy-librealsense2 2.58.4-1noble.20260831.015923
+ros-jazzy-realsense2-camera 4.58.4-1noble.20260920.235447
+ros-jazzy-realsense2-camera-msgs 4.58.4-1noble.20260911.141016
+
+===== 장치 =====
+Device Name                   Serial Number       Firmware Version
+RealSense D455F               313522301601        5.17.0.9
+--- 컬러 1280x800 프로파일
+    Color       1280x800       RGB8        @ 30/15/10/5 Hz
+
+===== RealSense 노드 기동 =====
+launch pid 113758, 로그 /tmp/d455_launch.log
+[33mWarning: Parameter 'rgb_camera.profile' is not supported. Supported parameters are:
+['accel_fps', 'accelerate_gpu_with_glsl', 'align_depth.enable', 'angular_velocity_cov', 'base_frame_id', 'camera_name', 'camera_namespace', 'clip_distance', 'colorizer.enable', 'config_file', 'decimation_filter.enable', 'decimation_filter.filter_magnitude', 'depth_mapping_camera.labeled_point_cloud_profile', 'depth_mapping_camera.occupancy_profile', 'depth_module.color_format', 'depth_module.color_profile', 'depth_module.depth_format', 'depth_module.depth_profile', 'depth_module.enable_auto_exposure', 'depth_module.exposure', 'depth_module.exposure.1', 'depth_module.exposure.2', 'depth_module.gain', 'depth_module.gain.1', 'depth_module.gain.2', 'depth_module.hdr_enabled', 'depth_module.infra1_format', 'depth_module.infra2_format', 'depth_module.infra_format', 'depth_module.infra_profile', 'depth_module.inter_cam_sync_mode', 'device_type', 'diagnostics_period', 'disparity_filter.enable', 'enable_accel', 'enable_color', 'enable_depth', 'enable_gyro', 'enable_infra', 'enable_infra1', 'enable_infra2', 'enable_labeled_point_cloud', 'enable_motion', 'enable_occupancy', 'enable_rgbd', 'enable_safety', 'enable_sync', 'gyro_fps', 'hdr_merge.enable', 'hole_filling_filter.enable', 'initial_reset', 'json_file_path', 'linear_accel_cov', 'log_level', 'motion_fps', 'occupancy_max_range', 'output', 'pointcloud.allow_no_texture_points', 'pointcloud.enable', 'pointcloud.ordered_pc', 'pointcloud.stream_filter', 'pointcloud.stream_index_filter', 'publish_tf', 'reconnect_timeout', 'rgb_camera.color_format', 'rgb_camera.color_profile', 'rgb_camera.enable_auto_exposure', 'rosbag_filename', 'rosbag_loop', 'rotation_filter.enable', 'rotation_filter.rotation', 'safety_camera.safety_mode', 'serial_no', 'spatial_filter.enable', 'temporal_filter.enable', 'tf_prefix', 'tf_publish_rate', 'unite_imu_method', 'usb_port_id', 'wait_for_device_timeout'][0m
+[33mWarning: Parameter 'depth_module.profile' is not supported. Supported parameters are:
+['accel_fps', 'accelerate_gpu_with_glsl', 'align_depth.enable', 'angular_velocity_cov', 'base_frame_id', 'camera_name', 'camera_namespace', 'clip_distance', 'colorizer.enable', 'config_file', 'decimation_filter.enable', 'decimation_filter.filter_magnitude', 'depth_mapping_camera.labeled_point_cloud_profile', 'depth_mapping_camera.occupancy_profile', 'depth_module.color_format', 'depth_module.color_profile', 'depth_module.depth_format', 'depth_module.depth_profile', 'depth_module.enable_auto_exposure', 'depth_module.exposure', 'depth_module.exposure.1', 'depth_module.exposure.2', 'depth_module.gain', 'depth_module.gain.1', 'depth_module.gain.2', 'depth_module.hdr_enabled', 'depth_module.infra1_format', 'depth_module.infra2_format', 'depth_module.infra_format', 'depth_module.infra_profile', 'depth_module.inter_cam_sync_mode', 'device_type', 'diagnostics_period', 'disparity_filter.enable', 'enable_accel', 'enable_color', 'enable_depth', 'enable_gyro', 'enable_infra', 'enable_infra1', 'enable_infra2', 'enable_labeled_point_cloud', 'enable_motion', 'enable_occupancy', 'enable_rgbd', 'enable_safety', 'enable_sync', 'gyro_fps', 'hdr_merge.enable', 'hole_filling_filter.enable', 'initial_reset', 'json_file_path', 'linear_accel_cov', 'log_level', 'motion_fps', 'occupancy_max_range', 'output', 'pointcloud.allow_no_texture_points', 'pointcloud.enable', 'pointcloud.ordered_pc', 'pointcloud.stream_filter', 'pointcloud.stream_index_filter', 'publish_tf', 'reconnect_timeout', 'rgb_camera.color_format', 'rgb_camera.color_profile', 'rgb_camera.enable_auto_exposure', 'rosbag_filename', 'rosbag_loop', 'rotation_filter.enable', 'rotation_filter.rotation', 'safety_camera.safety_mode', 'serial_no', 'spatial_filter.enable', 'temporal_filter.enable', 'tf_prefix', 'tf_publish_rate', 'unite_imu_method', 'usb_port_id', 'wait_for_device_timeout'][0m
+[realsense2_camera_node-1]  13/11 20:56:03,700 WARNING [129810680506048] (context.cpp:41) No valid configuration file found at : /home/fastcampus/.realsense-config.json loading defaults
+[realsense2_camera_node-1] [0m[INFO] [1794570963.744092491] [camera.camera]: Device with serial number 313522301601 was found.
+[realsense2_camera_node-1] [0m[INFO] [1794570963.744115220] [camera.camera]: Device with physical ID /sys/devices/pci0000:80/0000:80:14.0/usb4/4-4/4-4:1.0/video4linux/video2 was found.[0m
+[realsense2_camera_node-1] [0m[INFO] [1794570963.744120771] [camera.camera]: Device with name RealSense D455F was found.[0m
+[realsense2_camera_node-1] [0m[INFO] [1794570963.744208959] [camera.camera]: Device with port number 4-4 was found.[0m
+[realsense2_camera_node-1] [0m[INFO] [1794570963.744214232] [camera.camera]: Device USB type: 3.2[0m
+[realsense2_camera_node-1] [0m[INFO] [1794570963.744220649] [camera.camera]: Starting device RealSense D455F (Product ID: 0x0B5C)[0m
+[realsense2_camera_node-1] [0m[INFO] [1794570963.744371153] [camera.camera]: Device Name: RealSense D455F[0m
+[realsense2_camera_node-1] [0m[INFO] [1794570963.744375041] [camera.camera]: Device Serial No: 313522301601[0m
+[realsense2_camera_node-1] [0m[INFO] [1794570963.744378447] [camera.camera]: Device physical port: /sys/devices/pci0000:80/0000:80:14.0/usb4/4-4/4-4:1.0/video4linux/video2[0m
+[realsense2_camera_node-1] [0m[INFO] [1794570963.744382958] [camera.camera]: Device FW version: 5.17.0.9[0m
+[realsense2_camera_node-1] [0m[INFO] [1794570963.744386844] [camera.camera]: Device Product ID: 0x0B5C[0m
+[realsense2_camera_node-1] [33m[WARN] [1794570963.858525083] [camera.camera]: re-enable the stream for the change to take effect.[0m
+[realsense2_camera_node-1] [33m[WARN] [1794570963.861179273] [camera.camera]: re-enable the stream for the change to take effect.[0m
+
+===== 토픽 =====
+/camera/camera/color/camera_info
+/camera/camera/color/image_raw
+/camera/camera/color/image_raw/compressed
+/camera/camera/color/image_raw/compressedDepth
+/camera/camera/color/image_raw/theora
+/camera/camera/color/image_raw/zstd
+/camera/camera/color/metadata
+/camera/camera/depth/camera_info
+/camera/camera/depth/image_rect_raw
+/camera/camera/depth/image_rect_raw/compressed
+/camera/camera/depth/image_rect_raw/compressedDepth
+/camera/camera/depth/image_rect_raw/theora
+/camera/camera/depth/image_rect_raw/zstd
+/camera/camera/depth/metadata
+/camera/camera/extrinsics/depth_to_color
+
+===== CameraInfo =====
+height: 800
+width: 1280
+distortion_model: plumb_bob
+d:
+- -0.05499815568327904
+- 0.06443826854228973
+- -0.0008744244114495814
+- 0.0007429665420204401
+- -0.021013302728533745
+k:
+- 645.80712890625
+- 0.0
+- 640.61962890625
+- 0.0
+- 644.8798828125
+- 405.6260681152344
+- 0.0
+- 0.0
+- 1.0
+r:
+
+===== 수신 주기(12 s) =====
+average rate: 29.972
+	min: 0.030s max: 0.036s std dev: 0.00078s window: 273
+average rate: 29.975
+	min: 0.030s max: 0.036s std dev: 0.00078s window: 303
+average rate: 29.965
+	min: 0.032s max: 0.035s std dev: 0.00032s window: 181
+
+===== 파라미터(노출·화이트밸런스·시간·프로파일) =====
+      frames_queue_size: 16
+          enable_pub_plugins:
+          enable_pub_plugins:
+      frames_queue_size: 16
+      frames_queue_size: 16
+      auto_exposure_limit: 200000
+      auto_exposure_limit_toggle: false
+      auto_exposure_mode: false
+      auto_exposure_roi:
+      auto_gain_limit: 248
+      auto_gain_limit_toggle: false
+      depth_profile: 1280,720,30
+      enable_auto_exposure: true
+      exposure: 8500
+      frames_queue_size: 16
+      gain: 16
+      global_time_enabled: true
+      infra_profile: 848x480x30
+    enable_accel: false
+    enable_color: true
+    enable_depth: true
+    enable_gyro: false
+    enable_infra: false
+    enable_infra1: false
+    enable_infra2: false
+    enable_rgbd: false
+    enable_sync: false
+      frames_queue_size: 16
+      frames_queue_size: 16
+      frames_queue_size: 16
+      enable_motion_correction: true
+      frames_queue_size: 16
+      global_time_enabled: true
+      frames_queue_size: 16
+      auto_exposure_priority: false
+      auto_exposure_roi:
+      color_profile: 1280,800,30
+      enable_auto_exposure: true
+      enable_auto_white_balance: true
+      exposure: 166
+      frames_queue_size: 16
+      gain: 64
+      global_time_enabled: true
+      white_balance: 4600.0
+      frames_queue_size: 16
+      frames_queue_size: 16
+      frames_queue_size: 16
+전체 파라미터: /home/fastcampus/cy/conveyor-tracker-bot/records/bench/d455-check-2026-11-13-205602-params.yaml
+
+===== header.stamp − 수신 시각(100 프레임) =====
+N=100  (수신−stamp) p50=23.0 ms  p95=27.3 ms  min=21.1 ms  max=32.2 ms
+stamp 간격 p50=33.37 ms  max=33.38 ms  역행=0회
+판정 참고: 값이 수 ms~수십 ms면 같은 시계 영역(global time 또는 시스템 시각). 음수이거나 초 단위로 크면 시계 영역이 다르다.
+
+===== 끝 =====
+결과 파일: /home/fastcampus/cy/conveyor-tracker-bot/records/bench/d455-check-2026-11-13-205602.txt
+RealSense 노드는 계속 실행 중(pid 113758). 노출·화이트밸런스는 자동 설정 그대로 둔다.
+종료: kill -INT 113758

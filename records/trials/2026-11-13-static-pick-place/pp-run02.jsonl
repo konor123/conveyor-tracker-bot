@@ -1,0 +1,26 @@
+{"t": 1794571429.319, "event": "cycle", "index": 1, "of": 1}
+{"t": 1794571429.742, "event": "detections", "calibration_id": "cal-2026-11-07-handeye-01", "items": [{"class": 1, "region": 1, "uv_px": [520.2, 151.9], "position_m": [0.6176, -0.0486, -0.0171], "stone_inside": false, "stone_inside_valid": false}, {"class": 1, "region": 1, "uv_px": [568.7, 170.6], "position_m": [0.6361, -0.0031, -0.0171], "stone_inside": false, "stone_inside_valid": false}, {"class": 1, "region": 1, "uv_px": [465.0, 187.0], "position_m": [0.6495, -0.1014, -0.0179], "stone_inside": false, "stone_inside_valid": false}, {"class": 1, "region": 1, "uv_px": [557.6, 231.4], "position_m": [0.6931, -0.0146, -0.018], "stone_inside": false, "stone_inside_valid": false}, {"class": 1, "region": 1, "uv_px": [505.3, 241.0], "position_m": [0.7012, -0.0642, -0.0184], "stone_inside": false, "stone_inside_valid": false}, {"class": 2, "region": 2, "uv_px": [667.6, 149.7], "position_m": [0.6554, 0.0847, 0.0832], "stone_inside": false, "stone_inside_valid": true}]}
+{"t": 1794571429.743, "event": "targets", "stone": {"class": 1, "region": 1, "uv_px": [520.2, 151.9], "position_m": [0.6176, -0.0486, -0.0171], "stone_inside": false, "stone_inside_valid": false}, "cap": {"class": 2, "region": 2, "uv_px": [667.6, 149.7], "position_m": [0.6554, 0.0847, 0.0832], "stone_inside": false, "stone_inside_valid": true}}
+{"t": 1794571429.743, "event": "plan", "step": "open_before_pick", "pulse": 600, "current_ma": 150, "grasp": false}
+{"t": 1794571430.558, "event": "plan", "step": "over_stone", "pos_m": [0.6176, -0.0486, 0.2844], "v_mps": 0.1, "j3_rad": 0.9169}
+{"t": 1794571430.564, "event": "plan", "step": "descend_grasp", "pos_m": [0.6176, -0.0486, 0.1449], "v_mps": 0.05, "j3_rad": 1.1317}
+{"t": 1794571430.564, "event": "plan", "step": "close_grasp", "pulse": 750, "current_ma": 150, "grasp": true}
+{"t": 1794571430.569, "event": "plan", "step": "lift_stone", "pos_m": [0.6176, -0.0486, 0.2844], "v_mps": 0.05, "j3_rad": 0.9169}
+{"t": 1794571430.575, "event": "plan", "step": "over_cap", "pos_m": [0.6554, 0.0847, 0.2844], "v_mps": 0.1, "j3_rad": 0.6464}
+{"t": 1794571430.58, "event": "plan", "step": "descend_release", "pos_m": [0.6554, 0.0847, 0.2488], "v_mps": 0.05, "j3_rad": 0.7404}
+{"t": 1794571430.58, "event": "plan", "step": "open_release", "pulse": 600, "current_ma": 150, "grasp": false}
+{"t": 1794571430.586, "event": "plan", "step": "retreat", "pos_m": [0.6554, 0.0847, 0.2844], "v_mps": 0.05, "j3_rad": 0.6464}
+{"t": 1794571430.591, "event": "plan", "step": "park", "pos_m": [0.373, 0.0, 0.405], "v_mps": 0.1, "j3_rad": 1.5708}
+{"t": 1794571430.679, "event": "ready", "status": {"robot_state": 1, "robot_mode": 1, "drl_state": 3, "alarm": [0, 0, 0, ["", "", ""]]}}
+[open_before_pick] Enter=실행, 다른 입력=중단: {"t": 1794571439.915, "event": "done", "step": "open_before_pick", "position_pulse": 600, "current_ma": 3, "status": 1}
+[over_stone] Enter=실행, 다른 입력=중단: {"t": 1794571448.857, "event": "done", "step": "over_stone", "reached_m": [0.6177, -0.0487, 0.2843]}
+[descend_grasp] Enter=실행, 다른 입력=중단: {"t": 1794571458.626, "event": "done", "step": "descend_grasp", "reached_m": [0.6176, -0.0486, 0.1448]}
+[close_grasp] Enter=실행, 다른 입력=중단: {"t": 1794571470.263, "event": "done", "step": "close_grasp", "position_pulse": 655, "current_ma": 149, "status": 2}
+[lift_stone] Enter=실행, 다른 입력=중단: {"t": 1794571480.766, "event": "done", "step": "lift_stone", "reached_m": [0.6176, -0.0486, 0.2844]}
+[over_cap] Enter=실행, 다른 입력=중단: {"t": 1794571484.944, "event": "done", "step": "over_cap", "reached_m": [0.6554, 0.0847, 0.2844]}
+[descend_release] Enter=실행, 다른 입력=중단: {"t": 1794571488.576, "event": "done", "step": "descend_release", "reached_m": [0.6553, 0.0847, 0.2487]}
+[open_release] Enter=실행, 다른 입력=중단: {"t": 1794571496.727, "event": "done", "step": "open_release", "position_pulse": 600, "current_ma": 3, "status": 1}
+[retreat] Enter=실행, 다른 입력=중단: {"t": 1794571500.036, "event": "done", "step": "retreat", "reached_m": [0.6554, 0.0847, 0.2845]}
+[park] Enter=실행, 다른 입력=중단: {"t": 1794571505.556, "event": "done", "step": "park", "reached_m": [0.3729, -0.0, 0.405]}
+{"t": 1794571505.851, "event": "verify", "cap": [{"class": 2, "region": 2, "uv_px": [668.0, 150.7], "position_m": [0.6561, 0.085, 0.0832], "stone_inside": true, "stone_inside_valid": true}]}
+{"t": 1794571505.851, "event": "cycle_done", "elapsed_s": 75.26, "result": "SUCCESS"}
