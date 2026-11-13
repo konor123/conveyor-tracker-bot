@@ -13,7 +13,7 @@ git diff --stat e509c87 HEAD -- src/static_pick_place src/vision src/calibration
   src/robot_control/robot_control/drl_common.py src/robot_control/robot_control/motion_adapter.py
 ```
 
-- 11-14 vision 반영 뒤 예상 출력은 `src/vision/vision/pipeline.py`·`src/vision/vision/vision_node.py`와 vision 시험 파일뿐이다. 바뀐 것은 ROI를 잘라 계산하는 기능이고, 정적 투입은 이 기능을 켜지 않아 이전과 같이 전체 프레임을 계산한다(TC-VIS-011-03). 저장한 실제 프레임 82장에서 켬·끔 결과가 같았다(`records/reviews/evidence/vision-crop-2026-11-14/result.txt`).
+- `43e19b7` 기준 출력은 `src/vision/test/test_pipeline.py`·`src/vision/vision/pipeline.py`·`src/vision/vision/vision_node.py` 세 파일이다(11-14 vision 반영). 바뀐 것은 ROI를 잘라 계산하는 기능이고, 정적 투입은 이 기능을 켜지 않아 이전과 같이 전체 프레임을 계산한다(TC-VIS-011-03). 저장한 실제 프레임 82장에서 켬·끔 결과가 같았다(`records/reviews/evidence/vision-crop-2026-11-14/result.txt`).
 - 그 밖의 파일이 나오면 그 커밋의 시험 기록(`records/worklog/`)을 보고, 의심되면 `e509c87`을 받은 별도 사본에서 정적 투입을 실행한다.
 
 ## 2. 시작 전에 확인할 것
@@ -38,11 +38,26 @@ git diff --stat e509c87 HEAD -- src/static_pick_place src/vision src/calibration
 ## 4. 실시간 추적을 띄울 때
 
 - 11-13 현장에서 vision은 1280×800 프레임 하나에 약 160 ms(6.6 Hz)였고, 검출 지연이 tracker의 `input_timeout_s`(0.2 s)를 넘으면 tracker가 스스로 회복하지 못해 lifecycle을 다시 시작해야 했다. 두 문제의 수정(REQ-VIS-011, REQ-TRK-015)이 `main`에 들어갔는지는 `records/patches/README.md`의 반영 상태 칸에서 확인한다. 들어갔다면 `vision_node`만 ROI를 잘라 계산한다(사무실 PC 저장 프레임 평균 약 26 ms). 실기 카메라에서의 처리 속도는 현장에서 다시 잰다.
+- 받은 뒤 빌드한다(`colcon build --symlink-install` 뒤 `source install/setup.bash`). 새 vision이 떠 있는지는 `ros2 topic hz /objects/detections`로 본다. 11-13 실험 사본(ROI 잘라 계산)은 25.7 Hz, 이전 코드는 6.6 Hz였다. 시험은 `vision_node`가 실제로 잘라 계산을 켜는지는 확인하지 않으므로 이 값이 그 확인이다.
 - 실시간 추적은 로봇 지령 없이 `replay.launch.py`를 bag 없이 `use_sim_time:=false`로 띄운다(11-13 구성).
+- `T_base_conveyor`가 기본 항등이면 뚜껑(x 0.55~0.82 m)이 관측 구간(±0.35 m) 밖이라 track이 하나도 생기지 않고, tracker가 `detections outside the observation region ... check T_base_conveyor and region.*` 경고를 낸다. 11-13에는 설정 파일을 바꾸지 않고 노드 파라미터만 바꾼 뒤 lifecycle을 다시 시작했다. 아래 값은 측정값이 아니고 위치 정확도 판정에 쓰지 않는다. 값은 4×4 행 우선이며(평행이동은 4·8·12번째) configure 때 읽는다.
+
+```bash
+ros2 param set /tracker_node T_base_conveyor "[1.0, 0.0, 0.0, 0.65, 0.0, 1.0, 0.0, 0.08, 0.0, 0.0, 1.0, 0.061, 0.0, 0.0, 0.0, 1.0]"
+ros2 lifecycle set /tracker_node deactivate && ros2 lifecycle set /tracker_node cleanup \
+  && ros2 lifecycle set /tracker_node configure && ros2 lifecycle set /tracker_node activate
+```
 
 ## 5. 예측 해제 지점 비접촉 시험 도구
 
-`tools/robot/hover_predicted.py`는 `main`에 없다(11-13 실험 사본, `records/patches/2026-11-13-vision-crop-tracker-late-hover.patch`의 2·3번 커밋). 실제 팔을 움직이는 도구라 원격에서 검증할 수 없어 반영하지 않았다. 실험 사본에서 다시 쓰면 아래를 지킨다(`records/reviews/patch-review-2026-11-14.md`).
+`tools/robot/hover_predicted.py`는 `main`에 없다(`records/patches/2026-11-13-vision-crop-tracker-late-hover.patch`의 2·3번 커밋). 실제 팔을 움직이는 도구라 원격에서 검증할 수 없어 반영하지 않았다. 11-13 실험 사본은 검토 전 vision·tracker를 담고 있으므로, 다시 쓰려면 현재 `main`을 받은 별도 사본에 두 커밋만 얹는다(`43e19b7` 위에 순서대로 적용되는 것을 확인했다).
+
+```bash
+git mailsplit -o<빈 폴더> records/patches/2026-11-13-vision-crop-tracker-late-hover.patch
+git am <빈 폴더>/0002 <빈 폴더>/0003      # 별도 사본에서만, main에 푸시하지 않는다
+```
+
+쓸 때는 아래를 지킨다(`records/reviews/patch-review-2026-11-14.md`).
 
 - 시작 자세가 알려진 안전 자세(park)인지 확인한 뒤 실행한다. 도구는 현재 자세에서 대기·정지 지점까지의 직선 경로를 검사하지 않는다.
 - 이동 높이·속도·가속은 정적 투입 설정을 그대로 쓰고, park 자세의 IK는 도구가 미리 확인하지 않는다.

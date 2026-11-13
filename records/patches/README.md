@@ -4,7 +4,8 @@
 
 ```bash
 git apply --check records/patches/<파일>   # 적용 가능 여부만 확인
-git am records/patches/<파일>              # 커밋 3개(작성자·메시지 포함)로 적용
+git am records/patches/<파일>              # 커밋 전부(작성자·메시지 포함)로 적용
+# 일부만 쓸 때: git mailsplit -o<빈 폴더> records/patches/<파일> 뒤 git am <빈 폴더>/000N
 ```
 
 | 파일 | 기준 커밋 | 내용 | 검증(적용 전 사본) | 근거 기록 | 반영 상태 |
@@ -13,3 +14,4 @@ git am records/patches/<파일>              # 커밋 3개(작성자·메시지 
 
 - (3)은 실기 로봇을 움직이는 스크립트다. 현장에서 처음 쓴 코드이며 사용자 승인 아래 2회 실행했다(세션 기록). 반영 전 검토가 필요하다.
 - 기준 커밋 뒤 `main`이 바뀌면 `git apply --check`로 먼저 확인한다.
+- `2026-11-13-vision-crop-tracker-late-hover.patch`의 첫 커밋은 `main`에 들어갔다(`2e50a6d`, 보강 `43e19b7`). 파일 전체에 `git am`을 쓰면 첫 커밋에서 실패하므로 남은 hover 커밋(0002·0003)만 나눠 적용한다.
