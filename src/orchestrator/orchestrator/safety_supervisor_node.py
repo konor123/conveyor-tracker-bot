@@ -15,11 +15,11 @@ from drop_interfaces.msg import Heartbeat, RobotStatus, TaskStatus
 from drop_interfaces.srv import Stop
 from rclpy.clock import Clock, ClockType
 from .ros_qos import no_sub_events
-from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 
 from .common import SteadyClock
+from .node_shutdown import ShutdownGuard
 from .watchdogs import HeartbeatMonitor
 
 ERROR_PROTECTIVE_STOP = 100
@@ -221,15 +221,20 @@ class SafetySupervisorNode(Node):
 
 
 def main(args=None):
+    guard = ShutdownGuard()            # rclpy.init 전(REQ-SYS-007)
     rclpy.init(args=args)
-    node = SafetySupervisorNode()
+    node = None
     try:
+        node = SafetySupervisorNode()
         rclpy.spin(node)
-    except (KeyboardInterrupt, ExternalShutdownException):
-        pass
+    except BaseException as exc:
+        if not guard.is_shutdown(exc):
+            raise
     finally:
-        node.destroy_node()
+        if node is not None:
+            node.destroy_node()
         rclpy.try_shutdown()
+        guard.close()
 
 
 if __name__ == '__main__':

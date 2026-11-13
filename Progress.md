@@ -78,6 +78,7 @@
 - [x] `[ON]` 계약 테스트 틀(`test/contract/`, 대상을 인자로 받음), `mock_world_node`의 vision·tracker 계약 통과
 - [x] `[ON]` `mock.launch.py`, `launch_testing` 기반 I0 통합 테스트(ROS I0 시나리오 5종)를 CI에 등록(TC-INT-*)
   - `drop.launch.py`·`mock.launch.py`·동시 기동 거부와 ROS I0 정상·장애 시험(pytest에서 launch를 띄우는 방식), GitHub Actions `CI (M0 Offline & I0 Mock Suite)`. TC-INT-001~006 시험 연결 100%, 커밋 `199e363`에서 CI run 42563966553 2회 연속 통과(`records/worklog/2026-11-09.md`).
+  - launch 종료 신호(SIGINT 여러 번, SIGTERM)에 노드 진입점이 traceback 없이 끝난다(REQ-SYS-007, SPEC-000 4.5절 `ShutdownGuard`). 받은 메시지를 바꾸는 중의 SIGINT가 `RuntimeError`로 바뀌어 실제 감시·planner 노드가 traceback을 남기던 경쟁이다. 2026-11-13 사무실 PC WSL TC-SYS-007-01 4건 통과, 실제 controller I0 로그 3묶음 Traceback 0건.
 - [x] `[ON]` `records/` 디렉터리, trial·step JSONL 기록, `devlog.csv`, `param_changes.csv`(TC-REC-*)
   - JSON Schema·StepRecord/trial JSONL 및 2026-11-09 devlog: unit 793/793·contract 72/72·I0 8/8(officepc WSL), 통합 커밋 `74013cf`. TC-MCK-005-01 실시간 실행은 `realtime_pc` 마커로 CI에서 기록만 하고 PC에서 판정한다(SPEC-700 v0.7). 2026-11-10 officepc WSL 판정 3/3 통과(발행 지연 최대 0.056 s). 커밋 `7c63b0b` CI run 42788599903 전체 실행 3회 연속 통과.
 - [x] `[ON]` `tools/spec/trace.py` 추적 행렬 생성(REQ·TC 연결 검사)
@@ -85,6 +86,7 @@
   - 2026-11-12 officepc WSL: 시스템 시계 역행(약 −0.78 s, 9분에 10회)이 있는 상태에서 3/3, 없는 상태에서 4/4 통과. 이 3회에서는 시계 역행으로 재현되지 않았다(`records/worklog/2026-11-12.md`).
   - ROS Jazzy rclpy `action/client.py`의 `ActionClient.execute`는 한 번 깨어날 때 result future를 feedback 콜백보다 먼저 완료한다(소스 확인). callback group을 바꿔도 이 순서는 바뀌지 않으므로 result 선처리는 지금의 짧은 feedback 대기(`FEEDBACK_DRAIN_S`)로 다루고, 재현 전에는 callback group을 바꾸지 않는다(`records/reviews/fable-decisions-2026-11-12.md` (f)).
   - 2026-11-13 사무실 PC WSL 실제 controller I0(`test_i0_real_controller_dynamic_cycle[synchronized]`, `realtime_pc`)에서 RELEASE `STEP_TIMEOUT`(SAFE_ABORT) 1회. 실제 controller I0 launch 66개 중 1개이며 같은 launch의 대역 세계에는 발행 공백이 없었다(`records/reviews/heartbeat-stall-evidence-2026-11-13.md` 4절).
+  - 2026-11-13 분석(`records/reviews/release-step-timeout-2026-11-13.md`): 포트가 None을 내는 경로는 대기 끝과 controller 결과 먼저 두 가지이고 controller 사유는 로그에 남지 않았다. 두 경로를 가리는 경고와 controller DynamicPlace 한 줄(REQ-ORC-020, REQ-ROB-018)을 넣고 재 보니, 실제 controller I0 정상 사이클의 RELEASE가 0.88~0.91 s(제한 1.0 s)였다. RELEASE 제한과 게이트 대기 상한(2.0 s)의 관계는 SPEC-500 9절 미결 사항이다. 그 한 건의 원인은 확정하지 않았다.
 
 **M0 합격 기준(제안):** SPEC 6종 v0.1과 M0 대상 시험 케이스 리뷰 완료 / interface 빌드 / 단위 테스트에서 장애 10종 이벤트 열마다 기대 중단 등급 / I0 정상 시나리오 20/20, ROS I0 장애 시나리오 4종(`robot_hang`, `protective_stop`, `heartbeat_loss`, `time_insufficient`)마다 정의된 중단 등급 동작 / 오케스트레이터 REQ 연결률 100% / `records/`에 StepRecord·trial 기록 생성 확인.
 
@@ -157,6 +159,7 @@
   - 오케스트레이터는 goal 수락 뒤 새 controller heartbeat 2개와 `robot/status`를 받은 다음 장애 latch를 무장한다. 해제 직후 시작한 사이클이 낡은 101로 끝나던 경합을 막는다(REQ-ORC-012, TC-ORC-012-02). I0 시험의 기동 안정 대기는 해제 뒤 `error_code` 0·`ready`를 확인한다. 기동 약 3.2 s 뒤 Stop 자체의 원인은 남는다.
   - 2026-11-12 CI(공유 러너): 실제 tracker·planner I0에서 기동 안정 대기 뒤 첫 사이클 0.44 s(PICK_STONE)에 같은 Stop이 1회 났고 재실행은 통과했다(run 43181006141, `records/worklog/2026-11-12.md`). controller 기동 3.2 s 뒤(controller 로그 시각 기준)여서 "연속 5회 수신 뒤 무장" 안으로는 막지 못할 것으로 본다(감시 노드의 수신 기록이 없어 추정). 대책은 운용 절차(위)를 유지하고 OFF-2 재현 결과로 정한다.
   - 2026-11-13 CI(`7ba0858`·`eb5c8ec`)에서도 기동 3.0~3.25 s 뒤 같은 Stop이 났고, 감시 노드 재수신 로그(발행 뒤 수신 0.001 s)로 보면 대역 controller의 발행이 0.33~0.43 s 늦었다. 대역 프로세스의 heartbeat 경로 정지 진단(SPEC-700 4.8절)으로 사무실 PC WSL에서 잡은 자연 발생 정지 3건은 모두 기동 2.5~3.2 s 뒤 rclpy `Publisher.publish` 안에서 0.31~0.38 s 멈췄고(CPU 약 0.01 s, heartbeat 2건·데이터 발행 1건), rclpy jazzy `publish`는 GIL을 놓지 않아 그동안 프로세스의 모든 Python 스레드가 멈춘다. 실제 `robot_controller_node`도 기동 직후 같은 모양(발행 쪽 지연)의 공백을 냈다. 멈춘 곳이 DDS 안인지와 CI 건이 같은 원인인지는 확인하지 않았다(`records/reviews/heartbeat-stall-evidence-2026-11-13.md`). 대책은 위 운용 절차를 유지하고, 판정 한도·callback group·DDS 발행 설정은 OFF-2 재현 결과와 native 스택 확인 뒤에 정한다.
+  - 2026-11-13 사무실 PC WSL 미세 재현(`records/reviews/publish-stall-repro-2026-11-13.md`): 동기 발행 + 공유 메모리에서 새 참여자 6개가 한꺼번에 붙으면 약 3.4 s 뒤 `publish()` 한 번이 0.33 s 막혔다(3회 중 2회, native 스택은 Fast DDS `RTPSWriter::send_nts`의 mutex 대기). 비동기 발행·UDP 전용은 각각 3회 중 0회. 다만 I0·CI가 쓰는 `ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST`에서는 같은 조건 5회 중 0회라 I0·CI 정지와 같은 원인인지는 정해지지 않았다. 정지 시점(기동 2.5~3.9 s 뒤)은 운용 절차의 2 s 대기보다 늦다. DDS 설정·판정 한도·대기 시간은 현장 전이라 바꾸지 않았다.
 
 **G0 합격 기준(제안):** 0절 항목 기록 완료 / 단위 변환·pulse 변환 테스트 통과 / 통신·추적 손실·cancel 모사 20회에서 정의된 정지·대기 전환 20/20, 예기치 않은 재개 0회 / I3에서 L0·L4 모사 20/20 / 스트림 주기·지연 분포 보고서 / 그리퍼 개방 지연 분포와 스트림 중 개방 결과 보고서.
 
@@ -325,7 +328,7 @@
 
 - [ ] `[ON]` ROS 2 노드·Launch 통합(real / sim / replay / mock 분리, replay는 로봇 지령 경로 미연결)
   - real: `drop.launch.py use_mock_robot:=false`가 실제 `robot_controller_node`를 configure → activate한다. `robot_backend` 기본은 `disabled`(실기 연결 없음)이고 `fake`면 `config/robot_fake.yaml` → 시나리오 기하(대기 자세·반납 위치) → `robot_params_file` 순으로 겹친다. robot 역할 서버는 실제 controller 하나다(TC-INT-018-01).
-  - replay: `drop_bringup/launch/replay.launch.py`(영상 토픽만 재생, 실제 vision·tracker·planner, robot·orchestrator·그리퍼·스트림 경로 없음), TC-INT-007-01이 그래프에서 지령 경로 0개를 확인한다(합성 bag 포함). sim은 Isaac Sim을 돌릴 장비가 없어(부록 A) 남는다.
+  - replay: `drop_bringup/launch/replay.launch.py`(영상 토픽만 재생, 실제 vision·tracker·planner, robot·orchestrator·그리퍼·스트림 경로 없음), TC-INT-007-01이 그래프에서 지령 경로 0개를 확인한다(합성 bag 포함). 발행자 노드 이름은 이름 정보가 올 때까지 기다린다(2026-11-13 CI run 43366819117의 `_NODE_NAME_UNKNOWN_` 간헐 실패). sim은 Isaac Sim을 돌릴 장비가 없어(부록 A) 남는다.
 - [x] `[ON]` 상태 머신·단계 판정·중단 등급(`PLAN.md` 4, 5절): PRECHECK, WAIT_CAP, SAFE_ABORT, PROTECTIVE_STOP, WAIT_OPERATOR 포함. I0 전 시나리오 통과
   - `PLAN.md` 7.3절 ROS I0 5종과 감시 연결 I0(TC-ABT-011~014-02), MODE_STATIC(TC-INT-013-01), 실제 tracker·planner 두 모드(TC-INT-009-01). 2026-11-13 사무실 PC WSL(병합본) orchestrator 789, I0 18 passed. 장애 10종 단위 시험은 M0에서 확인했다.
 - [x] `[ON]` 공깃돌 파지부터 투입까지 자동화(시도 사이 공깃돌 회수는 작업자)

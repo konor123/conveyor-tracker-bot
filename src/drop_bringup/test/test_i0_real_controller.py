@@ -448,10 +448,14 @@ def test_i0_real_controller_dynamic_failure_keep_sync_place_back(ros, tmp_path):
         assert _stops_after_settle(h) == []
         h.wait_for(lambda: task_msgs[-1][1].state == 'WAIT_OPERATOR', 3.0, 'WAIT_OPERATOR')
         time.sleep(0.3)
-        # 동기 유지 상승: 벨트 쪽(y < −0.1 m)에서 z가 오르는 robot/status 표본 쌍(발행 stamp)의 x 속도 ≈ 계획 속도
+        # 동기 유지 상승: 벨트 쪽(y < −0.1 m)에서 z가 오르는 robot/status 표본 쌍(발행 stamp)의 x 속도 ≈ 계획 속도.
+        # 앞 표본도 상승 시작 높이보다 위인 쌍만 센다. DynamicPlace 끝 → SafeRetreat 시작(약 25 ms) 사이에는 가짜
+        # transport가 진행되지 않아 그때 발행된 위치가 stamp보다 오래될 수 있다(2026-11-13 사무실 PC WSL: 첫 쌍만 0.023~0.025)
         pts = [(_stamp(m), m.tcp_pose.position) for _, m in robot]
+        z_start = min((p.z for _, p in pts if p.y < -0.1), default=0.0)
         rising = [((b.x - a.x) / (tb - ta)) for (ta, a), (tb, b) in zip(pts, pts[1:])
-                  if tb > ta and a.y < -0.1 and b.y < -0.1 and b.z - a.z > 0.0005 and b.z < geo['safe_z_m']]
+                  if tb > ta and a.y < -0.1 and b.y < -0.1 and a.z - z_start > 0.0005 and b.z - a.z > 0.0005
+                  and b.z < geo['safe_z_m']]
         assert len(rising) >= 3 and all(abs(v - 0.02) <= 0.003 for v in rising), rising
         last = _last_status(robot)
         tcp = (last.tcp_pose.position.x, last.tcp_pose.position.y, last.tcp_pose.position.z)

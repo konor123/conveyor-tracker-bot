@@ -2,8 +2,8 @@
 
 `tools/spec/trace.py`가 생성한다. 손으로 고치지 않는다.
 
-- REQ 147개 중 TC 연결 147개
-- pytest 대상 TC 285개 중 테스트 연결 283개
+- REQ 150개 중 TC 연결 150개
+- pytest 대상 TC 289개 중 테스트 연결 287개
 
 | TC | 수준 | REQ | 테스트 |
 |---|---|---|---|
@@ -190,6 +190,7 @@
 | TC-ORC-017-01 | U | REQ-ORC-017 | `src/orchestrator/test/test_cycle_runner.py::test_wait_cap_ended_while_waiting_keeps_last_wait_reason`<br>`src/orchestrator/test/test_cycle_runner.py::test_wait_cap_without_any_target_is_no_target` |
 | TC-ORC-018-01 | U | REQ-ORC-018 | `src/orchestrator/test/test_ros_skill_port.py::test_time_to_window_follows_current_track_not_selection` |
 | TC-ORC-019-01 | U | REQ-ORC-019 | `src/orchestrator/test/test_port_watch_budget.py::test_wait_cap_budget_comes_from_time_budget` |
+| TC-ORC-020-01 | U | REQ-ORC-020 | `src/orchestrator/test/test_phase_miss_log.py::test_result_before_release_feedback_is_logged_with_controller_reason`<br>`src/orchestrator/test/test_phase_miss_log.py::test_wait_end_without_feedback_is_logged_with_elapsed_times` |
 | TC-PLN-001-01 | U | REQ-PLN-001 | `src/intercept_planner/test/test_planner.py::test_budget_formula` |
 | TC-PLN-001-02 | U | REQ-PLN-001 | `src/intercept_planner/test/test_planner.py::test_budget_boundary` |
 | TC-PLN-001-03 | U | REQ-PLN-001 | `src/intercept_planner/test/test_planner.py::test_belt_boundary` |
@@ -272,6 +273,7 @@
 | TC-ROB-017-02 | U | REQ-ROB-017 | `src/robot_control/test/test_doosan_backend.py::test_cancel_issues_move_stop_and_waits_for_stopped_state`<br>`src/robot_control/test/test_doosan_backend.py::test_executor_reports_cancel_and_deadline_through_backend`<br>`src/robot_control/test/test_doosan_backend.py::test_unconfirmed_stop_is_a_fault_not_a_clean_cancel`<br>`src/robot_control/test/test_doosan_backend.py::test_move_timeout_stops_the_arm`<br>`src/robot_control/test/test_doosan_backend.py::test_stop_during_motion_latches_until_reset`<br>`src/robot_control/test/test_doosan_backend.py::test_is_stopped_reads_the_robot_state_each_time` |
 | TC-ROB-017-03 | U | REQ-ROB-017 | `src/robot_control/test/test_doosan_backend.py::test_tcp_pose_is_measured_or_nan`<br>`src/robot_control/test/test_doosan_backend.py::test_gripper_goes_through_the_session_and_reports_measured_values`<br>`src/robot_control/test/test_doosan_backend.py::test_gripper_failures_are_reported_without_values` |
 | TC-ROB-017-04 | U | REQ-ROB-017 | `src/robot_control/test/test_dsr_motion_client.py::<module>` |
+| TC-ROB-018-01 | U | REQ-ROB-018 | `src/robot_control/test/test_dynamic_place_summary.py::test_summary_reports_release_wait_and_gate_hold_reason`<br>`src/robot_control/test/test_dynamic_place_summary.py::test_summary_without_gate_wait`<br>`src/robot_control/test/test_dynamic_place_summary.py::test_summary_of_failed_goal_names_reason_and_last_phase` |
 | TC-SIM-001-01 | S | REQ-SIM-001(SPEC 없음) | 절차 시험 |
 | TC-SIM-002-01 | S | REQ-SIM-002(SPEC 없음) | 절차 시험 |
 | TC-SIM-003-01 | S | REQ-SIM-003(SPEC 없음) | 절차 시험 |
@@ -283,6 +285,8 @@
 | TC-SYS-004-01 | U | REQ-SYS-004 | `tools/spec/test_sys_conventions.py::test_unit_conversions_only_in_adapters` |
 | TC-SYS-005-01 | U | REQ-SYS-005 | `src/calibration/test/test_repo_paths.py::test_relative_paths_resolve_against_repo_root_regardless_of_cwd`<br>`src/calibration/test/test_repo_paths.py::test_repo_root_from_install_tree_and_env_override`<br>`src/drop_mocks/test/test_repo_path.py::test_repo_path_rule`<br>`src/orchestrator/test/test_repo_path.py::test_repo_path_rule` |
 | TC-SYS-006-01 | U | REQ-SYS-006 | `tools/spec/test_tf_usage.py::test_tf_usage_is_confined`<br>`tools/spec/test_tf_usage.py::test_tf_usage_detects_violation` |
+| TC-SYS-007-01 | C | REQ-SYS-007 | `src/drop_mocks/test/test_node_shutdown.py::test_sigint_while_taking_a_message_exits_quietly`<br>`src/drop_mocks/test/test_node_shutdown.py::test_second_sigint_during_cleanup_exits_quietly`<br>`src/drop_mocks/test/test_node_shutdown.py::test_idle_node_exits_promptly_on_signal`<br>`src/drop_mocks/test/test_node_shutdown.py::test_sigint_after_cleanup_does_not_kill_with_minus_two` |
+| TC-SYS-007-02 | U | REQ-SYS-007 | `tools/spec/test_node_shutdown.py::test_entry_points_use_shutdown_guard`<br>`tools/spec/test_node_shutdown.py::test_checker_reports_guard_after_init_and_diverged_copy` |
 | TC-TRK-001-01 | U | REQ-TRK-001 | `src/tracking/test/test_tracking.py::test_constant_accuracy` |
 | TC-TRK-001-02 | U | REQ-TRK-001 | `src/tracking/test/test_tracking.py::test_nees` |
 | TC-TRK-002-01 | U | REQ-TRK-002 | `src/tracking/test/test_tracking.py::test_reverse_stamp` |

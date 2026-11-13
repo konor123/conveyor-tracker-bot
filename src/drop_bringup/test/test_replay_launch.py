@@ -160,7 +160,12 @@ def test_replay_has_no_robot_command_path(ros, tmp_path, with_bag):
             # 그래프 발견은 데이터 흐름보다 늦을 수 있다(2026-11-13 CI run 43350122545)
             h.wait_for(lambda: 'rosbag2_player' in _publisher_nodes(h, IMAGE), timeout=10.0, what='재생기 영상 발행자 발견')
             assert all(m.calibration_id != 'old' for _, m in dets)        # bag의 이전 출력이 아니다
-            assert _publisher_nodes(h, '/objects/detections') == ['vision_node']
+            # 끝점이 보여도 노드 이름은 늦게 올 수 있다: 그 사이 `_NODE_NAME_UNKNOWN_`(2026-11-13 CI run 43366819117)
+            try:
+                h.wait_for(lambda: _publisher_nodes(h, '/objects/detections') == ['vision_node'], timeout=10.0,
+                           what='검출 발행자 vision_node 발견')
+            except TimeoutError as e:
+                raise TimeoutError(f'{e}; 발행자={_publisher_nodes(h, "/objects/detections")}') from None
             assert _publisher_nodes(h, STREAM_DECOY) == []
         time.sleep(1.0)                                                 # 끝점 발견 여유
         assert proc.poll() is None

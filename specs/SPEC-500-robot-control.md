@@ -1,6 +1,6 @@
 # SPEC-500 robot-control
 
-- 버전: v0.12
+- 버전: v0.13
 - 근거: PLAN.md 1.1, 3.3, 4.2~4.4, 5.1, 11.3절
 - REQ 영역: ROB, GRP
 
@@ -8,6 +8,7 @@
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
+| v0.13 | 2026-11-13 | DynamicPlace 끝 진단 한 줄: 단계 진입·commit 시각, RELEASE 진입→commit, 해제 게이트 대기 이유(REQ-ROB-018) |
 | v0.12 | 2026-11-13 | REQ-ROB-011 표에 측정 스크립트가 쓰는 `system/get_last_alarm`·`servol_stream`과 입력 `joint_states`·`robot_description`, 측정 스크립트를 대역 드라이버에 붙인 끝까지 실행(TC-ROB-011-02) |
 | v0.11 | 2026-11-13 | REQ-ROB-017 이동 전 측정이 비유한 값이면 지령 없이 `TCP_READ_FAILED` |
 | v0.10 | 2026-11-13 | I0 실제 controller 통합에서 드러난 계약: REQ-ROB-008 SYNCHRONIZE 끝 = 연속 `sync_hold_s + sync_hold_margin_s`(연속 통과 시작 주기에도 feedback), REQ-ROB-010 동기 유지 후퇴는 XY 속도 정착(`keep_sync_settle_s`) 뒤 상승, REQ-ROB-007 PickStone 전류 한도 1~150 mA·PlaceStone RELEASE `sync_held`(개방 전·후 측정 TCP)·RETREAT 안전 높이 상승(측정 z), REQ-ROB-012 `robot/status` 그리퍼 필드 = 마지막 skill 측정값, REQ-ROB-014 정지 유지가 아닌 재활성은 backend 정지를 풀고 Stop은 `stop_history_json`·로그에 남김 |
@@ -162,6 +163,7 @@ transport 경계는 속도 지령이 아니라 해제 확정(commit)이다(`dyna
 - 한 DRL 프로그램 transport(하강·해제·후퇴를 `amovel` + 그리퍼 명령으로 실행, PLAN.md 11.3절): `mid_course_update=false`, `commit_lead_s` = 하강 + 개방 시간, commit = 프로그램 시작(인자 = `ReleasePermit`). commit 전에는 접근 높이에서 추종하고, commit은 DESCEND 중 `release_time − commit_lead_s`에 일어나며 이후 phase는 표본으로 지켜본다. 게이트의 공깃돌 위치는 프로그램 목표 궤적이라 XY 오차를 commit 전에 측정하지 못하고, horizon이 길어 위치 표준편차 0.5 mm를 맞추기 어렵다(추정). 이 transport는 MODE_PREDICTED 수준까지만 지원한다(MODE_SYNCHRONIZED goal은 `PRECONDITION`).
 - `backend:=fake`의 `SimulatedPlaceTransport`는 스트림형을 흉내 낸다(TCP 1차 지연 29 ms, 개방 지연 0.1 s, 모두 가정값). 시험에서는 프로그램형(`mid_course_update=false`)도 흉내 낸다.
 
+- REQ-ROB-018: DynamicPlace goal이 끝나면 노드는 `DynamicPlaceSequencer.summary()` 한 줄을 남긴다(결과 OK면 INFO, 그 밖은 WARN): 결과·`reason_code`, goal 시작 기준 각 phase 진입 시각과 commit 시각, RELEASE 진입→commit 시간, commit 전 해제 게이트가 닫혀 기다린 주기 수(이유별). 결과·feedback·interface는 바뀌지 않는다.
 - REQ-ROB-015: `doosan_stream.DoosanSpeedlTransport`(실기 미검증, 노드 `backend` 선택지에 연결하지 않음)는 `<ns>/speedl_stream`에 `vel`[mm/s×3, deg/s×3]·`acc`[mm/s², deg/s²]·`time` = 2주기를 `motion_adapter` 변환으로 보낸다(`tools/bench/stream_bench.py`와 같은 형식). 지령마다 속도 한도(`RANGE`·`NONFINITE`)와 `FreshnessWatchdog`(2주기, 20.000 ms 유지·20.001 ms L0)를 거치고, 위반·간격 초과·`tick()`이 본 지령 끊김이면 속도 0을 1회 보내고 `rearm()` 전까지 거부하며 `poll().fault`로 알린다. commit은 `GripperSession.fire_open` 1회를 제어 주기 밖(`runner`)에서 실행하고 결과가 오면 `released`이며, 개방 예약(`prepare`)이 없으면 commit 때 쓰고 `late_arm`을 남긴다. `abort(keep_sync=true)`는 `tick()`마다 계획 XY 속도(z 0)를 `abort_sync_hold_s` 동안 보낸 뒤 속도 0을 1회 보낸다. 정지 확인은 TCP 피드백 속도 ≤ `stop_speed_mps`일 때만 참이다. 메시지 형식·발행 함수·TCP 읽기·그리퍼 세션은 주입하고 `dsr_msgs2`를 import하지 않는다.
 
 ### 4.6 Doosan 실제 backend 준비(실기 미검증)
@@ -269,7 +271,7 @@ OFF-2에서 확인할 것(결과로 위 기본값·규칙을 고친다):
 - `src/robot_control/test/test_motion_adapter.py`: TC-ROB-001~006.
 - `src/robot_control/test/test_gripper_adapter.py`: TC-GRP-001~013. `test_gripper_session.py`: TC-GRP-014. `test_resident_transport.py`: TC-GRP-015·016(가짜 제어기 `test/fakes/resident.py`, 시간은 모델 값. DRL 본문은 `test/fakes/drl_env.py`에서 그대로 실행).
 - `src/robot_control/test/test_skill_logic.py`: TC-ROB-005·007, TC-ROB-007-91(전류 한도 1~150 mA)·92(PlaceStone RELEASE·RETREAT 측정 지표), TC-ROB-008-03(transport 없음), TC-ROB-010-02(정적 실행기).
-- `src/robot_control/test/test_dynamic_place.py`: TC-ROB-007-03, TC-ROB-008-01~03·91·92(수신 쪽이 다시 재는 동기 유지 시간), TC-ROB-009-01~03·05, TC-ROB-010-01·02·91(상승 전 XY 속도 정착)(`SimulatedPlaceTransport`, FakeClock). `test_release_gate.py`: TC-ROB-009-04.
+- `src/robot_control/test/test_dynamic_place.py`: TC-ROB-007-03, TC-ROB-008-01~03·91·92(수신 쪽이 다시 재는 동기 유지 시간), TC-ROB-009-01~03·05, TC-ROB-010-01·02·91(상승 전 XY 속도 정착)(`SimulatedPlaceTransport`, FakeClock). `test_release_gate.py`: TC-ROB-009-04. `test_dynamic_place_summary.py`: TC-ROB-018-01.
 - `src/robot_control/test/contract/test_robot_controller_contract.py`: TC-ROB-008-04(실제 노드 `backend:=fake`가 `tools/testing/contracts/robot_controller_contract.py` 통과, C).
 - `src/robot_control/test/test_doosan_stream.py`: TC-ROB-015-01(가짜 발행·세션만). `test_motion_adapter.py`: TC-ROB-002-02.
 - `src/robot_control/test/test_belt_sync.py`: TC-ROB-013-01~05(속도·가속 제한은 TC-ROB-006-01도 함께). `test_sync_revision.py`·`test_sync_config.py`: TC-ROB-013-06. `test_sync_metrics.py`: TC-ROB-013-07. `test_sync_uncertain_hold.py`: TC-ROB-013-08.
@@ -291,3 +293,4 @@ OFF-2에서 확인할 것(결과로 위 기본값·규칙을 고친다):
 - 그리퍼 상주 루프 DRL과 생존 카운터 실기 시험.
 - SafeRetreat 동기 유지·place-back 실측: 매트 반납 위치 `place_back_xyz_m`(측정 기록으로 채움), 실제 이동 속도에서 L3 경로 제한시간(PLAN.md 5.2절 15 s) 안에 끝나는지.
 - Doosan 실제 backend(4.6절)의 OFF-2 확인 항목과 노드 연결(`DsrMotionClient`·`DsrRegisterIO`).
+- MODE_SYNCHRONIZED 해제 게이트 대기 상한(`release_wait_max_s` 2.0 s)과 orchestrator RELEASE 단계 제한(SPEC-100 5절, 측정 전 1.0 s)의 관계: fake transport의 RELEASE 길이는 commit까지 대기 + 개방 0.1 s + 개방 확인 유지 0.3 s이고, 실제 controller I0 정상 사이클에서 0.88~0.91 s(SYNCHRONIZED는 `GATE_POSITION_STD` 대기 약 0.49 s, PREDICTED는 예정 해제 시각까지 0.47 s)라 여유가 약 0.1 s다. 게이트 대기가 그보다 길면 controller가 정상으로 끝나도 orchestrator RELEASE가 먼저 끝난다. 두 값은 G0 측정 뒤 함께 정한다.

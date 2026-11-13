@@ -1,6 +1,6 @@
 # SPEC-000 system
 
-- 버전: v0.6
+- 버전: v0.7
 - 근거: PLAN.md 0.2, 1, 2.3~2.5절
 - REQ 영역: SYS
 
@@ -8,6 +8,7 @@
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
+| v0.7 | 2026-11-13 | 노드 진입점의 종료 신호 처리(4.5절, REQ-SYS-007) |
 | v0.6 | 2026-11-12 | TC-SYS-003-01·02를 실제 `vision_node`·`tracker_node` 계약 시험으로 검증(epoch 규모 ns 자리 stamp). tracker는 관측 프레임의 입력 stamp를 그대로 발행한다 |
 | v0.5 | 2026-11-11 | TF 사용 범위를 정적 검사로 고정(REQ-SYS-006) |
 | v0.4 | 2026-11-09 | 설정 파일 경로 규칙(상대 경로 = 저장소 루트 기준, 4.4절, REQ-SYS-005) |
@@ -130,6 +131,17 @@ world
 - 원본 구현은 `calibration.repo_paths`다. calibration에 의존하지 않는 `orchestrator`·`drop_mocks`는 같은 규칙의 `repo_path`를 두고 같은 시험으로 확인한다.
 - 명령줄 인자로 주는 설정 파일 자체의 경로(`--config`, `--params-file`)는 셸 관례대로 실행 위치 기준이다. launch 인자 `vision_params_file`은 이 규칙을 따른다.
 
+### 4.5 노드 진입점의 종료 처리
+
+launch는 끝날 때 노드 프로세스에 SIGINT를 보내고(셸·시험이 함께 보내면 두 번 이상 받는다), 제한시간 뒤 SIGTERM을 보낸다. 다음 진입점은 이 신호로 생긴 예외를 traceback 없이 종료 코드 0으로 끝낸다: `drop_mocks.ros_common.spin_mock`, `orchestrator_node`, `safety_supervisor_node`, `record_logger_node`, `tracker_node`, `intercept_planner_node`, `robot_controller_node`의 `main`.
+
+- `rclpy.init()` 전에 `ShutdownGuard`를 만든다. 패키지 사이 의존을 늘리지 않도록 같은 내용의 `node_shutdown.py`를 `drop_mocks`·`orchestrator`·`tracking`·`intercept_planner`·`robot_control`에 둔다. rclpy는 init 때 기존 SIGINT 처리기를 저장해 자기 처리기(context 종료) 안에서 이어 부르므로, init 뒤에 처리기를 바꾸면 rclpy의 context 종료가 빠져 대기 중인 executor가 깨지 않는다.
+- 첫 SIGINT만 `KeyboardInterrupt`로 올리고, 그 뒤의 SIGINT는 세기만 한다. 정리(`destroy_node`) 도중의 SIGINT가 traceback을 남기지 않는다.
+- rclpy가 받은 메시지를 Python 객체로 바꾸는 중에 `KeyboardInterrupt`가 나면 pybind11이 이를 `RuntimeError: Unable to convert call argument '0' to Python object`로 바꾸고 원래 예외를 남기지 않는다(rclpy 7.1 `Subscription::take_message`). SIGINT를 받은 뒤의 `RuntimeError`는 종료로 본다. SIGINT 전의 `RuntimeError`, `SystemExit`, 그 밖의 예외는 그대로 올린다.
+- 정리(`destroy_node`·`try_shutdown`)를 마치면 `guard.close()`로 SIGINT를 무시한다. Python은 종료 단계(`Py_FinalizeEx` → `_PySignal_Fini`)에서 Python 처리기가 걸린 신호를 기본 처리로 되돌리므로, 그 뒤 도착한 SIGINT(launch가 늦게 보낸 것)에 traceback 없이 종료 코드 −2로 끝난다. 무시(SIG_IGN)는 되돌리지 않는다.
+- 노드 생성도 같은 처리 안에서 한다. 대역의 동시 기동 거부(`REAL_NODE_PRESENT`, SPEC-700 4.7절)는 종료 신호가 없을 때의 `RuntimeError`라 종료 코드 1을 유지한다.
+- 대상이 아닌 진입점: `static_pick_place`, `vision`, `calibration`, `robot_control.belt_sync_preview`.
+
 ## 5. 시간 제약(주기·제한시간)
 
 | 항목 | 주기 / 제한시간 | 시계 | 근거 |
@@ -153,6 +165,7 @@ M0는 감시 판정 함수와 이벤트 입력의 U 검증 범위다. ROS 관측
 - REQ-SYS-004: `src/**/*.py`(`build`·`install`·`test` 제외)에서 단위 변환 토큰 패턴(`* 1000`, `/ 1000`, `*= 1000`, `/= 1000`, `1000 *`, `math.degrees`, `math.radians`)은 `motion_adapter.py`와 `gripper_adapter.py` 두 파일에만 존재하며 그 외 파일에서의 검출 건수는 0건이다.
 - REQ-SYS-005: 설정 파일 경로의 상대 경로는 4.4절 규칙으로 저장소 루트 기준 절대 경로가 되며, 실행 위치를 바꿔도 같은 파일을 가리킨다. `DROP_REPO_ROOT`가 있으면 그 폴더를 루트로 쓴다.
 - REQ-SYS-006: `src/**/*.py`(`build`·`install`·`test` 제외)에서 TF 조회(`lookup_transform`·`can_transform`·`TransformListener`)는 `calibration/ros_nodes.py`(고정 카메라 TF 합성, 시각 `Time()` = 최신 고정값) 한 곳에만 있고, `TimePointZero`는 0건이다. TF 발행은 `/tf`가 `tracking/tracker_node.py`, `/tf_static`이 `calibration`(`ros_nodes.py`, `static_frames.py`)뿐이다. 예측·계획·지령(`tracking`의 판단 모듈, `intercept_planner`, `robot_control`, `orchestrator`)은 TF가 아니라 메시지 시각으로 계산한다(4.2절).
+- REQ-SYS-007: 4.5절 진입점은 (a) spin 중 받은 메시지를 바꾸는 도중의 SIGINT, (b) 정리 도중의 두 번째 SIGINT, (c) 깨어날 일이 없는 대기 중의 SIGINT·SIGTERM, (d) 정리를 마친 뒤 프로세스가 끝날 때까지 이어지는 SIGINT에서 stderr에 traceback 없이 종료 코드 0으로 끝나고, (c)는 신호 뒤 3 s 안에 끝난다. 진입점은 `rclpy.init()` 전에 `ShutdownGuard`를 만들고 `rclpy.try_shutdown()` 뒤마다 `guard.close()`를 부르며 `KeyboardInterrupt`·`ExternalShutdownException`을 이름으로 잡지 않고, `node_shutdown.py` 사본 5개는 바이트 단위로 같다.
 
 ## 8. 검증 방법(`TEST_SPEC.md` TC ID, 게이트)
 
@@ -160,6 +173,8 @@ M0는 감시 판정 함수와 이벤트 입력의 U 검증 범위다. ROS 관측
 - `TC-SYS-003-01`: 수준 C, 게이트 G1 (`vision_node` 계약 시험, `src/vision/test/contract/test_vision_node_contract.py`).
 - `TC-SYS-003-02`: 수준 C, 게이트 G3 (`tracker_node` 계약 시험, `src/tracking/test/contract/test_tracker_node_contract.py`).
 - `TC-SYS-006-01`: 수준 U, 게이트 G3 (`tools/spec/test_tf_usage.py`).
+- `TC-SYS-007-01`: 수준 C, 게이트 G7 (`src/drop_mocks/test/test_node_shutdown.py`, 진입점과 같은 모양의 탐침 프로세스).
+- `TC-SYS-007-02`: 수준 U, 게이트 G7 (`tools/spec/test_node_shutdown.py`, 진입점·사본 정적 검사).
 
 ## 9. 미결 사항
 

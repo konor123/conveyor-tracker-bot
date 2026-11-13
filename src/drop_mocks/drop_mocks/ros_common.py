@@ -11,12 +11,13 @@ from rcl_interfaces.msg import ParameterDescriptor, ParameterType, SetParameters
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 from rclpy.clock import Clock, ClockType
 from rclpy.event_handler import PublisherEventCallbacks
-from rclpy.executors import ExternalShutdownException, MultiThreadedExecutor
+from rclpy.executors import MultiThreadedExecutor
 from rclpy.lifecycle import LifecycleNode, TransitionCallbackReturn
 from rclpy.logging import get_logger
 from rclpy.parameter import Parameter
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 
+from .node_shutdown import ShutdownGuard
 from .scenario_engine import ScenarioEngine
 from .stall_watch import STALL_DUMP_ENV, StallWatch, stall_dump_s
 
@@ -237,18 +238,26 @@ class MockLifecycleNode(LifecycleNode):
 
 
 def spin_mock(node_cls, name: str, num_threads: int, args=None) -> None:
-    """대역 노드 실행 공통. 동시 기동 거부(기동 시·기동 뒤 모두)는 종료 코드 1로 끝낸다(REQ-MCK-007)."""
+    """대역 노드 실행 공통. 동시 기동 거부(기동 시·기동 뒤 모두)는 종료 코드 1로 끝낸다(REQ-MCK-007).
+
+    종료 신호는 `ShutdownGuard`로 가린다(REQ-SYS-007): 신호로 생긴 예외는 traceback 없이 종료 코드 0이다.
+    """
+    guard = ShutdownGuard()            # rclpy.init 전
     rclpy.init(args=args)
     try:
         node = node_cls()
-    except RuntimeError as e:
+    except BaseException as e:
+        if guard.is_shutdown(e):
+            # 기동 확인 창(`exclusive_check_s`) 안에서 launch가 끝나도 실행 중 종료와 같이 조용히 끝낸다
+            rclpy.try_shutdown()
+            guard.close()
+            return
+        if not isinstance(e, RuntimeError):
+            raise
         get_logger(name).error(str(e))
         rclpy.try_shutdown()
+        guard.close()
         raise SystemExit(1)
-    except (KeyboardInterrupt, ExternalShutdownException):
-        # 기동 확인 창(`exclusive_check_s`) 안에서 launch가 끝나도 실행 중 종료와 같이 조용히 끝낸다
-        rclpy.try_shutdown()
-        return
     limit = stall_dump_s()
     if limit > 0.0:
         node.stall_watch = StallWatch(node.get_logger(), limit)
@@ -258,13 +267,15 @@ def spin_mock(node_cls, name: str, num_threads: int, args=None) -> None:
     try:
         while rclpy.ok() and node.conflict is None:
             executor.spin_once(timeout_sec=0.1)
-    except (KeyboardInterrupt, ExternalShutdownException):
-        pass
+    except BaseException as exc:
+        if not guard.is_shutdown(exc):
+            raise
     finally:
         if node.stall_watch is not None:
             node.stall_watch.stop()
         conflict = node.conflict
         node.destroy_node()
         rclpy.try_shutdown()
+        guard.close()
     if conflict is not None:
         raise SystemExit(1)

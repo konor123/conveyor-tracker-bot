@@ -43,6 +43,7 @@ from .dynamic_place import (BeltInfo, DynamicPlaceCfg, DynamicPlaceSequencer, Ga
                             PlaceGoal, TrackInfo, run_keep_sync_retreat)
 from .fake_backend import SimulatedBackend
 from .fake_place_transport import SimulatedPlaceTransport
+from .node_shutdown import ShutdownGuard
 from .skill_logic import Result, SkillResult, StaticSkillCfg, StaticSkillExecutor
 from .stop_latch import ERROR_STOP_LATCHED, StopLatch
 
@@ -509,6 +510,8 @@ class RobotControllerNode(LifecycleNode):
             if seq.plan_velocity_xy is not None:
                 self._sync_velocity = (seq.plan_velocity_xy, time.monotonic())
             r = out.result
+            log = self.get_logger().info if r.result == Result.OK else self.get_logger().warning
+            log(f'DynamicPlace {seq.summary()}')            # REQ-ROB-018
             return SkillResult(r.result, r.reason_code, {**r.gate, **r.metrics, 'open_width_m': open_width},
                                released=bool(r.released))
         finally:
@@ -685,17 +688,22 @@ def _failed(detail: str):
 
 
 def main(args=None):
+    guard = ShutdownGuard()            # rclpy.init 전(REQ-SYS-007)
     rclpy.init(args=args)
-    node = RobotControllerNode()
-    executor = MultiThreadedExecutor(num_threads=4)
-    executor.add_node(node)
+    node = None
     try:
+        node = RobotControllerNode()
+        executor = MultiThreadedExecutor(num_threads=4)
+        executor.add_node(node)
         executor.spin()
-    except (KeyboardInterrupt, rclpy.executors.ExternalShutdownException):
-        pass
+    except BaseException as exc:
+        if not guard.is_shutdown(exc):
+            raise
     finally:
-        node.destroy_node()
+        if node is not None:
+            node.destroy_node()
         rclpy.try_shutdown()
+        guard.close()
 
 
 if __name__ == '__main__':

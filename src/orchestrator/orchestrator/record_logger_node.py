@@ -18,11 +18,12 @@ from drop_interfaces.msg import StepRecord
 from rcl_interfaces.msg import ParameterEvent, ParameterType
 from rcl_interfaces.srv import GetParameters
 from rclpy.callback_groups import ReentrantCallbackGroup
-from rclpy.executors import ExternalShutdownException, MultiThreadedExecutor
+from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 
 from .ros_qos import no_sub_events
+from .node_shutdown import ShutdownGuard
 
 
 def _time_to_s(t) -> float:
@@ -347,17 +348,22 @@ class RecordLoggerNode(Node):
 
 
 def main(args=None):
+    guard = ShutdownGuard()            # rclpy.init 전(REQ-SYS-007)
     rclpy.init(args=args)
-    node = RecordLoggerNode()
-    executor = MultiThreadedExecutor(num_threads=4)
-    executor.add_node(node)
+    node = None
     try:
+        node = RecordLoggerNode()
+        executor = MultiThreadedExecutor(num_threads=4)
+        executor.add_node(node)
         executor.spin()
-    except (KeyboardInterrupt, ExternalShutdownException):
-        pass
+    except BaseException as exc:
+        if not guard.is_shutdown(exc):
+            raise
     finally:
-        node.destroy_node()
+        if node is not None:
+            node.destroy_node()
         rclpy.try_shutdown()
+        guard.close()
 
 
 if __name__ == '__main__':

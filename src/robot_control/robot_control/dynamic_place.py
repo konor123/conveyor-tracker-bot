@@ -471,6 +471,8 @@ class DynamicPlaceSequencer:
         self._commit_t = None
         self._released_t = None
         self._final_reason = ''
+        self.phase_log: list[tuple[str, float]] = []     # (phase, 진입 ROS 시각), 진단 한 줄용(REQ-ROB-018)
+        self.gate_holds: dict[str, int] = {}             # commit 전 게이트가 닫혀 기다린 주기 수(이유별)
         self._retreat: KeepSyncRetreat | None = None
         self._open_width = goal.open_width_m if _finite(goal.open_width_m) and goal.open_width_m > 0 \
             else self.cfg.open_width_m
@@ -487,6 +489,22 @@ class DynamicPlaceSequencer:
     @property
     def release_xy(self):
         return tuple(self.plan.release_xy_m) if self.plan is not None else None
+
+    @property
+    def commit_t(self) -> float | None:
+        return self._commit_t
+
+    def summary(self) -> str:
+        """goal 끝 진단 한 줄(REQ-ROB-018): 결과, 단계 진입 시각(goal 시작 기준), RELEASE 진입→commit, 게이트 대기 이유."""
+        r = self.result
+        head = f'{r.result.name} {r.reason_code or "-"}' if r is not None else 'RUNNING -'
+        t0 = self._start
+        marks = [(p, t) for p, t in self.phase_log] + ([('commit', self._commit_t)] if self._commit_t is not None else [])
+        timeline = ' '.join(f'{p}@{t - t0:.3f}' for p, t in marks) if t0 is not None else '-'
+        rel = next((t for p, t in self.phase_log if p == 'RELEASE'), None)
+        wait = f'{self._commit_t - rel:.3f} s' if rel is not None and self._commit_t is not None else '-'
+        holds = ', '.join(f'{k}×{v}' for k, v in sorted(self.gate_holds.items())) or '-'
+        return f'{head}; 단계 {timeline}; RELEASE 진입→commit {wait}; 게이트 대기 {holds}'
 
     @property
     def plan_velocity_xy(self):
@@ -681,6 +699,7 @@ class DynamicPlaceSequencer:
         if not self.gate.ok:
             if self.gate.terminal or final:
                 return self._fail(fb, self.gate.reason)
+            self.gate_holds[self.gate.reason] = self.gate_holds.get(self.gate.reason, 0) + 1
             return None
         permit = ReleasePermit(ros, ros + h, (*(target + v_plan * h), z_rel), (*v_plan, 0.0), self._open_width,
                                c.release_hold_s, c.safe_z_m + c.retreat_margin_m, c.retreat_speed_mps,
@@ -760,6 +779,7 @@ class DynamicPlaceSequencer:
 
     def _enter(self, fb, phase, ros, e_xy=math.nan, v_rel=math.nan):
         self.phase, self._phase_t = phase, ros
+        self.phase_log.append((phase, ros))
         fb.append(self._fb(phase, False, {}, e_xy, v_rel))
 
     def _fail_sync(self, fb, reason):

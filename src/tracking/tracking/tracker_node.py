@@ -18,6 +18,7 @@ from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
 from std_msgs.msg import Header
 from tf2_msgs.msg import TFMessage
 from .association import Det
+from .node_shutdown import ShutdownGuard
 from .track_manager import TrackManager, LOST
 from .select_target import select_target
 
@@ -262,15 +263,20 @@ class TrackerNode(LifecycleNode):
 
 
 def main(args=None):
+    guard = ShutdownGuard()            # rclpy.init 전(REQ-SYS-007)
     rclpy.init(args=args)
-    node = TrackerNode()
+    node = None
     try:
+        node = TrackerNode()
         rclpy.spin(node)
-    except KeyboardInterrupt:
-        pass
+    except BaseException as exc:
+        if not guard.is_shutdown(exc):
+            raise
     finally:
-        node.destroy_node()
+        if node is not None:
+            node.destroy_node()
         rclpy.try_shutdown()
+        guard.close()
 
 
 if __name__ == '__main__':

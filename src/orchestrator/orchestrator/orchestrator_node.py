@@ -34,6 +34,7 @@ from .ros_qos import no_pub_events, no_sub_events
 from .common import AbortLevel, Mode, State
 from .cycle_runner import CapObservation, CycleRunner, DetectResult, DropGoal, OrchestratorCfg
 from .deadlines import dynamic_deadline
+from .node_shutdown import ShutdownGuard
 from .watchdogs import (BeltSteadyMonitor, ClockMonitor, FreshnessMonitor, GripperMonitor, HeartbeatMonitor,
                         cycle_watch_events)
 
@@ -504,12 +505,15 @@ class RosSkillPort:
         return None if m is None else meas_from_metrics(sj.ApproachMeas, m)
 
     def _phase_done(self, phase, deadline):
+        t0_ros, t0_steady = self.clock.ros_now(), time.monotonic()
+
         def has_fb():
             return any(fb.phase == phase and fb.phase_done for _, fb in self._feedback)
 
         def done():
             return has_fb() or (self._result_future is not None and self._result_future.done())
         if not self._wait(done, deadline):
+            self._phase_miss(phase, '대기 끝(제한시간·steady 상한·장애)', t0_ros, t0_steady)
             return None
         if not has_fb() and self._result_future is not None and self._result_future.result().result.result == 0:
             # 정상 result가 마지막 feedback보다 먼저 처리된 경우만 짧게 기다린다(정지 결과는 즉시, SPEC-100 4.10절)
@@ -517,9 +521,25 @@ class RosSkillPort:
         fb = next((fb for _, fb in self._feedback if fb.phase == phase and fb.phase_done), None)
         if fb is None:
             if self._result_future is not None and self._result_future.done():
-                self._terminal_fault(self._result_future.result().result)
+                r = self._result_future.result().result
+                self._phase_miss(phase, f'phase 끝 feedback 전에 결과(result={r.result} reason={r.reason_code})',
+                                 t0_ros, t0_steady)
+                self._terminal_fault(r)
             return None
         return metrics_of(fb)
+
+    def _phase_miss(self, phase, why, t0_ros, t0_steady):
+        """phase 끝 feedback을 받지 못한 경로를 남긴다(REQ-ORC-020). 판정은 바꾸지 않는다."""
+        now = self.clock.ros_now()
+        last = '-'
+        if self._feedback:
+            t, fb = self._feedback[-1]
+            last = f'{fb.phase}{" 끝" if fb.phase_done else ""} {now - t:.3f} s 전'
+        with self._fault_lock:
+            fault = self._fault.name if self._fault is not None else '-'
+        self.n.get_logger().warning(
+            f'{phase} 끝 feedback 없음: {why}; 대기 ROS {now - t0_ros:.3f} s·steady {time.monotonic() - t0_steady:.3f} s; '
+            f'마지막 feedback {last}; 장애 {fault}')
 
     def place_feedback(self, phase, deadline):
         m = self._phase_done(phase, deadline)
@@ -800,7 +820,8 @@ class OrchestratorNode(Node):
         if int(rec.result) != 0:
             # 실패한 단계의 사유·지표를 로그에 남긴다(StepRecord에는 detail이 없다)
             metrics = ', '.join(f'{k}={v:.4g}' for k, v in zip(rec.metric_keys, rec.metric_values))
-            self.get_logger().warning(f'{rec.step_name} {rec.reason_code} {rec.detail} [{metrics}]')
+            self.get_logger().warning(f'{rec.step_name} {rec.reason_code} {rec.detail} [{metrics}] '
+                                      f'단계 {rec.t_end - rec.t_start:.3f} s')
 
     def _publish_status(self):
         rs = self.robot_status
@@ -882,17 +903,22 @@ class OrchestratorNode(Node):
 
 
 def main(args=None):
+    guard = ShutdownGuard()            # rclpy.init 전(REQ-SYS-007)
     rclpy.init(args=args)
-    node = OrchestratorNode()
-    executor = MultiThreadedExecutor(num_threads=4)
-    executor.add_node(node)
+    node = None
     try:
+        node = OrchestratorNode()
+        executor = MultiThreadedExecutor(num_threads=4)
+        executor.add_node(node)
         executor.spin()
-    except (KeyboardInterrupt, rclpy.executors.ExternalShutdownException):
-        pass
+    except BaseException as exc:
+        if not guard.is_shutdown(exc):
+            raise
     finally:
-        node.destroy_node()
+        if node is not None:
+            node.destroy_node()
         rclpy.try_shutdown()
+        guard.close()
 
 
 if __name__ == '__main__':

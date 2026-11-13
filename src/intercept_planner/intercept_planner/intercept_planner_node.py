@@ -19,6 +19,7 @@ from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
 from std_msgs.msg import Header
 from visualization_msgs.msg import Marker
 from .intercept import PlannerParams, PlanRequest
+from .node_shutdown import ShutdownGuard
 from .plan_session import PlanSession
 from .prediction import TrackState
 
@@ -211,15 +212,20 @@ class InterceptPlannerNode(LifecycleNode):
 
 
 def main(args=None):
+    guard = ShutdownGuard()            # rclpy.init 전(REQ-SYS-007)
     rclpy.init(args=args)
-    node = InterceptPlannerNode()
+    node = None
     try:
+        node = InterceptPlannerNode()
         rclpy.spin(node)
-    except KeyboardInterrupt:
-        pass
+    except BaseException as exc:
+        if not guard.is_shutdown(exc):
+            raise
     finally:
-        node.destroy_node()
+        if node is not None:
+            node.destroy_node()
         rclpy.try_shutdown()
+        guard.close()
 
 
 if __name__ == '__main__':

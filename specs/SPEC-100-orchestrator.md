@@ -1,6 +1,6 @@
 # SPEC-100 orchestrator
 
-- 버전: v0.16
+- 버전: v0.17
 - 근거: PLAN.md 4절
 - REQ 영역: ORC
 
@@ -8,6 +8,7 @@
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
+| v0.17 | 2026-11-13 | phase 끝 feedback을 못 받은 경로를 경고로 남기고, 실패 단계 경고에 단계 길이를 붙인다(REQ-ORC-020) |
 | v0.16 | 2026-11-13 | Stop 해제 직후 goal: 수락 뒤 controller heartbeat 2개·`robot/status`를 새로 받은 다음 장애 latch 무장(REQ-ORC-012). WAIT_CAP 시간 예산 = `time_budget.evaluate_budget`, 동적 deadline = `deadlines.dynamic_deadline`(4.9절, REQ-ORC-019). `budget.x_reach_start_m`·`x_exit_m` ROS 파라미터. PRECHECK `BELT_UNSTEADY`는 지속 규칙(SPEC-110 REQ-ABT-013). 감시 latch 구간(4.8절) |
 | v0.15 | 2026-11-12 | PRECHECK 이유 코드 `CALIBRATION_MISMATCH`: vision 검출과 orchestrator `calibration_id`가 둘 다 있고 다르면(SPEC-600 REQ-CAL-005). vision 쪽이 비었으면 `CALIBRATION_INVALID`, orchestrator 쪽이 비었으면 비교하지 않는다 |
 | v0.14 | 2026-11-12 | WAIT_CAP `t_to_window_s`를 매 관측의 현재 track 위치·속도로 다시 계산(REQ-ORC-018). 선택 순간 한 번 받은 진입 예상 시각은 갓 생긴 track의 속도 추정을 그대로 담아 실영상에서 수~수십 s 늦었다 |
@@ -212,6 +213,8 @@ WAIT_CAP 예산은 `orchestrator_node`가 conveyor_frame의 대상 track 위치�
 
 수락 future가 미완료인 action은 취소 확인으로 간주하지 않는다. 늦게 수락한 goal에도 cancel을 보내고 terminal result(status 4·5·6)를 확인한다. 이전 모션 종료가 미확정이면 대체 모션을 보내지 않는다. feedback은 goal별 token으로 격리한다. 포트 대기의 steady 예산은 진입 시 남은 ROS deadline 시간 × `watchdog.cycle_steady_factor_ratio`(기본 2.0)다(deadline 없는 호출은 1 s × 배율). ROS deadline 자체는 계속 검사한다. 포트 대기는 이 steady 예산, 사이클 steady 상한, 사용자 cancel, context 종료를 검사한다. 해제 뒤 비하드 장애의 후퇴·검증 규칙(REQ-ORC-010)은 유지한다. phase 끝 대기에서 action result가 정상(`OK`)으로 먼저 처리되고 그 phase의 `phase_done` feedback이 아직 없으면 0.2 s(ROS deadline 안)까지 더 기다린다. 정상이 아닌 result(`STOPPED` 등)는 기다리지 않는다.
 
+phase 끝 대기가 feedback 없이 끝나면(포트가 None → `STEP_TIMEOUT`) 판정은 그대로 두고 경고 한 줄을 남긴다: phase, 경로(대기 끝 = ROS deadline·steady 상한·장애 / phase 끝 feedback 전에 결과, 이때 result 코드와 `reason_code`), 대기 시작 뒤 ROS·steady 경과, 마지막으로 받은 feedback의 phase·끝 여부·나이, latch된 장애. 실패한 단계 기록 경고(REQ-ORC-017)에는 단계 길이(`t_end − t_start`, ROS)를 붙인다.
+
 ## 5. 시간 제약(주기·제한시간)
 
 | 상태 | 제한시간 [s] |
@@ -253,6 +256,7 @@ WAIT_CAP 예산은 `orchestrator_node`가 conveyor_frame의 대상 track 위치�
 - REQ-ORC-015: `PlaceStone`·`DynamicPlace`처럼 여러 단계(APPROACH~RETREAT)를 한 goal이 수행할 때 `goal.deadline`은 전송 시각 + 그 goal이 거치는 단계 제한시간의 합(동적: `approach_s + synchronize_s + descend_s + release_s + retreat_s` = 10.5 s, STATIC: SYNCHRONIZE 제외 8.5 s)이다. APPROACH 단계 deadline을 넣지 않는다. 단계·동적·사이클 deadline은 실행기가 포트 대기와 cancel로 집행한다. 대역 소요시간 축척 1.0(`DynamicPlace` 3.0 s)에서 한 사이클이 SUCCESS다.
 - REQ-ORC-016: WAIT_CAP 대기 중 관측이 `target_lost`이면 `passes_skipped`를 올리지 않고 같은 `pass_index`로 `select_target`을 다시 호출한다. 실제 tracker가 WAIT_CAP 도중 초기화(epoch +1)되어도 그 통과에서 사이클이 SUCCESS로 끝난다.
 - REQ-ORC-017: WAIT_CAP이 대기(`WAIT`) 중에 통과 제한·사이클 제한·장애로 끝나면 그 기록에 마지막 대기 판정의 지표와 사유(`detail`, 예 `OBSERVATION_COUNT`·`TOO_EARLY`·`TRACK_NOT_OBSERVED`)를 남긴다. 대상을 한 번도 얻지 못했으면 `detail`은 `NO_TARGET`이고 지표는 없다. `orchestrator_node`는 실패한 단계 기록마다 단계·사유·`detail`·지표를 WARN 로그로 남긴다.
+- REQ-ORC-020: phase 끝 대기가 feedback 없이 끝나면 `orchestrator_node`는 4.10절 경고를 정확히 한 줄 남긴다. controller 결과가 먼저 끝난 경우 그 result 코드와 `reason_code`(예 `GATE_TRACK_STALE`)가, 대기가 끝난 경우 ROS·steady 경과가 들어가며, 단계 판정·중단 등급은 바뀌지 않는다.
 - REQ-ORC-010: 포트 대기는 해제 전에는 latch된 모든 장애로, RELEASE 응답 뒤에는 하드 이상으로만 끝난다. latch된 비하드 장애는 하드 이상으로 바뀌고, 하드 이상은 비하드 장애로 바뀌지 않는다.
 
 ## 7. 성공 판정(측정 가능)
@@ -263,7 +267,7 @@ WAIT_CAP 예산은 `orchestrator_node`가 conveyor_frame의 대상 track 위치�
 
 ## 8. 검증 방법(`TEST_SPEC.md` TC ID, 게이트)
 
-TC-ORC-001-01 ~ TC-ORC-012-02(U, M0), TC-ORC-013-01~TC-ORC-019-01(U, G4). ROS 수준은 TC-INT-001-01, TC-INT-005-01, TC-INT-006-01, TC-INT-008-01, TC-INT-009-01(실제 tracker·planner, REQ-ORC-013), TC-INT-010-01(실시간 축척, REQ-ORC-015), TC-INT-011-01(대상 재선택, REQ-ORC-016), TC-INT-013-01(MODE_STATIC 전체 상태 열, REQ-ORC-001).
+TC-ORC-001-01 ~ TC-ORC-012-02(U, M0), TC-ORC-013-01~TC-ORC-019-01(U, G4), TC-ORC-020-01(U, G4, `test_phase_miss_log.py`). ROS 수준은 TC-INT-001-01, TC-INT-005-01, TC-INT-006-01, TC-INT-008-01, TC-INT-009-01(실제 tracker·planner, REQ-ORC-013), TC-INT-010-01(실시간 축척, REQ-ORC-015), TC-INT-011-01(대상 재선택, REQ-ORC-016), TC-INT-013-01(MODE_STATIC 전체 상태 열, REQ-ORC-001).
 
 ## 9. 미결 사항
 
