@@ -52,7 +52,7 @@ class TrackerNode(LifecycleNode):
         self.active = False
         self.state_id = State.PRIMARY_STATE_UNCONFIGURED
         self.manager = None
-        self._last_received = None
+        self._last_received = self._newest_input_t = None
         self._jumped = False
         self._seq = 0
         # 관측 프레임 시각(float 초) → 입력 header.stamp. 1.76e9 s에서 float 분해능은 약 240 ns라
@@ -106,7 +106,7 @@ class TrackerNode(LifecycleNode):
             if previous is not None:
                 self.manager.epoch = previous.epoch
                 self.manager._next_id = previous._next_id
-            self._last_received = None
+            self._last_received = self._newest_input_t = None
         except (ValueError,TypeError) as exc:
             self.get_logger().error(str(exc))
             return TransitionCallbackReturn.FAILURE
@@ -124,7 +124,7 @@ class TrackerNode(LifecycleNode):
         self.state_id = State.PRIMARY_STATE_INACTIVE
         if self.manager is not None:
             self.manager.reset()
-        self._last_received = None
+        self._last_received = self._newest_input_t = None
         return TransitionCallbackReturn.SUCCESS
 
     def on_cleanup(self, state):
@@ -152,7 +152,7 @@ class TrackerNode(LifecycleNode):
                 self.manager.reset()
                 reset = True
             if reset:
-                self._last_received = None
+                self._last_received = self._newest_input_t = None
                 back = 'unknown' if previous is None else f'{previous-now:.3f} s'
                 self.get_logger().warn(
                     f'ROS time went backwards ({back}): tracks cleared, epoch -> {self.manager.epoch}')
@@ -166,19 +166,24 @@ class TrackerNode(LifecycleNode):
         t = seconds(msg.header.stamp)
         if self.manager.t_state is not None and t < self.manager.t_state:
             # 늦은 프레임도 입력이 이어지는 증거다. 세지 않으면 빈 프레임이 t_state를 계속 당겨
-            # 지연 > input_timeout_s인 입력이 영영 버려진다(REQ-TRK-015)
-            self._last_received = now
+            # 지연 > input_timeout_s인 입력이 영영 버려진다(REQ-TRK-015). 다만 같은 좌표계이고 stamp가 지금까지
+            # 받은 입력보다 앞으로 갈 때만 센다: stamp가 멈춘 흐름·다른 좌표계 흐름은 입력 정지처럼 빈 프레임으로
+            # track을 늙힌다(SelectTarget은 현재 시각 신선도를 따로 보지 않는다)
+            if msg.header.frame_id == 'robot_base' and self._advances(t):
+                self._last_received = now
             self.manager.process_frame(t, [])  # preserve the pure dropped-frame counter
             return
         if msg.header.frame_id != 'robot_base':
             return
+        advanced = self._advances(t)
         rotation = self._inverse[:3,:3]
         dets = []
         for d in msg.detections:
             position = (self._inverse @ [d.position.x,d.position.y,d.position.z,1.])[:3]
             covariance = rotation @ np.asarray(d.position_cov).reshape(3,3) @ rotation.T
             dets.append(Det(position, covariance[:2,:2], d.object_class, d.position_valid))
-        self._last_received = now
+        if advanced:                       # 같은 stamp가 되풀이되는 흐름은 입력이 이어지는 증거가 아니다(REQ-TRK-015)
+            self._last_received = now
         self._input_stamps[t] = msg.header.stamp
         while len(self._input_stamps) > self.INPUT_STAMPS_KEPT:
             self._input_stamps.popitem(last=False)
@@ -191,6 +196,13 @@ class TrackerNode(LifecycleNode):
                 f'[{m.x_obs_min_m:.3f}, {m.x_obs_max_m:.3f}] m were ignored and no track was ever created '
                 f'(last x {m.last_ignored_x:.3f} m): check T_base_conveyor and region.*',
                 throttle_duration_sec=30.0)
+
+    def _advances(self, t: float) -> bool:
+        """입력 stamp가 지금까지 받은 robot_base 입력의 가장 늦은 stamp보다 뒤면 True로 기록한다."""
+        if self._newest_input_t is not None and t <= self._newest_input_t:
+            return False
+        self._newest_input_t = t
+        return True
 
     def _tick(self):
         now = self._check_clock()
@@ -244,7 +256,7 @@ class TrackerNode(LifecycleNode):
     def _reset(self, req, res):
         if self._guard(req,res):
             result = self.manager.reset(req.region)
-            self._last_received = None
+            self._last_received = self._newest_input_t = None
             self.get_logger().info(f'ResetTracking: tracks cleared, epoch -> {result.new_epoch}')
             res.result,res.new_epoch = result.result,result.new_epoch
         return res

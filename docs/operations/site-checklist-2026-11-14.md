@@ -13,7 +13,8 @@ git diff --stat e509c87 HEAD -- src/static_pick_place src/vision src/calibration
   src/robot_control/robot_control/drl_common.py src/robot_control/robot_control/motion_adapter.py
 ```
 
-- 출력이 비어 있으면 정적 경로 코드는 검증한 그대로다. 비어 있지 않으면 바뀐 파일과 그 커밋의 시험 기록(`records/worklog/`)을 보고, 의심되면 `e509c87`을 받은 별도 사본에서 정적 투입을 실행한다.
+- 11-14 vision 반영 뒤 예상 출력은 `src/vision/vision/pipeline.py`·`src/vision/vision/vision_node.py`와 vision 시험 파일뿐이다. 바뀐 것은 ROI를 잘라 계산하는 기능이고, 정적 투입은 이 기능을 켜지 않아 이전과 같이 전체 프레임을 계산한다(TC-VIS-011-03). 저장한 실제 프레임 82장에서 켬·끔 결과가 같았다(`records/reviews/evidence/vision-crop-2026-11-14/result.txt`).
+- 그 밖의 파일이 나오면 그 커밋의 시험 기록(`records/worklog/`)을 보고, 의심되면 `e509c87`을 받은 별도 사본에서 정적 투입을 실행한다.
 
 ## 2. 시작 전에 확인할 것
 
@@ -36,7 +37,7 @@ git diff --stat e509c87 HEAD -- src/static_pick_place src/vision src/calibration
 
 ## 4. 실시간 추적을 띄울 때
 
-- `main`의 vision은 1280×800 프레임 하나에 약 160 ms(6.6 Hz)다. 검출 지연이 tracker의 `input_timeout_s`(0.2 s)를 넘으면 tracker가 스스로 회복하지 못한다. 그때는 tracker lifecycle을 다시 시작해야 했다(11-13). 이 두 문제의 수정이 `main`에 들어갔는지는 `records/patches/README.md`의 반영 상태 칸에서 확인한다.
+- 11-13 현장에서 vision은 1280×800 프레임 하나에 약 160 ms(6.6 Hz)였고, 검출 지연이 tracker의 `input_timeout_s`(0.2 s)를 넘으면 tracker가 스스로 회복하지 못해 lifecycle을 다시 시작해야 했다. 두 문제의 수정(REQ-VIS-011, REQ-TRK-015)이 `main`에 들어갔는지는 `records/patches/README.md`의 반영 상태 칸에서 확인한다. 들어갔다면 `vision_node`만 ROI를 잘라 계산한다(사무실 PC 저장 프레임 평균 약 26 ms). 실기 카메라에서의 처리 속도는 현장에서 다시 잰다.
 - 실시간 추적은 로봇 지령 없이 `replay.launch.py`를 bag 없이 `use_sim_time:=false`로 띄운다(11-13 구성).
 
 ## 5. 예측 해제 지점 비접촉 시험 도구

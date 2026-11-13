@@ -31,7 +31,7 @@ from calibration.repo_paths import resolve_path
 
 from .geometry_files import load_geometry
 from .localizer import HeightParams
-from .pipeline import SceneConfig, process_frame
+from .pipeline import CROP_MARGIN_PX, SceneConfig, process_frame
 from .stable_window import DetectionWindow, WindowParams
 
 
@@ -124,7 +124,8 @@ class VisionNode(LifecycleNode):
             self._scene = SceneConfig(mat_roi=roi('mat_roi_px', REGION_MAT),
                 belt_roi=roi('belt_roi_px', REGION_BELT), classes={1: color('stone'), 2: color('cap')},
                 detect=DetectParams(**detector['detect']),
-                inside=InsideParams(inner_diameter_ratio=detector['inner_diameter_ratio']))
+                inside=InsideParams(inner_diameter_ratio=detector['inner_diameter_ratio']),
+                crop_margin_px=CROP_MARGIN_PX)          # 실시간 경로만 ROI를 잘라 계산(REQ-VIS-011)
             self._window_params = WindowParams(std_max_m=self.value('window_std_max_m'),
                 std_max_px=detector['window']['std_max_px'],
                 presence_min_ratio=self.value('presence_min_ratio'), gate_m=self.value('gate_m'),

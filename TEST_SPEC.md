@@ -384,8 +384,10 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-VIS-008-02 | `DetectObjects` deadline | C | `[ON]` | 이미 지난 deadline / 처리 중 경과 | 즉시 `TIMEOUT` / `TIMEOUT` |
 | TC-VIS-009-01 | 투입 자동 확인(합성) | U | `[ON]` | 정상 투입(1 s 유지) / 가림으로 미확인 / 0.9 s 안에 있다가 나감 / 튕겨 나가 벨트 위 / 그리퍼에 붙음 | SUCCESS / UNKNOWN / UNKNOWN / UNKNOWN / UNKNOWN(FAILURE를 내지 않음) |
 | TC-VIS-010-01 | 실데이터 검출 회귀 | I1 | `[ON*]` | `off1_bags` replay | 라벨 프레임 recall ≥ 99%, 오선택 ≤ 1%(class별) |
-| TC-VIS-011-01 | ROI 잘라 계산 | U | `[ON]` | 640×400 합성 장면을 1280×800 바탕 가운데에 넣고 ROI 2개 | 검출기에 넘긴 영상 면적 < 전체의 50%, 호출 2회 |
+| TC-VIS-011-01 | ROI 잘라 계산 | U | `[ON]` | 640×400 합성 장면을 1280×800 바탕 가운데에 넣고 ROI 2개, `crop_margin_px` 64 | 검출기에 넘긴 영상 면적 < 전체의 50%, 호출 2회 |
 | TC-VIS-011-02 | 잘라 계산한 결과 동일 | U | `[ON]` | TC-VIS-011-01 장면 | 전체 프레임 ROI별 `detect`와 class·region·중심(1e-6 px)·지름·공분산·윤곽 일치, 검출 4개 |
+| TC-VIS-011-03 | crop 끔(기본)은 전체 프레임 | U | `[ON]` | TC-VIS-011-01 장면, `crop_margin_px` 없음(정적 투입 경로) | 기본값 None, 검출기 호출 2회 모두 전체 영상 크기 |
+| TC-VIS-011-04 | crop 켬 = 끔(경계 사례) | U | `[ON]` | 반 픽셀 꼭짓점·홀수 offset(321, 201 px) / ROI가 영상 네 변에 닿는 640×400 장면 / 영상 밖 벨트 ROI / 뚜껑 색 막대가 벨트 ROI 아래로 150 px 이어짐 | class·region·중심·지름·공분산·윤곽 같음, 검출 4 / 4 / 1 / 4 |
 
 ### 3.6 TRK — 추적
 
@@ -415,6 +417,7 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-TRK-014-01 | 관측 구간 밖 새 track 금지 | U | `[ON]` | 관측 구간 0~0.10 m: 상류 밖 검출 / 20 mm/s로 0 → 0.133 m 통과 / 경계 x −0.1 mm, 0, 0.10 m, 0.1001 m | track 없음 / track 1개·`LOST` 1회, 구간 끝 뒤 새 track 0 / 없음, 생성, 생성, 없음 |
 | TC-TRK-014-02 | 구간 밖 검출만 있을 때 경고 | C | `[ON]` | 항등 변환·구간 ±0.35 m에 x 0.8 m 검출 89프레임 / 90번째 프레임 | track 0개·WARN 0건 / WARN 1건(구간 밖, 마지막 x 0.800 포함) |
 | TC-TRK-015-01 | 늦은 검출의 수신 공백 뒤 회복 | C | `[ON]` | 검출 stamp = 수신 − 0.3 s, 0.15 s 간격 4프레임 → 수신 공백 0.25 s → 같은 지연으로 14프레임 | 마지막 검출 stamp가 track `last_observed_stamp`로 나온다 |
+| TC-TRK-015-02 | 앞으로 가지 않는 늦은 흐름은 수신이 아니다 | C | `[ON]` | 검출 1개(stamp 100.0 s) 뒤 0.05 s마다 (a) 같은 stamp 100.0 s 되풀이 (b) `robot_base`가 아닌 좌표계, stamp = 수신 − 2 s, ROS 시각 101.4 s까지 | 둘 다 track status LOST(2)에 도달 |
 
 ### 3.7 PLN — 계획
 

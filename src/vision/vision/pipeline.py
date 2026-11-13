@@ -20,6 +20,9 @@ class SceneConfig:
     detect: DetectParams = field(default_factory=DetectParams)
     inside: InsideParams = field(default_factory=InsideParams)
     scene: SceneParams = field(default_factory=SceneParams)
+    # ROI 사각형 + 이 여유[px]만 잘라 검출한다(REQ-VIS-011). None이면 끈다(전체 프레임, 정적 투입 경로).
+    # 실시간 vision_node만 켠다
+    crop_margin_px: int | None = None
 
 
 @dataclass(frozen=True)
@@ -61,23 +64,37 @@ def _rois(image_bgr, cfg: SceneConfig) -> list[Roi]:
 CROP_MARGIN_PX = 64     # ROI 끝에 중심이 걸친 뚜껑(지름 ≤ 52 px)과 형태 연산 커널이 잘리지 않는 여유
 
 
-def _detect_in_crop(image_bgr, roi: Roi, classes, robot_mask, params) -> list[Blob]:
+def _detect_in_crop(image_bgr, roi: Roi, classes, robot_mask, params, margin: int = CROP_MARGIN_PX) -> list[Blob]:
     """ROI를 감싸는 사각형(+ 여유)만 잘라 detect를 부르고 픽셀 좌표를 원래 프레임으로 되돌린다(REQ-VIS-011).
 
     detect는 넘긴 영상 전체를 계산한다. 1280×800 전체를 넘기면 프레임당 약 160 ms였다(2026-11-13 현장).
+    - 꼭짓점은 `Roi.mask`와 같이 먼저 반올림한 정수로 옮긴다(짝수 반올림은 평행이동에 대해 불변이 아니다).
+    - 범위는 영상 안으로 자르고, 영상과 겹치지 않으면 검출 없음(전체 프레임에서도 ROI 마스크가 비어 없음).
+    - 영상 경계가 아닌 crop 경계에 닿은 검출은 버린다. 중심이 ROI 안인 유효 대상물은 ROI 사각형 밖으로 `margin`까지
+      닿지 못하므로, 닿은 것은 crop에 잘린 큰 성분(팔·손 등)이다. 전체 프레임에서는 크기·원형도로 빠지는 것이다.
     """
     poly = np.round(np.asarray(roi.polygon, np.float64)).astype(np.int64)
     H, W = image_bgr.shape[:2]
-    x0 = max(int(poly[:, 0].min()) - CROP_MARGIN_PX, 0)
-    y0 = max(int(poly[:, 1].min()) - CROP_MARGIN_PX, 0)
-    x1 = min(int(poly[:, 0].max()) + CROP_MARGIN_PX + 1, W)
-    y1 = min(int(poly[:, 1].max()) + CROP_MARGIN_PX + 1, H)
-    crop_roi = Roi(roi.region, tuple((u - x0, v - y0) for u, v in roi.polygon))
+    x0 = min(max(int(poly[:, 0].min()) - margin, 0), W)
+    y0 = min(max(int(poly[:, 1].min()) - margin, 0), H)
+    x1 = max(min(int(poly[:, 0].max()) + margin + 1, W), 0)
+    y1 = max(min(int(poly[:, 1].max()) + margin + 1, H), 0)
+    if x1 <= x0 or y1 <= y0:
+        return []
+    crop_roi = Roi(roi.region, tuple((int(u) - x0, int(v) - y0) for u, v in poly))
     mask = None if robot_mask is None else robot_mask[y0:y1, x0:x1]
     blobs = detect(image_bgr[y0:y1, x0:x1], crop_roi, classes, robot_mask=mask, params=params)
-    return [replace(b, u=b.u + x0, v=b.v + y0,
-                    contour=None if b.contour is None else b.contour + np.array([x0, y0], b.contour.dtype))
-            for b in blobs]
+    w, h = x1 - x0, y1 - y0
+    out = []
+    for b in blobs:
+        if b.contour is not None:
+            c = b.contour.reshape(-1, 2)
+            if ((x0 > 0 and c[:, 0].min() <= 0) or (y0 > 0 and c[:, 1].min() <= 0)
+                    or (x1 < W and c[:, 0].max() >= w - 1) or (y1 < H and c[:, 1].max() >= h - 1)):
+                continue
+        out.append(replace(b, u=b.u + x0, v=b.v + y0,
+                           contour=None if b.contour is None else b.contour + np.array([x0, y0], b.contour.dtype)))
+    return out
 
 
 def process_frame(image_bgr: np.ndarray, cfg: SceneConfig, geom: Geometry | None = None,
@@ -87,7 +104,10 @@ def process_frame(image_bgr: np.ndarray, cfg: SceneConfig, geom: Geometry | None
     for roi in _rois(image_bgr, cfg):
         classes = cfg.classes if roi.region == REGION_BELT else {
             c: m for c, m in cfg.classes.items() if c == CLASS_STONE}
-        blobs = _detect_in_crop(image_bgr, roi, classes, robot_mask, cfg.detect)
+        if cfg.crop_margin_px is None:
+            blobs = detect(image_bgr, roi, classes, robot_mask=robot_mask, params=cfg.detect)
+        else:
+            blobs = _detect_in_crop(image_bgr, roi, classes, robot_mask, cfg.detect, cfg.crop_margin_px)
         stones = [b for b in blobs if b.object_class == CLASS_STONE]
         caps = [b for b in blobs if b.object_class == CLASS_CAP]
         r_in = {id(c): 0.5 * c.diameter_px * cfg.inside.inner_diameter_ratio for c in caps}

@@ -1,12 +1,13 @@
 """pipeline.py·stable_window.py 단위 시험."""
+from dataclasses import replace
 import numpy as np
 import pytest
 
-from synth_images import BELT_BGR, CAP_INNER_RATIO, MAT_BGR, STONE_BGR, STONE_FLAT_PX, H, W, Canvas
+from synth_images import BELT_BGR, CAP_BGR, CAP_INNER_RATIO, MAT_BGR, STONE_BGR, STONE_FLAT_PX, H, W, Canvas
 from vision.detector import (CLASS_CAP, CLASS_STONE, REGION_BELT, REGION_MAT, Blob, ColorModel, InsideParams,
                              Roi)
 from vision.localizer import CameraModel, HeightParams, Plane, pixel_to_plane, select_plane
-from vision.pipeline import Detection, Geometry, SceneConfig, process_frame
+from vision.pipeline import CROP_MARGIN_PX, Detection, Geometry, SceneConfig, process_frame
 from vision.stable_window import FAILED, OK, DetectionWindow, WindowParams
 
 STONE = ColorModel(diameter_min_px=20.0, diameter_max_px=45.0)
@@ -117,15 +118,15 @@ def test_window_pixel_fallback_without_calibration():
     assert r.result == OK and all(np.isnan(s) for s in r.position_std)
 
 
-def _padded_scene(pad_u=320, pad_v=200):
-    """합성 장면을 1280×800 크기의 회색 바탕 가운데에 넣고, ROI도 같은 만큼 옮긴다."""
+def _padded_scene(pad_u=320, pad_v=200, frac=0.0, crop=CROP_MARGIN_PX):
+    """합성 장면을 1280×800 크기의 회색 바탕 가운데에 넣고, ROI도 같은 만큼(+ `frac` px) 옮긴다."""
     small = _two_region_image()
     big = np.full((H + 2 * pad_v, W + 2 * pad_u, 3), 128, np.uint8)
     big[pad_v:pad_v + H, pad_u:pad_u + W] = small
     cfg = _cfg()
-    shift = lambda roi: Roi(roi.region, tuple((u + pad_u, v + pad_v) for u, v in roi.polygon))
+    shift = lambda roi: Roi(roi.region, tuple((u + pad_u + frac, v + pad_v + frac) for u, v in roi.polygon))
     return big, SceneConfig(mat_roi=shift(cfg.mat_roi), belt_roi=shift(cfg.belt_roi), classes=cfg.classes,
-                            inside=cfg.inside)
+                            inside=cfg.inside, crop_margin_px=crop)
 
 
 @pytest.mark.req('REQ-VIS-011')
@@ -169,3 +170,62 @@ def test_roi_crop_gives_same_detections_as_full_frame():
         assert d.blob.diameter_px == pytest.approx(r.diameter_px, abs=1e-9)
         assert d.blob.center_cov_px == pytest.approx(r.center_cov_px, abs=1e-12)
         assert d.blob.contour is not None and np.array_equal(d.blob.contour, r.contour)
+
+
+@pytest.mark.req('REQ-VIS-011')
+@pytest.mark.tc('TC-VIS-011-03')
+@pytest.mark.level('U')
+def test_crop_off_passes_full_frame(monkeypatch):
+    """기본(crop 끔, 정적 투입 경로)은 이전과 같이 전체 프레임을 검출기에 넘긴다."""
+    import vision.pipeline as pipeline
+    image, cfg = _padded_scene(crop=None)
+    shapes = []
+    real = pipeline.detect
+
+    def spy(img, roi, *a, **k):
+        shapes.append(img.shape[:2])
+        return real(img, roi, *a, **k)
+
+    monkeypatch.setattr(pipeline, 'detect', spy)
+    assert SceneConfig().crop_margin_px is None
+    process_frame(image, cfg)
+    assert shapes == [image.shape[:2]] * 2
+
+
+def _same(image, cfg):
+    """crop 켬·끔의 검출이 class·region·중심·지름·공분산·윤곽까지 같으면 검출 수를 돌려준다."""
+    on = process_frame(image, replace(cfg, crop_margin_px=CROP_MARGIN_PX))
+    off = process_frame(image, replace(cfg, crop_margin_px=None))
+    key = lambda d: (d.blob.object_class, d.blob.region, round(d.blob.u, 6), round(d.blob.v, 6))
+    assert sorted(map(key, on)) == sorted(map(key, off))
+    for d in on:
+        r = next(x for x in off if key(x) == key(d))
+        assert d.blob.diameter_px == pytest.approx(r.blob.diameter_px, abs=1e-9)
+        assert d.blob.center_cov_px == pytest.approx(r.blob.center_cov_px, abs=1e-12)
+        assert np.array_equal(d.blob.contour, r.blob.contour)
+    return len(on)
+
+
+@pytest.mark.req('REQ-VIS-011')
+@pytest.mark.tc('TC-VIS-011-04')
+@pytest.mark.level('U')
+@pytest.mark.parametrize('case', ['half_pixel_odd_offset', 'roi_at_image_edge', 'roi_off_image',
+                                  'large_component_across_crop_edge'])
+def test_crop_on_equals_off(case):
+    """crop을 켜도 끈 것과 같다: 반 픽셀 꼭짓점과 홀수 offset, 영상 경계의 ROI, 영상 밖 ROI, crop 경계를 넘는 큰 성분."""
+    if case == 'half_pixel_odd_offset':
+        image, cfg = _padded_scene(pad_u=321, pad_v=201, frac=0.5)
+        assert _same(image, cfg) == 4
+    elif case == 'roi_at_image_edge':                    # ROI가 영상 네 변에 닿아 crop이 양쪽에서 잘린다
+        assert _same(_two_region_image(), replace(_cfg(), crop_margin_px=CROP_MARGIN_PX)) == 4
+    elif case == 'roi_off_image':
+        image, cfg = _padded_scene()
+        off_image = Roi(REGION_BELT, ((1400.0, 100.0), (1600.0, 100.0), (1600.0, 300.0), (1400.0, 300.0)))
+        assert _same(image, replace(cfg, belt_roi=off_image)) == 1        # 매트 공깃돌만
+    else:
+        # 뚜껑 색 막대가 벨트 ROI 안에서 ROI 아래로 150 px 넘게 이어진다(crop 여유 64 px보다 길다)
+        image, cfg = _padded_scene()
+        pad_u, pad_v = 320, 200
+        image = image.copy()
+        image[pad_v + H - 40:pad_v + H + 150, pad_u + 560:pad_u + 590] = CAP_BGR
+        assert _same(image, cfg) == 4

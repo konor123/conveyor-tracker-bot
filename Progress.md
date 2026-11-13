@@ -240,6 +240,7 @@
 - [ ] `[OFF]` OFF-5: 독립 GT로 오차 측정. 실기는 벨트 길이 ÷ 한 바퀴 시간, 또는 별도 영상(같은 카메라 결과끼리 비교하지 않음). sim GT는 `[ON]`
 - [ ] `[OFF]` OFF-5: 대기·접근·하강·해제 자세의 그리퍼·공깃돌이 카메라 시야에서 병뚜껑을 가리지 않는지 확인(컨베이어 배치 검증)
 - [ ] `[OFF]` OFF-5: 영상 처리 지연, 프레임 누락, 추적 손실 조건 확인
+  - 2026-11-13 현장 사전 확인(`records/sessions/OFF-4-2026-11-13.md`): vision 6.6 Hz(프레임 전체 계산), 검출 지연이 `input_timeout_s`를 넘으면 tracker가 회복하지 못함. 2026-11-14 `vision_node`만 ROI를 잘라 계산(REQ-VIS-011, 사무실 PC 저장 프레임 82장 평균 136 → 26 ms, 결과 같음)과 tracker 입력 수신 판정 수정(REQ-TRK-015)을 반영했다. 실기 카메라에서 다시 재는 것이 남은 조건이다.
 - [ ] `[OFF]` OFF-5: 현장 장비(LEGION)의 시스템 시계가 계단 보정되지 않는지 확인. `python3 tools/bench/check_clock_steps.py --duration 300`에서 계단 0건, `timedatectl timesync-status` 기록
   - 시스템 시각이 뒤로 가면 tracker가 모든 track을 지우고 epoch를 올리고(REQ-TRK-008, WARN 로그), 오케스트레이터는 사이클을 `CLOCK_JUMP`로 끝내며(REQ-ABT-012), 실제 controller의 동기화기는 `CLOCK_BACKWARD`로 멈춘다(REQ-ROB-013). 2026-11-13 집 PC WSL에서도 약 32.5 s마다 0.87 s 역행을 측정했다. 동적 시험 전에 이 확인은 필수다. 사무실 PC WSL에서 31.5 s마다 약 1 s 역행을 관측했고 원인은 WSL 안 `systemd-timesyncd`와 호스트 시간 동기의 충돌이었다(`records/worklog/2026-11-12.md`).
 

@@ -297,3 +297,31 @@ def test_late_detections_after_input_gap_are_tracked_again(rig):
     observed = [tr for msg in r.tracks[-5:] for tr in msg.tracks
                 if (tr.last_observed_stamp.sec, tr.last_observed_stamp.nanosec) == (last_stamp.sec, last_stamp.nanosec)]
     assert observed, 'late detections after an input gap were never tracked again'
+
+
+def _late(r, t_ros, t_stamp, frame_id='robot_base'):
+    """ROS 시각 `t_ros`에 stamp `t_stamp`인 검출 하나를 보낸다(늦은 프레임 시험용)."""
+    r.set_time(t_ros)
+    det = ObjectDetection(object_class=2, position_valid=True, position=Point(x=-.2, y=.01, z=.02),
+                          position_cov=list((np.eye(3)*9e-8).ravel()))
+    r.pub.publish(ObjectDetectionArray(header=Header(stamp=stamp(t_stamp), frame_id=frame_id), detections=[det]))
+    r.spin(.03)
+
+
+@pytest.mark.req('REQ-TRK-015')
+@pytest.mark.tc('TC-TRK-015-02')
+@pytest.mark.parametrize('kind', ['frozen_stamp', 'other_frame'])
+def test_late_input_that_does_not_advance_still_ages_tracks(rig, kind):
+    """stamp가 앞으로 가지 않는 흐름이나 다른 좌표계의 늦은 흐름은 입력 수신으로 세지 않는다. 그런 흐름이
+    `input_timeout_s`보다 자주 와도 빈 프레임이 들어가 track이 LOST까지 늙는다(SelectTarget은 OBSERVED만 고른다).
+    """
+    r = rig
+    frame(r, 100.)
+    t = 100.
+    while t < 101.4:
+        t += .05
+        if kind == 'frozen_stamp':                 # 마지막으로 받은 stamp가 되풀이된다
+            _late(r, t, 100.)
+        else:                                      # 늦은(2 s) 다른 좌표계 검출: 시험 내내 stamp가 t_state 뒤에 있다
+            _late(r, t, t - 2., frame_id='camera_color_optical_frame')
+    r.wait(lambda: any(a.tracks and a.tracks[0].status == 2 for a in r.tracks))

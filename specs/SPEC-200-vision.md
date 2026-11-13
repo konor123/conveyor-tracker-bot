@@ -1,6 +1,6 @@
 # SPEC-200 vision
 
-- 버전: v0.4
+- 버전: v0.5
 - 근거: PLAN.md 0.2-4, 4.5절
 - REQ 영역: VIS
 
@@ -8,6 +8,7 @@
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
+| v0.5 | 2026-11-14 | 잘라 계산은 실시간 `vision_node`만 켠다(정적 투입 경로는 전체 프레임). 반올림한 정수 꼭짓점을 옮기고, 영상과 겹치지 않는 ROI는 검출 없음, crop 경계에 닿은 검출은 버린다(REQ-VIS-011) |
 | v0.4 | 2026-11-13 | 검출은 ROI를 감싸는 사각형 + 64 px만 잘라 계산한다(REQ-VIS-011). 전체 1280×800 계산은 프레임당 160 ms였다(2026-11-13 현장) |
 | v0.3 | 2026-11-12 | 투입 자동 확인 순수 모듈 `verifier.py`의 입력·판정 규칙(4.6절), `max_gap_s`, REQ-VIS-009 |
 | v0.2 | 2026-11-10 | 투입 자동 확인은 SUCCESS/UNKNOWN만 낸다(실패 판정은 관찰자) |
@@ -84,7 +85,7 @@ SPEC-010 wire schema v0.2 기준.
 - REQ-VIS-007: 로봇 마스크와 겹친 검출은 `occluded_partial = true`로 표시하고 `DetectObjects` 개수에서 뺀다.
 - REQ-VIS-008: `DetectObjects`는 4.5절 안정 창을 쓰며 지터 0.3 mm는 OK, 0.6 mm는 FAILED, 지난 deadline은 즉시 TIMEOUT이다.
 - REQ-VIS-009: 투입 자동 확인(4.6절)은 선택한 병뚜껑에서 `stone_inside`가 `hold_time_s`(1 s) 이상 끊기지 않을 때만 SUCCESS이고, 가림·0.9 s 유지 뒤 이탈·벨트 위로 튕겨 나감·그리퍼에 붙음은 UNKNOWN이며, 어떤 입력에도 FAILURE를 내지 않는다.
-- REQ-VIS-011: `process_frame`은 ROI마다 ROI를 감싸는 사각형(+ 64 px)만 검출기에 넘기며, 결과(class·region·중심·지름·공분산·윤곽)는 전체 프레임에서 같은 ROI로 검출한 것과 같다.
+- REQ-VIS-011: `SceneConfig.crop_margin_px`가 정해지면(`vision_node`, 64 px) `process_frame`은 ROI마다 ROI를 감싸는 사각형(+ 여유)만 검출기에 넘긴다. 꼭짓점은 `Roi.mask`와 같이 반올림한 정수로 옮기고, 영상과 겹치지 않는 ROI는 검출이 없으며, 영상 경계가 아닌 crop 경계에 닿은 검출(중심이 ROI 안인 유효 대상물은 닿을 수 없는, crop에 잘린 큰 성분)은 버린다. 정하지 않으면(기본, 정적 투입 경로) 전체 프레임을 넘긴다. crop을 켠 결과(class·region·중심·지름·공분산·윤곽)는 끈 결과와 같다. 확인 범위는 합성 장면(정상, 반 픽셀 꼭짓점과 홀수 offset, 영상 네 변에 닿는 ROI, 영상 밖 ROI, crop 경계를 넘는 큰 성분)과 저장한 실제 1280×800 프레임 82장(자동 ROI, 정적 투입·`vision_node` 설정, 검출 144개)이다.
 
 ## 5. 시간 제약(주기·제한시간)
 

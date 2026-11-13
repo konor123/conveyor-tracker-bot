@@ -1,0 +1,2 @@
+static: frames 82, same 82, detections(off) 144, mean off 135.3 ms, mean on 25.9 ms
+vision_node: frames 82, same 82, detections(off) 144, mean off 136.3 ms, mean on 26.6 ms

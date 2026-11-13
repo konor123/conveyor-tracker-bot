@@ -191,9 +191,12 @@ class Harness:
         return wait_future(cli.call_async(typ.Request(**fields)), timeout)
 
     def action(self, typ, name, timeout=5.0) -> ActionClient:
+        """action client를 만들고 서버 발견을 `SERVICE_DISCOVERY_S`까지 기다린다(`call`과 같은 이유, 2026-11-14 CI
+        run 43453467009의 `robot/move_to_pose` 5 s 초과)."""
         ac = ActionClient(self.client, typ, name)
-        if not ac.wait_for_server(timeout_sec=timeout):
-            raise TimeoutError(f'action 서버 없음: {name}')
+        if not ac.wait_for_server(timeout_sec=max(timeout, SERVICE_DISCOVERY_S)):
+            nodes = sorted(f'{ns.rstrip("/")}/{n}' for n, ns in self.client.get_node_names_and_namespaces())
+            raise TimeoutError(f'action 서버 없음: {name} (노드 {nodes})')
         return ac
 
     def wait_until(self, t_ros: float) -> None:
