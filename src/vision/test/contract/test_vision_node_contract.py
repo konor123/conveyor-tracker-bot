@@ -139,6 +139,7 @@ def test_stable_window(rig, jitter_m, expected):
         assert result.reason_code == 'NOT_ENOUGH_STABLE'
 
 
+@pytest.mark.realtime_pc                # 응답 시간 상한(0.3 s·0.5 s)을 판정: CI는 기록만, 판정은 PC
 @pytest.mark.tc('TC-VIS-008-02')
 def test_deadlines(rig):
     node, cn, pub, client, _, beats = rig
