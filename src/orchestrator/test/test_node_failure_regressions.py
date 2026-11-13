@@ -607,7 +607,8 @@ def test_phase_done_gives_up_after_drain_and_stopped_result_is_immediate():
 @pytest.mark.req('REQ-ABT-010')
 @pytest.mark.level('U')
 def test_supervisor_logs_heartbeat_loss_and_seq_continuity_on_resume():
-    """진단: 손실 판정 때 마지막 수신 나이·seq·감시 주기 간격을, 재수신 때 빠진 seq 개수를 남긴다(판정은 바꾸지 않음)."""
+    """진단: 손실 판정 때 마지막 수신 나이·seq·감시 주기 간격을, 재수신 때 빠진 seq 개수와 발행 뒤 수신까지 시간을
+    남긴다(판정은 바꾸지 않음)."""
     stop = NS(Request=lambda **kw: NS(**kw))
     stop.Request.SUPERVISOR = 1
     env = load('safety_supervisor_node.py', ['SafetySupervisorNode'], Stop=stop, ERROR_PROTECTIVE_STOP=100)
@@ -625,7 +626,13 @@ def test_supervisor_logs_heartbeat_loss_and_seq_continuity_on_resume():
     assert 'CONTROLLER_HEARTBEAT_LOST' in logs[-1] and '0.310' in logs[-1] and 'seq 41' in logs[-1]
     latched[0] = None
     t[0] = 10.2
-    n._on_hb(NS(node_name='robot_controller_node', error_code=0, seq=42))
+    n.get_clock = lambda: NS(now=lambda: NS(nanoseconds=int(1000.45e9)))
+    n._on_hb(NS(node_name='robot_controller_node', error_code=0, seq=42,
+                header=NS(stamp=NS(sec=1000, nanosec=int(0.4e9)))))
     assert '41→42' in logs[-1] and '빠진 seq 0' in logs[-1] and '0.200' in logs[-1]
+    assert '발행 뒤 수신까지 0.050 s' in logs[-1]                     # 새로 발행된 것이 바로 왔다 = 발행이 늦었다
     n._on_hb(NS(node_name='robot_controller_node', error_code=0, seq=43))
     assert len(logs) == 2
+    n._ctrl_lost_at = 11.0
+    n._on_hb(NS(node_name='robot_controller_node', error_code=0, seq=44))     # stamp 없는 대역
+    assert '발행 뒤 수신까지 n/a' in logs[-1]

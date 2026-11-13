@@ -132,12 +132,21 @@ class SafetySupervisorNode(Node):
                 missing = (int(msg.seq) - prev - 1) if prev is not None else -1
                 self.get_logger().warning(
                     f'controller heartbeat 재수신: 손실 판정 {silent:.3f} s 뒤, seq {prev}→{msg.seq} '
-                    f'(빠진 seq {missing})')
+                    f'(빠진 seq {missing}), 발행 뒤 수신까지 {self._stamp_age(msg)}')
                 self._ctrl_lost_at = None
             self._ctrl_last_seq = int(msg.seq)
             self._ctrl_beats += 1
         if msg.error_code == ERROR_PROTECTIVE_STOP:
             self._tick()
+
+    def _stamp_age(self, msg) -> str:
+        """진단: 메시지 header stamp부터 지금까지의 ROS 시간. 작으면 발행이 늦었고, 크면 전달·처리가 늦었다."""
+        try:
+            st = msg.header.stamp
+            age = self.get_clock().now().nanoseconds * 1e-9 - (st.sec + st.nanosec * 1e-9)
+        except Exception:
+            return 'n/a'
+        return f'{age:.3f} s'
 
     def _on_status(self, msg: RobotStatus) -> None:
         self.monitor.on_robot_status(msg.connected, msg.protective_stop)

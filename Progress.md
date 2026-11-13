@@ -146,6 +146,7 @@
 - [ ] `[OFF]` OFF-2: 실제 노드 계약 테스트를 실기에 대해 재실행(안전 높이)
 - [ ] `[OFF]` OFF-2: I3. `mock_world_node` + 실제 로봇·그리퍼로 오케스트레이터 연동(안전 높이). deadline 자체 중단, stale 지령(L0), `Stop` 확인
 - [ ] `[OFF]` OFF-2: skill별 소요시간 분포 측정
+- [ ] `[OFF]` OFF-2: 매트 반납 위치 `place_back_xyz_m` 측정·설정, 안전 높이에서 SafeRetreat(`place_back`) 한 번 확인(REQ-ROB-016)
 - [ ] `[ON*]` 측정값으로 `PLAN.md` 6절 제한시간 1차 확정, `mock_robot_controller_node`·fake gripper의 소요시간·지연값 갱신
 - [x] `[ON]` 안전 절차 문서: 속도·가속 제한, 작업영역 제한, 비상정지 위치, 관찰자 역할, 보호 정지 후 재개 절차
   - `docs/operations/safety-procedure.md`(역할, 시작 전 점검, 설정 파일 기준 속도·가속·작업영역 표, 정지 방법, DRL PLAY 잔류 대응, Stop 해제·재개 순서, 그리퍼 한도, 기록). 비상정지·펜던트 위치는 현장에서 기입한다(아래 OFF-2 현장 확인).
@@ -283,9 +284,9 @@
 - [x] `[ON]` 초기 실험 조건 정의: 고정 자세, XY 동기 + Z 독립
   - SPEC-500 4.5절: XY는 추종 코어(REQ-ROB-013) 지령, z는 `z_kp_hz` 비례 지령을 별도 속도·가속 한도로 제한, 자세는 계획의 고정 공구 자세(SPEC-400 `target.tool_quat_xyzw`, 수직 하향). 접근 높이는 해제 높이 + `approach_above_m`이다.
 - [x] `[ON]` `DynamicPlace` 액션의 접근·동기 구간 먼저 구현, `intercept_plan` revision·epoch 확인
-  - APPROACH → SYNCHRONIZE → DESCEND → RELEASE(해제 게이트, commit 1회) → RETREAT 전체를 구현했다(SPEC-500 v0.7 4.5절, REQ-ROB-008~010, TC-ROB-008·009·010). transport 경계는 해제 확정이라 스트림 + 상주 루프와 한 DRL 프로그램 방식을 같은 게이트로 바꿔 끼운다(`records/reviews/fable-decisions-2026-11-12.md` (a)). 가짜 transport: TCP 1차 지연 29 ms·개방 지연 0.1 s(가정값). 2026-11-13 집 PC WSL robot_control 236 passed.
+  - APPROACH → SYNCHRONIZE → DESCEND → RELEASE(해제 게이트, commit 1회) → RETREAT 전체를 구현했다(SPEC-500 v0.7 4.5절, REQ-ROB-008~010, TC-ROB-008·009·010). transport 경계는 해제 확정이라 스트림 + 상주 루프와 한 DRL 프로그램 방식을 같은 게이트로 바꿔 끼운다(`records/reviews/fable-decisions-2026-11-12.md` (a)). 가짜 transport: TCP 1차 지연 29 ms(2026-11-07 speedl 100 Hz 부하 측정)·개방 지연 0.1 s(가정값). 2026-11-13 집 PC WSL robot_control 236 passed.
 - [x] `[ON*]` `mock_robot_controller_node`에 TCP 1차 지연 모델 추가(G0 측정값 사용)
-  - `drop_mocks/tcp_lag.py` 1차 지연(시정수 29 ms = 2026-11-07 speedl 100 Hz 부하 측정 지연, 실제 노드 가짜 transport와 같은 값). 기본으로 켜고 `tcp_lag_s:=0`이면 대본 값이다. 동적 phase feedback의 `e_xy`·`v_rel`과 `robot/status` TCP가 이 모델 값이고, 기준 궤적은 goal에서 처음 받은 revision으로 고정한다(REQ-MCK-009, TC-MCK-009-01·02). 2026-11-13 사무실 PC WSL drop_mocks 87 passed, 지연 모델을 켠 I0 18 passed.
+  - `drop_mocks/tcp_lag.py` 1차 지연(시정수 29 ms = 2026-11-07 speedl 100 Hz 부하 측정 지연, 실제 노드 가짜 transport와 같은 값). 기본으로 켜고 `tcp_lag_s:=0`이면 대본 값이다. 동적 phase feedback의 `e_xy`·`v_rel`과 `robot/status` TCP가 이 모델 값이고, 기준 궤적은 goal에서 처음 받은 revision으로 고정한다(REQ-MCK-009, TC-MCK-009-01·02). 2026-11-13 사무실 PC WSL drop_mocks 89 passed, 지연 모델을 켠 I0 18 passed.
 - [x] `[ON]` plan 갱신 중단·epoch 변경·만료 시 `DynamicPlace`가 `PLAN_INVALID`로 끝나고, 이미 받은 것 이하의 revision은 무시하는지 확인(fake transport, TC-ROB-008-01)
   - TC-ROB-008-01·02·03, `UNCERTAIN` revision은 래치하지 않고 마지막 OK 계획을 `uncertain_hold_s` 0.6 s 동안 따른다(TC-ROB-013-08). 2026-11-13 집 PC WSL robot_control 236 passed.
 - [ ] `[OFF]` OFF-5: **비접촉 동기 추종**. 안전 높이(병뚜껑 테두리 위 30 mm)에서 추종만 시험(I3: 합성 tracked → 실제 planner → 실제 controller, 실제 planner가 낸 `plan_id`·`revision`·`epoch`을 controller가 따르는지 확인 → I5: 실제 병뚜껑)

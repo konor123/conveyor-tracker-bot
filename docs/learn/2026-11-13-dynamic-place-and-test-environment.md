@@ -112,3 +112,7 @@ replay launch 시험은 로봇 지령 경로가 그래프에 0개인지 본다. 
 실기 연결이 없는 기본 bringup(`robot_backend` 기본 `disabled`)에 오케스트레이터를 켜면 Stop이 끝없이 반복됐다. controller가 `connected=false`를 내면 감시 노드가 `ROBOT_COMM_LOST`(L4)로 `robot/stop`을 부르고, controller는 정지 유지를 걸지만 확인할 backend가 없어 `stopped=false`로 답한다. 감시 노드는 0.1 s 뒤 다시 보낸다. 12 s 동안 Stop 60회, 경고 61줄이었다.
 
 쉬워 보이는 해법은 disabled backend가 `stopped=true`로 답하는 것이다. 그러면 로봇을 볼 수 없는 쪽이 정지 확인을 지어내게 된다. `stopped`는 "정지를 확인했다"는 뜻이다(SPEC-010, REQ-ROB-007). 대신 재시도 간격을 늘렸다. `stopped=false`가 이어지면 0.1 s에서 두 배씩 늘려 1 s를 상한으로 하고, 경고는 처음과 5 s마다만 남긴다. 안전 효과는 줄지 않는다. controller는 Stop을 받는 즉시 정지 유지를 걸고(REQ-ROB-014), `stopped=false`는 Stop이 전달됐다는 뜻이기 때문이다. 전달 여부가 불확실한 서비스 부재·호출 예외는 0.1 s를 그대로 두고, 사유가 바뀌면 바로 보낸다. 판단 근거와 버린 선택지는 `records/reviews/stop-retry-decision-2026-11-13.md`에 있다.
+
+## 16. 간헐 실패는 진단 로그를 넣고 다음 발생을 기다린다
+
+CI에서 가끔 감시 노드가 사이클 도중 `CONTROLLER_HEARTBEAT_LOST`로 Stop을 냈다. 다시 돌리면 통과해서 원인을 알 수 없었다. 그래서 판정은 그대로 두고 로그만 늘렸다. 손실을 판정할 때 마지막 수신 나이, 받은 개수, 마지막 seq, 감시 노드 자신의 직전 주기 간격을 남기고, 다시 받았을 때 빠진 seq 개수를 남긴다. 다음 발생(2026-11-13 run 43366903740)에서 감시 주기 간격은 0.050 s로 정상이었고 seq는 빠짐 없이 18→19였다. 감시 노드가 느렸던 것도, controller가 메시지를 잃은 것도 아니다. heartbeat 하나가 0.43 s 늦게 왔다. 남은 질문은 "늦게 보냈나, 늦게 전달됐나"다. 메시지 header stamp는 보낸 시각이므로, 받은 시각과의 차이를 로그에 더하면 다음 발생 때 둘을 가를 수 있다. 진단은 질문 하나를 지우고 다음 질문을 좁히는 식으로 쌓는다.
