@@ -52,7 +52,7 @@
 - **Modbus 주소:** 플랜지 경로는 Modbus-RTU(FC03 읽기, FC06·FC16 쓰기)를 쓴다. 참고 구현의 쓰기 주소는 바이트 주소의 절반과 일치한다(Torque Enable 256, Goal Current 275, Goal Position 282, Present Current 287, Operating Mode는 워드 5의 상위 바이트). ROBOTIS RH-P12-RN(A) 제어표의 Modbus 주소(40001 = 0)로는 Present Position 290(2워드), Hardware Error Status 259(하위 바이트), Model Number 0, Firmware Version 3(하위 바이트), Protocol Type 6(상위 바이트)이다. 주소는 제어표의 Modbus 열에서 옮겨 `robot_control.yaml`에 두고, 바이트 주소의 절반과 다른 항목(제어표의 Position P·I Gain 행)은 실기 읽기로 확인한 뒤 쓴다. RH-P12-RN(A)의 Modbus-RTU는 펌웨어 V12 이상에서 쓸 수 있다. 주소표는 프로토콜별로 따로 두고 섞지 않는다.
 - **핑거·공구 설정:** 그리퍼 기본 핑거로 파지한다. 핑거 어댑터·핑거 패드는 쓰지 않는다. Doosan 공구(무게·TCP)를 등록하지 않고 기본 플랜지 기준으로 지령한다(파지·해제 높이는 플랜지 기준 실측값, `static_pick_place/plan.py`).
 - **명령 경로:** 그리퍼 명령은 `gripper_adapter.py`만 보내고, 제어기 호출 방식은 그 안에 감춘다. 다른 모듈은 `open(width)`, `close(current_limit)`, `read_state()`만 쓴다.
-- **상주 루프 방식:** bringup 때 로봇이 auto 모드·STANDBY일 때 `<dsr_ns>/dsr_controller2/drl/drl_start`로 상주 루프 DRL을 한 번 띄운다(시리얼을 열어 두고 그리퍼 init 1회). 이후 ROS는 `<dsr_ns>/dsr_controller2/plc/set_output_register_int`로 명령 레지스터에 쓰고, 루프가 20 ms 주기로 읽어 실행한다. 호출마다 DRL을 새로 띄우는 방식은 시리얼 open/close와 정착 대기 때문에 호출당 1 s 이상 걸리므로 해제에 쓰지 않는다.
+- **상주 루프 방식:** bringup 때 로봇이 auto 모드·STANDBY일 때 `<dsr_ns>/drl/drl_start`로 상주 루프 DRL을 한 번 띄운다(시리얼을 열어 두고 그리퍼 init 1회). 이후 ROS는 `<dsr_ns>/plc/set_output_register_int`로 명령 레지스터에 쓰고, 루프가 20 ms 주기로 읽어 실행한다. 호출마다 DRL을 새로 띄우는 방식은 시리얼 open/close와 정착 대기 때문에 호출당 1 s 이상 걸리므로 해제에 쓰지 않는다.
 - **위치 값 규약:** 프로젝트 코드와 pulse 실측표는 그리퍼 하드웨어 Goal Position 값(0~1150 pulse)을 그대로 쓴다. 참고 구현 서비스(`/dsr01/gripper/cmd`)는 요청 값을 0~750으로 제한하고 `750 − 값`으로 반전해 보내므로 하드웨어 751~1150 pulse(좁은 핑거 간격)를 지령할 수 없다. pulse 실측표 측정과 공깃돌 파지는 이 서비스를 거치지 않고 상주 루프의 명령 레지스터에 하드웨어 값을 직접 쓴다(`tools/bench/gripper_pulse_table.py`).
 - **해제 트리거:** 참고 구현은 명령 하나에 레지스터 서비스 호출 5회(값 4개 + seq)를 쓴다. 해제 지연을 줄이려 개방 목표값을 RELEASE 전에 미리 써 두고, 해제 순간에는 트리거 레지스터 하나만 쓴다.
 - **상태 읽기·생존 확인:** 참고 구현에는 상태 읽기가 없다. 루프가 FC03으로 Present Position·Present Current·Hardware Error Status를 읽어 ROS가 읽을 수 있는 레지스터에 쓰고, 생존 카운터를 매 주기 올리도록 추가한다(정확한 레지스터 방향·서비스는 G0에서 확정).
@@ -508,8 +508,8 @@ bool stopped            # 정지 확인 후 응답
 | `robot/stop` (srv) | `Stop` | robot_control | — | 기본(service/action) | orchestrator·supervisor |
 | `<dsr_ns>/servol_stream` 또는 `speedl_stream` (RT 계열 후보: `servol_rt_stream`, `speedl_rt_stream`) | `dsr_msgs2` | robot_control → 드라이버 | G0에서 측정 후 확정(50~100 Hz 후보) | 드라이버 기본값(G0 확인) | 메시지에 Header 없음 → 어댑터가 freshness 검사 |
 | `<dsr_ns>/motion/move_line` (srv) | `dsr_msgs2/srv/MoveLine` | robot_control → 드라이버 | — | 기본(service/action) | 정적 pick/place, 대기 자세·접근 이동 |
-| `<dsr_ns>/dsr_controller2/drl/drl_start` (srv) | `dsr_msgs2/srv/DrlStart` | robot_control → 드라이버 | bringup 시 1회(STANDBY 필요) | 기본(service/action) | 그리퍼 상주 루프 DRL 기동 |
-| `<dsr_ns>/dsr_controller2/plc/set_output_register_int` (srv) | `dsr_msgs2/srv/SetOutputRegisterInt` | robot_control → 제어기 레지스터 → 루프 DRL → 플랜지 RS-485 | 그리퍼 명령 시 | 기본(service/action) | `gripper_adapter.py` 안에서만 호출. 상태 읽기 경로는 G0에서 확정 |
+| `<dsr_ns>/drl/drl_start` (srv) | `dsr_msgs2/srv/DrlStart` | robot_control → 드라이버 | bringup 시 1회(STANDBY 필요) | 기본(service/action) | 그리퍼 상주 루프 DRL 기동 |
+| `<dsr_ns>/plc/set_output_register_int` (srv) | `dsr_msgs2/srv/SetOutputRegisterInt` | robot_control → 제어기 레지스터 → 루프 DRL → 플랜지 RS-485 | 그리퍼 명령 시 | 기본(service/action) | `gripper_adapter.py` 안에서만 호출. 상태는 `<dsr_ns>/plc/get_output_register_int`로 읽는다(OFF-2 서비스 목록, SPEC-500 4.6절) |
 
 QoS·revision 처리·lifecycle 비활성 시 응답은 `SPEC-010`에서 확정하고 계약 테스트(7.4절)로 검사한다. 발행자와 구독자의 QoS가 맞지 않으면 구독이 오류 없이 실패하므로 계약 테스트에 QoS 일치 확인을 넣는다.
 

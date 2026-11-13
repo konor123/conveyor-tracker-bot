@@ -248,6 +248,19 @@ def test_tcp_pose_is_measured_or_nan():
     assert np.all(np.isnan(pos)) and np.all(np.isnan(q))                # 값을 지어내지 않는다
 
 
+@pytest.mark.req('REQ-ROB-017')
+@pytest.mark.tc('TC-ROB-017-01')
+@pytest.mark.level('U')
+def test_unusable_pose_before_motion_is_a_read_failure_without_command():
+    """지령 전 측정이 비유한 값이면(client가 형식 검사를 거치지 않은 값을 돌려준 경우) 예외를 밖으로 내지 않고
+    지령 없이 `TCP_READ_FAILED`다. 지령 뒤 측정 실패와 같은 이유 코드다."""
+    backend, arm, _, _ = rig()
+    arm.current_posx = lambda: [math.nan, 0.0, 200.0, 0.0, 180.0, 0.0]
+    out = backend.move_line(np.array([0.5, 0.0, 0.25]), DOWN)
+    assert (out.completed, out.reason_code) == (False, "TCP_READ_FAILED") and math.isinf(out.pose_error_m), out
+    assert arm.moves == []
+
+
 @pytest.mark.req('REQ-ROB-017', 'REQ-GRP-014')
 @pytest.mark.tc('TC-ROB-017-03')
 @pytest.mark.level('U')

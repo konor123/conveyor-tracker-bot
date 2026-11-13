@@ -103,7 +103,10 @@ class DoosanBackend:
                 return MoveOutcome(False, math.inf, 'DRL_BUSY')
             if int(self.client.robot_state()) != ROBOT_STATE_STANDBY:
                 return MoveOutcome(False, math.inf, 'NOT_STANDBY')
-            start, start_rot = self._measure()
+            try:
+                start, start_rot = self._measure()
+            except MotionError:                                  # 비유한 측정: 지령 뒤 측정 실패와 같은 이유
+                return MoveOutcome(False, math.inf, 'TCP_READ_FAILED')
             err, rot_err = self._errors(start, start_rot, target, target_rot)
             if not self.client.move_line_async(posx, [vel[0], vel[3]], list(acc)):
                 return MoveOutcome(False, err, 'MOVE_REJECTED')

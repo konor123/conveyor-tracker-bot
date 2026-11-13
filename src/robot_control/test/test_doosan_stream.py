@@ -161,5 +161,13 @@ def test_stop_and_feedback():
 
 
 def test_module_does_not_import_ros():
+    """모듈을 새 프로세스에서 import해 ROS·Doosan 메시지를 끌어오지 않는지 본다. 같은 프로세스의 다른 시험이
+    `dsr_msgs2`를 먼저 import해도(TC-ROB-011-01 stub 시험) 결과가 바뀌지 않는다."""
+    import os
+    import subprocess
     import sys
-    assert 'dsr_msgs2' not in sys.modules
+    code = ("import sys, robot_control.doosan_stream; "
+            "bad = sorted(m for m in ('dsr_msgs2', 'rclpy') if m in sys.modules); assert not bad, bad")
+    env = dict(os.environ, PYTHONPATH=os.pathsep.join(p for p in sys.path if p))
+    res = subprocess.run([sys.executable, '-c', code], env=env, capture_output=True, text=True, timeout=60)
+    assert res.returncode == 0, res.stderr[-2000:]
