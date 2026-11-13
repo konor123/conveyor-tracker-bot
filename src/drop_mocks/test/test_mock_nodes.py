@@ -314,6 +314,30 @@ def test_world_services(ros):
         h.close()
 
 
+@pytest.mark.req('REQ-MCK-011')
+@pytest.mark.tc('TC-MCK-011-02')
+@pytest.mark.level('C')
+def test_stopped_belt_world_node_publishes_and_answers(ros):
+    """초기 벨트 속도 0, 병뚜껑 하나가 처음부터 관측 구간 안: 프레임 타이머가 예외 없이 track을 발행하고
+    SelectTarget은 `BELT_STOPPED`, ComputeIntercept는 `TIME_INSUFFICIENT`로 답한다."""
+    from drop_interfaces.srv import ComputeIntercept
+    world = MockWorldNode(parameter_overrides=_params('stopped_belt', time.time() - 2.0))
+    h = Harness(world)
+    try:
+        tracked = h.record(TrackedObjectArray, 'objects/tracked')
+        h.wait_for(lambda: len(tracked) >= 10, 5.0, '정지 벨트 track 발행')
+        last = tracked[-1][1].tracks
+        assert len(last) == 1 and last[0].status == 0 and last[0].observation_count >= 60
+        assert last[0].position.x == pytest.approx(0.10, abs=1e-9) and last[0].velocity.x == 0.0
+        r = h.call(SelectTarget, 'tracking/select_target', object_class=2, min_observation_count=1)
+        assert (r.result, r.reason_code) == (RESULT['FAILED'], 'BELT_STOPPED')
+        r = h.call(ComputeIntercept, 'planner/compute_intercept', target_track_id=last[0].track_id,
+                   target_epoch=last[0].epoch)
+        assert (r.result, r.reason_code) == (RESULT['FAILED'], 'TIME_INSUFFICIENT')
+    finally:
+        h.close()
+
+
 @pytest.mark.level('C')
 def test_inactive_node_refuses(ros):
     world = MockWorldNode(parameter_overrides=_params('nominal_20mms', time.time(), autostart=False))
@@ -494,6 +518,51 @@ def test_mock_exits_when_real_provider_appears_after_start(ros, service):
         h.close()
         if real is not None:
             real.destroy_node()
+
+
+# ------------------------------------------------------------------ TC-MCK-012-02
+@pytest.mark.req('REQ-MCK-012')
+@pytest.mark.tc('TC-MCK-012-02')
+@pytest.mark.level('C')
+@pytest.mark.parametrize('limit', ['0.25', ''])
+def test_stall_watch_reports_heartbeat_gap_in_process(ros, limit):
+    """`DROP_MOCK_STALL_DUMP_S`를 준 대역 controller 프로세스를 0.6 s 멈췄다 재개하면 공백·CPU·문맥 전환 경고가
+    출력에 남는다. 값이 없으면 진단을 켜지 않고 같은 정지에도 아무것도 남기지 않는다. 멈춘 동안 스택 출력은
+    faulthandler 감시 스레드도 같이 멈춰 재개 순간의 경합이라 판정하지 않는다(진단의 본래 대상은 프로세스 안 막힘)."""
+    import signal
+    env = dict(os.environ, ROS_DOMAIN_ID=str(DOMAIN))
+    env.pop('DROP_MOCK_STALL_DUMP_S', None)
+    if limit:
+        env['DROP_MOCK_STALL_DUMP_S'] = limit
+    proc = subprocess.Popen(
+        [sys.executable, '-m', 'drop_mocks.mock_robot_controller_node', '--ros-args',
+         '-p', f'scenario:={scenario_path("nominal_20mms")}', '-p', 'exclusive_check_s:=0.2'],
+        env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    h = Harness()
+    try:
+        hbs = h.record(Heartbeat, 'system/heartbeat')
+        h.wait_for(lambda: _count_hb(hbs, 'robot_controller_node') >= 5, timeout=10.0, what='대역 controller heartbeat')
+        proc.send_signal(signal.SIGSTOP)
+        time.sleep(0.6)
+        proc.send_signal(signal.SIGCONT)
+        n = _count_hb(hbs, 'robot_controller_node')
+        h.wait_for(lambda: _count_hb(hbs, 'robot_controller_node') >= n + 5, timeout=5.0, what='재개 뒤 heartbeat')
+    finally:
+        proc.send_signal(signal.SIGINT)
+        try:
+            out = proc.communicate(timeout=10)[0]
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            out = proc.communicate(timeout=5)[0]
+        h.close()
+    stalls = [ln for ln in out.splitlines() if 'STALL heartbeat 경로 공백' in ln]
+    if limit:
+        assert 'heartbeat 경로 정지 진단 켬' in out, out[-2000:]
+        assert stalls, out[-2000:]
+        gap = max(float(ln.split('공백 ')[1].split(' s')[0]) for ln in stalls)
+        assert gap >= 0.5, stalls
+    else:
+        assert 'heartbeat 경로 정지 진단 켬' not in out and not stalls and 'Timeout (' not in out, out[-2000:]
 
 
 # ------------------------------------------------------------------ TC-IF-006-01

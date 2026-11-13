@@ -18,6 +18,7 @@ from rclpy.parameter import Parameter
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 
 from .scenario_engine import ScenarioEngine
+from .stall_watch import STALL_DUMP_ENV, StallWatch, stall_dump_s
 
 DATA_QOS = QoSProfile(depth=5, reliability=ReliabilityPolicy.RELIABLE, durability=DurabilityPolicy.VOLATILE)
 HEARTBEAT_QOS = QoSProfile(depth=10, reliability=ReliabilityPolicy.RELIABLE,
@@ -92,6 +93,7 @@ class MockLifecycleNode(LifecycleNode):
         self.declare_parameter('autostart', True)
         self.declare_parameter('exclusive_check_s', 1.0)
         self.conflict: str | None = None
+        self.stall_watch: StallWatch | None = None     # spin_mock이 환경 변수를 보고 붙인다
         path = scenario_file(self.get_parameter('scenario').value)
         self.engine = ScenarioEngine.from_file(path, int(self.get_parameter('seed').value))
         scale = float(self.get_parameter('duration_scale_ratio').value)
@@ -187,6 +189,11 @@ class MockLifecycleNode(LifecycleNode):
             self.conflict = f'REAL_NODE_PRESENT: 기동 뒤 같은 역할 서버 발견 {found}'
             self.get_logger().error(self.conflict)
 
+    def stall_beat(self) -> None:
+        """heartbeat 콜백 진입 표시(REQ-MCK-012). 진단이 꺼져 있으면 아무것도 하지 않는다."""
+        if self.stall_watch is not None:
+            self.stall_watch.beat()
+
     def autostart(self) -> None:
         if self.get_parameter('autostart').value:
             self.trigger_configure()
@@ -242,6 +249,10 @@ def spin_mock(node_cls, name: str, num_threads: int, args=None) -> None:
         # 기동 확인 창(`exclusive_check_s`) 안에서 launch가 끝나도 실행 중 종료와 같이 조용히 끝낸다
         rclpy.try_shutdown()
         return
+    limit = stall_dump_s()
+    if limit > 0.0:
+        node.stall_watch = StallWatch(node.get_logger(), limit)
+        node.get_logger().info(f'{STALL_DUMP_ENV}={limit:.3f}: heartbeat 경로 정지 진단 켬')
     executor = MultiThreadedExecutor(num_threads=num_threads)
     executor.add_node(node)
     try:
@@ -250,6 +261,8 @@ def spin_mock(node_cls, name: str, num_threads: int, args=None) -> None:
     except (KeyboardInterrupt, ExternalShutdownException):
         pass
     finally:
+        if node.stall_watch is not None:
+            node.stall_watch.stop()
         conflict = node.conflict
         node.destroy_node()
         rclpy.try_shutdown()

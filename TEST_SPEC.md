@@ -566,6 +566,10 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-MCK-009-01 | TCP 1차 지연 모델 | U | `[ON]` | 등속 0.02 m/s 기준을 1 s(10 ms 간격) / 10 mm 정지 기준 계단을 τ만큼 1번·100번에 나눠 / `tcp_lag_s` 0·음수·NaN·inf | XY 오차 = 0.02 × 0.029 m(±1e-9), 상대 속도 0(±1e-9), 진행 방향 뒤 / 오차 10·e⁻¹ mm, 두 결과 같음(±1e-12) / 모델 없음·예외 |
 | TC-MCK-009-02 | 대역 노드의 지연 모델 연결 | C | `[ON]` | `mock_robot_controller_node`에 계획(release 3 s 뒤, 0.02 m/s) 발행 뒤 DynamicPlace(같은 `plan_id`), goal 0.3 s 뒤 1 mm 옮긴 revision 발행, `tcp_lag_s` 0.029 / 0 / 실시간 부분(`realtime_pc`, PC 판정): `tcp_lag_s` 0.029, goal 0.5 s 뒤 동적 phase `robot/status` | SYNCHRONIZE `e_xy` = 0.58 mm(±0.1 mm)·`v_rel` ≤ 0.1 mm/s, 끝 `e_xy_m` 같음(기준은 처음 revision에 고정) / 대본 값(1 mm, 2 mm/s)·대본 자세 / x = 목표 궤적 − v·τ(발행 시각 기준 ±0.5 mm), y = −0.25 m |
 | TC-MCK-010-01 | 대본 없는 VerifyDrop | U | `[ON]` | 대본 SUCCESS / FAILURE, `scripted=False` | UNKNOWN, `stone_inside` 거짓, `stone_offset_valid` 거짓 / 대본 판정(`scripted=True`) |
+| TC-MCK-011-01 | 정지 벨트 track(엔진) | U | `[ON]` | 벨트 속도 0, 병뚜껑 x0 0.10 m(관측 구간 안), 가림 없음 / 1.0~1.5 s 가림. 프레임 0~60 | 예외 0, track 1개, `observation_count` = k + 1, `last_observed_t` 유한(가림 중 가림 직전 프레임 시각). 2.0 s 대상 선택 OK·진입 시각 inf, 계획 FAILED `TIME_INSUFFICIENT` |
+| TC-MCK-011-02 | 정지 벨트 track(노드) | C | `[ON]` | `mock_world_node scenario:=stopped_belt`(시험 자료), t0 2 s 전 | `objects/tracked` 10개 이상(관측 수 ≥ 60, 위치 0.10 m, 속도 0), `SelectTarget` FAILED `BELT_STOPPED`, `ComputeIntercept` FAILED `TIME_INSUFFICIENT` |
+| TC-MCK-012-01 | heartbeat 경로 정지 진단(모듈) | U | `[ON]` | 환경 값 미설정·''·0·−1·abc·nan·inf·0.25 / 하위 프로세스에서 기준 0.2 s, 0.05 s 간격 5회 뒤 함수 안에서 0.5 s 멈춤 / 감시 건 뒤 `stop()`, 그 뒤 `beat()` | 0.25만 켬 / `Timeout (` 1회·멈춘 함수 이름이 스택에 있음, 공백 경고 1줄(CPU·비자발 문맥 전환 포함) / 0.4 s 뒤에도 스택 출력 없음 |
+| TC-MCK-012-02 | heartbeat 경로 정지 진단(프로세스) | C | `[ON]` | `mock_robot_controller_node` 프로세스, `DROP_MOCK_STALL_DUMP_S` 0.25 / 미설정, heartbeat 5개 뒤 SIGSTOP 0.6 s → SIGCONT | 0.25: 진단 켬 로그, 공백 경고 최대 ≥ 0.5 s / 미설정: 진단 로그·공백 경고·스택 출력 없음 |
 
 ### 3.12 REC — 기록·분석
 

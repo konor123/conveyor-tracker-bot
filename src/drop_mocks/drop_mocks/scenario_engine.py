@@ -410,6 +410,9 @@ class ScenarioEngine:
             n = self._noise(rng)
             p_conv = np.array([x + n[0], y + n[1], float(self._obj['cap_rim_height_m'])])
             t_enter = self._t_enter_view(i, lap)
+            if not math.isfinite(t_enter):
+                # 초기 속도 0인 벨트에서 처음부터 관측 구간 안: 진입 시각이 −inf다. 관측은 시나리오 시각 0부터 센다
+                t_enter = 0.0
             if occluded:
                 occ = self._active('occlusion', t)
                 last_obs = max(t_enter, self.frame_time(self.frame_index(occ['t_s']) - 1))

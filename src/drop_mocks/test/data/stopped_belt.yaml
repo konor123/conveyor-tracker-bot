@@ -1,0 +1,47 @@
+# 정지 벨트 시험(TC-MCK-011-02)용: nominal_20mms에서 벨트 속도 0, 병뚜껑 하나를 처음부터 관측 구간 안(도달 구간 앞)에 둔다.
+name: stopped_belt
+seed: 0
+unitless: [seed]
+frame_rate_hz: 30.0
+world:
+  belt: {speed_mps: 0.0, lap_length_m: 1.2, unsteady_hold_s: 2.0, speed_std_mps: 0.0002, window_s: 1.0}
+  zones: {obs_start_m: 0.0, obs_end_m: 0.45, reach_start_m: 0.2, reach_end_m: 0.4}
+  frames:
+    conveyor_xyz_m: [0.3, -0.25, 0.0]
+    conveyor_yaw_rad: 0.0
+    mat_xyz_m: [0.35, 0.15, 0.0]
+    mat_yaw_rad: 0.0
+  camera:
+    xyz_m: [0.5, -0.05, 0.35]
+    hfov_rad: 1.5708
+    width_count: 1280
+    height_count: 800
+    pixel_std_ratio: 0.0
+  objects: {stone_diameter_m: 0.0175, stone_height_m: 0.008, cap_outer_diameter_m: 0.032, cap_rim_height_m: 0.01}
+  noise: {position_std_m: 0.0}
+  tracking: {valid_for_s: 0.3}
+  caps:
+  - {x0_m: 0.10, y_m: 0.0}
+  - {x0_m: 0.55, y_m: 0.0}
+  stones:
+  - {x_m: 0.0, y_m: 0.0}
+  verify:
+  - {verdict: SUCCESS, stone_offset_m: 0.002}
+robot:
+  duration_scale_ratio: 1.0
+  skills:
+    PickStone:
+    - {duration_s: 4.0}
+    MoveToPose:
+    - {duration_s: 2.0}
+    PlaceStone:
+    - {duration_s: 2.5}
+    DynamicPlace:
+    - {duration_s: 3.0}
+    SafeRetreat:
+    - {duration_s: 3.0}
+events: []
+assumed: [world.belt, world.zones, world.frames, world.camera, world.objects.stone_height_m, world.objects.cap_rim_height_m,
+  world.noise, world.tracking, world.caps, world.stones, world.verify, robot]
+measured: {world.objects.stone_diameter_m: 'OFF-1 2026-11-07 S01·S02, 17~18 mm 중간값', world.objects.cap_outer_diameter_m: OFF-1
+    2026-11-07 C02}

@@ -2,8 +2,8 @@
 
 `tools/spec/trace.py`가 생성한다. 손으로 고치지 않는다.
 
-- REQ 145개 중 TC 연결 145개
-- pytest 대상 TC 280개 중 테스트 연결 278개
+- REQ 147개 중 TC 연결 147개
+- pytest 대상 TC 284개 중 테스트 연결 282개
 
 | TC | 수준 | REQ | 테스트 |
 |---|---|---|---|
@@ -145,6 +145,10 @@
 | TC-MCK-009-01 | U | REQ-MCK-009 | `src/drop_mocks/test/test_tcp_lag.py::test_ramp_reference_lags_by_speed_times_time_constant`<br>`src/drop_mocks/test/test_tcp_lag.py::test_step_response_and_partition_independence`<br>`src/drop_mocks/test/test_tcp_lag.py::test_lag_value_and_disable` |
 | TC-MCK-009-02 | C | REQ-MCK-009 | `src/drop_mocks/test/test_mock_nodes.py::test_dynamic_place_feedback_from_tcp_lag_model`<br>`src/drop_mocks/test/test_mock_nodes.py::test_dynamic_place_status_tcp_lags_plan` |
 | TC-MCK-010-01 | U | REQ-MCK-010 | `src/drop_mocks/test/test_scenario_engine.py::test_unscripted_verify_reports_unknown` |
+| TC-MCK-011-01 | U | REQ-MCK-011 | `src/drop_mocks/test/test_scenario_engine.py::test_stopped_belt_cap_in_view_gives_finite_track` |
+| TC-MCK-011-02 | C | REQ-MCK-011 | `src/drop_mocks/test/test_mock_nodes.py::test_stopped_belt_world_node_publishes_and_answers` |
+| TC-MCK-012-01 | U | REQ-MCK-012 | `src/drop_mocks/test/test_stall_watch.py::test_env_value`<br>`src/drop_mocks/test/test_stall_watch.py::test_gap_dumps_stacks_while_stuck_and_reports_on_resume`<br>`src/drop_mocks/test/test_stall_watch.py::test_stop_cancels_pending_dump` |
+| TC-MCK-012-02 | C | REQ-MCK-012 | `src/drop_mocks/test/test_mock_nodes.py::test_stall_watch_reports_heartbeat_gap_in_process` |
 | TC-ORC-001-01 | U | REQ-ORC-001 | `src/orchestrator/test/test_cycle_runner.py::test_synchronized_nominal_sequence` |
 | TC-ORC-001-02 | U | REQ-ORC-001 | `src/orchestrator/test/test_cycle_runner.py::test_static_skips_synchronize_and_detects_cap`<br>`src/orchestrator/test/test_step_judges.py::test_static_place` |
 | TC-ORC-001-03 | U | REQ-ORC-001 | `src/orchestrator/test/test_cycle_runner.py::test_predicted_uses_entry_judgement`<br>`src/orchestrator/test/test_step_judges.py::test_predicted_entry` |

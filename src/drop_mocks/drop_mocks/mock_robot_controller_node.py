@@ -388,6 +388,7 @@ class MockRobotControllerNode(MockLifecycleNode):
         self.status_pub.publish(st)
 
     def _on_heartbeat(self):
+        self.stall_beat()
         with self._lock:
             self._last_hb_mono = time.monotonic()
             if not self.engine.heartbeat_alive('robot_controller', self.scenario_t()):

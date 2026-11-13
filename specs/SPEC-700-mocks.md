@@ -1,6 +1,6 @@
 # SPEC-700 mocks
 
-- 버전: v0.9
+- 버전: v0.10
 - 근거: PLAN.md 7절
 - REQ 영역: MCK, INT
 
@@ -8,6 +8,7 @@
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
+| v0.10 | 2026-11-13 | REQ-MCK-011 정지 벨트(초기 속도 0)에서 처음부터 관측 구간 안에 있는 병뚜껑의 track, REQ-MCK-012·4.8절 heartbeat 경로 정지 진단(`DROP_MOCK_STALL_DUMP_S`) |
 | v0.9 | 2026-11-13 | REQ-MCK-009 `mock_robot_controller_node` TCP 1차 지연 모델(`tcp_lag_s` 29 ms, `drop/intercept_plan` 구독), REQ-MCK-010 실제 controller와 함께 띄운 mock 세계의 VerifyDrop은 UNKNOWN(`verify_scripted`), 4.7절 기동 확인 중 종료는 정상 종료 |
 | v0.8 | 2026-11-11 | REQ-MCK-008 대역의 Stop 정지 유지·작업자 해제 |
 | v0.7 | 2026-11-10 | 실시간 실행 판정은 PC(LEGION 또는 officepc), CI는 실행·기록만 |
@@ -114,7 +115,7 @@ measured: {<키 경로>: <출처>}
 - 공깃돌은 매트에 고정이다(파지해도 사라지지 않는다. 시도 사이 회수는 작업자 몫).
 - 위치: 병뚜껑은 conveyor_frame `(x, y, cap_rim_height_m)`, 공깃돌은 mat_frame `(x, y, stone_height_m)`. robot_base로는 `frames`의 평행이동·yaw로 바꾼다. 잡음 `position_std_m`은 검출과 track에 같은 값을 더한다.
 - 픽셀: 광축이 −z인 핀홀, `f = (width/2) / tan(hfov/2)`, `u = cx + f·(X − Xc)/(Zc − Z)`, `v = cy − f·(Y − Yc)/(Zc − Z)`, `diameter_px = f·D/(Zc − Z)`.
-- track: 속도 = 벨트 속도 × conveyor_frame x축. 상태는 `track_lost` 중 LOST, `occlusion` 중 COASTING(위치는 참값 + 잡음, `last_observed_stamp`는 가림 직전 프레임), 그 외 OBSERVED. `observation_count`는 시야 진입 후 프레임 수, `valid_until = stamp + valid_for_s`.
+- track: 속도 = 벨트 속도 × conveyor_frame x축. 상태는 `track_lost` 중 LOST, `occlusion` 중 COASTING(위치는 참값 + 잡음, `last_observed_stamp`는 가림 직전 프레임), 그 외 OBSERVED. `observation_count`는 시야 진입 후 프레임 수(초기 속도 0인 벨트에서 처음부터 관측 구간 안에 있던 병뚜껑은 시나리오 시각 0부터 센다), `valid_until = stamp + valid_for_s`.
 - `BeltMotion`: 방향 (1, 0, 0), 속도 = 현재 벨트 속도, `steady`는 마지막 `speed_change` 뒤 `unsteady_hold_s` 동안 false.
 - epoch: `epoch_increment` 이벤트 수 + `ResetTracking` 호출 수.
 
@@ -171,6 +172,15 @@ measured: {<키 경로>: <출처>}
 - bringup은 대역이 0이 아닌 코드로 끝나면 전체를 내린다.
 - 기동 확인 창 안에서 launch가 끝나면(SIGINT, context 종료) 실행 중 종료와 같이 traceback 없이 종료 코드 0으로 끝난다.
 
+### 4.8 heartbeat 경로 정지 진단(REQ-MCK-012)
+
+- 대상: 대역 노드 프로세스(`spin_mock`으로 띄운 것). 시험 프로세스 안에서 만든 대역 노드는 대상이 아니다.
+- 켜기: 환경 변수 `DROP_MOCK_STALL_DUMP_S`가 유한한 양수 [s]일 때만 켠다. 미설정·0·음수·숫자 아님은 끔이고, 끄면 동작이 바뀌지 않는다. 대역만 띄우는 ROS I0 시험(`src/drop_bringup/test/test_i0_integration.py`)의 launch는 값이 없으면 0.25로 켠다(감시 노드의 controller heartbeat 손실 판정 0.3 s보다 짧게). 실제 노드와 함께 띄우는 시험은 켜지 않는다.
+- heartbeat 콜백에 들어올 때마다 faulthandler 감시를 그 시간으로 다시 건다. 그 시간 안에 다음 진입이 없으면 모든 Python 스레드의 스택을 stderr에 쓴다(`Timeout (` 머리줄). faulthandler 감시 스레드는 GIL 없이 돌므로 다른 스레드가 GIL을 쥔 채 막혀 있어도 그 순간의 스택이 남는다.
+- 다음 진입은 `STALL heartbeat 경로 공백` 경고에 공백 길이, 그 사이 프로세스 CPU 시간(사용자 + 커널)과 자발·비자발 문맥 전환 증가량을 남긴다. 판독: 스택이 C 호출(그래프 조회·발행)에서 멈춤 → 프로세스 안 막힘, 같은 callback group의 다른 콜백 실행 중 → 그룹 경합, 모든 스레드가 대기 중이고 CPU 증가가 작음 → 프로세스가 CPU를 받지 못함.
+- 프로세스 전체가 멈춘 경우(SIGSTOP 등)는 감시 스레드도 멈추므로 스택 출력이 재개 순간의 경합에 달려 있다. 이때도 공백 경고는 남는다.
+- 종료할 때 감시를 풀고 그 뒤의 진입은 감시를 다시 걸지 않아, 종료 과정에서는 스택을 쓰지 않는다.
+
 ## 5. 시간 제약(주기·제한시간)
 
 - 데이터 topic: `frame_rate_hz`(기본 30 Hz). Heartbeat 및 `robot/status`: 10 Hz, steady 시계 타이머(ROS 시각이 멈추거나 역행해도 발행, SPEC-110 REQ-ABT-009).
@@ -193,10 +203,12 @@ measured: {<키 경로>: <출처>}
 - REQ-MCK-008: `mock_robot_controller_node`는 SPEC-010 4.5절의 정지 유지·해제를 실제 노드와 같게 따른다(`ready=false`, heartbeat 101, 유지 중 goal은 지령 없이 `CANCELED`(`STOPPED`), `stop_release_reason` 해제 조건). 대본의 보호정지(100)와는 별개다.
 - REQ-MCK-009: `mock_robot_controller_node`의 TCP 1차 지연 모델(4.5절)은 등속 기준에서 정상 상태 XY 오차 `v·tcp_lag_s`(±1e-9 m)·상대 속도 0, 정지 기준 계단에서 τ 뒤 오차 `e⁻¹`배이고 진행 간격과 무관하다. 노드는 동적 phase에서 이 모델의 TCP를 `robot/status`(목표 궤적보다 `v·tcp_lag_s` 뒤, 발행 시각 기준 ±0.5 mm)와 SYNCHRONIZE `e_xy`·`v_rel`로 내고, `tcp_lag_s` = 0이면 대본 값·대본 자세다. 기본값으로 I0 시험(TC-INT-001~013, TC-ABT-011-02~014-02)이 그대로 통과한다.
 - REQ-MCK-010: `verify_scripted` = false인 mock 세계의 VerifyDrop은 대본이 SUCCESS·FAILURE여도 UNKNOWN(`stone_inside`·`stone_offset_valid` 거짓)이다. `drop.launch.py`는 실제 robot_controller(`use_mock_robot:=false`)와 mock vision을 함께 띄울 때 false로 준다. 그래서 그 조합의 정상 사이클 결과는 SPEC-100 4.7절대로 `UNKNOWN`이다.
+- REQ-MCK-011: 초기 벨트 속도 0인 시나리오에서 처음부터 관측 구간 안에 있는 병뚜껑은 엔진 프레임과 `objects/tracked`에 예외 없이 나온다. `observation_count` = 시나리오 시각 0부터 센 프레임 수, `last_observed_stamp`는 유한한 시각이다. `SelectTarget`은 FAILED `BELT_STOPPED`, `ComputeIntercept`는 FAILED `TIME_INSUFFICIENT`로 답한다.
+- REQ-MCK-012: `DROP_MOCK_STALL_DUMP_S`가 유한한 양수인 대역 프로세스는 heartbeat 콜백 진입이 그 시간보다 길게 없으면 모든 스레드 스택을 stderr에 쓰고, 다음 진입에서 공백 길이·CPU 시간·문맥 전환 증가량을 경고로 남긴다. 값이 없거나 유한한 양수가 아니면 아무것도 남기지 않는다.
 
 ## 8. 검증 방법(`TEST_SPEC.md` TC ID, 게이트)
 
-TC-MCK-001-01, 002-01, 003-01, 004-01, 005-01, 005-02, 006-01, 006-02, 007-01, 007-02, 008-01(M0), 009-01(U), 009-02(C), 010-01(U). 실제 controller와 함께 띄운 VerifyDrop UNKNOWN의 사이클 결과는 TC-INT-014-01·015-01(I0).
+TC-MCK-001-01, 002-01, 003-01, 004-01, 005-01, 005-02, 006-01, 006-02, 007-01, 007-02, 008-01(M0), 009-01(U), 009-02(C), 010-01(U), 011-01(U), 011-02(C), 012-01(U), 012-02(C). 실제 controller와 함께 띄운 VerifyDrop UNKNOWN의 사이클 결과는 TC-INT-014-01·015-01(I0).
 
 ## 9. 미결 사항
 

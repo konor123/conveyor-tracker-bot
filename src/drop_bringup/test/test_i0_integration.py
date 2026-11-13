@@ -52,12 +52,17 @@ def ros():
     rclpy.shutdown()
 
 
+I0_STALL_DUMP_S = '0.25'          # 감시 노드의 controller heartbeat 손실 판정 0.3 s보다 짧게
+
+
 def _launch(*args, launch_file='mock.launch.py'):
     env = dict(
         os.environ,
         ROS_DOMAIN_ID=str(_ACTIVE_DOMAIN),
         ROS_AUTOMATIC_DISCOVERY_RANGE='LOCALHOST',
     )
+    # 대역 프로세스의 heartbeat 경로 정지 진단(SPEC-700 4.8절). 값을 주면 그 값(0이면 끔)을 따른다
+    env.setdefault('DROP_MOCK_STALL_DUMP_S', I0_STALL_DUMP_S)
     log = tempfile.NamedTemporaryFile(mode='w+', encoding='utf-8', prefix='drop-i0-', suffix='.log',
                                       delete=False)
     proc = subprocess.Popen(

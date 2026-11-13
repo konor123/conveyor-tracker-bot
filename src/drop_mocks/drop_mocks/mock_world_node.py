@@ -114,6 +114,7 @@ class MockWorldNode(MockLifecycleNode):
             self.belt_pub.publish(belt)
 
     def _on_heartbeat(self):
+        self.stall_beat()
         t = self.scenario_t()
         for role in self.roles:
             if not self.engine.heartbeat_alive(role, t):

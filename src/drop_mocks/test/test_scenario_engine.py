@@ -278,3 +278,32 @@ def test_unscripted_verify_reports_unknown(load_scenario, scripted_verdict):
     v = eng.verify(0, scripted=False)
     assert (v.verdict, v.stone_inside, v.stone_offset_valid) == (VERDICT['UNKNOWN'], False, False)
     assert eng.verify(0).verdict == VERDICT[scripted_verdict]
+
+
+@pytest.mark.req('REQ-MCK-011')
+@pytest.mark.tc('TC-MCK-011-01')
+@pytest.mark.level('U')
+@pytest.mark.parametrize('occlusion', [False, True])
+def test_stopped_belt_cap_in_view_gives_finite_track(load_scenario, occlusion):
+    """초기 벨트 속도 0에서 처음부터 관측 구간 안에 있는 병뚜껑: 진입 시각이 −inf여도 프레임이 예외 없이 나오고,
+    관측 수는 시나리오 시각 0부터 센 프레임 수, 마지막 관측 시각은 유한하다. 대상 선택의 진입 시각은 inf,
+    계획은 TIME_INSUFFICIENT(움직이지 않는 뚜껑은 도달 구간에 들어오지 않는다)."""
+    sc = load_scenario('stopped_belt')
+    if occlusion:
+        sc['events'] = [{'t_s': 1.0, 'type': 'occlusion', 'duration_s': 0.5}]
+    eng = ScenarioEngine(sc)
+    for k in range(0, 61):
+        fr = eng.frame(k)
+        assert [tr.track_id for tr in fr.tracks] == [eng.track_id(0, 0)]       # x0 0.10 m만 관측 구간 안
+        tr = fr.tracks[0]
+        assert tr.observation_count == k + 1
+        assert math.isfinite(tr.last_observed_t)
+        assert tr.position[0] == pytest.approx(0.10, abs=1e-12) and tr.velocity[0] == 0.0
+        if occlusion and 1.0 <= fr.t < 1.5:
+            assert tr.status == COASTING and tr.last_observed_t == pytest.approx(eng.frame_time(29))
+        else:
+            assert tr.status == OBSERVED and tr.last_observed_t == fr.t
+    sel = eng.select_target(2.0, min_observation_count=1)                     # 가림(1.0~1.5 s)이 끝난 뒤
+    assert sel.result == RESULT['OK'] and sel.t_enter_window == math.inf
+    plan = eng.compute_intercept(2.5, sel.track_id, sel.epoch)
+    assert (plan.result, plan.reason_code) == (RESULT['FAILED'], 'TIME_INSUFFICIENT')
