@@ -1,0 +1,24 @@
+{"t": 1794574831.641, "event": "ready", "status": {"robot_state": 1, "robot_mode": 1, "drl_state": 1, "alarm": [1, 1, 2007, ["", "", ""]]}}
+{"t": 1794574831.649, "event": "tcp", "pos_m": [0.373, -0.0, 0.405]}
+{"t": 1794574839.092, "event": "plan_rejected", "track_id": 21, "reason": "UNCERTAIN"}
+{"t": 1794574839.295, "event": "plan_rejected", "track_id": 21, "reason": "UNCERTAIN"}
+{"t": 1794574839.496, "event": "plan_rejected", "track_id": 21, "reason": "UNREACHABLE"}
+{"t": 1794574839.699, "event": "plan_rejected", "track_id": 21, "reason": "UNREACHABLE"}
+{"t": 1794574839.901, "event": "plan_rejected", "track_id": 21, "reason": "UNREACHABLE"}
+{"t": 1794574840.103, "event": "plan_rejected", "track_id": 21, "reason": "UNREACHABLE"}
+{"t": 1794574853.575, "event": "plan_rejected", "track_id": 22, "reason": "UNCERTAIN"}
+{"t": 1794574853.778, "event": "plan_rejected", "track_id": 22, "reason": "TIME_MARGIN"}
+{"t": 1794574853.98, "event": "plan_rejected", "track_id": 22, "reason": "UNREACHABLE"}
+{"t": 1794574854.182, "event": "plan_rejected", "track_id": 22, "reason": "UNREACHABLE"}
+{"t": 1794574854.384, "event": "plan_rejected", "track_id": 22, "reason": "UNCERTAIN"}
+{"t": 1794574854.586, "event": "plan_rejected", "track_id": 22, "reason": "UNCERTAIN"}
+{"t": 1794574854.788, "event": "plan_skipped", "reason": "TOO_LATE", "margin_s": -1.07, "move_s": 3.87}
+{"t": 1794574881.333, "event": "plan_rejected", "track_id": 23, "reason": "UNCERTAIN"}
+{"t": 1794574881.535, "event": "plan_rejected", "track_id": 23, "reason": "UNCERTAIN"}
+{"t": 1794574881.737, "event": "plan_rejected", "track_id": 23, "reason": "UNREACHABLE"}
+{"t": 1794574881.939, "event": "plan_rejected", "track_id": 23, "reason": "UNCERTAIN"}
+{"t": 1794574882.141, "event": "plan_rejected", "track_id": 23, "reason": "UNCERTAIN"}
+{"t": 1794574882.343, "event": "plan_skipped", "reason": "TOO_LATE", "margin_s": -0.87, "move_s": 3.67}
+{"t": 1794574882.545, "event": "plan_rejected", "track_id": 23, "reason": "UNREACHABLE"}
+{"t": 1794574882.747, "event": "plan_rejected", "track_id": 23, "reason": "UNREACHABLE"}
+{"t": 1794574891.798, "event": "abort", "reason": "NO_USABLE_PLAN", "waited_s": 60.0}

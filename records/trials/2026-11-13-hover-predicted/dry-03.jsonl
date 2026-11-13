@@ -1,0 +1,29 @@
+{"t": 1794575194.172, "event": "ready", "status": {"robot_state": 1, "robot_mode": 1, "drl_state": 1, "alarm": [1, 1, 2007, ["", "", ""]]}}
+{"t": 1794575194.179, "event": "tcp", "pos_m": [0.373, -0.0, 0.405]}
+{"t": 1794575194.184, "event": "wait_pose", "wait_m": [0.66, 0.2, 0.2844], "j3_rad": 0.3535, "move_s": 4.03}
+{"t": 1794575199.413, "event": "plan_rejected", "track_id": 79, "reason": "TIME_MARGIN"}
+{"t": 1794575199.615, "event": "plan_rejected", "track_id": 79, "reason": "TIME_MARGIN"}
+{"t": 1794575199.817, "event": "plan_rejected", "track_id": 79, "reason": "TIME_MARGIN"}
+{"t": 1794575207.259, "event": "plan_rejected", "track_id": 80, "reason": "UNCERTAIN"}
+{"t": 1794575207.461, "event": "plan_rejected", "track_id": 80, "reason": "TIME_MARGIN"}
+{"t": 1794575207.663, "event": "plan_rejected", "track_id": 80, "reason": "UNREACHABLE"}
+{"t": 1794575207.865, "event": "plan_rejected", "track_id": 80, "reason": "UNREACHABLE"}
+{"t": 1794575215.507, "event": "plan_rejected", "track_id": 81, "reason": "UNCERTAIN"}
+{"t": 1794575215.709, "event": "plan_rejected", "track_id": 81, "reason": "TIME_MARGIN"}
+{"t": 1794575215.912, "event": "plan_rejected", "track_id": 81, "reason": "TIME_MARGIN"}
+{"t": 1794575223.552, "event": "plan_rejected", "track_id": 83, "reason": "UNCERTAIN"}
+{"t": 1794575223.755, "event": "plan_rejected", "track_id": 83, "reason": "TIME_MARGIN"}
+{"t": 1794575223.957, "event": "plan_rejected", "track_id": 83, "reason": "UNREACHABLE"}
+{"t": 1794575224.158, "event": "plan_rejected", "track_id": 83, "reason": "UNREACHABLE"}
+{"t": 1794575231.8, "event": "plan_rejected", "track_id": 85, "reason": "UNCERTAIN"}
+{"t": 1794575232.002, "event": "plan_rejected", "track_id": 85, "reason": "UNREACHABLE"}
+{"t": 1794575232.205, "event": "plan_rejected", "track_id": 85, "reason": "UNREACHABLE"}
+{"t": 1794575232.407, "event": "plan_rejected", "track_id": 85, "reason": "TIME_MARGIN"}
+{"t": 1794575240.25, "event": "plan_rejected", "track_id": 87, "reason": "TIME_MARGIN"}
+{"t": 1794575240.452, "event": "plan_rejected", "track_id": 87, "reason": "TIME_MARGIN"}
+{"t": 1794575240.654, "event": "plan_rejected", "track_id": 87, "reason": "TIME_MARGIN"}
+{"t": 1794575248.5, "event": "plan_rejected", "track_id": 89, "reason": "UNCERTAIN"}
+{"t": 1794575248.702, "event": "plan_rejected", "track_id": 89, "reason": "TIME_MARGIN"}
+{"t": 1794575248.905, "event": "plan_rejected", "track_id": 89, "reason": "TIME_MARGIN"}
+{"t": 1794575249.107, "event": "plan_rejected", "track_id": 89, "reason": "UNREACHABLE"}
+{"t": 1794575254.332, "event": "abort", "reason": "NO_USABLE_PLAN", "waited_s": 60.0, "select_fail": {"NO_TARGET": 253, "BELT_STOPPED": 21}}

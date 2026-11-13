@@ -1,0 +1,10 @@
+{"t": 1794575488.32, "event": "ready", "status": {"robot_state": 1, "robot_mode": 1, "drl_state": 1, "alarm": [1, 1, 2007, ["", "", ""]]}}
+{"t": 1794575488.325, "event": "tcp", "pos_m": [0.373, -0.0, 0.405]}
+{"t": 1794575488.331, "event": "wait_pose", "wait_m": [0.66, 0.2, 0.2844], "j3_rad": 0.3535, "move_s": 4.03}
+{"t": 1794575492.506, "event": "done", "step": "wait", "reached_m": [0.6599, 0.2, 0.2843]}
+{"t": 1794575504.674, "event": "plan_rejected", "track_id": 112, "reason": "UNCERTAIN"}
+{"t": 1794575504.884, "event": "plan", "plan_id": 59, "track_id": 112, "hover_m": [0.6597, 0.0909, 0.2844], "release_xyz_m": [0.6597, 0.0909, 0.2502], "cap_v_mps": [0.0335, 0.0009], "position_std_m": 0.00315, "release_in_s": 2.8, "move_s": 1.42, "margin_s": 1.37, "j3_rad": 0.6049, "v_mps": 0.1, "a_mps2": 0.3}
+{"t": 1794575506.45, "event": "arrived", "reached_m": [0.6597, 0.0908, 0.2845], "before_release_s": 1.23}
+{"t": 1794575507.858, "event": "image", "path": "records/trials/2026-11-13-hover-predicted/run-02.png"}
+{"t": 1794575510.688, "event": "result", "crossed": true, "cross_minus_release_s": -0.814, "y_at_cross_minus_hover_mm": -3.0, "cap_samples": 119}
+{"t": 1794575514.405, "event": "done", "step": "park", "reached_m": [0.373, -0.0, 0.405]}

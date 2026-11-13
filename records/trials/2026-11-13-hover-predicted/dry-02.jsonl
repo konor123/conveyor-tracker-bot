@@ -1,0 +1,6 @@
+{"t": 1794574918.437, "event": "ready", "status": {"robot_state": 1, "robot_mode": 1, "drl_state": 1, "alarm": [1, 1, 2007, ["", "", ""]]}}
+{"t": 1794574918.445, "event": "tcp", "pos_m": [0.373, -0.0, 0.405]}
+{"t": 1794574918.454, "event": "wait_pose", "wait_m": [0.66, 0.08, 0.2844], "j3_rad": 0.6139, "move_s": 3.55}
+{"t": 1794574921.903, "event": "plan_rejected", "track_id": 26, "reason": "UNCERTAIN"}
+{"t": 1794574922.113, "event": "plan", "plan_id": 32, "track_id": 26, "hover_m": [0.6277, 0.0835, 0.2844], "release_xyz_m": [0.6277, 0.0835, 0.2502], "cap_v_mps": [0.0235, -0.0017], "position_std_m": 0.00321, "release_in_s": 2.79, "move_s": 0.66, "margin_s": 2.14, "j3_rad": 0.8367, "v_mps": 0.1, "a_mps2": 0.3}
+{"t": 1794574922.113, "event": "dry_run_done"}

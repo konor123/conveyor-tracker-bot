@@ -1,0 +1,2 @@
+{"t": 1794575136.892, "event": "before", "status": {"robot_state": 1, "robot_mode": 1, "drl_state": 1, "alarm": [1, 1, 2007, ["", "", ""]]}, "pos_m": [0.66, 0.08, 0.2844]}
+{"t": 1794575140.583, "event": "done", "step": "park", "reached_m": [0.373, -0.0, 0.405]}

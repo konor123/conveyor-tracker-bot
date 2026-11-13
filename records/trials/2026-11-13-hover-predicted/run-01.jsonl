@@ -1,0 +1,5 @@
+{"t": 1794574978.18, "event": "ready", "status": {"robot_state": 1, "robot_mode": 1, "drl_state": 1, "alarm": [1, 1, 2007, ["", "", ""]]}}
+{"t": 1794574978.185, "event": "tcp", "pos_m": [0.373, -0.0, 0.405]}
+{"t": 1794574978.193, "event": "wait_pose", "wait_m": [0.66, 0.08, 0.2844], "j3_rad": 0.6139, "move_s": 3.55}
+{"t": 1794574981.886, "event": "done", "step": "wait", "reached_m": [0.66, 0.0801, 0.2843]}
+{"t": 1794575057.057, "event": "abort", "reason": "NO_USABLE_PLAN", "waited_s": 75.0}
