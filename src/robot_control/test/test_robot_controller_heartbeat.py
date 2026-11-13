@@ -48,6 +48,7 @@ def _rate_hz(times):
 @pytest.mark.req('REQ-ROB-012')
 @pytest.mark.tc('TC-ROB-012-01')
 @pytest.mark.level('C')
+@pytest.mark.realtime_pc                # 10 s 동안 10 Hz ±10%: CI는 기록만, 판정은 PC(TEST_SPEC.md 0.3절)
 def test_heartbeat_and_status_10hz_for_10s(ros):
     """backend=fake로 10 s 관찰: heartbeat 10 Hz ±10%·seq 연속·lifecycle ACTIVE, robot/status 10 Hz ±10%·연결·준비·TCP·파지.
 

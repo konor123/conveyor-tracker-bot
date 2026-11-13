@@ -115,6 +115,7 @@ class TestRobotControllerContract:
         for name, typ in SKILLS.items():
             assert actions.get('/' + name) == [f'drop_interfaces/action/{typ.__name__}'], name
 
+    @pytest.mark.realtime_pc            # 1.5 s 동안 10 Hz·간격 0.3 s: CI는 기록만, 판정은 PC(TEST_SPEC.md 0.3절)
     def test_robot_status_stream(self, robot_contract):
         h = robot_contract
         window = 1.5
