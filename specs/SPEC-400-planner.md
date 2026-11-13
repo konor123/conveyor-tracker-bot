@@ -1,6 +1,6 @@
 # SPEC-400 planner
 
-- 버전: v0.6
+- 버전: v0.7
 - 근거: PLAN.md 3.1, 4.3, 4.4, 9절
 - REQ 영역: PLN
 
@@ -8,6 +8,7 @@
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
+| v0.7 | 2026-11-13 | bringup: 도달 구간 시작·끝을 tracker·planner·orchestrator에 같은 값으로 주입(mock 세계면 시나리오 `world.zones`, 실제면 `drop_bringup/config/system.yaml` `layout`, REQ-PLN-012) |
 | v0.6 | 2026-11-12 | 해제 높이를 절대값 `release_tcp_z_m`에서 테두리 위 상대 높이 `release_above_rim_m`으로(REQ-PLN-004) |
 | v0.5 | 2026-11-12 | bringup: `use_mock_planner` 기본값 `false`, mock planner + 실제 tracker 조합 거부, track만 mock일 때도 시나리오 기하 전달(REQ-PLN-012) |
 | v0.4 | 2026-11-11 | `uncertainty.position_std_max_m` 3.25 mm(계획 단계 기준, 해제 게이트 0.5 mm는 SPEC-100 `sync.release_position_std_max_m`) |
@@ -36,7 +37,7 @@ SPEC-010 wire schema v0.2 / runtime contract v0.4 기준.
 
 | 키 | 기본값 | 근거 |
 |---|---|---|
-| `budget.x_exit_m` | 0.30 | 관측 구간 ∩ 로봇 안전 도달 구간의 하류 끝(`conveyor_frame`). TBD(배치도 OFF-1) |
+| `budget.x_exit_m` | 0.30 | 관측 구간 ∩ 로봇 안전 도달 구간의 하류 끝(`conveyor_frame`). bringup은 `system.yaml` `layout.x_exit_m`(같은 값)으로 덮는다. TBD(배치도 OFF-1) |
 | `budget.margin_s` | 1.0 | PLAN.md 9절 |
 | `budget.v_min_mps` | 0.002 | SPEC-300 `belt.v_min_mps`와 같은 값 |
 | `budget.t_transit_s` | 1.5 | TBD(측정 G0, skill 소요시간 p95) |
@@ -44,7 +45,7 @@ SPEC-010 wire schema v0.2 / runtime contract v0.4 기준.
 | `budget.t_descend_s` | 0.8 | TBD(측정 G0) |
 | `budget.t_release_s` | 0.3 | `T_cmd + Δ_open / v_open + T_fall`. TBD(측정 G0) |
 | `budget.t_clear_s` | 0.9 | 해제 후 후퇴 시작까지 동기 유지. TBD(측정 G0) |
-| `reach.x_reach_start_m` | −0.05 | SPEC-300 `select.x_reach_start_m`과 같은 값. TBD(배치도 OFF-1) |
+| `reach.x_reach_start_m` | −0.05 | SPEC-300 `select.x_reach_start_m`과 같은 값. bringup은 `system.yaml` `layout.x_reach_start_m`(같은 값)으로 덮는다. TBD(배치도 OFF-1) |
 | `reach.workspace_min_m` | [0.20, −0.40, 0.00] | `robot_base` 기준 해제 TCP 허용 상자 하한. TBD(배치도 OFF-1) |
 | `reach.workspace_max_m` | [0.70, 0.40, 0.40] | 상한. 같음 |
 | `target.release_above_rim_m` | 0.1656 | 해제 직전 TCP z − 뚜껑 테두리 윗면 z(`robot_base`). TCP는 플랜지다(PLAN.md 1.1절). 정지 투입 성공 높이 0.1606 m에 5 mm 여유(`static_pick_place.yaml`과 같은 값, `records/worklog/2026-11-09.md`). 동적 투입에서의 값은 TBD(OFF-6) |
@@ -147,11 +148,11 @@ ok          = time_margin ≥ margin
 - REQ-PLN-009: `release_time ≥ earliest_release`이다.
 - REQ-PLN-010: `tau_max`는 4.6절 식을 만족하는 최대 τ를 해석해와 1e-6 s 이내로 돌려준다.
 - REQ-PLN-011: fixture tracked 입력 → 실제 planner(I2)에서 정상·`time_insufficient`·`UNCERTAIN`·만료·epoch 불일치·clock reset 시나리오의 status·reason이 기대표와 모두 일치한다.
-- REQ-PLN-012: `drop.launch.py use_mock_planner:=false`는 실제 `intercept_planner_node`를 띄워 기동 때 한 번만 `ACTIVE`까지 자동 전이하고(사람이 나중에 `deactivate`하면 다시 켜지 않는다) `mock_world_node`의 `publish_plan`을 끈다. 그때 `planner/compute_intercept` 서버와 `drop/intercept_plan` 발행자는 각각 `intercept_planner_node` 하나뿐이다. `use_mock_tracking:=false`도 같은 방식으로 실제 `tracker_node`를 `ACTIVE`로 띄우고 `objects/tracked` 발행자는 `tracker_node` 하나뿐이다. 검출이나 track이 mock 세계에서 오면(`use_mock_vision:=true` 또는 `use_mock_tracking:=true`) 시나리오 `world.frames`·`world.zones`로 `T_base_conveyor`·관측 구간·도달 구간 시작·끝을 실제 tracker·planner에 넘긴다(둘 다 실제면 각 config). `use_mock_planner` 기본값은 다른 역할과 같이 `false`다. `use_mock_planner:=true`(mock 임시 plan)는 `use_mock_tracking:=true`일 때만 허용하고, 아니면 계획을 내는 노드가 없으므로 launch가 노드를 띄우지 않고 0이 아닌 종료 코드로 끝난다. `mock.launch.py`는 `use_mock_planner:=true`를 명시한다.
+- REQ-PLN-012: `drop.launch.py use_mock_planner:=false`는 실제 `intercept_planner_node`를 띄워 기동 때 한 번만 `ACTIVE`까지 자동 전이하고(사람이 나중에 `deactivate`하면 다시 켜지 않는다) `mock_world_node`의 `publish_plan`을 끈다. 그때 `planner/compute_intercept` 서버와 `drop/intercept_plan` 발행자는 각각 `intercept_planner_node` 하나뿐이다. `use_mock_tracking:=false`도 같은 방식으로 실제 `tracker_node`를 `ACTIVE`로 띄우고 `objects/tracked` 발행자는 `tracker_node` 하나뿐이다. 검출이나 track이 mock 세계에서 오면(`use_mock_vision:=true` 또는 `use_mock_tracking:=true`) 시나리오 `world.frames`·`world.zones`로 `T_base_conveyor`·관측 구간을 실제 tracker·planner에 넘기고, 둘 다 실제면 보정값·관측 구간은 각 config를 쓴다. 도달 구간 시작·끝은 어느 경우든 tracker(`select.x_reach_start_m`)·planner(`reach.x_reach_start_m`·`budget.x_exit_m`)·orchestrator(`budget.x_reach_start_m`·`budget.x_exit_m`)에 같은 값을 넣는다: mock 세계면 시나리오 `world.zones`의 `reach_start_m`·`reach_end_m`, 둘 다 실제면 `drop_bringup/config/system.yaml`의 `layout`(tracker·planner config 기본값과 같은 값). `use_mock_planner` 기본값은 다른 역할과 같이 `false`다. `use_mock_planner:=true`(mock 임시 plan)는 `use_mock_tracking:=true`일 때만 허용하고, 아니면 계획을 내는 노드가 없으므로 launch가 노드를 띄우지 않고 0이 아닌 종료 코드로 끝난다. `mock.launch.py`는 `use_mock_planner:=true`를 명시한다.
 
 ## 8. 검증 방법(`TEST_SPEC.md` TC ID, 게이트)
 
-- U: TC-PLN-001~005·008~010(`intercept_planner/test/`). C: TC-PLN-006·007(`intercept_planner/test/contract/`). I2: TC-PLN-011, TC-PLN-012(`drop_bringup/test/test_real_bringup.py`).
+- U: TC-PLN-001~005·008~010(`intercept_planner/test/`). C: TC-PLN-006·007(`intercept_planner/test/contract/`). I2: TC-PLN-011, TC-PLN-012-01·02(`drop_bringup/test/test_real_bringup.py`).
 - 게이트: G4(PLN 전부), G6(PLN 전부). 예측 오차 실측은 TC-BEN-011·TC-EXP-G4.
 
 ## 9. 미결 사항

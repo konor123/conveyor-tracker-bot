@@ -5,6 +5,8 @@ vision·tracking·planner는 실제 lifecycle 노드 또는 대역을 선택한�
 실제 tracker·planner는 launch가 configure → activate까지 자동으로 전이한다(SPEC-400 REQ-PLN-012).
 use_mock_planner:=false(기본)면 mock_world_node의 임시 plan(publish_plan)을 끈다.
 use_mock_planner:=true는 임시 plan을 내는 tracking 대역이 있어야 하므로 use_mock_tracking:=true가 아니면 기동을 거부한다.
+도달 구간(시작·끝)은 tracker·planner·orchestrator에 같은 값을 넣는다: 검출이나 track이 mock 세계에서 오면 시나리오
+world.zones, 아니면 config/system.yaml의 layout(SPEC-400 REQ-PLN-012).
 """
 import os
 import time
@@ -23,6 +25,7 @@ from lifecycle_msgs.msg import Transition
 
 ROLES = ('vision', 'tracking', 'planner', 'robot')
 REAL_PENDING = {'robot': 'robot_control robot_controller_node'}
+SYSTEM_YAML = os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir, 'config', 'system.yaml')
 
 
 def _repo_path(value):
@@ -48,8 +51,16 @@ def _shutdown_on_failure(node):
     return RegisterEventHandler(OnProcessExit(target_action=node, on_exit=on_exit))
 
 
+def _reach_params(x_reach_start, x_exit):
+    """도달 구간 시작·끝을 세 노드의 파라미터 이름으로(tracker, planner, orchestrator)."""
+    x_reach_start, x_exit = float(x_reach_start), float(x_exit)
+    return ({'select.x_reach_start_m': x_reach_start},
+            {'reach.x_reach_start_m': x_reach_start, 'budget.x_exit_m': x_exit},
+            {'budget.x_reach_start_m': x_reach_start, 'budget.x_exit_m': x_exit})
+
+
 def _scenario_params(scenario):
-    """mock 세계와 같은 기하를 실제 tracker·planner에 넘길 파라미터(tracker, planner).
+    """mock 세계와 같은 기하를 실제 tracker·planner와 orchestrator에 넘길 파라미터(tracker, planner, orchestrator).
 
     시나리오 world.frames → robot_base ← conveyor_frame(row-major 16개),
     world.zones(conveyor_frame x) → 관측 구간·도달 구간 시작·끝. 검출이 mock 세계에서 올 때만 쓴다.
@@ -60,11 +71,24 @@ def _scenario_params(scenario):
     with open(scenario_file(scenario)) as fh:
         geo = scenario_geometry(yaml.safe_load(fh)['world'])
     T, zones = geo['T_base_conveyor'], geo['zones']
-    tracker = {'T_base_conveyor': T, 'region.x_obs_min_m': zones['obs_start_m'],
-               'region.x_obs_max_m': zones['obs_end_m'], 'select.x_reach_start_m': zones['reach_start_m']}
-    planner = {'T_base_conveyor': T, 'reach.x_reach_start_m': zones['reach_start_m'],
-               'budget.x_exit_m': zones['reach_end_m']}
-    return tracker, planner
+    tracker, planner, orchestrator = _reach_params(zones['reach_start_m'], zones['reach_end_m'])
+    tracker.update({'T_base_conveyor': T, 'region.x_obs_min_m': zones['obs_start_m'],
+                    'region.x_obs_max_m': zones['obs_end_m']})
+    planner['T_base_conveyor'] = T
+    return tracker, planner, orchestrator
+
+
+def _layout_params(path=SYSTEM_YAML):
+    """실제 배치(config/system.yaml layout)의 도달 구간(tracker, planner, orchestrator). 보정·관측 구간은 각 config."""
+    import yaml
+    with open(path, encoding='utf-8') as fh:
+        layout = yaml.safe_load(fh)['layout']
+    return _reach_params(layout['x_reach_start_m'], layout['x_exit_m'])
+
+
+def _geometry_params(scenario, mock_world):
+    """세 노드가 같은 도달 구간을 쓰도록 넘길 파라미터. 검출·track이 mock 세계에서 오면 시나리오, 아니면 실제 배치."""
+    return _scenario_params(scenario) if mock_world else _layout_params()
 
 
 def _autostart(node):
@@ -100,8 +124,8 @@ def _nodes(context):
     common = {'scenario': scenario, 'seed': seed, 't0_s': t0, 'use_sim_time': sim_time,
               'duration_scale_ratio': dur_scale, 'drop_role': drop_role, 'drop_at_s': drop_at}
     # 검출이나 track이 mock 세계에서 오면 실제 tracker·planner도 같은 컨베이어 위치·구간을 써야 한다.
-    # 둘 다 실제면 각 패키지 config(보정값·배치)를 그대로 쓴다.
-    tracker_geo, planner_geo = _scenario_params(scenario) if mock['vision'] or mock['tracking'] else ({}, {})
+    # 둘 다 실제면 보정값·관측 구간은 각 패키지 config, 도달 구간은 system.yaml layout이다.
+    tracker_geo, planner_geo, orch_geo = _geometry_params(scenario, mock['vision'] or mock['tracking'])
     out = []
     world_roles = [r for r in ('vision', 'tracking') if mock[r]]
     if world_roles:
@@ -140,7 +164,7 @@ def _nodes(context):
             rec_params['date'] = date_val
         out.extend([
             Node(package='orchestrator', executable='orchestrator_node', name='orchestrator_node',
-                 output='screen', parameters=[{'use_sim_time': sim_time}]),
+                 output='screen', parameters=[{'use_sim_time': sim_time, **orch_geo}]),
             Node(package='orchestrator', executable='safety_supervisor_node', name='safety_supervisor_node',
                  output='screen', parameters=[{'use_sim_time': sim_time}]),
             Node(package='orchestrator', executable='record_logger_node', name='record_logger_node',

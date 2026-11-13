@@ -75,6 +75,7 @@ abort:
 watchdog:
   heartbeat_timeout_s: 0.3
   obs_freshness_s: 0.3                 # τ_max, TBD(측정 G3·G4)
+  belt_unsteady_hold_s: 1.0            # BeltMotion.steady=false가 이 시간을 넘게 이어지면 BELT_UNSTEADY(2 × tracking recover_s), TBD(OFF-5)
   gripper_response_max_s: 0.5          # TBD(측정 G0)
   gripper_alive_stall_s: 0.1           # TBD(측정 G0)
   cycle_timeout_s: 90.0
@@ -91,9 +92,9 @@ node:                                  # orchestrator_node(SPEC-100 4.8절)
   detect_stable_window_s: 0.5         # DetectObjects 안정 창(SPEC-100 4.8절)
   status_period_s: 0.1                 # TaskStatus 10 Hz
 
-budget:                                # M0 임시 시간 예산(SPEC-100 4.9절). planner time_budget이 생기면 대체, TBD(측정 G0)
-  x_reach_start_m: 0.20                # conveyor_frame 도달 구간 시작(WAIT_CAP t_to_window, REQ-ORC-018). tracker select.x_reach_start_m과 같게
-  x_exit_m: 0.40                       # conveyor_frame 도달 구간 끝
+budget:                                # WAIT_CAP 시간 예산 입력(SPEC-100 4.9절, 식은 intercept_planner time_budget). 성분은 TBD(측정 G0)
+  x_reach_start_m: 0.20                # conveyor_frame 도달 구간 시작(WAIT_CAP t_to_window, REQ-ORC-018). launch가 ROS 파라미터로 덮는다(SPEC-400 REQ-PLN-012)
+  x_exit_m: 0.40                       # conveyor_frame 도달 구간 끝. 같음
   plan_s: 0.5
   approach_s: 1.5
   synchronize_s: 0.5

@@ -1,7 +1,8 @@
 """I0 전체 대역 통합 시험(PLAN.md 7.5절, TEST_SPEC.md 3.11·3.12·3.13절).
 
 TC-INT-001-01, TC-INT-002-01, TC-INT-003-01, TC-INT-004-01, TC-INT-005-01, TC-INT-006-01,
-TC-INT-008-01, TC-INT-009-01, TC-INT-010-01, TC-INT-011-01, TC-INT-012-01, TC-MCK-006-02, TC-REC-002-01, TC-REC-003-01을 격리된 ROS_DOMAIN_ID에서 검증한다.
+TC-INT-008-01, TC-INT-009-01, TC-INT-010-01, TC-INT-011-01, TC-INT-012-01, TC-INT-013-01, TC-MCK-006-02, TC-REC-002-01,
+TC-REC-003-01과 감시 연결 TC-ABT-011-02, TC-ABT-012-02, TC-ABT-013-02, TC-ABT-014-02를 격리된 ROS_DOMAIN_ID에서 검증한다.
 """
 from __future__ import annotations
 
@@ -18,12 +19,12 @@ import pytest
 
 rclpy = pytest.importorskip('rclpy')
 from drop_interfaces.action import DropTask  # noqa: E402
-from drop_interfaces.msg import (Heartbeat, InterceptPlan, RobotStatus, StepRecord, TaskStatus,  # noqa: E402
-                                 TrackedObjectArray)
+from drop_interfaces.msg import (BeltMotion, Heartbeat, InterceptPlan, RobotStatus, StepRecord,  # noqa: E402
+                                 TaskStatus, TrackedObjectArray)
 from drop_interfaces.srv import ResetTracking, Stop  # noqa: E402
 from drop_mocks.ros_common import scenario_file  # noqa: E402
 from drop_mocks.scenario_engine import ScenarioEngine  # noqa: E402
-from drop_ros import DOMAIN, Harness, wait_future  # noqa: E402
+from drop_ros import DOMAIN, Harness, SteadyRosClock, wait_future  # noqa: E402
 from spec_metrics import EXPECTED_METRIC_KEYS
 from lifecycle_msgs.msg import Transition  # noqa: E402
 from lifecycle_msgs.srv import ChangeState  # noqa: E402
@@ -87,7 +88,8 @@ def _stop(proc) -> str:
 
 
 def _wait_ready(h: Harness, timeout_s: float = 15.0) -> None:
-    hbs = h.record(Heartbeat, 'system/heartbeat')
+    hbs = h.record(Heartbeat, 'system/heartbeat', steady=True)
+    robot = h.record(RobotStatus, 'robot/status', steady=True)
     statuses = h.record(TaskStatus, 'task/status')
     end = time.monotonic() + timeout_s
     want = {'vision_node', 'tracker_node', 'robot_controller_node'}
@@ -95,7 +97,7 @@ def _wait_ready(h: Harness, timeout_s: float = 15.0) -> None:
         seen = {m.node_name for _, m in hbs if m.lifecycle_state == 3}
         if want <= seen and statuses:
             if not getattr(h, 'settled', False):
-                _settle(h)
+                _settle(h, hbs, robot)
             return
         time.sleep(0.05)
     raise AssertionError(f'mock bringup 준비 시간 초과: seen={ {m.node_name for _, m in hbs} }, task={len(statuses)}')
@@ -105,12 +107,14 @@ BRINGUP_SETTLE_S = 1.5
 BRINGUP_RELEASE_REASON = 'i0: bring-up supervisor heartbeat transient'
 
 
-def _settle(h: Harness) -> None:
-    """기동 직후 안정 대기(TEST_SPEC 0.4절 I0 기동 절차).
+def _settle(h: Harness, hbs, robot) -> None:
+    """기동 직후 안정 대기(TEST_SPEC 0.3절 I0 기동 절차).
 
     감시 노드는 기동 직후 controller heartbeat를 0.3 s 넘게 늦게 받아 `CONTROLLER_HEARTBEAT_LOST` Stop을
     보낼 수 있다(대역 발행은 연속). 로봇은 Stop을 정지 유지로 남기므로(SPEC-010 4.5절) 첫 goal 전에 시험이
     작업자 역할로 사유를 남기고 해제한다. 그 밖의 사유거나 이 구간 뒤의 감시 노드 Stop은 해제하지 않는다.
+    해제 뒤에는 controller heartbeat `error_code` 0과 `RobotStatus.ready`를 받은 다음 돌아간다(운용 절차와 같은 순서).
+    hbs·robot은 steady 수신 시각 기록이다.
     """
     time.sleep(BRINGUP_SETTLE_S)
     stops = _get_cancel_stop_history(h)[2]
@@ -119,6 +123,11 @@ def _settle(h: Harness) -> None:
     if sup:
         print(f'I0 기동 과도 감시 노드 Stop {len(sup)}회 → 해제', flush=True)
         _set_params(h, 'mock_robot_controller_node', [_param_str('stop_release_reason', BRINGUP_RELEASE_REASON)])
+    t_rel = time.monotonic()
+    h.wait_for(lambda: any(t > t_rel and m.node_name == 'robot_controller_node' and m.error_code == 0
+                           for t, m in list(hbs))
+               and any(t > t_rel and m.ready for t, m in list(robot)),
+               timeout=5.0, what='해제 뒤 controller heartbeat error_code 0·RobotStatus.ready')
     h.settled = True
     h.bringup_stops = len(stops)
 
@@ -154,8 +163,9 @@ def _param_str(name: str, val: str) -> RosParam:
     )
 
 
-def _reset_cycle_clock(h: Harness, seed: int | None = None, t0_offset_s: float = 0.0) -> None:
-    t0 = time.time() + t0_offset_s
+def _reset_cycle_clock(h: Harness, seed: int | None = None, t0_offset_s: float = 0.0, now=None) -> None:
+    """시나리오 시각 0을 지금 + t0_offset_s로 옮긴다. now는 ROS 시각 원천(sim time이면 그 시계의 now)."""
+    t0 = (time.time() if now is None else now()) + t0_offset_s
     world_params = [_param_double('t0_s', t0)]
     robot_params = [_param_double('t0_s', t0)]
     if seed is not None:
@@ -164,6 +174,7 @@ def _reset_cycle_clock(h: Harness, seed: int | None = None, t0_offset_s: float =
     _set_params(h, 'mock_world_node', world_params)
     _set_params(h, 'mock_robot_controller_node', robot_params)
     time.sleep(0.08)
+    return t0
 
 
 def _get_stop_info(h: Harness) -> tuple[int, int, str]:
@@ -795,5 +806,302 @@ def test_i0_predicted_marker_matches_observed_tf(ros, tmp_path):
         assert any(math.hypot(m.pose.position.x - target.x, m.pose.position.y - target.y) <= 1e-6 for m in added)
     finally:
         _stop(frames)
+        _stop(proc)
+        h.close()
+
+
+# ------------------------------------------------------------------ MODE_STATIC(TC-INT-013-01)
+STATIC_STATES = ['PRECHECK', 'DETECT_STONE', 'PICK_STONE', 'MOVE_STANDBY', 'WAIT_CAP', 'APPROACH', 'DESCEND', 'RELEASE',
+                 'RETREAT', 'VERIFY', 'DONE']
+
+
+def _observed_states(task_msgs, start: int) -> list[str]:
+    observed = []
+    for _, m in task_msgs[start:]:
+        if not observed or observed[-1] != m.state:
+            observed.append(m.state)
+    while observed and observed[0] in ('IDLE', 'DONE', 'WAIT_OPERATOR'):
+        observed = observed[1:]
+    return observed
+
+
+@pytest.mark.req('REQ-ORC-001')
+@pytest.mark.tc('TC-INT-013-01')
+@pytest.mark.level('I0')
+def test_i0_static_mode_full_sequence(ros, tmp_path):
+    """MODE_STATIC 한 사이클: WAIT_CAP은 병뚜껑 검출, APPROACH~RETREAT는 PlaceStone, PLAN_INTERCEPT·SYNCHRONIZE 없음.
+
+    축척 0.4(PlaceStone 1.0 s, phase 0.25 s)로 phase feedback 간격을 대역 소요시간 축척 0.12보다 넓힌다.
+    """
+    h = Harness()
+    task_msgs = h.record(TaskStatus, 'task/status')
+    step_msgs = h.record(StepRecord, 'task/step_record')
+    proc = _launch('scenario:=nominal_20mms', 'duration_scale_ratio:=0.4', f'records_dir:={tmp_path}',
+                   f'date:={DATE_STR}')
+    try:
+        _wait_ready(h)
+        _reset_cycle_clock(h, seed=0, t0_offset_s=-2.5)
+        runs = _skill_runs(h)
+        start = len(task_msgs)
+        goal = DropTask.Goal(mode=DropTask.Goal.MODE_STATIC, max_belt_speed=0.05, timeout=30.0, max_passes=1)
+        _, res = _send_goal(h, goal, timeout=40.0)
+        cyc_id = task_msgs[-1][1].cycle_id
+        h.wait_for(lambda: any(m.cycle_id == cyc_id and m.step_name == 'VERIFY' for _, m in step_msgs), 2.0,
+                   'VERIFY 기록')
+        steps = [m for _, m in step_msgs if m.cycle_id == cyc_id]
+        assert res.result == DropTask.Result.SUCCESS, (res.result, res.reason_code,
+                                                       [(m.step_name, m.result, m.reason_code) for m in steps])
+        assert _observed_states(task_msgs, start) == STATIC_STATES
+        assert [m.step_name for m in steps] == STATIC_STATES[:-1]
+        assert all(m.result == 0 for m in steps), [(m.step_name, m.reason_code) for m in steps]
+        by_name = {m.step_name: m for m in steps}
+        assert set(by_name['DESCEND'].metric_keys) == EXPECTED_METRIC_KEYS['DESCEND_STATIC']
+        assert set(by_name['WAIT_CAP'].metric_keys) == EXPECTED_METRIC_KEYS['WAIT_CAP']
+        assert _skill_runs(h) - runs == 3                    # PickStone, MoveToPose(standby), PlaceStone
+        assert _supervisor_stops_after_settle(h) == []
+        t_file = trials_path(str(tmp_path), DATE_STR)
+        h.wait_for(lambda: _read_jsonl(t_file), 5.0, 'trial 기록')
+        trial = _read_jsonl(t_file)[-1]
+        assert (trial['mode'], trial['result']) == ('MODE_STATIC', 'SUCCESS')
+        assert validate_trial_record(trial) == []
+    finally:
+        _stop(proc)
+        h.close()
+
+
+# ------------------------------------------------------------------ 감시 연결(SPEC-110 4.3절)
+WATCH_SKILLS = {'PickStone': 1.0, 'MoveToPose': 0.5, 'PlaceStone': 2.5, 'DynamicPlace': 4.0, 'SafeRetreat': 1.0}
+DYNAMIC = ('APPROACH', 'SYNCHRONIZE', 'DESCEND', 'RELEASE')
+SAFE_ABORT, FAILURE, SUCCESS = DropTask.Result.SAFE_ABORT, DropTask.Result.FAILURE, DropTask.Result.SUCCESS
+
+
+def _scenario(tmp_path, name: str, events=(), belt=None) -> str:
+    """nominal_20mms 세계에 이벤트·벨트 설정과 감시 시험용 skill 소요시간을 넣은 시나리오 파일(축척 1.0으로 띄운다).
+
+    t0_offset −2.5 s면 대상 뚜껑(x0 −0.05 m, 20 mm/s)이 시나리오 시각 9.5 s에 계획 시점(진입 3.0 s 전)이 되어
+    DynamicPlace가 약 9.55 s에 시작한다. DynamicPlace 4.0 s는 phase 5개가 0.8 s씩이라(RELEASE 단계 제한 1.0 s 안)
+    해제 응답이 약 12.75 s, RETREAT 끝이 약 13.55 s다. t0_offset −30 s면 두 번째 뚜껑(x0 0.55 m)으로 같은 일정이
+    30 s 늦다(DynamicPlace 약 39.55 s 시작).
+    """
+    import yaml
+    with open(scenario_file('nominal_20mms'), encoding='utf-8') as fh:
+        sc = yaml.safe_load(fh)
+    sc['name'] = name
+    sc['world']['belt'].update(belt or {})
+    sc['robot']['skills'] = {k: [{'duration_s': v}] for k, v in WATCH_SKILLS.items()}
+    sc['events'] = [dict(e) for e in events]
+    path = tmp_path / f'{name}.yaml'
+    path.write_text(yaml.safe_dump(sc, allow_unicode=True, sort_keys=False), encoding='utf-8')
+    return str(path)
+
+
+def _watch_launch(tmp_path, scenario: str, *args):
+    return _launch(f'scenario:={scenario}', 'duration_scale_ratio:=1.0', f'records_dir:={tmp_path}',
+                   f'date:={DATE_STR}', *args)
+
+
+def _cycle(h, task_msgs, step_msgs, timeout_s: float = 30.0):
+    """MODE_SYNCHRONIZED 한 사이클. (결과, 그 사이클 StepRecord 열, 상태 열)."""
+    start = len(task_msgs)
+    _, res = _send_goal(h, _drop_goal(timeout=timeout_s), timeout=timeout_s + 15.0)
+    cyc_id = task_msgs[-1][1].cycle_id
+    time.sleep(0.2)                                        # 마지막 StepRecord 수신
+    return res, [m for _, m in step_msgs if m.cycle_id == cyc_id], _observed_states(task_msgs, start)
+
+
+def _resume(h, task_msgs, reason: str) -> None:
+    _set_params(h, 'orchestrator_node', [_param_str('resume_reason', reason)])
+    h.wait_for(lambda: task_msgs[-1][1].state == 'IDLE', timeout=3.0, what='IDLE')
+
+
+def _fault_record(steps, reason: str):
+    rec = [m for m in steps if m.reason_code == reason]
+    assert rec, [(m.step_name, m.result, m.reason_code) for m in steps]
+    return rec[0]
+
+
+def _state_at(task_steady, t: float) -> str:
+    """steady 수신 시각 t에 orchestrator가 알린 마지막 상태."""
+    before = [m.state for ts, m in task_steady if ts <= t]
+    return before[-1] if before else ''
+
+
+@pytest.mark.req('REQ-ABT-011')
+@pytest.mark.tc('TC-ABT-011-02')
+@pytest.mark.level('I0')
+def test_i0_stale_target_observation_aborts_before_release(ros, tmp_path):
+    """동적 구간에서 대상 track이 가려져 관측 나이가 0.3 s를 넘으면 해제 전 L3(`OBS_STALE`)."""
+    occ_t = 10.0                                           # APPROACH 중(약 9.55 s 시작) 가림 시작
+    path = _scenario(tmp_path, 'watch_occlusion', events=[{'type': 'occlusion', 't_s': occ_t, 'duration_s': 1.5}])
+    h = Harness()
+    task_msgs = h.record(TaskStatus, 'task/status')
+    step_msgs = h.record(StepRecord, 'task/step_record')
+    proc = _watch_launch(tmp_path, path)
+    try:
+        _wait_ready(h)
+        t0 = _reset_cycle_clock(h, seed=0, t0_offset_s=-2.5)
+        res, steps, states = _cycle(h, task_msgs, step_msgs)
+        assert (res.result, res.reason_code) == (SAFE_ABORT, 'OBS_STALE'), (res.result, res.reason_code, states)
+        rec = _fault_record(steps, 'OBS_STALE')
+        assert rec.step_name in DYNAMIC and rec.abort_level == 3, (rec.step_name, rec.abort_level)
+        assert 'RELEASE' not in [m.step_name for m in steps if m.result == 0]
+        last_obs = t0 + occ_t - 1.0 / 30.0                  # 가림 직전 프레임
+        assert _sec(rec.t_end) - last_obs > 0.3, _sec(rec.t_end) - last_obs
+        assert states[-2:] == ['SAFE_ABORT', 'WAIT_OPERATOR'], states
+    finally:
+        _stop(proc)
+        h.close()
+
+
+@pytest.mark.req('REQ-ABT-012')
+@pytest.mark.tc('TC-ABT-012-02')
+@pytest.mark.level('I0')
+def test_i0_ros_clock_regression(ros, tmp_path):
+    """`use_sim_time`에서 /clock을 1 s 되돌린다: 들고 있으면(WAIT_CAP) L3, 아니면(PICK_STONE) L2, `CLOCK_JUMP`.
+
+    역행 전에 고른 대상·계획은 쓰지 않는다(WAIT_CAP 뒤 PLAN_INTERCEPT 기록 없음, 포트 거부는 TC-ABT-012-03).
+    """
+    clock = SteadyRosClock(domain_id=_ACTIVE_DOMAIN)
+    h = Harness()
+    task_msgs = h.record(TaskStatus, 'task/status')
+    step_msgs = h.record(StepRecord, 'task/step_record')
+    proc = _watch_launch(tmp_path, _scenario(tmp_path, 'watch_clock'), 'use_sim_time:=true')
+    ac = None
+    try:
+        _wait_ready(h, timeout_s=30.0)
+        ac = h.action(DropTask, 'drop_task', timeout=5.0)
+        out = {}
+        for where, want, level in (('WAIT_CAP', SAFE_ABORT, 3), ('PICK_STONE', FAILURE, 2)):
+            _reset_cycle_clock(h, seed=0, t0_offset_s=-2.5, now=clock.now)
+            start = len(task_msgs)
+            gh = wait_future(ac.send_goal_async(_drop_goal(timeout=30.0)), 5.0)
+            assert gh.accepted
+            h.wait_for(lambda: any(m.state == where for _, m in task_msgs[start:]), 15.0, where)
+            time.sleep(0.3)
+            clock.jump(-1.0)
+            res = wait_future(gh.get_result_async(), 30.0).result
+            cyc_id = task_msgs[-1][1].cycle_id
+            time.sleep(0.2)
+            steps = [m for _, m in step_msgs if m.cycle_id == cyc_id]
+            out[where] = (res.result, res.reason_code)
+            assert (res.result, res.reason_code) == (want, 'CLOCK_JUMP'), (where, res.result, res.reason_code,
+                                                                           [(m.step_name, m.reason_code) for m in steps])
+            rec = _fault_record(steps, 'CLOCK_JUMP')
+            assert (rec.step_name, rec.abort_level) == (where, level)
+            assert 'PLAN_INTERCEPT' not in [m.step_name for m in steps]
+            _resume(h, task_msgs, f'clock regression at {where} checked')
+    finally:
+        log = _stop(proc)
+        h.close()
+        clock.close()
+    assert log.count('ROS 시각 역행') >= 2, log[-3000:]
+
+
+@pytest.mark.req('REQ-ABT-013')
+@pytest.mark.tc('TC-ABT-013-02')
+@pytest.mark.level('I0')
+def test_i0_short_belt_pulse_does_not_abort(ros, tmp_path):
+    """동적 구간의 0.5 s `steady=false`(맥동 경보 한 번)는 중단하지 않는다."""
+    path = _scenario(tmp_path, 'watch_belt_pulse', belt={'unsteady_hold_s': 0.5},
+                     events=[{'type': 'speed_change', 't_s': 10.0, 'speed_mps': 0.02}])
+    h = Harness()
+    task_msgs = h.record(TaskStatus, 'task/status')
+    task_steady = h.record(TaskStatus, 'task/status', steady=True)
+    belt = h.record(BeltMotion, 'belt/measured_motion', steady=True)
+    step_msgs = h.record(StepRecord, 'task/step_record')
+    proc = _watch_launch(tmp_path, path)
+    try:
+        _wait_ready(h)
+        _reset_cycle_clock(h, seed=0, t0_offset_s=-2.5)
+        n_belt = len(belt)
+        res, steps, states = _cycle(h, task_msgs, step_msgs)
+        assert res.result == SUCCESS, (res.result, res.reason_code, [(m.step_name, m.reason_code) for m in steps])
+        unsteady = [t for t, m in belt[n_belt:] if not m.steady]
+        assert unsteady and all(_state_at(task_steady, t) in DYNAMIC for t in unsteady), \
+            [(round(t, 3), _state_at(task_steady, t)) for t in unsteady]
+        assert 0.4 <= unsteady[-1] - unsteady[0] <= 0.6
+    finally:
+        _stop(proc)
+        h.close()
+
+
+@pytest.mark.req('REQ-ABT-013')
+@pytest.mark.tc('TC-ABT-013-02')
+@pytest.mark.level('I0')
+def test_i0_persistent_belt_unsteady_before_and_after_release(ros, tmp_path):
+    """2.0 s `steady=false`: 해제 전이면 1.0 s를 넘는 순간 L3(`BELT_UNSTEADY`), 해제 뒤면 RETREAT→VERIFY로 계속한다."""
+    pre_t, post_t = 10.0, 42.1                             # 첫 사이클 APPROACH 중 / 둘째 사이클 해제 0.65 s 전
+    path = _scenario(tmp_path, 'watch_belt_unsteady', belt={'unsteady_hold_s': 2.0},
+                     events=[{'type': 'speed_change', 't_s': pre_t, 'speed_mps': 0.02},
+                             {'type': 'speed_change', 't_s': post_t, 'speed_mps': 0.02}])
+    h = Harness()
+    task_msgs = h.record(TaskStatus, 'task/status')
+    step_msgs = h.record(StepRecord, 'task/step_record')
+    proc = _watch_launch(tmp_path, path)
+    try:
+        _wait_ready(h)
+        # 1) 해제 전: L3
+        t0 = _reset_cycle_clock(h, seed=0, t0_offset_s=-2.5)
+        res, steps, states = _cycle(h, task_msgs, step_msgs)
+        assert (res.result, res.reason_code) == (SAFE_ABORT, 'BELT_UNSTEADY'), (res.result, res.reason_code, states)
+        rec = _fault_record(steps, 'BELT_UNSTEADY')
+        assert rec.step_name in DYNAMIC and rec.abort_level == 3, (rec.step_name, rec.abort_level)
+        assert _sec(rec.t_end) - (t0 + pre_t) >= 1.0 - 1.0 / 30.0       # 1.0 s 지속 뒤에야 중단
+        _resume(h, task_msgs, 'belt unsteady before release checked')
+
+        # 2) 해제 뒤: 이벤트는 기록하고 RETREAT → VERIFY → DONE
+        t0 = _reset_cycle_clock(h, seed=0, t0_offset_s=-30.0)
+        res, steps, states = _cycle(h, task_msgs, step_msgs, timeout_s=40.0)
+        names = [(m.step_name, m.result, m.reason_code, m.abort_level) for m in steps]
+        assert res.result == SUCCESS, (res.result, res.reason_code, names)
+        rec = _fault_record(steps, 'BELT_UNSTEADY')
+        assert rec.step_name in ('RETREAT', 'VERIFY') and rec.abort_level == 0, names
+        assert [m.step_name for m in steps][-3:] == ['RELEASE', 'RETREAT', 'VERIFY'], names
+        assert states[-3:] == ['RETREAT', 'VERIFY', 'DONE'], states
+    finally:
+        _stop(proc)
+        h.close()
+
+
+@pytest.mark.req('REQ-ABT-014')
+@pytest.mark.tc('TC-ABT-014-02')
+@pytest.mark.level('I0')
+def test_i0_gripper_status_watch(ros, tmp_path):
+    """`robot/status` 그리퍼 응답 0.500 s는 유지, 0.501 s는 들고 있으면 L3, 아니면 L2(`GRIPPER_FAULT`).
+
+    대역 응답 시간 = 0.1 s + `gripper_delay`. 첫 사이클(t0 −2.5 s)은 WAIT_CAP(들고 있음)에서 5~6 s 0.500 s, 7~8 s
+    0.501 s, 둘째 사이클(t0 −20 s)은 PICK_STONE(들지 않음) 중 20.7 s부터 0.501 s다.
+    """
+    path = _scenario(tmp_path, 'watch_gripper', events=[
+        {'type': 'gripper_delay', 't_s': 5.0, 'duration_s': 1.0, 'delay_s': 0.400},
+        {'type': 'gripper_delay', 't_s': 7.0, 'duration_s': 1.0, 'delay_s': 0.401},
+        {'type': 'gripper_delay', 't_s': 20.7, 'duration_s': 1.0, 'delay_s': 0.401}])
+    h = Harness()
+    task_msgs = h.record(TaskStatus, 'task/status')
+    task_steady = h.record(TaskStatus, 'task/status', steady=True)
+    robot = h.record(RobotStatus, 'robot/status', steady=True)
+    step_msgs = h.record(StepRecord, 'task/step_record')
+    proc = _watch_launch(tmp_path, path)
+    try:
+        _wait_ready(h)
+        # 1) 들고 있음(WAIT_CAP): 0.500 s 동안 유지, 0.501 s에서 L3
+        t0 = _reset_cycle_clock(h, seed=0, t0_offset_s=-2.5)
+        n_robot = len(robot)
+        res, steps, states = _cycle(h, task_msgs, step_msgs)
+        assert (res.result, res.reason_code) == (SAFE_ABORT, 'GRIPPER_FAULT'), (res.result, res.reason_code, states)
+        rec = _fault_record(steps, 'GRIPPER_FAULT')
+        assert (rec.step_name, rec.abort_level) == ('WAIT_CAP', 3)
+        assert _sec(rec.t_end) >= t0 + 7.0
+        held = [t for t, m in robot[n_robot:] if m.gripper_response_s == pytest.approx(0.5, abs=1e-9)]
+        assert held and all(_state_at(task_steady, t) == 'WAIT_CAP' for t in held)   # 0.500 s를 WAIT_CAP에서 받았다
+        _resume(h, task_msgs, 'gripper fault while holding checked')
+
+        # 2) 들지 않음(PICK_STONE): L2
+        _reset_cycle_clock(h, seed=0, t0_offset_s=-20.0)
+        res, steps, states = _cycle(h, task_msgs, step_msgs)
+        assert (res.result, res.reason_code) == (FAILURE, 'GRIPPER_FAULT'), (res.result, res.reason_code, states)
+        rec = _fault_record(steps, 'GRIPPER_FAULT')
+        assert (rec.step_name, rec.abort_level) == ('PICK_STONE', 2)
+    finally:
         _stop(proc)
         h.close()

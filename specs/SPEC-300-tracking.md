@@ -1,6 +1,6 @@
 # SPEC-300 tracking
 
-- 버전: v0.6
+- 버전: v0.7
 - 근거: PLAN.md 2.5, 3.1, 4.3, 5.3, 7절
 - REQ 영역: TRK
 
@@ -8,6 +8,7 @@
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
+| v0.7 | 2026-11-13 | 6절 오케스트레이터 쪽 처리: 속도 변화는 `steady = false`가 1.0 s 넘게 이어질 때만 중단, 시각 역행은 들고 있으면 L3·아니면 L2(SPEC-110 REQ-ABT-012·013) |
 | v0.6 | 2026-11-12 | 속도 변화 검출 `cusum_k` 2·`cusum_h` 16·`recover_s` 0.5 s(OFF-1 벨트 영상의 맥동 기준), REQ-TRK-006 계단 크기 20 mm/s와 실영상 기준 |
 | v0.5 | 2026-11-12 | 관측 구간 밖 검출은 새 track을 만들지 않음(REQ-TRK-014), 시각 역행 초기화 WARN 로그(REQ-TRK-008) |
 | v0.4 | 2026-11-10 | `coast.max_s` 근거를 가림 시간 분포에서 가림 없는 배치의 검출 누락 구간으로 |
@@ -121,9 +122,9 @@ SPEC-010 wire schema v0.2 / runtime contract v0.4 기준.
 |---|---|---|
 | 가림(관측 없음 ≤ `coast.max_s`) | `COASTING`, 공분산 증가 | 해제 게이트 τ_max 판정 |
 | 가림 초과 | `LOST` | 해제 전이면 L3 |
-| 속도 변화 | `steady = false` | WAIT_CAP 보류, 동적 단계면 L3 |
+| 속도 변화 | `steady = false` | WAIT_CAP 보류. 동적 단계·해제 뒤에는 `steady = false`가 `belt_unsteady_hold_s`(1.0 s) 넘게 이어질 때만 `BELT_UNSTEADY`(해제 전 L3, 해제 뒤 RETREAT·VERIFY 계속), 그보다 짧으면 중단 없음 |
 | 역순 stamp | 프레임 폐기, 카운트 | 없음 |
-| ROS 시각 역행 | 전체 초기화, `epoch += 1` | 이전 epoch 계획 무효(L3) |
+| ROS 시각 역행 | 전체 초기화, `epoch += 1` | 역행 전 대상·계획 재사용 거부, 들고 있으면 L3, 아니면 L2 |
 | 입력 끊김 | track이 `COASTING` → `LOST` | 관측 신선도 감시 |
 
 ## 7. 성공 판정(측정 가능)

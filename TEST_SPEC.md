@@ -38,7 +38,7 @@ SPEC의 REQ 확인 → 이 문서의 TC 선택 → fake·fixture 준비(1절) �
 
 - `[ON*]` 시험은 필요한 자료가 없으면 **skip**으로 끝나야 하며 pass로 세지 않는다(`needs_data` 마커, 0.4절).
 - 실시간 스케줄에 의존하는 C 시험은 `realtime_pc` 마커를 단다. CI(공유 러너)는 이 시험을 판정 단계에서 빼고 별도 단계에서 실행·기록만 하며(실패해도 CI 통과 조건 아님), 판정은 PC(LEGION, 꺼져 있으면 officepc WSL)에서 하고 결과를 `records/worklog/`에 남긴다.
-- I0 기동 절차: 모든 노드의 heartbeat(ACTIVE)와 `task/status`를 받은 뒤 1.5 s 안정 대기한다. 이 구간에 감시 노드가 보낸 `CONTROLLER_HEARTBEAT_LOST` Stop(기동 직후 감시 노드의 controller heartbeat 수신 지연)은 시험이 작업자 역할로 사유(`i0: bring-up supervisor heartbeat transient`)를 남기고 해제한다(SPEC-010 4.5절). 다른 사유의 Stop과 첫 goal 이후 시험이 의도하지 않은 감시 노드 Stop은 해제하지 않고 실패로 본다.
+- I0 기동 절차: 모든 노드의 heartbeat(ACTIVE)와 `task/status`를 받은 뒤 1.5 s 안정 대기한다. 이 구간에 감시 노드가 보낸 `CONTROLLER_HEARTBEAT_LOST` Stop(기동 직후 감시 노드의 controller heartbeat 수신 지연)은 시험이 작업자 역할로 사유(`i0: bring-up supervisor heartbeat transient`)를 남기고 해제한다(SPEC-010 4.5절). 다른 사유의 Stop과 첫 goal 이후 시험이 의도하지 않은 감시 노드 Stop은 해제하지 않고 실패로 본다. 해제 뒤(해제가 없었으면 안정 대기 뒤)에는 controller heartbeat `error_code` 0과 `RobotStatus.ready`를 새로 받은 다음 첫 goal을 보낸다(운용 절차와 같은 순서).
 - `[OFF]` 시험은 pytest로 돌리지 않는다. 절차·합격 기준·기록 위치를 이 문서에 두고, 결과는 `records/`와 게이트 보고서에 남긴다.
 
 ### 0.4 pytest 규칙
@@ -122,11 +122,14 @@ class AbortTracker:                        # 진행 중 등급 + 중단 경로·
 class HeartbeatMonitor:   beat(node), lost(node) -> bool                  # steady
 class FreshnessMonitor:   stale(t_now, t_last_obs) -> bool                # ROS
 class ClockMonitor:       update(t_ros) -> bool                           # True = 역행
-class GripperMonitor:     update(error_bits, response_s, alive_counter), fault() -> bool   # steady
+class BeltSteadyMonitor:  update(steady, t_stamp) -> bool, unsteady() -> bool    # ROS stamp, false가 hold_s 넘게 이어짐
+class GripperMonitor:     update(error_bits, response_s, alive_counter=None, alive=True), fault() -> bool   # steady
 class CycleTimer:         expired() -> bool                               # ROS deadline 또는 steady 상한
+def cycle_watch_events(state, released, *, clock_back, gripper_fault, belt_unsteady, obs_stale) -> list[Event]  # SPEC-110 4.4절 구간
 
 # deadlines.py
 def effective_deadline(now: float, step_limit: float, dynamic: float | None, cycle: float) -> float
+def dynamic_deadline(now: float, t_available: float, retreat_margin: float) -> float   # now + T_available − retreat_margin
 def derive_step_timeout(p95: float, p99: float) -> float          # max(ceil(1.5*p99), p95+0.5)
 
 # cycle_runner.py — 한 사이클 실행(SPEC-100 4.2절). skill은 SkillPort, 시계는 FakeClock 인터페이스
@@ -295,6 +298,7 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-ORC-010-03 | result가 마지막 feedback보다 먼저 처리됨 | U | `[ON]` | 정상 result 처리 뒤 0.05 s에 `phase_done` feedback 도착 / 끝내 없음 / `STOPPED` result | feedback의 metrics 반환 / 짧은 대기 뒤 None / 대기 없이 None·`ROBOT_STOPPED` |
 | TC-ORC-011-01 | skill 결과의 정지 사유를 하드 이상으로 | U | `[ON]` | action 결과 `STOPPED` / `PROTECTIVE_STOP` / `CANCELED` / 빈 사유, phase 대기 중 `STOPPED`, 자체 감시가 controller heartbeat 손실을 먼저 봄, `ROBOT_STOPPED` latch 뒤 보호정지 확인 | `ROBOT_STOPPED` / `PROTECTIVE_STOP` / 장애 없음 / 장애 없음, `ROBOT_STOPPED`, `CONTROLLER_HEARTBEAT_LOST`, `PROTECTIVE_STOP` |
 | TC-ORC-012-01 | controller 정지 유지·보호정지 감시 | U | `[ON]` | controller heartbeat `error_code` 100 / 101 / 0, 100 뒤 101; `ROBOT_STOPPED`가 DETECT_STONE(`DetectObjects.MAT` 뒤) / WAIT_CAP(`SelectTarget` 뒤) / 단계 사이(`PickStone` 성공 뒤) / PRECHECK에서 latch | `PROTECTIVE_STOP` / `ROBOT_STOPPED` / 장애 없음, `PROTECTIVE_STOP` 유지; 각 경우 L4·WAIT_OPERATOR, latch 뒤 Stop 외 로봇 skill 호출 0회 |
+| TC-ORC-012-02 | Stop 해제 직후 goal | U | `[ON]` | 수락 전 캐시의 controller heartbeat `error_code` 101, 수락 뒤 새 heartbeat 0·0 / 101·101 / 없음(감시 타이머 20 Hz, heartbeat 10 Hz) | PRECHECK 앞 장애 없음(시작 대기 ≤ 0.2 s) / `ROBOT_STOPPED`(L4) / `startup_wait_s` 3.0 s 뒤 시작 |
 | TC-ORC-013-01 | WAIT_CAP 계획 시점 | U | `[ON]` | 다른 조건 모두 통과, `t_to_window_s` 3.001 / 3.000 / 2.999 s(`plan_lead_s` 3.0) | WAIT(`TOO_EARLY`) / OK / OK |
 | TC-ORC-018-01 | WAIT_CAP 진입까지 시간을 매 관측 갱신 | U | `[ON]` | `x_reach_start` 0.20 m, 대상 x 0.0 m: 고른 뒤 속도 0.005 → 0.02 m/s, x 0.25 m, 속도 0 | `t_to_window_s` 40 s → 10 s / 0 / ∞(고른 순간 `t_enter_window`와 무관) |
 | TC-ORC-014-01 | 해제 게이트 기준 분리 | U | `[ON]` | 설치 config로 만든 `place_start(MODE_SYNCHRONIZED)` goal | `position_std_max` = 0.0005 = `sync.release_position_std_max_m`, `plan.position_std_max_m` = 0.00325와 다름 |
@@ -302,6 +306,7 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-ORC-016-01 | 대상 소실 시 재선택 | U | `[ON]` | WAIT_CAP 관측이 `target_lost` / `COASTING`(`track_observed` 거짓, `target_lost` 거짓) | 같은 `pass_index`로 `select_target` 2회, `passes_skipped` 0, SUCCESS / `select_target` 1회 |
 | TC-ORC-016-02 | 소실 판정과 재선택 대상(ROS 포트) | U | `[ON]` | 고르기 전 빈 목록 / 고른 뒤 목록: OBSERVED, COASTING, 없음, epoch 다름, LOST / 같은 통과에서 다시 선택 뒤 다음 통과 | `target_lost` 거짓 / 거짓, 거짓, 참, 참, 참 / 같은 track 다시 선택, 다음 통과에서는 그 track 제외 |
 | TC-ORC-017-01 | 대기 중 끝난 WAIT_CAP 기록 | U | `[ON]` | 관측 수 10으로 대기 중 사이클 제한 20 s 경과 / 대상 선택이 응답 없이 사이클 제한 경과 | 기록 `CYCLE_TIMEOUT`, `detail` `OBSERVATION_COUNT`, 지표 `observation_count` 10 / `detail` `NO_TARGET`, 지표 없음 |
+| TC-ORC-019-01 | WAIT_CAP 시간 예산 단일 출처 | U | `[ON]` | 설치 config(`x_exit` 0.40 m, 성분 합 3.6 s, margin 1.0 s), 대상 (x, v) = (0.17, 0.02) / (0.0, 0) / (0.1, −0.02) / (0.39, 0.02) m·m/s, now 100 s | `t_available_s`·`t_required_s`·성분 = `evaluate_budget` 값: 11.5 s·3.6 s, OK, 동적 deadline 110.5 s / `BELT_STOPPED`: 0, `t_to_window_s` ∞, `WAIT`(`TOO_EARLY`) / `BELT_REVERSED`: 같음 / `TIME_MARGIN`: `PASS_SKIP` |
 
 ### 3.4 ABT — 중단·제한시간·감시
 
@@ -318,20 +323,22 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-ABT-004-02 | 늦은 action 수락 | U | `[ON]` | 수락 future 지연 후 cancel 요청·늦은 수락 | 미확정은 ack=false, 수락 후 cancel, terminal 확인 전 대체 모션 없음 |
 | TC-ABT-005-01 | 들고 있을 때 사용자 cancel은 L3 | U | `[ON]` | holding = true, 사용자 cancel | L3 |
 | TC-ABT-006-01 | 실제 deadline은 세 값의 최솟값 | U | `[ON]` | 단계·동적·사이클이 각각 최소인 3경우, 동적 = None | 최솟값 / None은 무시 |
+| TC-ABT-006-02 | 동적 deadline 식 | U | `[ON]` | now 100 s, `retreat_margin` 1.0 s, `evaluate_budget`(`x_exit` 0.40): (x, v) = (0.17, 0.02) / (0.0, 0) / (0.0, −0.02) | 110.5 s / 99.0 s(정지, 이미 지남) / 99.0 s(역방향) |
 | TC-ABT-007-01 | 측정 기반 단계 제한시간 | U | `[ON]` | (p95, p99) = (1.0, 1.2) / (2.0, 2.1) | 2.0 / 4.0(`max(ceil(1.5·p99), p95+0.5)`) |
 | TC-ABT-008-01 | `/clock`이 멈춰도 사이클은 끝난다 | U | `[ON]` | `freeze_ros()`, steady만 `goal.timeout × 2` 진행 | 사이클 중단(L2, 들고 있으면 L3) |
 | TC-ABT-009-01 | 감시 타이머는 steady 시계를 쓴다 | U | `[ON]` | `jump_ros(−5 s)` 후 heartbeat 정상 / `freeze_ros()` 후 heartbeat 0.3 s 끊김 | 오검출 없음 / 검출 |
 | TC-ABT-009-02 | heartbeat·상태 발행 및 감시 ROS 타이머가 steady 시계 | C | `[ON]` | `use_sim_time:=true`, `/clock` 없음(ROS 시각 정지): `mock_world_node`·`mock_robot_controller_node`·`robot_controller_node` 1 s, `safety_supervisor_node`에 controller heartbeat 1회 후 끊김, `orchestrator_node._watch` 타이머 시계 | heartbeat·`robot/status` 각 7회 이상 / 0.5 s 안에 `Stop(CONTROLLER_HEARTBEAT_LOST)` / `STEADY_TIME` |
 | TC-ABT-009-03 | Supervisor Stop 재시도 | U | `[ON]` | 서비스 지연·future 지연·거부·예외 | in-flight 최대 1개, stopped=true까지 재시도·오류 경고 |
 | TC-ABT-010-01 | heartbeat 3회 누락 | U | `[ON]` | 누락 0.299 / 0.300 s, 대상 vision(동적 구간) / vision(비동적) / robot_controller | 유지 / 검출 → L3 / L2 / L4 |
-| TC-ABT-011-01 | 동적 구간 관측 신선도 | U | `[ON]` | `t_now − t_last_obs` = 0.300 / 0.301 s, 해제 전 | 유지 / L3 |
-| TC-ABT-012-01 | ROS 시각 역행 | U | `[ON]` | 역행 1회 | U: 역행 검출과 이벤트 등급(holding L3 / 비holding L2); epoch 증가·기존 track 제거·기존 plan 재사용 거부는 TC-ABT-012-02(G3) |
-| TC-ABT-013-01 | 벨트 속도 급변 | U | `[ON]` | `steady=false`, 해제 전 / 해제 후 | L3 / 계속(RETREAT→VERIFY) |
-| TC-ABT-014-01 | 그리퍼 감시 | U | `[ON]` | error_bits ≠ 0 또는 응답 0.501 s, holding / 비holding | L3 / L2 |
-| TC-ABT-011-02 | 관측 freshness ROS 연결(G3/G4) | C | `[ON]` | 실제 관측 cache를 0.301 s 오래되게 주입 | 해제 전 L3, 실제 경로 사용 전 필수 |
-| TC-ABT-012-02 | 역행 무효화 ROS 연결(G3) | C | `[ON]` | 독립 track·plan 저장소 fixture, ROS 역행 1회 | epoch 증가·기존 track 제거·기존 plan 재사용 거부, holding L3 / 비holding L2 |
-| TC-ABT-013-02 | 벨트 ROS 이벤트 연결(G3) | C | `[ON]` | 실행 중 BeltMotion.steady=false | BELT_UNSTEADY 이벤트, 해제 전 L3 / 후 RETREAT→VERIFY |
-| TC-ABT-014-02 | 그리퍼 ROS 감시 연결(G0) | C | `[ON]` | 오류·응답 지연 상태 입력 | holding L3 / 비holding L2, 실제 경로 사용 전 필수 |
+| TC-ABT-011-01 | 동적 구간 관측 신선도 | U | `[ON]` | `t_now − t_last_obs` = 0.300 / 0.301 s, 해제 전; 적용 구간: 단계 전부 × 해제 전·후 | 유지 / L3; `OBS_STALE`은 해제 전 APPROACH~RELEASE에서만 |
+| TC-ABT-012-01 | ROS 시각 역행 | U | `[ON]` | 역행 1회, 멈춤; 적용 구간: 단계 전부 | U: 역행 검출(멈춤은 아님)과 이벤트 등급(holding L3 / 비holding L2); `CLOCK_JUMP`는 DETECT_STONE~VERIFY에서만 |
+| TC-ABT-012-03 | 역행 뒤 대상·계획 재사용 거부(포트) | U | `[ON]` | `RosSkillPort`: 대상 선택·계획 뒤 `place_start` 1회, 역행 1회, 다시 `_cap_obs`·`compute_intercept`·`place_start`, 다시 선택 | 역행 뒤 `target_lost` 참, 계획 요청 0회, `DynamicPlace` 전송 0회 / 다시 고른 대상으로는 계획·전송 |
+| TC-ABT-013-01 | 벨트 속도 급변 | U | `[ON]` | `steady=false` 지속(stamp) 0.999 / 1.000 / 1.001 s; 0.5 s 맥동 5회 반복; stamp 역행; 적용 구간: 단계 전부 × 해제 전·후; PRECHECK에서 0.5 / 1.000 / 1.001 s | 유지 / 유지 / 검출; 검출 없음; 역행 stamp부터 다시 셈; 해제 전 APPROACH~RELEASE L3 / 해제 후 RETREAT·VERIFY 계속(RETREAT→VERIFY), WAIT_CAP·PRECHECK·중단 경로는 latch 없음; PRECHECK OK / OK / `BELT_UNSTEADY` |
+| TC-ABT-014-01 | 그리퍼 감시 | U | `[ON]` | error_bits ≠ 0 또는 응답 0.501 s 또는 `gripper_alive` 거짓, holding / 비holding; 적용 구간: 단계 전부 | L3 / L2; `GRIPPER_FAULT`는 DETECT_STONE~VERIFY에서만 |
+| TC-ABT-011-02 | 관측 freshness ROS 연결(G3/G4) | I0 | `[ON]` | mock(`nominal_20mms` 기반, `DynamicPlace` 4.0 s), APPROACH 중 대상 가림 1.5 s(`occlusion`) | 가림 직전 관측에서 0.3 s 넘게 지난 뒤 `OBS_STALE`, 동적 단계 기록 등급 3, 결과 `SAFE_ABORT`, RELEASE 0회 |
+| TC-ABT-012-02 | 역행 무효화 ROS 연결(G3) | I0 | `[ON]` | mock, `use_sim_time`(시험 /clock), WAIT_CAP(들고 있음) / PICK_STONE(들지 않음)에서 /clock 1 s 역행 | `CLOCK_JUMP` L3(`SAFE_ABORT`) / L2(`FAILURE`), 그 사이클 PLAN_INTERCEPT 기록 0건, 역행 WARN 로그; tracker 초기화는 TC-TRK-008, 포트 거부는 TC-ABT-012-03 |
+| TC-ABT-013-02 | 벨트 ROS 이벤트 연결(G3) | I0 | `[ON]` | mock(`DynamicPlace` 4.0 s): APPROACH 중 `steady=false` 0.5 s(`unsteady_hold_s` 0.5) / APPROACH 중 2.0 s / 해제 0.65 s 전부터 2.0 s | 중단 없이 SUCCESS(동적 단계에서 `steady=false` 수신 확인) / 시작 1.0 s 뒤 `BELT_UNSTEADY` 동적 단계 기록 등급 3, `SAFE_ABORT` / RETREAT·VERIFY 기록 `BELT_UNSTEADY`(등급 0), RETREAT→VERIFY→DONE, SUCCESS |
+| TC-ABT-014-02 | 그리퍼 ROS 감시 연결(G0) | I0 | `[ON]` | mock `gripper_delay`로 `robot/status` 응답: WAIT_CAP(들고 있음) 0.500 s 1 s → 0.501 s / PICK_STONE(들지 않음) 0.501 s | 0.500 s 동안 유지, 0.501 s에서 `GRIPPER_FAULT` L3(`SAFE_ABORT`) / L2(`FAILURE`) |
 | TC-ABT-015-01 | 장애 10종 이벤트 열 | U | `[ON]` | `PLAN.md` 7.3절 10종을 이벤트 열로(시나리오마다 1 TC, 순번 01~10) | 시나리오별 기대 등급(`test/data/fault_expectations.yaml`) |
 | TC-ABT-016-01 | WAIT_OPERATOR는 제한시간이 없다 | U | `[ON]` | steady 1 h 경과 | 상태 유지, 승격 없음 |
 
@@ -399,7 +406,8 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-PLN-009-01 | earliest_release 준수 | U | `[ON]` | earliest_release가 계산 시각보다 늦음 | `release_time ≥ earliest_release` |
 | TC-PLN-010-01 | τ_max 계산 | U | `[ON]` | e_allow 2.75 mm, e_pos 0.3 mm, δv 0.5 mm/s, a 0, v 20 mm/s, δt 5 ms | 식을 만족하는 최대 τ(해석해와 1e-6 s 이내) |
 | TC-PLN-011-01 | I2 예측·예산 통합 | I2 | `[ON]` | fixture tracked → 실제 planner: 정상, `time_insufficient`, `UNCERTAIN`, 만료·epoch 불일치·clock reset | 시나리오별 status·reason이 기대표와 일치 |
-| TC-PLN-012-01 | 실제 planner·tracker bringup | I2 | `[ON]` | `drop.launch.py` mock vision·robot, (a) 실제 planner + mock tracking, (b) 실제 planner + 실제 tracker, (c) mock planner + 실제 tracker, (d) `use_mock_planner` 생략 + mock tracking, orchestrator 없음 | 실제 노드 `ACTIVE` 자동 전이, 그 뒤 사람이 `deactivate`하면 1.5 s 뒤에도 `INACTIVE`(다시 켜지 않음) / `planner/compute_intercept` 서버·`drop/intercept_plan` 발행자 = `intercept_planner_node` 1개 / (b) `objects/tracked` 발행자 = `tracker_node` 1개 / planner·tracker 파라미터가 시나리오 기하(`T_base_conveyor` 원점 (0.30, −0.25), 도달 0.20~0.40, 관측 끝 0.45)와 같음 / (c) 종료 코드 ≠ 0, 안내 문구 출력, `tracker_node` 미기동 / (d) `drop/intercept_plan` 발행자 = `intercept_planner_node` 1개 |
+| TC-PLN-012-01 | 실제 planner·tracker bringup | I2 | `[ON]` | `drop.launch.py` mock vision·robot, (a) 실제 planner + mock tracking, (b) 실제 planner + 실제 tracker, (c) mock planner + 실제 tracker, (d) `use_mock_planner` 생략 + mock tracking; (a)·(b)는 orchestrator 포함 | 실제 노드 `ACTIVE` 자동 전이, 그 뒤 사람이 `deactivate`하면 1.5 s 뒤에도 `INACTIVE`(다시 켜지 않음) / `planner/compute_intercept` 서버·`drop/intercept_plan` 발행자 = `intercept_planner_node` 1개 / (b) `objects/tracked` 발행자 = `tracker_node` 1개 / planner·tracker 파라미터가 시나리오 기하(`T_base_conveyor` 원점 (0.30, −0.25), 도달 0.20~0.40, 관측 끝 0.45)와 같고 orchestrator 도달 구간도 0.20~0.40 / (c) 종료 코드 ≠ 0, 안내 문구 출력, `tracker_node` 미기동 / (d) `drop/intercept_plan` 발행자 = `intercept_planner_node` 1개 |
+| TC-PLN-012-02 | 도달 구간 세 노드 일치 | I2 | `[ON]` | (a) `time_insufficient`(도달 0.35~0.40 m), mock vision·robot + 실제 tracker·planner + orchestrator / (b) 실제 bringup(검출·track 모두 실제)의 launch 파라미터 계산 | (a) tracker `select.x_reach_start_m`·planner `reach.x_reach_start_m`·orchestrator `budget.x_reach_start_m` = 0.35, planner·orchestrator `budget.x_exit_m` = 0.40 / (b) 세 노드 = `system.yaml` `layout`, 그 값 = tracker·planner config 기본값 |
 
 ### 3.8 ROB — 로봇 제어
 
@@ -552,6 +560,7 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-INT-010-01 | I0 실시간 축척 한 사이클 | I0 | `[ON]` | `mock.launch.py` `nominal_20mms`, `duration_scale_ratio:=1.0`(`DynamicPlace` 3.0 s), `MODE_SYNCHRONIZED` 1회 | SUCCESS, RETREAT 기록 OK |
 | TC-INT-011-01 | I0 대상 재선택 | I0 | `[ON]` | `drop.launch.py` mock vision·robot + 실제 tracker·planner, WAIT_CAP에서 대상 관측 40회 뒤 `tracking/reset` 1회 호출 | `new_epoch` = 이전 + 1, 사이클 SUCCESS, `passes_skipped` 0 |
 | TC-INT-012-01 | I0 예측 Marker와 관측 TF의 좌표 일치 | I0 | `[ON]` | `drop.launch.py` mock vision·robot + 실제 tracker·planner와 `frames.launch.py scenario:=nominal_20mms`, 한 사이클 뒤 해제 시각까지 관측 | `robot_base → conveyor_frame` 원점 (0.30, −0.25) / 해제 시각의 `cap_<id>` 위치(고정 TF로 `robot_base`에 옮김, 앞뒤 표본 보간)와 계획 TCP 목표 XY 차 ≤ 1 mm / Marker `frame_id` = `robot_base`이고 계획 목표와 같은 XY |
+| TC-INT-013-01 | I0 MODE_STATIC 전체 상태 열 | I0 | `[ON]` | `mock.launch.py` `nominal_20mms`, `duration_scale_ratio:=0.4`(`PlaceStone` 1.0 s), `MODE_STATIC` 1회 | SUCCESS, 상태 열 PRECHECK → DETECT_STONE → PICK_STONE → MOVE_STANDBY → WAIT_CAP → APPROACH → DESCEND → RELEASE → RETREAT → VERIFY → DONE(PLAN_INTERCEPT·SYNCHRONIZE 없음), 단계 기록 10건 모두 OK, DESCEND 지표 = `DESCEND_STATIC` 키, 대역 skill 실행 3회(PickStone·MoveToPose·PlaceStone), trial `mode` = `MODE_STATIC` |
 | TC-INT-007-01 | replay는 지령 경로가 없다 | I1 | `[ON]` | `replay.launch.py` | 스트림 토픽 발행자·robot action 클라이언트·그리퍼 호출 0개 |
 | TC-INT-020-01 | I3 실기 skill·감시 | I3 | `[OFF]` | 안전 높이: deadline 자체 중단, stale 지령, `Stop`, plan 갱신 중단, 추종 중 그리퍼 개방 | 각 20회, 정의된 동작 20/20, 예기치 않은 재개 0회 |
 | TC-INT-021-01 | I4 인식 경로 | I4 | `[OFF]` | 실영상 → 계획, 로봇 mock | stale·추적 손실·계획 유효성 판정이 기대표와 일치 |
@@ -607,7 +616,7 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | M0 | SYS-001·002·004, IF 전부, ORC 전부, ABT 전부(011-02·012-02·013-02·014-02 제외), MCK 전부, REC 전부, INT-001~006·008 | — | — | — |
 | G0 | ABT-014-02, ROB-001~012·014, GRP 전부 | GRP-001 | BEN-001·003~008, INT-020 | GRP: 실측표 전에는 선형 표; `[ON*]` GRP-001은 OFF-1 실측표로 재실행 |
 | G1 | SYS-003-01, ORC-005, VIS-001~008, CAL 전부 | VIS-010 | BEN-012 | ORC-005: 실제 영상 freshness·안정 창 C/I |
-| G2 | ORC 전부, VIS-009-01 | — | EXP-G2 | ORC: MODE_STATIC 경로 |
+| G2 | ORC 전부, VIS-009-01, INT-013 | — | EXP-G2 | ORC: MODE_STATIC 경로 |
 | G3 | SYS-003-02, ABT-011-02·012-02·013-02, TRK-001~012 | TRK-013 | BEN-002·010, INT-021, EXP-G3 | — |
 | G4 | ABT-011-02, PLN 전부 | — | BEN-011, EXP-G4 | — |
 | G5 | ROB-006·008~010 | — | EXP-G5 | — |

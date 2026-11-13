@@ -187,6 +187,7 @@ def _tracking_port(track_id=7, epoch=1):
     n = port.n
     n.node_cfg = {'select_retry_s': 0.05}
     n.budget = {'x_reach_start_m': 0.20, 'x_exit_m': 0.30, 'retreat_margin_s': 1.0, 't_transit_s': 1.5}
+    n.cfg = SimpleNamespace(wait_cap=SimpleNamespace(margin_s=1.0))
     n.tracked, n.tracked_seq, n.belt, n.detections = SimpleNamespace(tracks=[]), 5, None, None
 
     def call(*args, **kwargs):

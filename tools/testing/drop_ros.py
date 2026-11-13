@@ -82,6 +82,9 @@ class SteadyRosClock:
     callback lateness all 0.27 s). CLOCK_MONOTONIC is shared between processes, so
     the child uses the same origins. 50 Hz keeps the quantization (20 ms) below one
     30 Hz frame and the /clock callback load low (CI run 42762185513 at 200 Hz).
+
+    `jump(dt)` moves the published time by dt (negative = backward) for clock
+    regression tests; the child reads the offsets from its stdin.
     """
 
     PERIOD_S = 0.02
@@ -90,14 +93,21 @@ class SteadyRosClock:
         self.period_s = period_s
         self.ros_origin = time.time()
         self.steady_origin = time.monotonic()
+        self._offset = 0.0
         self._proc = subprocess.Popen(
             [sys.executable, os.path.abspath(__file__), 'clock', repr(self.ros_origin),
              repr(self.steady_origin), repr(period_s)],
-            env=dict(os.environ, ROS_DOMAIN_ID=str(domain_id)),
+            env=dict(os.environ, ROS_DOMAIN_ID=str(domain_id)), stdin=subprocess.PIPE, text=True,
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     def now(self):
-        return self.ros_origin + time.monotonic() - self.steady_origin
+        return self.ros_origin + self._offset + time.monotonic() - self.steady_origin
+
+    def jump(self, dt: float) -> None:
+        """발행하는 ROS 시각을 dt만큼 옮긴다(음수 = 역행). 자식은 다음 발행부터 반영한다."""
+        self._offset += dt
+        self._proc.stdin.write(f'{dt!r}\n')
+        self._proc.stdin.flush()
 
     def close(self):
         self._proc.terminate()
@@ -105,14 +115,21 @@ class SteadyRosClock:
 
 
 def _clock_main(ros_origin: float, steady_origin: float, period_s: float) -> None:
-    """SteadyRosClock 자식 프로세스: ROS_DOMAIN_ID 환경 변수의 domain에 /clock을 낸다."""
+    """SteadyRosClock 자식 프로세스: ROS_DOMAIN_ID 환경 변수의 domain에 /clock을 낸다. stdin 한 줄 = 시각 이동량 [s]."""
     from rosgraph_msgs.msg import Clock
+    offset = [0.0]
+
+    def read_jumps():
+        for line in sys.stdin:
+            if line.strip():
+                offset[0] += float(line)
+    threading.Thread(target=read_jumps, daemon=True).start()
     rclpy.init()
     node = rclpy.create_node(f'drop_test_clock_{os.getpid()}')
     pub = node.create_publisher(Clock, '/clock', 10)
     try:
         while rclpy.ok():
-            pub.publish(Clock(clock=to_time(ros_origin + time.monotonic() - steady_origin)))
+            pub.publish(Clock(clock=to_time(ros_origin + offset[0] + time.monotonic() - steady_origin)))
             time.sleep(period_s)
     except KeyboardInterrupt:
         pass

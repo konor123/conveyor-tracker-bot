@@ -551,7 +551,7 @@ IDLE
 
 | 단계 | 선행조건 | 성공 판정(모두 만족) | 제한시간 | 실패 시 | 재시도 |
 |---|---|---|---|---|---|
-| PRECHECK | — | 모든 기능 노드 `ACTIVE`이고 heartbeat가 300 ms 이내 / calibration_id 일치·유효 / `robot_ready`이고 보호정지 아님 / 그리퍼 상주 루프 생존 카운터 증가 중, 응답 ≤ 0.5 s(G0 측정 후 확정), Hardware Error 없음, 개방 상태 / 벨트 `steady`, 속도 ≤ `max_belt_speed` | 5 s | 시도하지 않고 IDLE 복귀(로봇 미동작) | 0 |
+| PRECHECK | — | 모든 기능 노드 `ACTIVE`이고 heartbeat가 300 ms 이내 / calibration_id 일치·유효 / `robot_ready`이고 보호정지 아님 / 그리퍼 상주 루프 생존 카운터 증가 중, 응답 ≤ 0.5 s(G0 측정 후 확정), Hardware Error 없음, 개방 상태 / 벨트 `steady`(`false`가 1.0 s 넘게 이어지지 않음), 속도 ≤ `max_belt_speed` | 5 s | 시도하지 않고 IDLE 복귀(로봇 미동작) | 0 |
 | DETECT_STONE | PRECHECK OK | 매트 ROI 공깃돌 ≥ 1, confidence ≥ 0.9, `position_valid`, 0.5 s 창 위치 표준편차 ≤ 0.5 mm, 주변 물체와 핑거 간섭 거리 이상 떨어짐 | 3 s | L2 | 0 |
 | PICK_STONE | 검출 시각이 1 s 이내 | 핑거 간격이 `[d_stone_min − 1, d_stone_max + 1] mm` 안(pulse 실측표 변환) / Present Current ≥ 파지 전류 하한 / 매트 ROI에서 해당 공깃돌 사라짐 / 로봇·그리퍼 오류 없음 | 15 s | L2(선행조건 불충족도 재검출 없이 L2) | 0 |
 | MOVE_STANDBY | holding | 대기 자세 오차 ≤ 2 mm / holding 유지(핑거 간격·전류) | 10 s | L3 | 0 |
@@ -631,7 +631,7 @@ def decide(event, ctx) -> AbortLevel:
 | 관측 신선도 | `t_now − t_last_obs` | 동적 구간 ≤ τ_max(초기 0.3 s) | 해제 전이면 L3 |
 | 계획 유효성 | `valid_until`, epoch | 만료 또는 epoch 불일치 | 재계획, 동적 deadline을 넘으면 L3 |
 | `/clock` 역행 | 이전 stamp와 비교 | 역행 1회 | track·계획 무효화 → L2/L3 |
-| 벨트 속도 급변 | `BeltMotion.steady == false` | — | 해제 전이면 L3 |
+| 벨트 속도 급변 | `BeltMotion.steady == false` | 1.0 s 넘게 이어짐(그보다 짧은 경보는 중단하지 않고 해제 게이트가 막는다) | 해제 전이면 L3, 해제 뒤면 후퇴·검증 계속 |
 
 중단 판정·deadline 계산은 fake clock 단위 테스트로 검증하고, ROS 수준(I0)에서는 호출 제한시간·cancel 0.5 s·Heartbeat 300 ms·`Stop` 경로만 검증한다(7.3절).
 
@@ -704,7 +704,7 @@ Isaac Sim은 대역으로 쓰지 않는다. 무겁고 결정적이지 않아 CI 
 | `gripper_miss` | 장애 | `step_judges`·`abort_policy` 단위 테스트(재파지 없이 L2) | — |
 | `gripper_cmd_delay` | 장애 | fake gripper 단위 테스트(상주 루프 응답 지연·무응답·생존 카운터 정지 → 해제 전 L3, 그리퍼 감시 L2/L3) | — |
 | `occlusion_long` | 장애 | tracker 단위 테스트·rosbag / 오케스트레이터는 `COASTING`+`t_last_obs` 판정 단위 테스트 | — |
-| `speed_change` | 장애 | `speed_change_detector` 단위 테스트·rosbag / 오케스트레이터는 `steady=false` → L3 단위 테스트 | — |
+| `speed_change` | 장애 | `speed_change_detector` 단위 테스트·rosbag / 오케스트레이터는 `steady=false` 1.0 s 초과 → 해제 전 L3 단위 테스트·I0(TC-ABT-013-02) | — |
 | `frame_drop_10pct` | 장애 | tracker 단위 테스트·프레임을 뺀 편집 bag | — |
 | `clock_jump` | 장애 | tracker·`deadlines` 단위 테스트(ROS 시각 역행 시 무효화), 감시 타이머 단위 테스트(steady 시계로 계속 동작) | — |
 
@@ -794,7 +794,7 @@ time_margin = T_available − T_required        # 시도 조건: time_margin ≥
 - `T_transit`: 대기 자세에서 예측 해제점 위까지 이동 시간. 대기 자세를 도달 구간 상류 끝 위에 두어 줄인다.
 - 공깃돌은 병뚜껑이 들어오기 전에 집어 두므로 파지 시간은 식에 들어가지 않는다.
 - `T_release`: 핑거 이동은 최대 닫힘 속도 75 mm/s 기준 Δ_open 4 mm에서 약 0.05 s, 낙하 `T_fall = √(2h/g)`는 h = 10 mm에서 약 0.045 s다. `T_cmd`(트리거 레지스터 서비스 호출 + 루프 주기 최대 20 ms + Modbus 송신)는 G0에서 측정하며 가장 큰 불확실 성분이다.
-- 식은 `intercept_planner/time_budget.py` 한 곳에 구현하고, `deadlines.py`가 이를 사용해 동적 deadline을 계산한다.
+- 식은 `intercept_planner/time_budget.py` 한 곳에 구현한다. 오케스트레이터 WAIT_CAP은 이 함수로 `T_available`·`T_required`를 구하고, `deadlines.py`가 그 `T_available`로 동적 deadline(`now + T_available − retreat_margin`)을 계산한다.
 - WAIT_CAP(통과마다)과 PLAN_INTERCEPT 두 곳에서 판정한다. 부족하면 그 통과를 보내고 다음 통과를 기다린다(`max_passes`). 판정할 때마다 `T_available`, `T_required`, 각 성분값을 `StepRecord.metric_*`에 남긴다.
 - 성분값은 제안값으로 시작하고, `records/`에 쌓인 단계 소요시간 p95로 갱신한다(10.4절 기록).
 - 예: 교집합 길이 300 mm, 20 mm/s → 15 s. `T_required`가 4 s이고 `margin`이 1 s이면 `time_margin` 11 s로 시도하며, 같은 조건에서 이론상 60 mm/s(`T_available` 5 s)까지 시도할 수 있다(예시 수치).

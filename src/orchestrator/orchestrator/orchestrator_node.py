@@ -12,6 +12,7 @@ import time
 
 import rclpy
 import yaml
+from intercept_planner.time_budget import evaluate_budget
 from drop_interfaces.action import DropTask, DynamicPlace, MoveToPose, PickStone, PlaceStone, SafeRetreat
 from drop_interfaces.msg import (BeltMotion, Heartbeat, ObjectDetection, ObjectDetectionArray, RobotStatus,
                                  StepRecord, TaskStatus, TrackedObject, TrackedObjectArray)
@@ -32,7 +33,9 @@ from .abort_policy import HARD_FAULTS, Event
 from .ros_qos import no_pub_events, no_sub_events
 from .common import AbortLevel, Mode, State
 from .cycle_runner import CapObservation, CycleRunner, DetectResult, DropGoal, OrchestratorCfg
-from .watchdogs import HeartbeatMonitor
+from .deadlines import dynamic_deadline
+from .watchdogs import (BeltSteadyMonitor, ClockMonitor, FreshnessMonitor, GripperMonitor, HeartbeatMonitor,
+                        cycle_watch_events)
 
 DATA_QOS = QoSProfile(depth=5, reliability=ReliabilityPolicy.RELIABLE, durability=DurabilityPolicy.VOLATILE)
 HB_QOS = QoSProfile(depth=20, reliability=ReliabilityPolicy.RELIABLE, durability=DurabilityPolicy.VOLATILE)
@@ -41,6 +44,7 @@ STATUS_QOS = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE,
 STEP_QOS = QoSProfile(depth=100, reliability=ReliabilityPolicy.RELIABLE, durability=DurabilityPolicy.VOLATILE)
 RESULT_NAMES = ('SUCCESS', 'FAILURE', 'UNKNOWN', 'CANCELED', 'SAFE_ABORT', 'PROTECTIVE_STOP', 'NOT_ATTEMPTED')
 POLL_S = 0.005
+FRESH_CONTROLLER_HEARTBEATS = 2     # goal 수락 뒤 받아야 하는 controller heartbeat 수(REQ-ORC-012)
 HEARTBEAT_ROLE_EVENT = {'robot_controller_node': Event.CONTROLLER_HEARTBEAT_LOST}
 
 
@@ -112,6 +116,9 @@ class RosSkillPort:
         self._skipped_tracks: set[int] = set()
         self.static_cap = None         # MODE_STATIC 목표(robot_base Point)
         self.plan_id = 0
+        # ROS 시각 역행 횟수(REQ-ABT-012). 대상·계획을 고른 때의 값과 다르면 그 대상·계획을 쓰지 않는다
+        self.clock_epoch = 0
+        self._target_clock_epoch = self._plan_clock_epoch = 0
 
     # ------------------------------------------------------------ 공통 대기
     def reset(self, goal_handle) -> None:
@@ -125,8 +132,19 @@ class RosSkillPort:
             self._released = False
             self.drop_goal_handle = goal_handle
         self.target = self.static_cap = None
+        self.plan_id = 0
+        self._target_clock_epoch = self._plan_clock_epoch = self.clock_epoch
         self._pass_index = 0
         self._skipped_tracks = set()
+
+    @property
+    def released(self) -> bool:
+        with self._fault_lock:
+            return self._released
+
+    def invalidate_clock(self) -> None:
+        """ROS 시각이 역행했다. 그 전에 고른 대상과 계산한 계획을 다시 쓰지 않는다(REQ-ABT-012)."""
+        self.clock_epoch += 1
 
     def raise_fault(self, event: Event) -> None:
         """사이클 중 비동기 장애를 latch한다. latch된 비하드 장애는 하드 이상으로만 바뀐다(REQ-ORC-010).
@@ -296,7 +314,9 @@ class RosSkillPort:
             gripper_response_s=rs.gripper_response_s if rs else math.inf,
             gripper_error_bits=rs.gripper_error_bits if rs else 0xFFFF,
             gripper_open=bool(rs and rs.gripper_open),
-            belt_steady=bool(belt and belt.steady), belt_speed_mps=belt.speed if belt else math.inf,
+            # 벨트 불안정은 지속 시간으로만 거부한다(REQ-ABT-013). 짧은 맥동 경보로 시도를 포기하지 않는다
+            belt_steady=belt is not None and not n.belt_watch.unsteady(),
+            belt_speed_mps=belt.speed if belt else math.inf,
             calibration_mismatch=bool(calib) and bool(want) and calib != want)
 
     def detect_stones(self, deadline):
@@ -352,14 +372,17 @@ class RosSkillPort:
         belt = n.belt
         caps = [d for d in (n.detections.detections if n.detections else [])
                 if d.object_class == ObjectDetection.CLASS_CAP]
+        # 시각 역행 전에 고른 대상은 쓰지 않는다(REQ-ABT-012)
+        lost = lost or self._target_clock_epoch != self.clock_epoch
         comps = {k[:-2]: float(v) for k, v in b.items() if k.endswith('_s') and k != 'retreat_margin_s'}
-        t_req = sum(comps.values())
         now = self.clock.ros_now()
-        if tr is None or tr.velocity.x <= 0:
-            t_avail, dyn, t_window = 0.0, now, math.inf
+        # 시간 예산 식은 intercept_planner.time_budget 한 곳(REQ-ORC-019). 대상이 없으면 정지와 같이 본다
+        budget = evaluate_budget(tr.position.x if tr else 0.0, tr.velocity.x if tr else 0.0, float(b['x_exit_m']),
+                                 comps, float(n.cfg.wait_cap.margin_s))
+        dyn = dynamic_deadline(now, budget.t_available, float(b['retreat_margin_s']))
+        if tr is None or budget.reason in ('BELT_STOPPED', 'BELT_REVERSED'):
+            t_window = math.inf
         else:
-            t_avail = (float(b['x_exit_m']) - tr.position.x) / tr.velocity.x
-            dyn = now + t_avail - float(b['retreat_margin_s'])
             # 고른 순간의 t_enter_window는 갓 생긴 track의 속도 추정을 담아 크게 늦을 수 있다(REQ-ORC-018)
             t_window = max(0.0, (float(b['x_reach_start_m']) - tr.position.x) / tr.velocity.x)
         meas = sj.WaitCapMeas(
@@ -368,7 +391,7 @@ class RosSkillPort:
             speed_std_mps=belt.speed_std if belt else math.inf, belt_steady=bool(belt and belt.steady),
             stone_inside=any(d.stone_inside for d in caps),
             stone_inside_valid=bool(caps) and all(d.stone_inside_valid for d in caps),
-            t_available_s=t_avail, t_required_s=t_req, budget_components=comps,
+            t_available_s=budget.t_available, t_required_s=budget.t_required, budget_components=budget.components,
             t_to_window_s=t_window)
         return CapObservation(meas, dyn, target_lost=lost)
 
@@ -385,6 +408,7 @@ class RosSkillPort:
                 return None
             if r.result == 0 and r.track_id not in self._skipped_tracks:
                 self.target = (r.track_id, r.epoch)
+                self._target_clock_epoch = self.clock_epoch
                 self._select_seq = self.n.tracked_seq
                 return self._cap_obs()
             if not self._wait(lambda: False, min(deadline, self.clock.ros_now() + retry)) and \
@@ -421,13 +445,17 @@ class RosSkillPort:
                 return None
 
     def compute_intercept(self, deadline):
+        if self.target is None or self._target_clock_epoch != self.clock_epoch:
+            return None                # 시각 역행 전에 고른 대상으로 계획하지 않는다(REQ-ABT-012)
         track_id, epoch = self.target
+        clock_epoch = self.clock_epoch
         r = self._call(ComputeIntercept, 'planner/compute_intercept', deadline, target_track_id=track_id,
                        target_epoch=epoch, mode=int(self._mode_goal))
         if r is None:
             return None
         plan = r.plan
         self.plan_id = plan.plan_id
+        self._plan_clock_epoch = clock_epoch
         return sj.PlanMeas(plan_ok=r.result == 0 and plan.status == plan.OK, epoch_match=plan.target_epoch == epoch,
                            time_margin_s=plan.time_margin, position_std_m=plan.position_std,
                            valid_until=_t(plan.valid_until), now=self.clock.ros_now())
@@ -444,6 +472,8 @@ class RosSkillPort:
             goal, name = PlaceStone.Goal(target_pose=pose, release_height=c.descend.h_clear_m,
                                          open_width=open_width), 'robot/place_stone'
         else:
+            if self._plan_clock_epoch != self.clock_epoch:
+                return None            # 시각 역행 전에 계산한 계획은 보내지 않는다(REQ-ABT-012)
             track_id, epoch = self.target
             goal = DynamicPlace.Goal(plan_id=self.plan_id, target_epoch=epoch, mode=int(mode),
                                      e_xy_max=c.sync.e_xy_max_m, v_rel_max=c.sync.v_rel_max_mps,
@@ -590,20 +620,33 @@ class OrchestratorNode(Node):
         self.cfg = OrchestratorCfg.from_dict(self.cfg_dict)
         self.node_cfg = self.cfg_dict['node']
         self.budget = self.cfg_dict['budget']
+        # 도달 구간은 launch가 tracker·planner와 같은 값으로 덮는다(SPEC-400 REQ-PLN-012)
+        for key in ('x_reach_start_m', 'x_exit_m'):
+            self.declare_parameter(f'budget.{key}', float(self.budget[key]))
+            self.budget[key] = float(self.get_parameter(f'budget.{key}').value)
+        wd = self.cfg_dict['watchdog']
         self.clock = RosClock(self)
         self.group = ReentrantCallbackGroup()
         self.hb_group = MutuallyExclusiveCallbackGroup()
-        self.hb = HeartbeatMonitor(float(self.cfg_dict['watchdog']['heartbeat_timeout_s']), self.clock)
+        self.hb = HeartbeatMonitor(float(wd['heartbeat_timeout_s']), self.clock)
+        self.fresh = FreshnessMonitor(float(wd['obs_freshness_s']))
+        self.belt_watch = BeltSteadyMonitor(float(wd['belt_unsteady_hold_s']))
+        self.gripper_watch = GripperMonitor(float(wd['gripper_response_max_s']), float(wd['gripper_alive_stall_s']),
+                                            self.clock)
+        self.clock_watch = ClockMonitor()
+        self._obs = (None, None)                       # (대상, 그 track의 마지막 관측 stamp)
         self.lifecycle: dict[str, int] = {}
         self.hb_error_code: dict[str, int] = {}
+        self.ctrl_hb_count = self.status_count = 0     # 받은 controller heartbeat·robot/status 수
+        self._accepted_counts = (0, 0)                 # DropTask goal을 수락할 때의 위 두 값
         self.robot_status = self.belt = self.tracked = self.detections = None
         self.tracked_seq = 0
         self.create_subscription(Heartbeat, 'system/heartbeat', self._on_hb, HB_QOS, callback_group=self.hb_group,
                                  event_callbacks=no_sub_events())
         self.create_subscription(RobotStatus, 'robot/status', self._on_status, DATA_QOS, callback_group=self.hb_group,
                                  event_callbacks=no_sub_events())
-        self.create_subscription(BeltMotion, 'belt/measured_motion', lambda m: setattr(self, 'belt', m),
-                                 DATA_QOS, event_callbacks=no_sub_events())
+        self.create_subscription(BeltMotion, 'belt/measured_motion', self._on_belt, DATA_QOS,
+                                 event_callbacks=no_sub_events())
         self.create_subscription(TrackedObjectArray, 'objects/tracked', self._on_tracked, DATA_QOS,
                                  event_callbacks=no_sub_events())
         self.create_subscription(ObjectDetectionArray, 'objects/detections',
@@ -634,6 +677,9 @@ class OrchestratorNode(Node):
         # 감시 타이머는 steady 시계(REQ-ABT-009): ROS 시각이 멈추거나 NTP 보정으로 역행해도 돈다
         self.create_timer(0.05, self._watch, callback_group=self.hb_group,
                           clock=Clock(clock_type=ClockType.STEADY_TIME))
+        # ROS 시각 표본은 이 타이머만 읽는다. 여러 스레드가 읽고 비교하면 순서가 엇갈려 없는 역행을 본다
+        self.create_timer(0.05, self._watch_clock, callback_group=self.hb_group,
+                          clock=Clock(clock_type=ClockType.STEADY_TIME))
 
     def _on_params(self, params):
         for p in params:
@@ -654,9 +700,17 @@ class OrchestratorNode(Node):
         self.hb.beat(m.node_name)
         self.lifecycle[m.node_name] = m.lifecycle_state
         self.hb_error_code[m.node_name] = int(m.error_code)
+        if m.node_name == self.CONTROLLER_NODE:
+            self.ctrl_hb_count += 1
 
     def _on_status(self, m: RobotStatus):
         self.robot_status = m
+        self.status_count += 1
+        self.gripper_watch.update(int(m.gripper_error_bits), float(m.gripper_response_s), alive=bool(m.gripper_alive))
+
+    def _on_belt(self, m: BeltMotion):
+        self.belt = m
+        self.belt_watch.update(bool(m.steady), _t(m.header.stamp))
 
     def _on_tracked(self, m):
         self.tracked = m
@@ -679,6 +733,38 @@ class OrchestratorNode(Node):
         for name in self.node_cfg['required_nodes']:
             if name in self.lifecycle and self.hb.lost(name):
                 self.port.raise_fault(HEARTBEAT_ROLE_EVENT.get(name, Event.HEARTBEAT_LOST))
+        # 그리퍼·벨트·관측 신선도(SPEC-110 4.3절). 단계별 적용 구간(4.4절)은 watchdogs.cycle_watch_events
+        for event in cycle_watch_events(self.state, self.port.released,
+                                        gripper_fault=rs is not None and self.gripper_watch.fault(),
+                                        belt_unsteady=self.belt_watch.unsteady(), obs_stale=self._obs_stale()):
+            self.port.raise_fault(event)
+
+    def _obs_stale(self) -> bool:
+        """대상 track의 `t_now − last_observed_stamp > obs_freshness_s`(REQ-ABT-011). 목록에서 빠져도 마지막 값으로 잰다.
+
+        감시 타이머와 실행 스레드(pending_fault)가 함께 부르므로 지역 값으로 계산하고 (대상, stamp) 쌍을 한 번에 바꾼다.
+        """
+        target = self.port.target
+        seen, t_last = self._obs
+        if target != seen:
+            t_last = None
+        if target is not None:
+            tracked = self.tracked
+            tr = next((t for t in (tracked.tracks if tracked else [])
+                       if t.track_id == target[0] and t.epoch == target[1]), None)
+            if tr is not None:
+                t_last = _t(tr.last_observed_stamp)
+        self._obs = (target, t_last)
+        return target is not None and t_last is not None and self.fresh.stale(self.clock.ros_now(), t_last)
+
+    def _watch_clock(self):
+        """ROS 시각 역행(REQ-ABT-012). 감시 주기마다 표본 하나를 직전 표본과 비교한다."""
+        if not self.clock_watch.update(self.clock.ros_now()):
+            return
+        self.get_logger().warning('ROS 시각 역행: 이전에 고른 대상·계획을 쓰지 않는다')
+        self.port.invalidate_clock()
+        for event in cycle_watch_events(self.state, self.port.released, clock_back=True):
+            self.port.raise_fault(event)
 
     # ------------------------------------------------------------ 발행
     def _on_state(self, state: State):
@@ -713,6 +799,7 @@ class OrchestratorNode(Node):
     def _on_goal(self, goal):
         if not self._busy.acquire(blocking=False):
             return GoalResponse.REJECT
+        self._accepted_counts = (self.ctrl_hb_count, self.status_count)
         return GoalResponse.ACCEPT
 
     def _execute(self, goal_handle):
@@ -727,17 +814,22 @@ class OrchestratorNode(Node):
         self.cycle_id = f'{time.strftime("%Y%m%d-%H%M%S")}-{self.cycle_count:04d}'
         self.step_id = 0
         self.abort_level = 0
-        self.port.reset(goal_handle)
-        self.port._mode_goal = Mode(g.mode)
-        # 시작 전 캐시(heartbeat·로봇 상태)를 기다린다. 부족하면 PRECHECK가 판정한다
+        # 시작 전 캐시(heartbeat·로봇 상태)를 기다린다. 부족하면 PRECHECK가 판정한다.
+        # controller heartbeat·robot/status는 goal 수락 뒤 새로 받은 것이어야 한다. 캐시는 최대 0.1 s 낡아
+        # 정지 유지를 막 푼 뒤의 goal이 낡은 101을 본다. 새 heartbeat도 101이면 PRECHECK에서 L4다(REQ-ORC-012)
+        hb0, st0 = self._accepted_counts
         end = time.monotonic() + float(self.node_cfg['startup_wait_s'])
         while time.monotonic() < end and not (
-                self.robot_status is not None
+                self.ctrl_hb_count - hb0 >= FRESH_CONTROLLER_HEARTBEATS
+                and self.status_count > st0
+                and self.robot_status is not None
                 and self.belt is not None
                 and self.detections is not None
                 and all(self.lifecycle.get(n) == LcState.PRIMARY_STATE_ACTIVE
                         for n in self.node_cfg['required_nodes'])):
             time.sleep(0.05)
+        self.port.reset(goal_handle)          # 장애 latch는 새 입력을 받은 뒤 무장한다
+        self.port._mode_goal = Mode(g.mode)
         self._t_cycle_end = self.clock.ros_now() + g.timeout
         out = self.runner.run(DropGoal(mode=Mode(g.mode), max_belt_speed_mps=g.max_belt_speed, timeout_s=g.timeout,
                                        max_passes=g.max_passes))

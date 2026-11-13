@@ -2,8 +2,8 @@ import pytest
 
 from orchestrator.abort_policy import AbortCtx, Event, decide
 from orchestrator.common import AbortLevel, State
-from orchestrator.watchdogs import (ClockMonitor, CycleTimer, FreshnessMonitor, GripperMonitor,
-                                    HeartbeatMonitor)
+from orchestrator.watchdogs import (WATCH_STATES, BeltSteadyMonitor, ClockMonitor, CycleTimer, FreshnessMonitor,
+                                    GripperMonitor, HeartbeatMonitor, cycle_watch_events)
 
 L = AbortLevel
 
@@ -156,7 +156,108 @@ def test_gripper_alive_counter_stall(fake_clock):
 @pytest.mark.req("REQ-ABT-014")
 @pytest.mark.tc("TC-ABT-014-01")
 @pytest.mark.level("U")
+def test_gripper_alive_flag_from_robot_status(fake_clock):
+    """RobotStatus는 카운터 대신 controller가 판정한 gripper_alive를 준다."""
+    gm = GripperMonitor(0.5, 0.1, fake_clock)
+    gm.update(0, 0.1, alive=True)
+    assert not gm.fault()
+    gm.update(0, 0.1, alive=False)
+    assert gm.fault() and gm.reason == 'GRIPPER_DEAD'
+
+
+@pytest.mark.req("REQ-ABT-014")
+@pytest.mark.tc("TC-ABT-014-01")
+@pytest.mark.level("U")
 @pytest.mark.parametrize("holding, expected", [(True, L.L3), (False, L.L2)])
 def test_gripper_fault_levels(holding, expected):
     state = State.MOVE_STANDBY if holding else State.PRECHECK
     assert decide(Event.GRIPPER_FAULT, ctx(state, holding=holding)) == expected
+
+
+# ---------------------------------------------------------------- 벨트 불안정 지속 시간(REQ-ABT-013)
+@pytest.mark.req("REQ-ABT-013")
+@pytest.mark.tc("TC-ABT-013-01")
+@pytest.mark.level("U")
+@pytest.mark.parametrize("duration, unsteady", [(0.999, False), (1.000, False), (1.001, True)])
+def test_belt_unsteady_needs_persistence(duration, unsteady):
+    bm = BeltSteadyMonitor(1.0)
+    t0 = 1000.0
+    assert not bm.update(True, t0 - 0.1)
+    assert not bm.update(False, t0)
+    assert bm.update(False, t0 + duration) is unsteady
+    assert bm.unsteady() is unsteady
+
+
+@pytest.mark.req("REQ-ABT-013")
+@pytest.mark.tc("TC-ABT-013-01")
+@pytest.mark.level("U")
+def test_belt_pulses_shorter_than_hold_never_accumulate():
+    """0.5 s 맥동 경보가 0.1 s 간격으로 되풀이돼도 지속 시간은 매번 처음부터 센다."""
+    bm = BeltSteadyMonitor(1.0)
+    t = 1000.0
+    for _ in range(5):
+        for k in range(16):                       # 0.5 s 동안 false(30 Hz)
+            assert not bm.update(False, t + k / 30)
+        t += 0.6
+        assert not bm.update(True, t)
+        t += 0.1
+
+
+@pytest.mark.req("REQ-ABT-013")
+@pytest.mark.tc("TC-ABT-013-01")
+@pytest.mark.level("U")
+def test_belt_unsteady_restarts_on_stamp_regression():
+    bm = BeltSteadyMonitor(1.0)
+    bm.update(False, 1000.0)
+    assert bm.update(False, 1001.5)
+    assert not bm.update(False, 1000.2)           # 시각 역행: 그 stamp부터 다시 센다
+    assert bm.update(False, 1001.3)
+
+
+# ---------------------------------------------------------------- 감시 적용 구간(SPEC-110 4.3절)
+S = State
+DYN = [S.APPROACH, S.SYNCHRONIZE, S.DESCEND, S.RELEASE]
+NOT_WATCHED = [S.IDLE, S.PRECHECK, S.DONE, S.ABORT_CYCLE, S.SAFE_ABORT, S.PROTECTIVE_STOP, S.WAIT_OPERATOR]
+
+
+@pytest.mark.req("REQ-ABT-013")
+@pytest.mark.tc("TC-ABT-013-01")
+@pytest.mark.level("U")
+@pytest.mark.parametrize("state, released, latched", [
+    *[(s, False, True) for s in DYN],
+    (S.RETREAT, True, True), (S.VERIFY, True, True),             # 해제 뒤: 이벤트 → CONTINUE_TO_RETREAT_VERIFY
+    (S.WAIT_CAP, False, False), (S.MOVE_STANDBY, False, False),  # WAIT_CAP은 판정이 보류한다
+    *[(s, False, False) for s in NOT_WATCHED],
+])
+def test_belt_unsteady_window(state, released, latched):
+    events = cycle_watch_events(state, released, belt_unsteady=True)
+    assert (Event.BELT_UNSTEADY in events) is latched
+    if latched:
+        holding = not released
+        want = L.CONTINUE_TO_RETREAT_VERIFY if released else L.L3
+        assert decide(Event.BELT_UNSTEADY, ctx(state, holding=holding, released=released)) == want
+
+
+@pytest.mark.req("REQ-ABT-011")
+@pytest.mark.tc("TC-ABT-011-01")
+@pytest.mark.level("U")
+@pytest.mark.parametrize("state, released, latched", [
+    *[(s, False, True) for s in DYN],
+    (S.RELEASE, True, False), (S.RETREAT, True, False),          # 해제 뒤에는 보지 않는다
+    (S.WAIT_CAP, False, False), (S.PLAN_INTERCEPT, False, False),
+    *[(s, False, False) for s in NOT_WATCHED],
+])
+def test_observation_freshness_window(state, released, latched):
+    assert (Event.OBS_STALE in cycle_watch_events(state, released, obs_stale=True)) is latched
+
+
+@pytest.mark.req("REQ-ABT-012", "REQ-ABT-014")
+@pytest.mark.tc("TC-ABT-012-01", "TC-ABT-014-01")
+@pytest.mark.level("U")
+@pytest.mark.parametrize("state", list(State))
+def test_clock_and_gripper_window(state):
+    """시각 역행·그리퍼는 PRECHECK 다음 정상 열에서만 latch한다. PRECHECK는 자기 판정(로봇 미동작)으로 거부한다."""
+    events = cycle_watch_events(state, False, clock_back=True, gripper_fault=True)
+    want = [Event.CLOCK_JUMP, Event.GRIPPER_FAULT] if state in WATCH_STATES else []
+    assert events == want
+    assert (state in WATCH_STATES) is (state not in NOT_WATCHED)

@@ -41,6 +41,7 @@ def test_orchestrator_watch_timer_uses_steady_clock(ros):
     node = OrchestratorNode(parameter_overrides=SIM)
     try:
         assert _timer_clock_type(node, node._watch) == ClockType.STEADY_TIME
+        assert _timer_clock_type(node, node._watch_clock) == ClockType.STEADY_TIME     # ROS 시각 역행 표본(REQ-ABT-012)
     finally:
         node.destroy_node()
 

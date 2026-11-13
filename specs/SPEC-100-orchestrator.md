@@ -1,6 +1,6 @@
 # SPEC-100 orchestrator
 
-- 버전: v0.15
+- 버전: v0.16
 - 근거: PLAN.md 4절
 - REQ 영역: ORC
 
@@ -8,6 +8,7 @@
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
+| v0.16 | 2026-11-13 | Stop 해제 직후 goal: 수락 뒤 controller heartbeat 2개·`robot/status`를 새로 받은 다음 장애 latch 무장(REQ-ORC-012). WAIT_CAP 시간 예산 = `time_budget.evaluate_budget`, 동적 deadline = `deadlines.dynamic_deadline`(4.9절, REQ-ORC-019). `budget.x_reach_start_m`·`x_exit_m` ROS 파라미터. PRECHECK `BELT_UNSTEADY`는 지속 규칙(SPEC-110 REQ-ABT-013). 감시 latch 구간(4.8절) |
 | v0.15 | 2026-11-12 | PRECHECK 이유 코드 `CALIBRATION_MISMATCH`: vision 검출과 orchestrator `calibration_id`가 둘 다 있고 다르면(SPEC-600 REQ-CAL-005). vision 쪽이 비었으면 `CALIBRATION_INVALID`, orchestrator 쪽이 비었으면 비교하지 않는다 |
 | v0.14 | 2026-11-12 | WAIT_CAP `t_to_window_s`를 매 관측의 현재 track 위치·속도로 다시 계산(REQ-ORC-018). 선택 순간 한 번 받은 진입 예상 시각은 갓 생긴 track의 속도 추정을 그대로 담아 실영상에서 수~수십 s 늦었다 |
 | v0.13 | 2026-11-12 | 여러 단계에 걸친 goal의 서버 deadline = goal 전체 상한(REQ-ORC-015), WAIT_CAP 대상 track 소실 시 같은 통과 안 재선택(REQ-ORC-016), 대기 중 끝난 WAIT_CAP의 기록·실패 단계 로그(REQ-ORC-017) |
@@ -77,7 +78,7 @@ SPEC-010 wire schema v0.2 / runtime contract v0.4 기준.
 
 `wait_cap.time_margin_s = t_available_s − t_required_s`이며 통과 조건은 `time_margin_s >= margin_s`다.
 
-`wait_cap.t_to_window_s = max(0, (x_reach_start − x_cap) / v)`(매 관측의 대상 track 위치·속도, `budget.x_reach_start_m`; 이미 지났거나 STATIC이면 0, 속도 ≤ 0이면 ∞)이며 `t_to_window_s > plan_lead_s`면 `WAIT`(`TOO_EARLY`)다. 뚜껑을 처음 볼 때 계획하면 해제까지 예측 구간이 길어(nominal에서 약 10 s) 위치 표준편차가 커진다.
+`wait_cap.t_to_window_s = max(0, (x_reach_start − x_cap) / v)`(매 관측의 대상 track 위치·속도, `budget.x_reach_start_m`; 이미 지났거나 STATIC이면 0, 속도 ≤ 0(`BELT_STOPPED`·`BELT_REVERSED`)이면 ∞)이며 `t_to_window_s > plan_lead_s`면 `WAIT`(`TOO_EARLY`)다. 뚜껑을 처음 볼 때 계획하면 해제까지 예측 구간이 길어(nominal에서 약 10 s) 위치 표준편차가 커진다.
 
 단계 제한시간(`step_timeout:`)은 PLAN.md 4.3절 값을 쓰고 측정 후 SPEC-110 5절 식으로 바꾼다.
 
@@ -186,7 +187,7 @@ SPEC-010 wire schema v0.2 / runtime contract v0.4 기준.
 
 | SkillPort | ROS | 측정값 출처 |
 |---|---|---|
-| `status` | 구독 캐시 | `system/heartbeat`(노드 ACTIVE·나이), `robot/status`, `belt/measured_motion`, `objects/detections.calibration_id` |
+| `status` | 구독 캐시 | `system/heartbeat`(노드 ACTIVE·나이), `robot/status`, `belt/measured_motion`(`belt_steady` = `steady == false`가 `belt_unsteady_hold_s` 넘게 이어지지 않음, SPEC-110 REQ-ABT-013), `objects/detections.calibration_id` |
 | `detect_stones` | `vision/detect_objects`(MAT, STONE) | 응답 검출. `clearance_m` = 가장 가까운 다른 검출까지 거리(없으면 1 m). M0 임시 포트의 검출 시각 = 응답 수신 시각(영상 freshness 증명 아님) |
 | `pick_stone` | `robot/pick_stone` | 결과 값. `stone_on_mat` = 결과 뒤 `DetectObjects(MAT)`에 목표 10 mm 안 공깃돌이 남음. 이유 코드 `GRIPPER*` = 그리퍼 오류, 그 밖 FAULT = 로봇 오류 |
 | `move_to_pose` | `robot/move_to_pose`(named_pose) | `pose_error`, holding = `robot/status.holding` |
@@ -196,14 +197,16 @@ SPEC-010 wire schema v0.2 / runtime contract v0.4 기준.
 | `place_start`·`place_feedback` | `robot/place_stone`·`robot/dynamic_place` | phase 끝 feedback의 `metric_keys/values`(SPEC-010 wire schema v0.2 / runtime contract v0.4). SYNCHRONIZE는 진행 중 feedback의 `e_xy`·`v_rel` 열 |
 | `verify` | `vision/verify_drop` | `verdict` |
 | `safe_retreat`·`stop`·`cancel_active` | `robot/safe_retreat`, `robot/stop`, goal cancel | — |
-| `pending_fault` | 구독 캐시 | `robot/status.protective_stop` → PROTECTIVE_STOP, `connected = false` → ROBOT_COMM_LOST, heartbeat 손실(SPEC-110) |
+| `pending_fault` | 구독 캐시 | `robot/status.protective_stop` → PROTECTIVE_STOP, `connected = false` → ROBOT_COMM_LOST, heartbeat 손실, controller `error_code` 100·101(REQ-ORC-012). SPEC-110 4.4절 구간에서 `robot/status` 그리퍼 → GRIPPER_FAULT, `BeltMotion` 지속 불안정 → BELT_UNSTEADY, 대상 track `last_observed_stamp` → OBS_STALE, ROS 시각 역행 → CLOCK_JUMP |
 | skill 결과(`_result`·phase 대기) | action 결과 `reason_code` | `PROTECTIVE_STOP` → PROTECTIVE_STOP. `STOPPED`(실행 중 `Stop` 선점, SPEC-010 3.2절) → 자체 감시를 먼저 돌려 구체 원인을 latch하고, 없으면 `ROBOT_STOPPED`. latch된 `ROBOT_STOPPED`는 뒤이어 확인된 다른 하드 이상으로 바뀐다 |
 
 검출의 실제 freshness 원점은 PLAN.md 4.3절·SPEC-000의 영상 노출 시각이다. 검출 안정 창은 `stable_window=0.5 s`로 요청한다. M0 서비스 응답에는 관측 stamp·image_seq가 없어 수신 시각을 임시 대용하며 실제 vision 경로에는 사용할 수 없다. G1 필수 C/I 시험은 응답과 영상 노출 stamp의 연결 계약, 지연 응답·오래된 cache의 PICK_STONE 거부, 0.5 s 안정 창 충족을 확인한다.
 
-### 4.9 시간 예산(M0 임시)
+### 4.9 시간 예산
 
-planner의 `time_budget`이 생기기 전까지 WAIT_CAP 예산은 `orchestrator_node`가 conveyor_frame에서 계산한다: `t_available = (x_exit − x_cap) / v`, `t_to_window = (x_reach_start − x_cap) / v`, `t_required = Σ budget 성분`(설정 `budget:` 절). 실제 planner가 계약 시험을 통과하면 planner 결과로 바꾼다.
+WAIT_CAP 예산은 `orchestrator_node`가 conveyor_frame의 대상 track 위치·속도로 `intercept_planner.time_budget.evaluate_budget(x_cap, v, x_exit, 성분, margin)`을 불러 정한다(식은 SPEC-400 4.2절 한 곳). `t_available`·`t_required`·성분은 그 결과이고, 성분은 설정 `budget:` 절의 `*_s`(`retreat_margin_s` 제외), `x_exit = budget.x_exit_m`, `margin = wait_cap.margin_s`, `v_min = 0`이다. 벨트가 멈췄거나 거꾸로 가면(`BELT_STOPPED`·`BELT_REVERSED`) `t_available` 0, `t_to_window` ∞라 그 통과는 `TOO_EARLY`로 기다린다. 동적 deadline은 `deadlines.dynamic_deadline(now, t_available, budget.retreat_margin_s)`다(SPEC-110 5절). `t_to_window = (x_reach_start − x_cap) / v`.
+
+`budget.x_reach_start_m`·`budget.x_exit_m`은 같은 이름의 ROS 파라미터로 덮을 수 있고, `drop.launch.py`는 tracker·planner와 같은 도달 구간을 넣는다(SPEC-400 REQ-PLN-012).
 
 ### 4.10 포트 대기와 미확정 action
 
@@ -242,9 +245,10 @@ planner의 `time_budget`이 생기기 전까지 WAIT_CAP 예산은 `orchestrator
 - REQ-ORC-008: PLAN_INTERCEPT가 동적 deadline까지 OK가 아니면 APPROACH를 0회 호출하고, 남은 통과가 있으면 WAIT_CAP으로 돌아간다.
 - REQ-ORC-009: WAIT_OPERATOR에서 사유 없는 `resume`은 거부하고, 사유 있는 `resume`은 PRECHECK부터 다시 시작하며 진입 시각·사유를 기록한다.
 - REQ-ORC-011: 실행 중 skill이 `STOPPED`로 끝나면 단계 판정 대신 하드 이상(L4)으로 처리한다. 같은 시점에 자체 감시가 보호정지·통신 단절·controller heartbeat 손실을 보고 있으면 그 사유를 남기고, 원인을 모르면 `ROBOT_STOPPED`를 남긴다. 클라이언트 cancel 결과(`CANCELED`)는 하드 이상이 아니다.
-- REQ-ORC-012: `robot_controller_node`의 `Heartbeat.error_code`가 100이면 `PROTECTIVE_STOP`, 101(정지 유지, SPEC-010 4.5절)이면 `ROBOT_STOPPED`를 감시 주기마다 latch한다. 실행 중 skill이 없을 때(PRECHECK, DETECT_STONE 서비스 대기, WAIT_CAP 선택·관측 대기, 단계 사이)도 L4로 끝나고 그 뒤 Stop 외 로봇 skill 호출은 0회다. 정지 유지가 풀리지 않은 채 시작한 사이클은 PRECHECK에서 L4다.
+- REQ-ORC-012: `robot_controller_node`의 `Heartbeat.error_code`가 100이면 `PROTECTIVE_STOP`, 101(정지 유지, SPEC-010 4.5절)이면 `ROBOT_STOPPED`를 감시 주기마다 latch한다. 실행 중 skill이 없을 때(PRECHECK, DETECT_STONE 서비스 대기, WAIT_CAP 선택·관측 대기, 단계 사이)도 L4로 끝나고 그 뒤 Stop 외 로봇 skill 호출은 0회다. 정지 유지가 풀리지 않은 채 시작한 사이클은 PRECHECK에서 L4다. `DropTask` goal을 수락한 뒤 controller heartbeat 2개와 `robot/status` 1개를 새로 받은 다음(최대 `node.startup_wait_s`) 장애 latch를 무장하므로, 해제 직후 goal은 수락 전 캐시의 101로 끝나지 않고 새 heartbeat가 101이면 PRECHECK에서 L4다.
 - REQ-ORC-013: WAIT_CAP은 다른 조건이 모두 통과여도 `t_to_window_s > plan_lead_s`(3.0 s)면 `WAIT`(`TOO_EARLY`)이고 PLAN_INTERCEPT로 가지 않는다. 경계 3.001 / 3.000 / 2.999 s에서 WAIT / OK / OK다.
 - REQ-ORC-018: WAIT_CAP의 `t_to_window_s`는 고른 순간 값이 아니라 매 관측의 대상 track으로 다시 계산한다. 대상의 `velocity.x`가 고른 뒤 바뀌면 `t_to_window_s`도 `(x_reach_start − x) / v`로 따라 바뀌고, `x ≥ x_reach_start`면 0, `v ≤ 0`이거나 대상이 목록에 없으면 ∞다.
+- REQ-ORC-019: WAIT_CAP 관측의 `t_available_s`·`t_required_s`·`budget_<성분>_s`는 `intercept_planner.time_budget.evaluate_budget`(4.9절 입력)의 값과 같고, 동적 deadline은 `now + t_available − budget.retreat_margin_s`다. 벨트가 멈췄거나 거꾸로 가면 `t_available_s` 0, `t_to_window_s` ∞이고 판정은 `WAIT`(`TOO_EARLY`)다.
 - REQ-ORC-014: `DynamicPlace.Goal.position_std_max`는 `sync.release_position_std_max_m`(0.5 mm)이고 계획 단계 기준 `plan.position_std_max_m`(3.25 mm)와 독립이다.
 - REQ-ORC-015: `PlaceStone`·`DynamicPlace`처럼 여러 단계(APPROACH~RETREAT)를 한 goal이 수행할 때 `goal.deadline`은 전송 시각 + 그 goal이 거치는 단계 제한시간의 합(동적: `approach_s + synchronize_s + descend_s + release_s + retreat_s` = 10.5 s, STATIC: SYNCHRONIZE 제외 8.5 s)이다. APPROACH 단계 deadline을 넣지 않는다. 단계·동적·사이클 deadline은 실행기가 포트 대기와 cancel로 집행한다. 대역 소요시간 축척 1.0(`DynamicPlace` 3.0 s)에서 한 사이클이 SUCCESS다.
 - REQ-ORC-016: WAIT_CAP 대기 중 관측이 `target_lost`이면 `passes_skipped`를 올리지 않고 같은 `pass_index`로 `select_target`을 다시 호출한다. 실제 tracker가 WAIT_CAP 도중 초기화(epoch +1)되어도 그 통과에서 사이클이 SUCCESS로 끝난다.
@@ -259,7 +263,7 @@ planner의 `time_budget`이 생기기 전까지 WAIT_CAP 예산은 `orchestrator
 
 ## 8. 검증 방법(`TEST_SPEC.md` TC ID, 게이트)
 
-TC-ORC-001-01 ~ TC-ORC-012-01(U, M0), TC-ORC-013-01~TC-ORC-018-01(U, G4). ROS 수준은 TC-INT-001-01, TC-INT-005-01, TC-INT-006-01, TC-INT-008-01, TC-INT-009-01(실제 tracker·planner, REQ-ORC-013), TC-INT-010-01(실시간 축척, REQ-ORC-015), TC-INT-011-01(대상 재선택, REQ-ORC-016).
+TC-ORC-001-01 ~ TC-ORC-012-02(U, M0), TC-ORC-013-01~TC-ORC-019-01(U, G4). ROS 수준은 TC-INT-001-01, TC-INT-005-01, TC-INT-006-01, TC-INT-008-01, TC-INT-009-01(실제 tracker·planner, REQ-ORC-013), TC-INT-010-01(실시간 축척, REQ-ORC-015), TC-INT-011-01(대상 재선택, REQ-ORC-016), TC-INT-013-01(MODE_STATIC 전체 상태 열, REQ-ORC-001).
 
 ## 9. 미결 사항
 

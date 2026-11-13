@@ -147,6 +147,7 @@
   - `docs/operations/safety-procedure.md`(역할, 시작 전 점검, 설정 파일 기준 속도·가속·작업영역 표, 정지 방법, DRL PLAY 잔류 대응, Stop 해제·재개 순서, 그리퍼 한도, 기록). 비상정지·펜던트 위치는 현장에서 기입한다(아래 OFF-2 현장 확인).
 - [ ] `[OFF]` OFF-2: 안전 절차 현장 확인(비상정지 동작, 작업영역 제한 설정)
 - [ ] `[OFF]` OFF-2: 감시 노드 기동 직후 controller heartbeat 수신 지연 확인. officepc WSL 대역 I0에서 기동 직후 감시 노드가 마지막 controller stamp를 0.30~0.34 s 전 것으로 보고 `CONTROLLER_HEARTBEAT_LOST` Stop을 냈다(같은 순간 독립 구독자 수신 공백 ≤ 0.10 s, 판정 타이머 간격 0.05 s, R1 이전 코드에서도 발생). 실기 bringup 5회에서 재현 여부를 본다. 시연 운용 절차: 기동 → 2 s 대기 → controller heartbeat `error_code` 확인, 101이고 Stop 사유가 `CONTROLLER_HEARTBEAT_LOST`이며 로봇이 정지·대기 자세면 `stop_release_reason`으로 사유를 남기고 해제(SPEC-010 4.5절). 재현이 잦으면 감시 노드가 controller heartbeat를 연속 5회 받은 뒤부터 손실을 판정하도록 바꾸는 안(REQ-ABT-010 변경)을 검토한다(`records/reviews/fable-m0-risk-2026-11-11.md` 2절)
+  - 오케스트레이터는 goal 수락 뒤 새 controller heartbeat 2개와 `robot/status`를 받은 다음 장애 latch를 무장한다. 해제 직후 시작한 사이클이 낡은 101로 끝나던 경합을 막는다(REQ-ORC-012, TC-ORC-012-02). I0 시험의 기동 안정 대기는 해제 뒤 `error_code` 0·`ready`를 확인한다. 기동 약 3.2 s 뒤 Stop 자체의 원인은 남는다.
   - 2026-11-12 CI(공유 러너): 실제 tracker·planner I0에서 기동 안정 대기 뒤 첫 사이클 0.44 s(PICK_STONE)에 같은 Stop이 1회 났고 재실행은 통과했다(run 43181006141, `records/worklog/2026-11-12.md`). controller 기동 3.2 s 뒤(controller 로그 시각 기준)여서 "연속 5회 수신 뒤 무장" 안으로는 막지 못할 것으로 본다(감시 노드의 수신 기록이 없어 추정). 대책은 운용 절차(위)를 유지하고 OFF-2 재현 결과로 정한다.
 
 **G0 합격 기준(제안):** 0절 항목 기록 완료 / 단위 변환·pulse 변환 테스트 통과 / 통신·추적 손실·cancel 모사 20회에서 정의된 정지·대기 전환 20/20, 예기치 않은 재개 0회 / I3에서 L0·L4 모사 20/20 / 스트림 주기·지연 분포 보고서 / 그리퍼 개방 지연 분포와 스트림 중 개방 결과 보고서.
@@ -191,7 +192,8 @@
 
 ## 6. 정지 벨트 투입 → G2 (트랙 A+B 합류)
 
-- [ ] `[ON]` 오케스트레이터 MODE_STATIC 전체 시퀀스를 I0(mock)에서 통과
+- [x] `[ON]` 오케스트레이터 MODE_STATIC 전체 시퀀스를 I0(mock)에서 통과
+  - TC-INT-013-01: `nominal_20mms`, 대역 소요시간 축척 0.4에서 상태 11개·단계 기록 10건 모두 OK, DESCEND가 정지 목표 지표. 2026-11-13 사무실 PC WSL(병합본) orchestrator 789, I0 18 passed.
 - [x] `[OFF]` OFF-4: 벨트를 멈추고 병뚜껑을 도달 구간 안에 둠, 공깃돌 파지 → 뚜껑 위 해제 높이까지 하강 → `Δ_open` 개방 → 수직 후퇴(2026-11-09, 4회 모두 카메라로 뚜껑 안 확인, `records/trials/2026-11-09-static-pick-place/`)
     - 원래 벨트 위치(robot_base x ≈ 0.81 m)는 수직 그리퍼로 도달 경계(J3 = 0°)라 컨베이어를 로봇 쪽으로 옮김. 카메라·로봇 기준 보정은 후보값 그대로 사용.
 - [x] `[OFF]` OFF-4: 해제 높이 = 플랜지가 테두리 위 165.6 mm(투입 성공 160.6 mm + 사용자 지시 5 mm, `static_pick_place/plan.py`)
@@ -227,7 +229,7 @@
 - [ ] `[OFF]` OFF-5: 대기·접근·하강·해제 자세의 그리퍼·공깃돌이 카메라 시야에서 병뚜껑을 가리지 않는지 확인(컨베이어 배치 검증)
 - [ ] `[OFF]` OFF-5: 영상 처리 지연, 프레임 누락, 추적 손실 조건 확인
 - [ ] `[OFF]` OFF-5: 현장 장비(LEGION)의 시스템 시계가 계단 보정되지 않는지 확인. `python3 tools/bench/check_clock_steps.py --duration 300`에서 계단 0건, `timedatectl timesync-status` 기록
-  - 시스템 시각이 뒤로 가면 tracker가 모든 track을 지우고 epoch를 올린다(REQ-TRK-008, WARN 로그). 사무실 PC WSL에서 31.5 s마다 약 1 s 역행을 관측했고 원인은 WSL 안 `systemd-timesyncd`와 호스트 시간 동기의 충돌이었다(`records/worklog/2026-11-12.md`).
+  - 시스템 시각이 뒤로 가면 tracker가 모든 track을 지우고 epoch를 올리고(REQ-TRK-008, WARN 로그), 오케스트레이터는 사이클을 `CLOCK_JUMP`로 끝내며(REQ-ABT-012), 실제 controller의 동기화기는 `CLOCK_BACKWARD`로 멈춘다(REQ-ROB-013). 2026-11-13 집 PC WSL에서도 약 32.5 s마다 0.87 s 역행을 측정했다. 동적 시험 전에 이 확인은 필수다. 사무실 PC WSL에서 31.5 s마다 약 1 s 역행을 관측했고 원인은 WSL 안 `systemd-timesyncd`와 호스트 시간 동기의 충돌이었다(`records/worklog/2026-11-12.md`).
 
 ## 8. Moving Reference Frame 구현 → G3
 
@@ -251,7 +253,8 @@
   - SPEC-400 v0.1, `intercept_planner/prediction.py`, TC-PLN-003-01.
 - [x] `[ON]` 이미 `t_now − t_obs`에 포함된 지연은 중복 보상하지 않음(단위 테스트로 고정)
   - TC-PLN-002-01.
-- [ ] `[ON]` 시간 예산 판정(`PLAN.md` 9절) `time_budget.py` 구현, `deadlines.py` 연동, 통과 보내기(`max_passes`) 판정
+- [x] `[ON]` 시간 예산 판정(`PLAN.md` 9절) `time_budget.py` 구현, `deadlines.py` 연동, 통과 보내기(`max_passes`) 판정
+  - 오케스트레이터 WAIT_CAP 예산은 planner와 같은 `time_budget.evaluate_budget`, 동적 deadline은 `deadlines.dynamic_deadline`에서 나온다(REQ-ORC-019, TC-ORC-019-01, TC-ABT-006-02). 도달 구간 값은 launch가 tracker·planner·orchestrator에 한 출처(시나리오 또는 `drop_bringup/config/system.yaml`)로 넣는다(TC-PLN-012-01·02). 2026-11-13 사무실 PC WSL(병합본) orchestrator 789, I0 18 passed.
   - `time_budget.py`와 TC-PLN-001(식·경계·정지·역방향). `deadlines.py`·WAIT_CAP 연동이 완료 조건이다.
 - [x] `[ON]` 벨트 속도 변화 시 예측 갱신(revision 증가), 계획 만료 처리
   - `plan_session.py` + `intercept_planner_node`, TC-PLN-006-01(SPEC-400 v0.2).
@@ -312,9 +315,11 @@
 
 - [ ] `[ON]` ROS 2 노드·Launch 통합(real / sim / replay / mock 분리, replay는 로봇 지령 경로 미연결)
   - replay: `drop_bringup/launch/replay.launch.py`(영상 토픽만 재생, 실제 vision·tracker·planner, robot·orchestrator·그리퍼·스트림 경로 없음), TC-INT-007-01이 그래프에서 지령 경로 0개를 확인한다(합성 bag 포함). sim은 Isaac Sim을 돌릴 장비가 없어(부록 A) 남는다.
-- [ ] `[ON]` 상태 머신·단계 판정·중단 등급(`PLAN.md` 4, 5절): PRECHECK, WAIT_CAP, SAFE_ABORT, PROTECTIVE_STOP, WAIT_OPERATOR 포함. I0 전 시나리오 통과
+- [x] `[ON]` 상태 머신·단계 판정·중단 등급(`PLAN.md` 4, 5절): PRECHECK, WAIT_CAP, SAFE_ABORT, PROTECTIVE_STOP, WAIT_OPERATOR 포함. I0 전 시나리오 통과
+  - `PLAN.md` 7.3절 ROS I0 5종과 감시 연결 I0(TC-ABT-011~014-02), MODE_STATIC(TC-INT-013-01), 실제 tracker·planner 두 모드(TC-INT-009-01). 2026-11-13 사무실 PC WSL(병합본) orchestrator 789, I0 18 passed. 장애 10종 단위 시험은 M0에서 확인했다.
 - [ ] `[ON]` 공깃돌 파지부터 투입까지 자동화(시도 사이 공깃돌 회수는 작업자)
-- [ ] `[ON]` 추적 손실·속도 급변: 해제 전이면 SAFE_ABORT(L3)
+- [x] `[ON]` 추적 손실·속도 급변: 해제 전이면 SAFE_ABORT(L3)
+  - 대상 관측 나이 > 0.3 s → `OBS_STALE` L3(TC-ABT-011-02). `steady=false`가 1.0 s(`watchdog.belt_unsteady_hold_s`) 넘게 이어지면 해제 전 L3, 해제 뒤 RETREAT·VERIFY 계속, 그보다 짧은 맥동은 중단하지 않는다(REQ-ABT-013, TC-ABT-013-01·02, `records/reviews/fable-decisions-2026-11-12.md` (b)). ROS 시각 역행(약 50 ms 표본)은 들고 있으면 L3, 아니면 L2이고 이전 대상·계획을 다시 쓰지 않는다(TC-ABT-012-02·03). 그리퍼 오류·응답 지연은 `RobotStatus`로 판정한다(TC-ABT-014-02). 2026-11-13 사무실 PC WSL(병합본) orchestrator 789, I0 18 passed.
 - [ ] `[ON]` 작업 가능 시간 부족: 다음 통과 대기, 통과 보내기 소진 시 공깃돌을 매트에 내려놓고 NOT_ATTEMPTED
 - [x] `[ON]` 보호 정지·통신 끊김: 자동 리셋·무조건 원점 복귀 금지, 작업자 확인 후 재개(L4)
   - TC-INT-003-01(I0 보호정지 → WAIT_OPERATOR → 사유 있는 재개), TC-ORC-009-01, `ROBOT_COMM_LOST` L4(`test_node_failure_regressions.py`·`test_safety_supervisor.py`), TC-ORC-012-01. 2026-11-12 집 PC WSL(`ce86f9b`) orchestrator 716 passed, I0 해당 시험 통과.

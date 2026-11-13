@@ -1,6 +1,7 @@
 import pytest
 
-from orchestrator.deadlines import derive_step_timeout, effective_deadline
+from intercept_planner.time_budget import evaluate_budget
+from orchestrator.deadlines import derive_step_timeout, dynamic_deadline, effective_deadline
 
 
 @pytest.mark.req("REQ-ABT-006")
@@ -15,6 +16,19 @@ from orchestrator.deadlines import derive_step_timeout, effective_deadline
 ])
 def test_effective_deadline_is_minimum(now, step, dynamic, cycle, expected):
     assert effective_deadline(now, step, dynamic, cycle) == pytest.approx(expected, abs=1e-9)
+
+
+@pytest.mark.req("REQ-ABT-006")
+@pytest.mark.tc("TC-ABT-006-02")
+@pytest.mark.level("U")
+@pytest.mark.parametrize("x_cap, v, expected", [
+    (0.17, 0.02, 100.0 + 11.5 - 1.0),      # T_available = (0.40 − 0.17) / 0.02 = 11.5 s
+    (0.0, 0.0, 100.0 - 1.0),               # BELT_STOPPED: T_available 0, 이미 지남
+    (0.0, -0.02, 100.0 - 1.0),             # BELT_REVERSED
+])
+def test_dynamic_deadline_uses_time_budget(x_cap, v, expected):
+    b = evaluate_budget(x_cap, v, 0.40, {'plan': 0.5, 'approach': 1.5}, 1.0)
+    assert dynamic_deadline(100.0, b.t_available, 1.0) == pytest.approx(expected, abs=1e-9)
 
 
 @pytest.mark.req("REQ-ABT-007")
