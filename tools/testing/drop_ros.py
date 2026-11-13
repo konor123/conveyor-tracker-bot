@@ -24,6 +24,7 @@ from rclpy.qos import QoSProfile, ReliabilityPolicy
 from rclpy.parameter import Parameter
 
 DOMAIN = 100 + os.getpid() % 100
+SERVICE_DISCOVERY_S = 15.0     # Harness.call의 서비스 발견 대기 상한 [s]
 RECORD_QOS = QoSProfile(depth=200, reliability=ReliabilityPolicy.RELIABLE)
 
 
@@ -178,9 +179,15 @@ class Harness:
         return box
 
     def call(self, typ, name, timeout=5.0, **fields):
+        """서비스를 한 번 부른다. `timeout`은 응답 대기다. 새 client의 끝점 매칭은 서버 프로세스의 발견 처리에
+        달려 공유 CI 러너에서 5 s를 넘긴 적이 있어(2026-11-13 run 43398439752·43403812431, 모듈 내내 떠 있던
+        `robot_controller_node`의 `change_state`) 서비스 발견은 `SERVICE_DISCOVERY_S`까지 기다린다."""
         cli = self.client.create_client(typ, name)
-        if not cli.wait_for_service(timeout_sec=timeout):
-            raise TimeoutError(f'서비스 없음: {name}')
+        if not cli.wait_for_service(timeout_sec=max(timeout, SERVICE_DISCOVERY_S)):
+            # 원인 구분용: 서버가 그래프에 없는지(노드 종료) 있는데 매칭이 늦은지
+            servers = [n for n, _ in self.client.get_service_names_and_types() if n == name]
+            nodes = sorted(f'{ns.rstrip("/")}/{n}' for n, ns in self.client.get_node_names_and_namespaces())
+            raise TimeoutError(f'서비스 없음: {name} (그래프의 같은 이름 서비스 {len(servers)}개, 노드 {nodes})')
         return wait_future(cli.call_async(typ.Request(**fields)), timeout)
 
     def action(self, typ, name, timeout=5.0) -> ActionClient:
