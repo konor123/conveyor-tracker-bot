@@ -107,9 +107,22 @@ CI에서 `test_robot_inactive_rejects_goals`가 두 번 실행에서 모두 시�
 
 > **개념 정리 — ROS 2 서비스 발견:** ROS 2에서 클라이언트가 서비스를 호출하려면 먼저 그래프에서 서비스를 "발견"해야 한다. 이 발견은 즉각적이지 않을 수 있고, 노드가 살아 있어도 발견이 늦어질 수 있다. 그래서 발견 대기와 응답 대기는 별개의 타임아웃으로 다뤄야 하고, 실패 원인을 구별하려면 실패 시점의 그래프 상태를 오류 메시지에 남겨야 한다.
 
+
+## 5) 남은 결정 여섯 건을 에이전트끼리 정한 방법
+
+사용자가 남은 결정을 에이전트들이 논의해 정하라고 했다. coordinator가 결정마다 처음 안을 쓰고, Codex·OpenCode에게 같은 안을 보내 찬반과 근거를 받은 뒤 advisor가 종합했다. 전체는 [결정 기록](../../records/reviews/decisions-2026-11-14.md)에 있다.
+
+- **의견이 갈리면 무엇으로 정하나.** hover 도구는 OpenCode가 찬성, Codex가 보류였다. 실제 팔을 움직이고 여기서 돌려 볼 수 없는 변경이라 보수적인 쪽을 따랐다. 오늘 가드를 넣으면 "고친 도구의 첫 실행"이 현장이 된다는 점이 결정적이었다.
+- **값은 표본이 아니라 규칙과 최악 경우로 정한다.** RELEASE 단계 제한을 처음에는 측정 0.91 s의 1.5배로 1.5 s를 냈는데, OpenCode가 저장소 규칙 REQ-ABT-007(`max(ceil(1.5 × p99), p95 + 0.5)`, 정수 초로 올림)을 찾아 2.0 s라고 했다. 다시 설계값으로 따져 보니 PREDICTED는 하강이 빠르면 RELEASE가 `entry_lead_s` 1.3 + 확인 유지 0.3 = 1.6 s까지 가서 1.5 s로는 부족했다. 표본 4개(fake transport)만 보면 이런 경우를 놓친다.
+- **두 값의 관계는 시험으로 묶는다.** controller의 게이트 대기 상한을 2.0 → 1.0 s로 내려 SYNCHRONIZED RELEASE가 1.4 s가 되게 했고, "정상·게이트 대기 경우의 RELEASE 길이 ≤ orchestrator RELEASE 제한"을 설정 일관성 시험(TC-ROB-019-01)으로 고정했다. 한쪽만 바꾸면 시험이 실패한다. 개방을 확인하지 못한 경우(약 2.1 s)는 여전히 넘으므로 남은 사례로 적었다.
+- **대기 시간은 관찰한 범위를 덮게 정하되, 대기만으로 준비됐다고 보지 않는다.** 기동 직후 발행 정지가 2.5~3.9 s 뒤에 관찰되어 운용 기동 대기를 2 → 5 s, I0 시험 안정 대기를 1.5 → 5.0 s로 늘렸다. 대기 뒤 heartbeat 확인과 정지 유지 해제 절차는 그대로다(Codex 지적).
+- **검증된 시연 경로는 결정 범위에서 뺀다.** 종료 신호 처리는 `vision_node`·calibration 노드로 넓혔지만, 단계마다 Enter 확인을 받는 정적 투입 CLI는 오늘 실기에서 검증한 경로라 넣지 않았다. 기존 동작(`camera_tf_publisher`가 노드의 종료 코드를 돌려주는 것, `static_frames`가 설정 오류에 1로 끝나는 것)은 그대로 두었다.
+- **바꾸지 않는 것도 결정이다.** `SelectTarget` 신선도는 바꾸지 않았고, Codex가 짚은 남은 사례(오래 밀린 검출이 stamp 순서대로 계속 오면 track이 늙지 않는다)를 기록했다.
+- **되돌리기 쉽게 나눈다.** 결정마다 커밋을 하나씩 만들어 현장에서 문제가 생기면 `git revert <커밋>` 한 줄로 그 결정만 되돌릴 수 있다.
+
 ---
 
-## 5) 흔한 함정
+## 6) 흔한 함정
 
 이번 정리에서 실제로 만난(거의 만날 뻔한) 함정들:
 
@@ -126,7 +139,7 @@ CI에서 `test_robot_inactive_rejects_goals`가 두 번 실행에서 모두 시�
 
 ---
 
-## 6) 관련 파일
+## 7) 관련 파일
 
 | 내용 | 파일 |
 |---|---|
@@ -141,6 +154,7 @@ CI에서 `test_robot_inactive_rejects_goals`가 두 번 실행에서 모두 시�
 | vision 사양 (REQ-VIS-011) | [specs/SPEC-200-vision.md](../../specs/SPEC-200-vision.md) |
 | tracking 사양 (REQ-TRK-015) | [specs/SPEC-300-tracking.md](../../specs/SPEC-300-tracking.md) |
 | CI flake 수정 도구 | [tools/testing/drop_ros.py](../../tools/testing/drop_ros.py) |
+| 남은 결정 여섯 건 | [records/reviews/decisions-2026-11-14.md](../../records/reviews/decisions-2026-11-14.md) |
 | 오늘 현장 체크리스트 | [docs/operations/site-checklist-2026-11-14.md](../operations/site-checklist-2026-11-14.md) |
 | 11-13 학습 문서 (이전 편) | [2026-11-13-site-check-camera-and-live-tracking.md](2026-11-13-site-check-camera-and-live-tracking.md) |
 | 작업 로그 | [records/worklog/2026-11-14.md](../../records/worklog/2026-11-14.md) |

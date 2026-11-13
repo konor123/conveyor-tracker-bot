@@ -87,6 +87,7 @@
   - ROS Jazzy rclpy `action/client.py`의 `ActionClient.execute`는 한 번 깨어날 때 result future를 feedback 콜백보다 먼저 완료한다(소스 확인). callback group을 바꿔도 이 순서는 바뀌지 않으므로 result 선처리는 지금의 짧은 feedback 대기(`FEEDBACK_DRAIN_S`)로 다루고, 재현 전에는 callback group을 바꾸지 않는다(`records/reviews/fable-decisions-2026-11-12.md` (f)).
   - 2026-11-13 사무실 PC WSL 실제 controller I0(`test_i0_real_controller_dynamic_cycle[synchronized]`, `realtime_pc`)에서 RELEASE `STEP_TIMEOUT`(SAFE_ABORT) 1회. 실제 controller I0 launch 66개 중 1개이며 같은 launch의 대역 세계에는 발행 공백이 없었다(`records/reviews/heartbeat-stall-evidence-2026-11-13.md` 4절).
   - 2026-11-13 분석(`records/reviews/release-step-timeout-2026-11-13.md`): 포트가 None을 내는 경로는 대기 끝과 controller 결과 먼저 두 가지이고 controller 사유는 로그에 남지 않았다. 두 경로를 가리는 경고와 controller DynamicPlace 한 줄(REQ-ORC-020, REQ-ROB-018)을 넣고 재 보니, 실제 controller I0 정상 사이클의 RELEASE가 0.88~0.91 s(제한 1.0 s)였다. RELEASE 제한과 게이트 대기 상한(2.0 s)의 관계는 SPEC-500 9절 미결 사항이다. 그 한 건의 원인은 확정하지 않았다.
+  - 2026-11-14 결정(`records/reviews/decisions-2026-11-14.md` D2): orchestrator RELEASE 단계 제한 1.0 → 2.0 s(REQ-ABT-007 식, fake transport 기준 잠정), controller 게이트 대기 상한 2.0 → 1.0 s. 정상·게이트 대기 경우의 RELEASE 길이(1.4·1.6 s)가 제한 안이 되도록 설정 일관성 시험(TC-ROB-019-01)으로 고정했다. 개방 미확인 경우(약 2.1 s)와 66개 중 1개였던 그 한 건의 원인 확정은 남는다.
 
 **M0 합격 기준(제안):** SPEC 6종 v0.1과 M0 대상 시험 케이스 리뷰 완료 / interface 빌드 / 단위 테스트에서 장애 10종 이벤트 열마다 기대 중단 등급 / I0 정상 시나리오 20/20, ROS I0 장애 시나리오 4종(`robot_hang`, `protective_stop`, `heartbeat_loss`, `time_insufficient`)마다 정의된 중단 등급 동작 / 오케스트레이터 REQ 연결률 100% / `records/`에 StepRecord·trial 기록 생성 확인.
 
