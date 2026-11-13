@@ -1,6 +1,6 @@
 # SPEC-500 robot-control
 
-- 버전: v0.8
+- 버전: v0.9
 - 근거: PLAN.md 1.1, 3.3, 4.2~4.4, 5.1, 11.3절
 - REQ 영역: ROB, GRP
 
@@ -8,6 +8,7 @@
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
+| v0.9 | 2026-11-13 | REQ-ROB-011 Doosan 드라이버 형식(4.6절 표: 서비스 8종·`speedl_stream`의 이름·형식·필드·단위), virtual 모드 대신 실제 `dsr_msgs2` 형식 stub 시험과 그 한계·OFF-2 확인 항목, REQ-ROB-017 Doosan 단위 client ROS 구현(`dsr_motion_client.DsrMotionClient`, 실기 미검증·노드 미연결) |
 | v0.8 | 2026-11-13 | REQ-ROB-016 SafeRetreat place-back(`place_back_xyz_m`, 측정 개방 폭 확인, `stone_placed_back`), REQ-ROB-010 동기 유지 후퇴를 정적 실행기에 주입, REQ-ROB-007 정지 미확인 이동 중단은 `FAULT`, 4.6절 Doosan 실제 backend 준비(REQ-GRP-017 서비스 레지스터 경로, REQ-ROB-017 정적 backend 어댑터, 실기 미검증·노드 미연결), 실수 배열 파라미터 동적 형식 |
 | v0.7 | 2026-11-13 | DynamicPlace 순서기·해제 게이트·해제 확정(commit) 경계 transport 계약(4.5절, REQ-ROB-007~010), REQ-ROB-013 UNCERTAIN revision 보류(`uncertain_hold_s`), `backend:=fake` 해제 transport(가정값), speedl 스트림 transport(REQ-ROB-015, 실기 미검증), 가속 단위 변환(REQ-ROB-002) |
 | v0.6 | 2026-11-12 | REQ-ROB-013: 계획 수락 기준 3.25 mm와 해제 불확실성 기준 0.5 mm 분리(`release_uncertainty_ok`, 진단용), 그림자 기록 CSV(`sync_metrics`), `config/belt_sync.json` |
@@ -159,10 +160,11 @@ transport 경계는 속도 지령이 아니라 해제 확정(commit)이다(`dyna
 
 ### 4.6 Doosan 실제 backend 준비(실기 미검증)
 
-REQ-GRP-017·REQ-ROB-017은 코드와 가짜 서비스·가짜 팔 시험까지다. 노드 `backend` 선택지는 `disabled`·`fake` 그대로이며 Doosan backend는 2026-11-14 현장 뒤에 연결한다(`records/reviews/fable-decisions-2026-11-12.md` (d)).
+REQ-GRP-017·REQ-ROB-017은 코드와 가짜 서비스·가짜 팔 시험까지, REQ-ROB-011은 실제 `dsr_msgs2` 형식 stub 시험까지다. 노드 `backend` 선택지는 `disabled`·`fake` 그대로이며 Doosan backend는 2026-11-14 현장 뒤에 연결한다(`records/reviews/fable-decisions-2026-11-12.md` (d)).
 
 - REQ-GRP-017: `dsr_register_io.DsrRegisterIO`(실기 미검증)는 `resident_transport.RegisterIO`를 Doosan 드라이버 서비스 `<ns>/plc/get_output_register_int`(`address`, `timeout_ms` 1000)·`<ns>/plc/set_output_register_int`(`address`, `value`)·`<ns>/drl/drl_start`(`robot_system` 0, `code`)로 구현한다. 읽은 값은 최상위 바이트만 쓴다(`(value >> 24) & 255`: OFF-2에서 DRL이 쓴 값의 하위 1바이트가 그 자리로 왔다, `static_pick_place.doosan_client.decode_register_byte`와 같은 해석). 쓰기는 0~127 정수만 보내고 그 밖은 송신 없이 예외다. 실패 응답의 쓰기는 False, 읽기는 예외이며, 시간 초과·서비스 없음은 읽기·쓰기 모두 예외다(값을 지어내지 않는다). `drl_start` 전에 `system/get_robot_state` = STANDBY(1)와 `drl/get_drl_state` ∈ {STOP 1, LAST 3}을 확인하고, 아니면 부르지 않고 `ROBOT_NOT_STANDBY`·`DRL_BUSY`다. 서비스 호출(`RosServiceCaller`)은 전역 ROS 인자를 쓰지 않는 전용 helper 노드(`robot_control_dsr_io`)와 그 노드만 도는 executor 스레드에서 하며, 호출하는 노드에서 `spin_until_future_complete`를 부르지 않는다. 제한시간은 steady 시계(`call_timeout_s` 1.0 s, `drl_start_timeout_s` 5.0 s, 제안)로 재고, 넘으면 대기 요청을 지우고 `SERVICE_TIMEOUT`이다. 서비스 형식(`dsr_msgs2.srv`)은 처음 호출할 때 가져오거나 주입한다.
 - REQ-ROB-017: `doosan_backend.DoosanBackend`(실기 미검증)는 `skill_logic.StaticBackend`를 Doosan 단위 client 계약(`move_line_async`·`move_stop`·`current_posx`·`robot_state`·`drl_state`)과 `GripperSession`으로 구현하고, SI ↔ Doosan 변환은 `motion_adapter`로 한다(posx [mm, deg ZYZ], `vel` [mm/s, deg/s], `acc` [mm/s², deg/s²]). DRL이 STOP·LAST가 아니거나(`DRL_BUSY`, 그리퍼 상주 루프 실행 중 포함) 로봇이 STANDBY가 아니면(`NOT_STANDBY`) 이동을 보내지 않는다. 이동은 측정 TCP가 목표 위치 `reach_tol_m`·자세 `reach_tol_rad` 안이고 상태가 STANDBY일 때만 완료다. 지령 수락 뒤 `start_grace_s` 안에 MOVING이 보이지 않고 도착하지 않았으면 `MOVE_NOT_STARTED`, 움직인 뒤 목표 밖에서 멈추면 `MOVE_NOT_REACHED`, `거리/속도 + move_timeout_margin_s`를 넘으면 `MOVE_TIMEOUT`이다. cancel·deadline·시간 초과·읽기 실패는 `move_stop`을 보내고 `cancel_stop_timeout_s`(steady) 안에 움직이지 않는 상태(STANDBY 1·SAFE_OFF 3·SAFE_STOP 5)를 확인해야 하며, 확인하지 못하면 `STOP_NOT_CONFIRMED`(REQ-ROB-007 `FAULT`)다. `stop()`은 정지 유지를 걸고(`reset_stop()` 전까지 이동·그리퍼 지령 없음) `move_stop` 뒤 `stop_timeout_s`까지 기다리며, `is_stopped()`는 매번 로봇 상태를 새로 읽는다(읽기 실패는 거짓). TCP 읽기 실패는 NaN이고, 그리퍼 결과는 세션의 측정 폭·전류만 보고하며 그리퍼 예외는 그 이유의 실패다.
+  - Doosan 단위 client의 ROS 구현은 `dsr_motion_client.DsrMotionClient`(실기 미검증)다. `ServiceCaller`(노드에서는 `DsrRegisterIO`와 같은 `RosServiceCaller`)로 REQ-ROB-011 표의 `motion/move_line`(`sync_type` 1)·`motion/move_stop`(`stop_mode` 2)·`aux_control/get_current_posx`(`ref` 0, `task_pos_info[0]`의 앞 6개)·`system/get_robot_state`·`drl/get_drl_state`를 부른다. 보내기 전에 `pos`·`vel`·`acc`가 유한한 실수 6·2·2개인지 확인하고 아니면 송신 없이 `ValueError`다(rclpy 기본 설정은 메시지 필드를 검사하지 않는다). `move_line`·`move_stop`의 실패 응답은 False, 읽기의 실패 응답은 `DsrError`(`SERVICE_FAILED`), 비었거나 6개 미만이거나 비유한인 위치 응답은 `DsrError`(`SERVICE_BAD_RESPONSE`), 시간 초과(`call_timeout_s` 1.0 s, 제안)·서비스 없음은 `DsrError`다.
 
 | 키(`DoosanBackendCfg`) | 단위 | 기본값 | 근거 |
 |---|---|---|---|
@@ -176,15 +178,41 @@ REQ-GRP-017·REQ-ROB-017은 코드와 가짜 서비스·가짜 팔 시험까지�
 | `cancel_stop_timeout_s` | s | 0.4 | cancel 응답 0.5 s − `poll_s`(생성 때 합 < 0.5 s 검사) |
 | `stop_timeout_s` | s | 2.0 | 5절 Stop 확인 대기 |
 
+- REQ-ROB-011: 프로젝트가 Doosan 드라이버(doosan-robot2)에 보내는 요청과 메시지는 아래 표의 이름·형식·필드·배열 길이·단위를 따른다(`<ns>` = `/dsr01`, 이름은 OFF-2 드라이버와 `static_pick_place.doosan_client`·`tools/bench/stream_bench.py`가 쓴 것). 확인은 `mode:=virtual`(지원 시)에서 하고, 지원하지 않으면 실제 `dsr_msgs2` 형식으로 같은 이름의 서비스·토픽을 여는 최소 stub(`src/robot_control/test/fakes/dsr_driver_stub.py`)로 대체한다. virtual 모드는 DRCF 에뮬레이터(docker)가 있어야 하는데 형식 시험을 돌리는 PC(officepc WSL)에는 docker·에뮬레이터가 없어 stub를 쓴다. 시험은 생성 메시지의 필드 검사(`ROS_PYTHON_CHECK_FIELDS`와 같음)를 켜고 `DsrRegisterIO`·`DsrMotionClient`·`DoosanBackend`·`DoosanSpeedlTransport`가 만든 요청을 시험 전용 ROS 도메인에서 그대로 보내며, stub가 아닌 노드가 드라이버 이름(`/dsr01/...` 서비스, `speedl_stream` 구독)을 쓰는 것이 보이면 요청 전에 실패한다. `dsr_msgs2`를 가져올 수 없으면(CI 등) skip하고 사유를 남긴다. stub는 srv 주석의 열거값과 유한값만 검사해 어긋나면 `success=false`로 거부하고, 상태는 고정값(STANDBY 1, DRL LAST 3)이며, `move_line`(base·절대)을 받으면 목표를 곧바로 현재 posx로 둔다. 레지스터 읽기 응답은 OFF-2 관찰 표현(하위 1바이트를 최상위 바이트 자리, 부호 있는 int32)이고 PC가 쓴 값도 같은 표현으로 돌려준다(가정).
+
+| 이름(`<ns>/` 뒤) | 형식(`dsr_msgs2/`) | 요청 필드(프로젝트 값·단위) | 쓰는 응답 필드 | 보내는 코드 |
+|---|---|---|---|---|
+| `drl/drl_start` | `srv/DrlStart` | `int8 robot_system` 0(real), `string code` | `bool success` | `DsrRegisterIO.drl_start` |
+| `drl/get_drl_state` | `srv/GetDrlState` | 없음 | `int8 drl_state`(0 PLAY, 1 STOP, 2 HOLD, 3 LAST), `success` | `DsrRegisterIO`·`DsrMotionClient` |
+| `plc/set_output_register_int` | `srv/SetOutputRegisterInt` | `uint16 address`, `int32 value` 0~127 | `success` | `DsrRegisterIO.set` |
+| `plc/get_output_register_int` | `srv/GetOutputRegisterInt` | `uint16 address`, `uint32 timeout_ms` 1000 | `int32 value`(`(value >> 24) & 255`, 바이트 128 이상이면 음수), `success` | `DsrRegisterIO.get` |
+| `system/get_robot_state` | `srv/GetRobotState` | 없음 | `int8 robot_state`, `success` | `DsrRegisterIO`·`DsrMotionClient` |
+| `motion/move_line` | `srv/MoveLine` | `float64[6] pos` [mm×3, deg ZYZ×3], `float64[2] vel` [mm/s, deg/s], `float64[2] acc` [mm/s², deg/s²], `float64 time` 0, `float64 radius` 0, `int8 ref` 0(base), `int8 mode` 0(절대), `int8 blend_type` 0, `int8 sync_type` 1(비동기) | `success` | `DsrMotionClient.move_line_async` |
+| `motion/move_stop` | `srv/MoveStop` | `int32 stop_mode` 2(soft stop) | `success` | `DsrMotionClient.move_stop` |
+| `aux_control/get_current_posx` | `srv/GetCurrentPosx` | `int8 ref` 0 | `std_msgs/Float64MultiArray[] task_pos_info`(`[0]`의 앞 6개 [mm, deg ZYZ], 7번째 solution space), `success` | `DsrMotionClient.current_posx` |
+| `speedl_stream`(토픽, depth 10) | `msg/SpeedlStream` | `float64[6] vel` [mm/s×3, deg/s×3], `float64[2] acc` [mm/s², deg/s²], `float64 time` 2주기 [s] | — | `DoosanSpeedlTransport` |
+
+stub 시험이 확인하지 않는 것(virtual 모드나 OFF-2에서 확인):
+
+- 형식의 출처: 표와 stub는 시험 PC의 `dsr_msgs2`(package 1.1.0)를 따른다. 현장 드라이버(jazzy `dade65d`)의 형식과 같은지는 OFF-2 확인 항목이다.
+- 제어기 수락: 실제 드라이버·제어기가 각 요청에 `success=true`를 주는지와 거부 조건(속도·가속 한계, 작업영역, 로봇 모드, 알람, DRL 실행 중).
+- 동작과 시간: 이동·정지, robot_state 전이, 서비스 왕복 시간, `move_line`(`sync_type` 1)이 이동 완료 전에 응답하는지, speedl 무지령 정지. stub는 즉시 도착하고 상태가 바뀌지 않는다.
+- 레지스터: 제어기가 받는 주소 범위, PC가 쓴 값의 읽기 표현, DRL 쪽 읽기.
+- 시리얼·그리퍼: 플랜지 RS-485·Modbus 통신과 상주 루프 DRL 실행.
+- QoS: 실제 드라이버 `speedl_stream` 구독의 신뢰성·depth(stub는 depth 10, 기본 신뢰성).
+
 연결 방법(현장 뒤):
 
-1. `backend:=doosan`이면 노드가 `RosServiceCaller` 하나를 만들고, 이를 쓰는 `DsrRegisterIO`와 Doosan 단위 client(`motion/move_line` `sync_type` 1·`mode` 0·`ref` 0, `motion/move_stop`, `aux_control/get_current_posx` `ref` 0, `system/get_robot_state`, `drl/get_drl_state`)를 둔다.
+1. `backend:=doosan`이면 노드가 `RosServiceCaller` 하나를 만들고, 이를 쓰는 `DsrRegisterIO`와 Doosan 단위 client `DsrMotionClient`(`motion/move_line` `sync_type` 1·`mode` 0·`ref` 0, `motion/move_stop`, `aux_control/get_current_posx` `ref` 0, `system/get_robot_state`, `drl/get_drl_state`)를 둔다.
 2. 그리퍼는 `ResidentLoopTransport(DsrRegisterIO)` → `GripperAdapter`(OFF-1 pulse 실측표, 응답 제한시간 ≥ 5 × 표본 주기, 생존 감시 ≥ 3 × 표본 주기, REQ-GRP-016) → `GripperSession`이고, 활성화 때 `start_gripper()`로 상주 루프를 1회 띄운다.
 3. `DoosanBackend(client, session, clock, sleep, cancel_requested=노드의 cancel·deadline·Stop 판정)`를 정적 실행기 backend로 쓰고, 작업자 해제 때 `reset_stop()`을 부른다(`backend:=fake`와 같은 경로). DynamicPlace 해제 transport는 OFF-2 결과로 정하며 그 전까지 `PLANNER_NOT_READY`다.
 4. 지령 주체 단일(REQ-ROB-005, TC-ROB-005-01)은 helper 노드 `robot_control_dsr_io`를 `robot_controller_node` 프로세스의 일부로 세어 판정한다.
 
 OFF-2에서 확인할 것(결과로 위 기본값·규칙을 고친다):
 
+- 현장 PC에서 `ros2 interface show`로 REQ-ROB-011 표의 srv 8종과 `dsr_msgs2/msg/SpeedlStream` 필드를 표와 비교하고, `ros2 service list -t`·`ros2 topic info -v /dsr01/speedl_stream`으로 이름·형식·구독 QoS를 확인한다(REQ-ROB-011).
+- REQ-ROB-011 표의 요청을 프로젝트 client(`DsrRegisterIO`·`DsrMotionClient`·`DoosanSpeedlTransport`)로 보내 각각 `success=true`인지(토픽은 지령대로 움직이는지), `move_line`(`sync_type` 1)이 이동 완료 전에 응답하는지.
+- 상주 루프 레지스터 주소(10~14·24·25·30~40)를 `set_output_register_int`·`get_output_register_int`가 받아들이는지.
 - 상주 루프 DRL이 PLAY인 동안 `move_line`(`sync_type` 1)이 받아들여지고 움직이는지. 움직이면 `DRL_BUSY` 규칙을 상주 루프가 아닌 DRL로 좁히고, 움직이지 않으면 상주 루프 그리퍼와 이 backend의 이동을 함께 쓰지 않는다.
 - `move_line`(`sync_type` 1) 수락 뒤 robot_state STANDBY → MOVING 전이 시간(`start_grace_s` 안인지), 도착 뒤 MOVING → STANDBY, 상태 값(1 STANDBY, 2 MOVING, 3 SAFE_OFF, 5 SAFE_STOP).
 - `move_stop`(`stop_mode`, 측정 도구는 2) 뒤 STANDBY까지 시간과 이동 거리가 cancel 0.4 s·Stop 2 s 안인지, 움직이지 않을 때 `move_stop` 응답.
@@ -237,7 +265,8 @@ OFF-2에서 확인할 것(결과로 위 기본값·규칙을 고친다):
 - `src/robot_control/test/test_belt_sync.py`: TC-ROB-013-01~05(속도·가속 제한은 TC-ROB-006-01도 함께). `test_sync_revision.py`·`test_sync_config.py`: TC-ROB-013-06. `test_sync_metrics.py`: TC-ROB-013-07. `test_sync_uncertain_hold.py`: TC-ROB-013-08.
 - `src/robot_control/test/test_stop_latch.py`: TC-ROB-014-01. `test_robot_controller_stop.py`: TC-ROB-014-02.
 - `src/robot_control/test/test_safe_retreat_place_back.py`: TC-ROB-016-01~04. `test_robot_controller_place_back.py`와 `contract/test_robot_controller_contract.py`(place-back 1건): TC-ROB-016-05(C).
-- `src/robot_control/test/test_dsr_register_io.py`: TC-GRP-017-01(가짜 서비스 `test/fakes/dsr.py`). `test_dsr_service_caller_ros.py`: TC-GRP-017-02(C, `std_srvs` 서버). `test_doosan_backend.py`: TC-ROB-017-01~03(가짜 팔 `test/fakes/doosan.py`). 모두 실기 미검증 코드의 시험이다.
+- `src/robot_control/test/test_dsr_register_io.py`: TC-GRP-017-01(가짜 서비스 `test/fakes/dsr.py`). `test_dsr_service_caller_ros.py`: TC-GRP-017-02(C, `std_srvs` 서버). `test_doosan_backend.py`: TC-ROB-017-01~03(가짜 팔 `test/fakes/doosan.py`). `test_dsr_motion_client.py`: TC-ROB-017-04(가짜 caller). 모두 실기 미검증 코드의 시험이다.
+- `src/robot_control/test/test_dsr_driver_stub_format.py`: TC-ROB-011-01(C, 실제 `dsr_msgs2` 형식 stub `test/fakes/dsr_driver_stub.py`, `dsr_msgs2`가 없으면 skip, 판정은 `dsr_msgs2`가 있는 PC).
 - `robot_controller_node` 계약: `tools/testing/contracts/robot_controller_contract.py`가 기대하는 feedback phase·metric, lifecycle, heartbeat, Stop.
 - `[ON]` 항목은 실행 전까지 완료로 표시하지 않는다.
 
@@ -246,7 +275,7 @@ OFF-2에서 확인할 것(결과로 위 기본값·규칙을 고친다):
 - 실제 로봇의 DynamicPlace 동작 전부(실기 미검증): speedl 스트림과 상주 루프 동시 동작, TCP 피드백 경로·주기·나이(`max_tcp_age_s`), 그리퍼 트리거 → 개방 지연(`commit_lead_s`·`release_hold_s`·`release_timeout_s`), `move_stop` 정지 확인(OFF-2). `fake_*` 값은 그 측정으로 바꾼다.
 - `fingertip_below_tcp_m`(OFF-6), 동적 투입의 `release_above_rim_m`(SPEC-400, OFF-6).
 - 한 DRL 프로그램 transport 렌더러와 OFF-2 결과에 따른 transport 선택, 노드 `backend` 연결.
-- 실제 로봇 `/dsr01` move_line·stream 연결과 virtual 모드 지원 확인.
+- 실제 드라이버에서 REQ-ROB-011 형식 확인(현장 `dsr_msgs2` 형식 비교, 요청별 수락)과 virtual 모드(DRCF 에뮬레이터) 시험 환경.
 - 그리퍼 상주 루프 DRL과 생존 카운터 실기 시험.
 - SafeRetreat 동기 유지·place-back 실측: 매트 반납 위치 `place_back_xyz_m`(측정 기록으로 채움), 실제 이동 속도에서 L3 경로 제한시간(PLAN.md 5.2절 15 s) 안에 끝나는지.
-- Doosan 실제 backend(4.6절)의 OFF-2 확인 항목과 노드 연결, Doosan 단위 client의 ROS 구현.
+- Doosan 실제 backend(4.6절)의 OFF-2 확인 항목과 노드 연결(`DsrMotionClient`·`DsrRegisterIO`).

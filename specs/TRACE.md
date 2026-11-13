@@ -2,8 +2,8 @@
 
 `tools/spec/trace.py`가 생성한다. 손으로 고치지 않는다.
 
-- REQ 142개 중 TC 연결 142개
-- pytest 대상 TC 264개 중 테스트 연결 261개
+- REQ 143개 중 TC 연결 143개
+- pytest 대상 TC 265개 중 테스트 연결 263개
 
 | TC | 수준 | REQ | 테스트 |
 |---|---|---|---|
@@ -230,7 +230,7 @@
 | TC-ROB-009-05 | U | REQ-ROB-009 | `src/robot_control/test/test_dynamic_place.py::test_program_transport_commits_once_ahead_and_ignores_updates` |
 | TC-ROB-010-01 | U | REQ-ROB-010 | `src/robot_control/test/test_dynamic_place.py::test_post_release_retreat_keeps_plan_speed`<br>`src/robot_control/test/test_dynamic_place.py::test_safe_retreat_after_pre_release_abort_keeps_sync`<br>`src/robot_control/test/test_dynamic_place.py::test_keep_sync_already_at_safe_height_needs_no_motion`<br>`src/robot_control/test/test_dynamic_place.py::test_keep_sync_abort_hold_then_long_silence_is_bounded` |
 | TC-ROB-010-02 | U | REQ-ROB-010 | `src/robot_control/test/test_dynamic_place.py::test_keep_sync_never_succeeds_without_capability_or_speed`<br>`src/robot_control/test/test_skill_logic.py::test_safe_retreat_without_keep_sync_transport_fails_closed` |
-| TC-ROB-011-01 | C | REQ-ROB-011(SPEC 없음) | — |
+| TC-ROB-011-01 | C | REQ-ROB-011 | `src/robot_control/test/test_dsr_driver_stub_format.py::<module>` |
 | TC-ROB-012-01 | C | REQ-ROB-012 | `src/robot_control/test/test_robot_controller_heartbeat.py::test_heartbeat_and_status_10hz_for_10s` |
 | TC-ROB-013-01 | U | REQ-ROB-013 | `src/robot_control/test/test_belt_sync.py::test_release_time_reference_not_source_stamp`<br>`src/robot_control/test/test_belt_sync.py::test_new_revision_accepted`<br>`src/robot_control/test/test_belt_sync.py::test_ros_message_mapping` |
 | TC-ROB-013-02 | U | REQ-ROB-013 | `src/robot_control/test/test_belt_sync.py::test_invalid_plan_latches`<br>`src/robot_control/test/test_belt_sync.py::test_old_revision_ignored_without_refresh`<br>`src/robot_control/test/test_belt_sync.py::test_source_stale_even_with_recent_receipt` |
@@ -251,6 +251,7 @@
 | TC-ROB-017-01 | U | REQ-ROB-017 | `src/robot_control/test/test_doosan_backend.py::test_move_line_converts_units_and_completes_on_measured_pose`<br>`src/robot_control/test/test_doosan_backend.py::test_pure_rotation_waits_for_orientation_and_standby`<br>`src/robot_control/test/test_doosan_backend.py::test_refuses_motion_while_a_drl_program_runs`<br>`src/robot_control/test/test_doosan_backend.py::test_refusals_and_unreached_moves_report_measured_error` |
 | TC-ROB-017-02 | U | REQ-ROB-017 | `src/robot_control/test/test_doosan_backend.py::test_cancel_issues_move_stop_and_waits_for_stopped_state`<br>`src/robot_control/test/test_doosan_backend.py::test_executor_reports_cancel_and_deadline_through_backend`<br>`src/robot_control/test/test_doosan_backend.py::test_unconfirmed_stop_is_a_fault_not_a_clean_cancel`<br>`src/robot_control/test/test_doosan_backend.py::test_move_timeout_stops_the_arm`<br>`src/robot_control/test/test_doosan_backend.py::test_stop_during_motion_latches_until_reset`<br>`src/robot_control/test/test_doosan_backend.py::test_is_stopped_reads_the_robot_state_each_time` |
 | TC-ROB-017-03 | U | REQ-ROB-017 | `src/robot_control/test/test_doosan_backend.py::test_tcp_pose_is_measured_or_nan`<br>`src/robot_control/test/test_doosan_backend.py::test_gripper_goes_through_the_session_and_reports_measured_values`<br>`src/robot_control/test/test_doosan_backend.py::test_gripper_failures_are_reported_without_values` |
+| TC-ROB-017-04 | U | REQ-ROB-017 | `src/robot_control/test/test_dsr_motion_client.py::<module>` |
 | TC-SIM-001-01 | S | REQ-SIM-001(SPEC 없음) | 절차 시험 |
 | TC-SIM-002-01 | S | REQ-SIM-002(SPEC 없음) | 절차 시험 |
 | TC-SIM-003-01 | S | REQ-SIM-003(SPEC 없음) | 절차 시험 |
@@ -302,6 +303,5 @@
 
 ## 테스트가 없는 TC(pytest 대상)
 
-- TC-ROB-011-01
 - TC-TRK-013-01
 - TC-VIS-010-01

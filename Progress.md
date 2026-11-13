@@ -116,7 +116,8 @@
     - `robot_control/drl/gripper_resident.drl`(seq 트리거·예약·생존 카운터·실행 결과 레지스터, REQ-GRP-016), 본문을 가짜 제어기(`test/fakes/drl_env.py`)에서 그대로 실행하는 TC-GRP-015·016과 TC-GRP-011~013. 2026-11-12 집 PC WSL(`ce86f9b`) robot_control 115 passed. 실기 동작은 OFF-2 항목이다.
   - [x] `[ON]` `gripper_adapter` transport 구현(`drl_start`, `set_output_register_int`), fake gripper로 지연·무응답·오류·생존 카운터 정지 단위 테스트(TC-GRP-*)
     - `resident_transport.ResidentLoopTransport` + ROS 레지스터 입출력 `dsr_register_io.DsrRegisterIO`(`/dsr01/drl/drl_start`, `/dsr01/plc/set·get_output_register_int`, 읽기는 상위 1바이트, 쓰기 0~127, STANDBY·DRL 정지 상태 확인 뒤 `drl_start`, 전용 helper 노드·steady 제한시간, REQ-GRP-017). TC-GRP-007·013·015·016·017. 2026-11-13 사무실 PC WSL robot_control 318 passed ×2. 실기 미검증(레지스터 방향·PC가 쓴 값의 읽기 형식은 OFF-2).
-  - [ ] `[ON]` `mode:=virtual`에서 `drl_start`·레지스터 서비스 형식 확인(시리얼·그리퍼 동작은 확인하지 않음)
+  - [x] `[ON]` `mode:=virtual`에서 `drl_start`·레지스터 서비스 형식 확인(시리얼·그리퍼 동작은 확인하지 않음)
+    - `DsrRegisterIO`의 `drl/drl_start`·`plc/set·get_output_register_int` 요청 필드·값과 바이트 0·127·128·250·255 읽기를 형식 확인 stub(`test/fakes/dsr_driver_stub.py`, 사무실 PC WSL에 빌드된 실제 `dsr_msgs2` 형식, TC-ROB-011-01): virtual 모드는 DRCF 에뮬레이터(docker)가 필요한데 쓸 수 있는 PC(집 PC·사무실 PC WSL)에 docker·에뮬레이터가 없고, 드라이버가 설치된 LEGION에는 접속할 수 없어 stub으로 대체했다(SPEC-500 4.6절). 2026-11-13 사무실 PC WSL robot_control 338 passed ×2(`dsr_msgs2` 없으면 7건 사유와 함께 skip). 제어기 수락·이동·시간·레지스터 주소 범위는 증명하지 않으며 OFF-2에서 `ros2 interface show`·실제 요청으로 확인한다.
     - 실기 일회성 경로: `/dsr01/drl/drl_start`, 레지스터 `/dsr01/plc/*`. 하위 1바이트 반환 관측은 `records/sessions/OFF-2-2026-11-07.md`를 기준으로 하며 virtual 시험을 대체하지 않는다.
   - [ ] `[OFF]` OFF-2: 상주 루프 기동(STANDBY), 상태 읽기 레지스터 방향·서비스 확정, 상주 루프가 도는 동안 `move_line`이 받아들여지는지 확인
   - [ ] `[OFF]` OFF-2: 명령 지연(개방 명령 → 개방 시작·완료 p50/p95/p99), 상태(Present Position·Current) 읽기 주기 → `records/bench/gripper-<date>.csv`
@@ -138,7 +139,8 @@
   - `skill_logic.StaticSkillExecutor`(backend의 `move_line`·그리퍼 계약) + 노드, backend는 `disabled`(기본)·`fake`. Doosan 어댑터 `doosan_backend.DoosanBackend`(측정 자세·STANDBY로 완료 판정, DRL 실행 중 이동 거부, cancel·deadline에 `move_stop` 후 정지 확인, 미확인이면 FAULT, REQ-ROB-017)는 실기 미검증이라 노드 backend에 연결하지 않았다(11-14 현장 뒤, SPEC-500 4.6절). TC-ROB-007·009·010·014, Heartbeat·`robot/status` 10 Hz(TC-ROB-012-01, 2026-11-13 집 PC WSL robot_control 116 passed). Doosan 실제 backend와 virtual 확인은 아래 별도 항목이다.
 - [x] `[ON]` `test/fakes/`의 fake transport·fake gripper로 단위 변환·stale·cancel 단위 테스트
   - `test/fakes/transport.py`·`backend.py`·`resident.py`, TC-ROB-001~004·007-02, TC-GRP-007-01. 2026-11-12 집 PC WSL(`ce86f9b`) robot_control 115 passed.
-- [ ] `[ON]` Doosan `mode:=virtual`에서 E0509 모델·선정한 stream·`move_line` 형식이 동작하는지 확인. 지원하지 않으면 형식 확인용 최소 ROS stub을 두고 선택 근거를 기록(그리퍼 통신은 virtual에서 확인하지 않음)
+- [x] `[ON]` Doosan `mode:=virtual`에서 E0509 모델·선정한 stream·`move_line` 형식이 동작하는지 확인. 지원하지 않으면 형식 확인용 최소 ROS stub을 두고 선택 근거를 기록(그리퍼 통신은 virtual에서 확인하지 않음)
+  - `DoosanBackend` → `DsrMotionClient`(신규, 실기 미검증·노드 미연결)의 `motion/move_line`(mm·deg, `sync_type` 1)·`move_stop`(2)·`aux_control/get_current_posx`·`system/get_robot_state`와 `DoosanSpeedlTransport`의 `speedl_stream`(vel 6·acc 2·time) 형식을 형식 확인 stub(`test/fakes/dsr_driver_stub.py`, 사무실 PC WSL에 빌드된 실제 `dsr_msgs2` 형식, TC-ROB-011-01): virtual 모드는 DRCF 에뮬레이터(docker)가 필요한데 쓸 수 있는 PC(집 PC·사무실 PC WSL)에 docker·에뮬레이터가 없고, 드라이버가 설치된 LEGION에는 접속할 수 없어 stub으로 대체했다(SPEC-500 4.6절). 2026-11-13 사무실 PC WSL robot_control 338 passed ×2(`dsr_msgs2` 없으면 7건 사유와 함께 skip). 제어기 수락·이동·시간·레지스터 주소 범위는 증명하지 않으며 OFF-2에서 `ros2 interface show`·실제 요청으로 확인한다.
 - [x] `[ON]` `robot_controller` 계약 테스트를 `mock_robot_controller_node`와 실제 노드(virtual 또는 stub)에 모두 통과
   - 실제 `robot_controller_node`(`backend:=fake`, 가짜 로봇·해제 transport)가 mock과 같은 공용 계약(`tools/testing/contracts/robot_controller_contract.py`)을 통과한다(TC-ROB-008-04, skill 5종·DynamicPlace 두 모드·deadline·cancel·Stop·정지 유지·비활성 거부). 2026-11-13 집 PC WSL robot_control 236 passed, mock 계약 27 passed. Doosan virtual은 위 별도 항목이다.
 - [ ] `[OFF]` OFF-2: 실제 노드 계약 테스트를 실기에 대해 재실행(안전 높이)
