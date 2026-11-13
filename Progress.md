@@ -131,6 +131,7 @@
     - 개방 쓰기 응답 생략: 해제 개방은 쓰기 응답을 기다리지 않고 보낸 뒤, 다음 상태 읽기로 개방 시작을 확인한다.
     - 팔 이동과 겹치기: 공깃돌 위로 이동하는 동안 미리 열고, 파지 확인과 들기를 한 DRL 안에서 잇는다(`amovel`).
     - 그리퍼 통신 설정(통신 속도·ID·Protocol Type) 변경과 PC 쪽 배선은 대상이 아니다(사용자 승인 사항).
+    - 가짜 제어기로 계산한 효과: 상주 루프 정적 사이클의 그리퍼 합계 < 측정 19.76 s의 30%(TC-GRP-016-03), 예약 뒤 해제 트리거 지연 = 루프 대기 1회 + 위치 쓰기 1회(TC-GRP-016-02), 이미 열려 있으면 열기 생략(TC-GRP-014-02), 한 프로그램 사이클(`--one-drl`, 이동과 그리퍼를 한 DRL로) 그리퍼 6.30 s·사이클 22.89 s(`docs/learn/2026-11-10-fast-static-cycle.md`). 응답 대기 상한 후보는 플랜지 RS-485 응답 시간 분포(OFF-2)가 있어야 계산할 수 있어 남는다.
 - [x] `[ON]` `motion_adapter` 구현: SI/quaternion ↔ mm/deg/ZYZ 변환 + 단위 테스트, 단일 지령 권한, freshness 감시(L0)(TC-ROB-*)
   - TC-ROB-001~006(`test_motion_adapter.py`), 2026-11-12 집 PC WSL(`ce86f9b`) robot_control 115 passed. 스트림 지령 경로에 붙이는 것은 10절 항목이다.
 - [x] `[ON]` `robot_controller_node` skill 서버: `PickStone`, `MoveToPose`, `PlaceStone`(move_line 기반), `SafeRetreat`, `Stop`, Heartbeat 발행, goal deadline 자체 중단
