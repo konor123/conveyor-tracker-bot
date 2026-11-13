@@ -165,6 +165,9 @@ class TrackerNode(LifecycleNode):
         now = self._check_clock()
         t = seconds(msg.header.stamp)
         if self.manager.t_state is not None and t < self.manager.t_state:
+            # 늦은 프레임도 입력이 이어지는 증거다. 세지 않으면 빈 프레임이 t_state를 계속 당겨
+            # 지연 > input_timeout_s인 입력이 영영 버려진다(REQ-TRK-015)
+            self._last_received = now
             self.manager.process_frame(t, [])  # preserve the pure dropped-frame counter
             return
         if msg.header.frame_id != 'robot_base':

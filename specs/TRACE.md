@@ -2,8 +2,8 @@
 
 `tools/spec/trace.py`가 생성한다. 손으로 고치지 않는다.
 
-- REQ 150개 중 TC 연결 150개
-- pytest 대상 TC 289개 중 테스트 연결 287개
+- REQ 152개 중 TC 연결 152개
+- pytest 대상 TC 292개 중 테스트 연결 290개
 
 | TC | 수준 | REQ | 테스트 |
 |---|---|---|---|
@@ -308,6 +308,7 @@
 | TC-TRK-013-01 | I1 | REQ-TRK-013 | — |
 | TC-TRK-014-01 | U | REQ-TRK-014 | `src/tracking/test/test_tracking_edges.py::test_no_new_track_outside_observation_region`<br>`src/tracking/test/test_tracking_edges.py::test_new_track_region_boundary`<br>`src/tracking/test/test_tracking_edges.py::test_ignored_detections_are_counted_until_first_track` |
 | TC-TRK-014-02 | C | REQ-TRK-014 | `src/tracking/test/contract/test_tracker_node_contract.py::test_all_detections_outside_region_is_warned` |
+| TC-TRK-015-01 | C | REQ-TRK-015 | `src/tracking/test/contract/test_tracker_node_contract.py::test_late_detections_after_input_gap_are_tracked_again` |
 | TC-VIS-001-01 | U | REQ-VIS-001 | `src/vision/test/test_detector.py::test_stone_center_accuracy_on_mat` |
 | TC-VIS-001-02 | U | REQ-VIS-001 | `src/vision/test/test_detector.py::test_cap_center_accuracy_on_belt` |
 | TC-VIS-002-01 | U | REQ-VIS-002 | `src/vision/test/test_detector.py::test_mixed_scene_classification` |
@@ -320,6 +321,8 @@
 | TC-VIS-008-02 | C | REQ-VIS-008 | `src/vision/test/contract/test_vision_node_contract.py::test_deadlines` |
 | TC-VIS-009-01 | U | REQ-VIS-009 | `src/vision/test/test_verifier.py::test_verify_cases`<br>`src/vision/test/test_verifier.py::test_hold_time_boundary`<br>`src/vision/test/test_verifier.py::test_missing_cap_frames_bound_continuity`<br>`src/vision/test/test_verifier.py::test_no_frames_and_constants` |
 | TC-VIS-010-01 | I1 | REQ-VIS-010(SPEC 없음) | — |
+| TC-VIS-011-01 | U | REQ-VIS-011 | `src/vision/test/test_pipeline.py::test_detect_runs_on_roi_crop_not_full_frame` |
+| TC-VIS-011-02 | U | REQ-VIS-011 | `src/vision/test/test_pipeline.py::test_roi_crop_gives_same_detections_as_full_frame` |
 
 ## TC가 없는 REQ
 

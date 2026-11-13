@@ -115,3 +115,57 @@ def test_window_pixel_fallback_without_calibration():
     _fill(win, 0.0, valid=False)
     r = win.evaluate(REGION_MAT, CLASS_STONE, 2, 1.0)
     assert r.result == OK and all(np.isnan(s) for s in r.position_std)
+
+
+def _padded_scene(pad_u=320, pad_v=200):
+    """합성 장면을 1280×800 크기의 회색 바탕 가운데에 넣고, ROI도 같은 만큼 옮긴다."""
+    small = _two_region_image()
+    big = np.full((H + 2 * pad_v, W + 2 * pad_u, 3), 128, np.uint8)
+    big[pad_v:pad_v + H, pad_u:pad_u + W] = small
+    cfg = _cfg()
+    shift = lambda roi: Roi(roi.region, tuple((u + pad_u, v + pad_v) for u, v in roi.polygon))
+    return big, SceneConfig(mat_roi=shift(cfg.mat_roi), belt_roi=shift(cfg.belt_roi), classes=cfg.classes,
+                            inside=cfg.inside)
+
+
+@pytest.mark.req('REQ-VIS-011')
+@pytest.mark.tc('TC-VIS-011-01')
+@pytest.mark.level('U')
+def test_detect_runs_on_roi_crop_not_full_frame(monkeypatch):
+    """ROI를 감싸는 사각형(+ 여유)만 검출기에 넘긴다. 2026-11-13 현장: 전체 프레임 계산으로 160 ms/프레임."""
+    import vision.pipeline as pipeline
+    image, cfg = _padded_scene()
+    shapes = []
+    real = pipeline.detect
+
+    def spy(img, roi, *a, **k):
+        shapes.append(img.shape[:2])
+        return real(img, roi, *a, **k)
+
+    monkeypatch.setattr(pipeline, 'detect', spy)
+    process_frame(image, cfg)
+    assert len(shapes) == 2
+    for shape in shapes:
+        assert shape[0] * shape[1] < 0.5 * image.shape[0] * image.shape[1], shape
+
+
+@pytest.mark.req('REQ-VIS-011')
+@pytest.mark.tc('TC-VIS-011-02')
+@pytest.mark.level('U')
+def test_roi_crop_gives_same_detections_as_full_frame():
+    """잘라서 계산해도 전체 프레임에서 ROI별로 detect를 부른 결과와 중심·지름·class·region이 같다."""
+    from vision.detector import detect
+    image, cfg = _padded_scene()
+    got = process_frame(image, cfg)
+    ref = []
+    for roi in (cfg.mat_roi, cfg.belt_roi):
+        classes = cfg.classes if roi.region == REGION_BELT else {CLASS_STONE: cfg.classes[CLASS_STONE]}
+        ref += detect(image, roi, classes, params=cfg.detect)
+    key = lambda b: (b.object_class, b.region, round(b.u, 6), round(b.v, 6))
+    assert sorted(key(d.blob) for d in got) == sorted(key(b) for b in ref)
+    assert len(got) == 4
+    for d in got:
+        r = next(b for b in ref if key(b) == key(d.blob))
+        assert d.blob.diameter_px == pytest.approx(r.diameter_px, abs=1e-9)
+        assert d.blob.center_cov_px == pytest.approx(r.center_cov_px, abs=1e-12)
+        assert d.blob.contour is not None and np.array_equal(d.blob.contour, r.contour)

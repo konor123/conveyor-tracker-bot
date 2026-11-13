@@ -384,6 +384,8 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-VIS-008-02 | `DetectObjects` deadline | C | `[ON]` | 이미 지난 deadline / 처리 중 경과 | 즉시 `TIMEOUT` / `TIMEOUT` |
 | TC-VIS-009-01 | 투입 자동 확인(합성) | U | `[ON]` | 정상 투입(1 s 유지) / 가림으로 미확인 / 0.9 s 안에 있다가 나감 / 튕겨 나가 벨트 위 / 그리퍼에 붙음 | SUCCESS / UNKNOWN / UNKNOWN / UNKNOWN / UNKNOWN(FAILURE를 내지 않음) |
 | TC-VIS-010-01 | 실데이터 검출 회귀 | I1 | `[ON*]` | `off1_bags` replay | 라벨 프레임 recall ≥ 99%, 오선택 ≤ 1%(class별) |
+| TC-VIS-011-01 | ROI 잘라 계산 | U | `[ON]` | 640×400 합성 장면을 1280×800 바탕 가운데에 넣고 ROI 2개 | 검출기에 넘긴 영상 면적 < 전체의 50%, 호출 2회 |
+| TC-VIS-011-02 | 잘라 계산한 결과 동일 | U | `[ON]` | TC-VIS-011-01 장면 | 전체 프레임 ROI별 `detect`와 class·region·중심(1e-6 px)·지름·공분산·윤곽 일치, 검출 4개 |
 
 ### 3.6 TRK — 추적
 
@@ -412,6 +414,7 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-TRK-013-01 | 실데이터 추적 회귀 | I1 | `[ON*]` | `off1_bags`(정상·가림·누락·속도 변화) | 유효 추적 ≥ 99%(가림 구간 별도), 속도 변화 검출 지연 ≤ 1.0 s |
 | TC-TRK-014-01 | 관측 구간 밖 새 track 금지 | U | `[ON]` | 관측 구간 0~0.10 m: 상류 밖 검출 / 20 mm/s로 0 → 0.133 m 통과 / 경계 x −0.1 mm, 0, 0.10 m, 0.1001 m | track 없음 / track 1개·`LOST` 1회, 구간 끝 뒤 새 track 0 / 없음, 생성, 생성, 없음 |
 | TC-TRK-014-02 | 구간 밖 검출만 있을 때 경고 | C | `[ON]` | 항등 변환·구간 ±0.35 m에 x 0.8 m 검출 89프레임 / 90번째 프레임 | track 0개·WARN 0건 / WARN 1건(구간 밖, 마지막 x 0.800 포함) |
+| TC-TRK-015-01 | 늦은 검출의 수신 공백 뒤 회복 | C | `[ON]` | 검출 stamp = 수신 − 0.3 s, 0.15 s 간격 4프레임 → 수신 공백 0.25 s → 같은 지연으로 14프레임 | 마지막 검출 stamp가 track `last_observed_stamp`로 나온다 |
 
 ### 3.7 PLN — 계획
 

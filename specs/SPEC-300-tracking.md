@@ -1,6 +1,6 @@
 # SPEC-300 tracking
 
-- 버전: v0.7
+- 버전: v0.8
 - 근거: PLAN.md 2.5, 3.1, 4.3, 5.3, 7절
 - REQ 영역: TRK
 
@@ -8,6 +8,7 @@
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
+| v0.8 | 2026-11-13 | 늦게 온 검출도 입력 수신으로 센다(REQ-TRK-015). 검출 지연 > `input_timeout_s`인 입력에서 빈 프레임이 `t_state`를 계속 당겨 추적이 영영 멈추던 결함(2026-11-13 현장) |
 | v0.7 | 2026-11-13 | 6절 오케스트레이터 쪽 처리: 속도 변화는 `steady = false`가 1.0 s 넘게 이어질 때만 중단, 시각 역행은 들고 있으면 L3·아니면 L2(SPEC-110 REQ-ABT-012·013) |
 | v0.6 | 2026-11-12 | 속도 변화 검출 `cusum_k` 2·`cusum_h` 16·`recover_s` 0.5 s(OFF-1 벨트 영상의 맥동 기준), REQ-TRK-006 계단 크기 20 mm/s와 실영상 기준 |
 | v0.5 | 2026-11-12 | 관측 구간 밖 검출은 새 track을 만들지 않음(REQ-TRK-014), 시각 역행 초기화 WARN 로그(REQ-TRK-008) |
@@ -108,7 +109,7 @@ SPEC-010 wire schema v0.2 / runtime contract v0.4 기준.
 - `tracker_node`는 Managed Lifecycle 노드이며 SPEC-010 4.3절의 비활성 응답 규칙을 따른다.
 - 관측 TF `conveyor_frame → cap_<track_id>`는 `OBSERVED`·`COASTING` track마다 프레임 처리 직후 발행한다. stamp = `t_state`, orientation identity. 미래 stamp는 발행하지 않는다. TF는 시각화 전용이며 planner·controller는 TF가 아니라 `objects/tracked`를 쓴다.
 - 공통 요청 필드의 `deadline`이 이미 지났으면 처리하지 않고 `TIMEOUT`으로 응답한다.
-- 검출 입력이 `input_timeout_s` 넘게 끊기면 빈 프레임을 넣어 상태 전이를 진행한다. 정상 지연 범위의 입력 사이에는 빈 프레임을 넣지 않으며, ROS 시각이 멈추면 상태도 늙지 않는다.
+- 검출 입력이 `input_timeout_s` 넘게 끊기면 빈 프레임을 넣어 상태 전이를 진행한다. 정상 지연 범위의 입력 사이에는 빈 프레임을 넣지 않으며, ROS 시각이 멈추면 상태도 늙지 않는다. `t_state`보다 이른 stamp라 버린 검출도 입력 수신으로 센다(입력이 끊긴 것이 아니다).
 
 ## 5. 시간 제약(주기·제한시간)
 
@@ -143,6 +144,7 @@ SPEC-010 wire schema v0.2 / runtime contract v0.4 기준.
 - REQ-TRK-012: 관측 TF `cap_<id>`의 stamp는 `t_state`와 같고, 미래 stamp는 0건이며, orientation은 identity다.
 - REQ-TRK-014: 배정되지 않은 검출은 `x_obs_min ≤ x ≤ x_obs_max`일 때만 새 track을 만든다(경계 포함). 구간을 지나가는 뚜껑 하나는 track 하나를 만들고 `LOST`는 한 번만 나온다. 모든 검출이 구간 밖이어서 track이 하나도 없으면 `tracker_node`가 WARN으로 알린다.
 - REQ-TRK-013: OFF-1 실제 bag replay에서 유효 추적 ≥ 99%(가림 구간은 별도 집계), 속도 변화 검출 지연 ≤ 1.0 s다.
+- REQ-TRK-015: 검출이 노출 뒤 0.3 s에 도착하는 입력(`input_timeout_s` 0.2 s)에서 수신 공백이 한 번 생겨 빈 프레임이 들어가도, 이후 계속 들어오는 검출로 2 s 안에 다시 추적한다(마지막 검출이 track의 `last_observed_stamp`).
 
 ## 8. 검증 방법(`TEST_SPEC.md` TC ID, 게이트)
 

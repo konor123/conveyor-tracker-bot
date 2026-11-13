@@ -260,3 +260,40 @@ def test_track_stamp_is_exposure_time_exactly(rig):
         tr = out.tracks[0]
         assert (tr.header.stamp.sec, tr.header.stamp.nanosec) == (T.sec, T.nanosec)
         assert (tr.last_observed_stamp.sec, tr.last_observed_stamp.nanosec) == (T.sec, T.nanosec)
+
+
+@pytest.mark.req('REQ-TRK-015')
+@pytest.mark.tc('TC-TRK-015-01')
+def test_late_detections_after_input_gap_are_tracked_again(rig):
+    """검출이 노출 뒤 0.3 s(> input_timeout_s 0.2 s)에 오는 입력에서 수신 공백이 한 번 생겨도 회복한다.
+
+    공백 동안 빈 프레임이 t_state를 현재 시각으로 당기면 뒤의 검출(stamp = 수신 − 0.3 s)은 한동안 늦은 프레임이다.
+    늦은 프레임도 수신으로 세어야 빈 프레임이 계속 들어가지 않고, stamp가 t_state를 넘는 즉시 다시 추적한다.
+    (2026-11-13 현장: vision 6.6 Hz·지연 p95 422 ms에서 track이 영영 생기지 않았다.)
+    """
+    r = rig
+    lag, period = .3, .15
+
+    def send(t):
+        r.set_time(t)
+        x = -.2 + .02*(t-100.)
+        det = ObjectDetection(object_class=2, position_valid=True, position=Point(x=x, y=.01, z=.02),
+                              position_cov=list((np.eye(3)*9e-8).ravel()))
+        r.pub.publish(ObjectDetectionArray(header=Header(stamp=stamp(t-lag), frame_id='robot_base'),
+                                           detections=[det]))
+        r.spin(.06)
+
+    t = 100.
+    for _ in range(4):
+        send(t)
+        t += period
+    r.set_time(t+.1)                       # 수신 공백 0.25 s: 이 사이에 빈 프레임이 들어간다
+    r.spin(.15)
+    t += .1
+    for _ in range(14):                    # 2 s 동안 같은 지연으로 계속 들어온다
+        send(t)
+        t += period
+    last_stamp = stamp(t-period-lag)
+    observed = [tr for msg in r.tracks[-5:] for tr in msg.tracks
+                if (tr.last_observed_stamp.sec, tr.last_observed_stamp.nanosec) == (last_stamp.sec, last_stamp.nanosec)]
+    assert observed, 'late detections after an input gap were never tracked again'

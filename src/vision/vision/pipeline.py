@@ -1,7 +1,7 @@
 """한 프레임 처리: ROI별 검출 → stone_inside → 대상물별 평면 교차(SPEC-200 4.4절). ROS와 무관한 순수 모듈."""
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 import numpy as np
 
@@ -58,6 +58,28 @@ def _rois(image_bgr, cfg: SceneConfig) -> list[Roi]:
     return [r for r in (mat, belt) if r is not None]
 
 
+CROP_MARGIN_PX = 64     # ROI 끝에 중심이 걸친 뚜껑(지름 ≤ 52 px)과 형태 연산 커널이 잘리지 않는 여유
+
+
+def _detect_in_crop(image_bgr, roi: Roi, classes, robot_mask, params) -> list[Blob]:
+    """ROI를 감싸는 사각형(+ 여유)만 잘라 detect를 부르고 픽셀 좌표를 원래 프레임으로 되돌린다(REQ-VIS-011).
+
+    detect는 넘긴 영상 전체를 계산한다. 1280×800 전체를 넘기면 프레임당 약 160 ms였다(2026-11-13 현장).
+    """
+    poly = np.round(np.asarray(roi.polygon, np.float64)).astype(np.int64)
+    H, W = image_bgr.shape[:2]
+    x0 = max(int(poly[:, 0].min()) - CROP_MARGIN_PX, 0)
+    y0 = max(int(poly[:, 1].min()) - CROP_MARGIN_PX, 0)
+    x1 = min(int(poly[:, 0].max()) + CROP_MARGIN_PX + 1, W)
+    y1 = min(int(poly[:, 1].max()) + CROP_MARGIN_PX + 1, H)
+    crop_roi = Roi(roi.region, tuple((u - x0, v - y0) for u, v in roi.polygon))
+    mask = None if robot_mask is None else robot_mask[y0:y1, x0:x1]
+    blobs = detect(image_bgr[y0:y1, x0:x1], crop_roi, classes, robot_mask=mask, params=params)
+    return [replace(b, u=b.u + x0, v=b.v + y0,
+                    contour=None if b.contour is None else b.contour + np.array([x0, y0], b.contour.dtype))
+            for b in blobs]
+
+
 def process_frame(image_bgr: np.ndarray, cfg: SceneConfig, geom: Geometry | None = None,
                   robot_mask: np.ndarray | None = None) -> list[Detection]:
     """매트 ROI는 공깃돌만, 벨트 ROI는 병뚜껑·공깃돌을 찾는다."""
@@ -65,7 +87,7 @@ def process_frame(image_bgr: np.ndarray, cfg: SceneConfig, geom: Geometry | None
     for roi in _rois(image_bgr, cfg):
         classes = cfg.classes if roi.region == REGION_BELT else {
             c: m for c, m in cfg.classes.items() if c == CLASS_STONE}
-        blobs = detect(image_bgr, roi, classes, robot_mask=robot_mask, params=cfg.detect)
+        blobs = _detect_in_crop(image_bgr, roi, classes, robot_mask, cfg.detect)
         stones = [b for b in blobs if b.object_class == CLASS_STONE]
         caps = [b for b in blobs if b.object_class == CLASS_CAP]
         r_in = {id(c): 0.5 * c.diameter_px * cfg.inside.inner_diameter_ratio for c in caps}
