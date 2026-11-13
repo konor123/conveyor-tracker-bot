@@ -170,12 +170,15 @@ def test_replay_has_no_robot_command_path(ros, tmp_path, with_bag):
         time.sleep(1.0)                                                 # 끝점 발견 여유
         assert proc.poll() is None
         # 탐침: 조회가 금지 항목을 찾는지 같은 그래프 조회로 확인한다
-        probe = rclpy.create_node(PROBE)
+        # 경우마다 다른 이름: 앞 경우에서 지운 같은 이름의 탐침이 그래프에 남으면 이름 조회가 그쪽 항목을 돌려준다
+        # (2026-11-13 CI run 43398095372, 노드 목록에 `//replay_probe` 두 개)
+        probe_name = f'{PROBE}_{"bag" if with_bag else "no_bag"}'
+        probe = rclpy.create_node(probe_name)
         probe_entities = [ActionClient(probe, PickStone, 'robot/pick_stone'),
                           probe.create_client(Stop, '/dsr01/gripper/cmd'),
                           probe.create_publisher(Float64MultiArray, STREAM_DECOY, 1)]
-        want = {(PROBE, 'action_client', '/robot/pick_stone'), (PROBE, 'service_client', '/dsr01/gripper/cmd'),
-                (PROBE, 'stream_publisher', STREAM_DECOY)}
+        want = {(probe_name, 'action_client', '/robot/pick_stone'), (probe_name, 'service_client', '/dsr01/gripper/cmd'),
+                (probe_name, 'stream_publisher', STREAM_DECOY)}
         try:
             h.wait_for(lambda: want <= set(_violations(h)), timeout=10.0, what='탐침 금지 항목 발견')
         except TimeoutError as e:
@@ -185,7 +188,7 @@ def test_replay_has_no_robot_command_path(ros, tmp_path, with_bag):
             nodes = sorted(f'{ns}/{n}' for n, ns in h.client.get_node_names_and_namespaces())
             raise TimeoutError(f'{e}; 찾은 항목={found}, 조회 예외={errors}, 노드={nodes}') from None
         found = _violations(h)
-        assert [v for v in found if v[0] != PROBE] == []
+        assert [v for v in found if not v[0].startswith(PROBE)] == []      # 시험이 만든 탐침(앞 경우 포함)만 뺀다
         names = {n for n, _ in h.client.get_node_names_and_namespaces()}
         assert set(NODES) <= names
         assert len(probe_entities) == 3
