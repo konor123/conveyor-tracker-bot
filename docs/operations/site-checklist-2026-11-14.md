@@ -6,14 +6,16 @@
 ## 1. 정적 투입 시연의 기준 코드
 
 - 실기에서 정적 투입 1사이클이 성공한 코드는 `e509c87`이다(`records/sessions/OFF-4-2026-11-13.md` 시작 SHA).
-- 정적 투입(`static_pick_place`)이 import하는 모듈(`static_pick_place`, `vision`, `calibration`, `robot_control`의 `drl_common`·`motion_adapter`)이 그 뒤 바뀌었는지 현장 사본에서 확인한다.
+- 정적 투입(`static_pick_place`)과 그것이 import하는 모듈(import를 따라가 모은 10개 파일)이 그 뒤 바뀌었는지 현장 사본에서 확인한다.
 
 ```bash
-git diff --stat e509c87 HEAD -- src/static_pick_place src/vision src/calibration \
-  src/robot_control/robot_control/drl_common.py src/robot_control/robot_control/motion_adapter.py
+git diff --stat e509c87 HEAD -- src/static_pick_place \
+  src/vision/vision/{detector,geometry_files,localizer,pipeline}.py \
+  src/calibration/calibration/{calibration_file,errors,geometry,repo_paths}.py \
+  src/robot_control/robot_control/{drl_common,motion_adapter}.py
 ```
 
-- `43e19b7` 기준 출력은 `src/vision/test/test_pipeline.py`·`src/vision/vision/pipeline.py`·`src/vision/vision/vision_node.py` 세 파일이다(11-14 vision 반영). 바뀐 것은 ROI를 잘라 계산하는 기능이고, 정적 투입은 이 기능을 켜지 않아 이전과 같이 전체 프레임을 계산한다(TC-VIS-011-03). 저장한 실제 프레임 82장에서 켬·끔 결과가 같았다(`records/reviews/evidence/vision-crop-2026-11-14/result.txt`).
+- 11-14 기준 출력은 `src/vision/vision/pipeline.py` 한 파일이다. 바뀐 것은 ROI를 잘라 계산하는 기능이고, 정적 투입은 이 기능을 켜지 않아 이전과 같이 전체 프레임을 계산한다(TC-VIS-011-03). 저장한 실제 프레임 82장에서 켬·끔 결과가 같았다(`records/reviews/evidence/vision-crop-2026-11-14/result.txt`).
 - 그 밖의 파일이 나오면 그 커밋의 시험 기록(`records/worklog/`)을 보고, 의심되면 `e509c87`을 받은 별도 사본에서 정적 투입을 실행한다.
 
 ## 2. 시작 전에 확인할 것
@@ -33,7 +35,7 @@ git diff --stat e509c87 HEAD -- src/static_pick_place src/vision src/calibration
 - 벨트는 저속에서 저절로 멈춰 손으로 다시 돌려야 했다. 다시 돌린 직후에는 속도가 바뀌는 중이라 예측이 크게 틀린다(11-13 비접촉 시험: 예측 34 mm/s, 실제 약 47 mm/s, 통과 시각 −0.81 s. 계획 직전 같은 track의 계획이 `UNCERTAIN`으로 거절됨). 벨트를 다시 돌렸으면 속도가 안정된 뒤 계획을 받는다.
 - 그리퍼 DRL 끝마다 제어기 알람 level 1·index 2007이 뜬다. 11-07·11-09·11-13 모두 같고 동작은 정상이었다.
 - 드라이버 기동 때 `Could not enable FIFO RT scheduling` 경고는 `movel` 정지 투입에 영향이 없었다.
-- `static_frames_publisher`가 뜬 launch를 Ctrl-C로 끄면 traceback과 종료 코드 −2가 나올 수 있다. 종료 신호 처리를 아직 넣지 않은 알려진 경우이고 장애가 아니다(`specs/SPEC-000-system.md` 4.5절 대상 밖 진입점).
+- 종료 신호 처리(`specs/SPEC-000-system.md` 4.5절)는 11-14에 `vision_node`·`static_frames_publisher`·`camera_tf_publisher`까지 넓혔다. 정적 투입 CLI(`static_pick_place`)는 대상이 아니라서 Enter 확인 중 Ctrl-C를 누르면 traceback이 나올 수 있다. 장애가 아니다.
 
 ## 4. 실시간 추적을 띄울 때
 

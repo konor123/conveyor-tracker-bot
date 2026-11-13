@@ -269,7 +269,7 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-SYS-005-01 | 설정 파일 상대 경로는 저장소 루트 기준 | U | `[ON]` | 다른 작업 폴더에서 상대·절대·`~`·빈 경로 해석, 설치 트리 모양의 모듈 위치에서 루트 찾기, `DROP_REPO_ROOT` 지정 | 상대 경로 = 저장소 루트 + 경로, 절대·빈 값 그대로, `~` 확장, 설치 트리에서도 같은 루트, 환경 변수 우선 |
 | TC-SYS-006-01 | TF는 고정·관측 시각화에만 쓴다 | U | `[ON]` | `src/**/*.py`(test 제외)를 토큰으로 검사 / 허용 밖 파일에 `lookup_transform`을 넣은 임시 트리 | TF 조회 1곳(`calibration/ros_nodes.py`), `TimePointZero` 0건, `/tf` 발행 `tracker_node` 1곳, `/tf_static` 발행 `calibration` 2곳 / 위반 1건 보고 |
 | TC-SYS-007-01 | 노드 진입점은 종료 신호에 traceback 없이 끝난다 | C | `[ON]` | 진입점과 같은 모양의 탐침 프로세스: 받은 메시지를 Python 객체로 바꾸는 중 SIGINT / 종료 신호로 spin을 빠져나온 뒤 정리 도중 두 번째 SIGINT / 타이머·구독 없는 대기 중 SIGINT·SIGTERM / 정리를 마친(`CLEAN`) 뒤 프로세스가 끝날 때까지 0.5 ms마다 SIGINT | 모두 종료 코드 0, stderr에 `Traceback` 없음, 첫 경우는 메시지 변환 안에서 신호가 난 것을 확인, 대기 중 신호는 3 s 안에 종료 |
-| TC-SYS-007-02 | 진입점은 `ShutdownGuard`를 `rclpy.init()` 전에 만들고 정리 뒤 `close()`를 부른다 | U | `[ON]` | 4.5절 진입점 7개·`node_shutdown.py` 사본 5개를 AST·바이트로 검사 / 사본 하나를 바꾸고, 감시 노드의 guard를 init 뒤로 옮기고, planner의 `guard.close()`를 뺀 임시 트리 | 위반 0건 / 위반 3건 보고 |
+| TC-SYS-007-02 | 진입점은 `ShutdownGuard`를 `rclpy.init()` 전에 만들고 정리 뒤 `close()`를 부른다 | U | `[ON]` | 4.5절 진입점 10개·`node_shutdown.py` 사본 7개를 AST·바이트로 검사 / 사본 하나를 바꾸고, 감시 노드의 guard를 init 뒤로 옮기고, planner의 `guard.close()`를 뺀 임시 트리 | 위반 0건 / 위반 3건 보고 |
 
 ### 3.2 IF — 인터페이스
 

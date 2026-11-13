@@ -31,6 +31,7 @@ from calibration.repo_paths import resolve_path
 
 from .geometry_files import load_geometry
 from .localizer import HeightParams
+from .node_shutdown import ShutdownGuard
 from .pipeline import CROP_MARGIN_PX, SceneConfig, process_frame
 from .stable_window import DetectionWindow, WindowParams
 
@@ -263,16 +264,19 @@ class VisionNode(LifecycleNode):
 
 
 def main(args=None):
+    guard = ShutdownGuard()            # rclpy.init 전(REQ-SYS-007)
     rclpy.init(args=args)
     node = VisionNode()
     executor = MultiThreadedExecutor(num_threads=4)
     executor.add_node(node)
     try:
         executor.spin()
-    except KeyboardInterrupt:
-        pass
+    except BaseException as exc:
+        if not guard.is_shutdown(exc):
+            raise
     finally:
         node.on_shutdown(None)
         executor.shutdown()
         node.destroy_node()
         rclpy.try_shutdown()
+        guard.close()

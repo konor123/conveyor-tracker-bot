@@ -21,6 +21,7 @@ from tf2_ros import StaticTransformBroadcaster
 
 from .frames import plane_frame
 from .geometry import quat_from_R
+from .node_shutdown import ShutdownGuard
 from .repo_paths import resolve_path
 
 
@@ -82,16 +83,20 @@ class StaticFramesPublisher(Node):
 
 
 def main(args=None):
+    guard = ShutdownGuard()            # rclpy.init 전(REQ-SYS-007)
     rclpy.init(args=args)
     node = StaticFramesPublisher()
     if not node.ok:
         node.destroy_node()
         rclpy.try_shutdown()
+        guard.close()
         sys.exit(1)
     try:
         rclpy.spin(node)
-    except KeyboardInterrupt:
-        pass
+    except BaseException as exc:
+        if not guard.is_shutdown(exc):
+            raise
     finally:
         node.destroy_node()
         rclpy.try_shutdown()
+        guard.close()

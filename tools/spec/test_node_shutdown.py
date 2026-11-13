@@ -1,6 +1,6 @@
 """노드 진입점 종료 처리 정적 검사 (TEST_SPEC.md 3.1절 TC-SYS-007-02, SPEC-000 REQ-SYS-007).
 
-- `node_shutdown.py` 사본 5개가 바이트 단위로 같다.
+- `node_shutdown.py` 사본 7개가 바이트 단위로 같다.
 - 대상 진입점은 `rclpy.init()`보다 먼저 `ShutdownGuard()`를 만들고, spin을 감싼 except가 `is_shutdown`으로
   판정한다. `KeyboardInterrupt`·`ExternalShutdownException`을 이름으로 잡는 except는 없다.
 - `rclpy.try_shutdown()`마다 그 뒤에 `guard.close()`가 있다(정리 뒤 SIGINT 무시).
@@ -15,7 +15,8 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 COPIES = ('drop_mocks/drop_mocks', 'orchestrator/orchestrator', 'tracking/tracking',
-          'intercept_planner/intercept_planner', 'robot_control/robot_control')
+          'intercept_planner/intercept_planner', 'robot_control/robot_control', 'vision/vision',
+          'calibration/calibration')
 ENTRY_POINTS = {
     'drop_mocks/drop_mocks/ros_common.py': 'spin_mock',
     'orchestrator/orchestrator/orchestrator_node.py': 'main',
@@ -24,6 +25,9 @@ ENTRY_POINTS = {
     'tracking/tracking/tracker_node.py': 'main',
     'intercept_planner/intercept_planner/intercept_planner_node.py': 'main',
     'robot_control/robot_control/robot_controller_node.py': 'main',
+    'vision/vision/vision_node.py': 'main',
+    'calibration/calibration/static_frames.py': 'main',
+    'calibration/calibration/ros_nodes.py': 'camera_tf_publisher',
 }
 SHUTDOWN_NAMES = {'KeyboardInterrupt', 'ExternalShutdownException'}
 

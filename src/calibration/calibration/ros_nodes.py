@@ -21,6 +21,7 @@ from sensor_msgs.msg import CameraInfo
 from tf2_ros import Buffer, StaticTransformBroadcaster, TransformListener
 
 from .calibration_file import load_extrinsics
+from .node_shutdown import ShutdownGuard
 from .repo_paths import resolve_path
 from .camera_intrinsics_check import compare_camera_info
 from .cli import DEFAULT_PROFILE
@@ -78,15 +79,20 @@ class CameraTfPublisher(Node):
 
 
 def camera_tf_publisher(args=None):
+    guard = ShutdownGuard()            # rclpy.init 전(REQ-SYS-007)
     rclpy.init(args=args)
     try:
         node = CameraTfPublisher()
         rclpy.spin(node)
-    except (KeyboardInterrupt, SystemExit) as e:
+    except SystemExit as e:            # 설정 오류 등으로 노드가 낸 종료 코드는 그대로 돌려준다
         return getattr(e, 'code', 0) or 0
+    except BaseException as exc:
+        if not guard.is_shutdown(exc):
+            raise
+        return 0
     finally:
-        if rclpy.ok():
-            rclpy.shutdown()
+        rclpy.try_shutdown()
+        guard.close()
     return 0
 
 
