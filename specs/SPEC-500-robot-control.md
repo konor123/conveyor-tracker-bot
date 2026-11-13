@@ -1,6 +1,6 @@
 # SPEC-500 robot-control
 
-- 버전: v0.11
+- 버전: v0.12
 - 근거: PLAN.md 1.1, 3.3, 4.2~4.4, 5.1, 11.3절
 - REQ 영역: ROB, GRP
 
@@ -8,6 +8,7 @@
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
+| v0.12 | 2026-11-13 | REQ-ROB-011 표에 측정 스크립트가 쓰는 `system/get_last_alarm`·`servol_stream`과 입력 `joint_states`·`robot_description`, 측정 스크립트를 대역 드라이버에 붙인 끝까지 실행(TC-ROB-011-02) |
 | v0.11 | 2026-11-13 | REQ-ROB-017 이동 전 측정이 비유한 값이면 지령 없이 `TCP_READ_FAILED` |
 | v0.10 | 2026-11-13 | I0 실제 controller 통합에서 드러난 계약: REQ-ROB-008 SYNCHRONIZE 끝 = 연속 `sync_hold_s + sync_hold_margin_s`(연속 통과 시작 주기에도 feedback), REQ-ROB-010 동기 유지 후퇴는 XY 속도 정착(`keep_sync_settle_s`) 뒤 상승, REQ-ROB-007 PickStone 전류 한도 1~150 mA·PlaceStone RELEASE `sync_held`(개방 전·후 측정 TCP)·RETREAT 안전 높이 상승(측정 z), REQ-ROB-012 `robot/status` 그리퍼 필드 = 마지막 skill 측정값, REQ-ROB-014 정지 유지가 아닌 재활성은 backend 정지를 풀고 Stop은 `stop_history_json`·로그에 남김 |
 | v0.9 | 2026-11-13 | REQ-ROB-011 Doosan 드라이버 형식(4.6절 표: 서비스 8종·`speedl_stream`의 이름·형식·필드·단위), virtual 모드 대신 실제 `dsr_msgs2` 형식 stub 시험과 그 한계·OFF-2 확인 항목, REQ-ROB-017 Doosan 단위 client ROS 구현(`dsr_motion_client.DsrMotionClient`, 실기 미검증·노드 미연결) |
@@ -183,7 +184,7 @@ REQ-GRP-017·REQ-ROB-017은 코드와 가짜 서비스·가짜 팔 시험까지,
 | `cancel_stop_timeout_s` | s | 0.4 | cancel 응답 0.5 s − `poll_s`(생성 때 합 < 0.5 s 검사) |
 | `stop_timeout_s` | s | 2.0 | 5절 Stop 확인 대기 |
 
-- REQ-ROB-011: 프로젝트가 Doosan 드라이버(doosan-robot2)에 보내는 요청과 메시지는 아래 표의 이름·형식·필드·배열 길이·단위를 따른다(`<ns>` = `/dsr01`, 이름은 OFF-2 드라이버와 `static_pick_place.doosan_client`·`tools/bench/stream_bench.py`가 쓴 것). 확인은 `mode:=virtual`(지원 시)에서 하고, 지원하지 않으면 실제 `dsr_msgs2` 형식으로 같은 이름의 서비스·토픽을 여는 최소 stub(`src/robot_control/test/fakes/dsr_driver_stub.py`)로 대체한다. virtual 모드는 DRCF 에뮬레이터(docker)가 있어야 하는데 형식 시험을 돌리는 PC(officepc WSL)에는 docker·에뮬레이터가 없어 stub를 쓴다. 시험은 생성 메시지의 필드 검사(`ROS_PYTHON_CHECK_FIELDS`와 같음)를 켜고 `DsrRegisterIO`·`DsrMotionClient`·`DoosanBackend`·`DoosanSpeedlTransport`가 만든 요청을 시험 전용 ROS 도메인에서 그대로 보내며, stub가 아닌 노드가 드라이버 이름(`/dsr01/...` 서비스, `speedl_stream` 구독)을 쓰는 것이 보이면 요청 전에 실패한다. `dsr_msgs2`를 가져올 수 없으면(CI 등) skip하고 사유를 남긴다. stub는 srv 주석의 열거값과 유한값만 검사해 어긋나면 `success=false`로 거부하고, 상태는 고정값(STANDBY 1, DRL LAST 3)이며, `move_line`(base·절대)을 받으면 목표를 곧바로 현재 posx로 둔다. 레지스터 읽기 응답은 OFF-2 관찰 표현(하위 1바이트를 최상위 바이트 자리, 부호 있는 int32)이고 PC가 쓴 값도 같은 표현으로 돌려준다(가정).
+- REQ-ROB-011: 프로젝트가 Doosan 드라이버(doosan-robot2)에 보내는 요청과 메시지는 아래 표의 이름·형식·필드·배열 길이·단위를 따른다(`<ns>` = `/dsr01`, 이름은 OFF-2 드라이버와 `static_pick_place.doosan_client`·`tools/bench/stream_bench.py`가 쓴 것). 확인은 `mode:=virtual`(지원 시)에서 하고, 지원하지 않으면 실제 `dsr_msgs2` 형식으로 같은 이름의 서비스·토픽을 여는 최소 stub(`src/robot_control/test/fakes/dsr_driver_stub.py`)로 대체한다. virtual 모드는 DRCF 에뮬레이터(docker)가 있어야 하는데 형식 시험을 돌리는 PC(officepc WSL)에는 docker·에뮬레이터가 없어 stub를 쓴다. 시험은 생성 메시지의 필드 검사(`ROS_PYTHON_CHECK_FIELDS`와 같음)를 켜고 `DsrRegisterIO`·`DsrMotionClient`·`DoosanBackend`·`DoosanSpeedlTransport`가 만든 요청을 시험 전용 ROS 도메인에서 그대로 보내며, stub가 아닌 노드가 드라이버 이름(`/dsr01/...` 서비스, `speedl_stream` 구독)을 쓰는 것이 보이면 요청 전에 실패한다. `dsr_msgs2`를 가져올 수 없으면(CI 등) skip하고 사유를 남긴다. stub는 srv 주석의 열거값과 유한값만 검사해 어긋나면 `success=false`로 거부하고, 상태는 고정값(STANDBY 1, DRL LAST 3)이며, `move_line`(base·절대)을 받으면 목표를 곧바로 현재 posx로 둔다. 레지스터 읽기 응답은 OFF-2 관찰 표현(하위 1바이트를 최상위 바이트 자리, 부호 있는 int32)이고 PC가 쓴 값도 같은 표현으로 돌려준다(가정). 측정 스크립트 `tools/bench/stream_bench.py`는 같은 이유로 virtual 대신 스크립트가 쓰는 표면만 여는 대역(`tools/bench/test_stream_bench_ros.py`: 합성 6축 URDF, `joint_states` 100 Hz, 지령 기준 위치를 순수 지연 50 ms로 따르는 가짜 팔)에 하위 프로세스로 붙여 시험 전용 도메인·namespace에서 끝까지 실행한다(TC-ROB-011-02).
 
 | 이름(`<ns>/` 뒤) | 형식(`dsr_msgs2/`) | 요청 필드(프로젝트 값·단위) | 쓰는 응답 필드 | 보내는 코드 |
 |---|---|---|---|---|
@@ -195,7 +196,11 @@ REQ-GRP-017·REQ-ROB-017은 코드와 가짜 서비스·가짜 팔 시험까지,
 | `motion/move_line` | `srv/MoveLine` | `float64[6] pos` [mm×3, deg ZYZ×3], `float64[2] vel` [mm/s, deg/s], `float64[2] acc` [mm/s², deg/s²], `float64 time` 0, `float64 radius` 0, `int8 ref` 0(base), `int8 mode` 0(절대), `int8 blend_type` 0, `int8 sync_type` 1(비동기) | `success` | `DsrMotionClient.move_line_async` |
 | `motion/move_stop` | `srv/MoveStop` | `int32 stop_mode` 2(soft stop) | `success` | `DsrMotionClient.move_stop` |
 | `aux_control/get_current_posx` | `srv/GetCurrentPosx` | `int8 ref` 0 | `std_msgs/Float64MultiArray[] task_pos_info`(`[0]`의 앞 6개 [mm, deg ZYZ], 7번째 solution space), `success` | `DsrMotionClient.current_posx` |
-| `speedl_stream`(토픽, depth 10) | `msg/SpeedlStream` | `float64[6] vel` [mm/s×3, deg/s×3], `float64[2] acc` [mm/s², deg/s²], `float64 time` 2주기 [s] | — | `DoosanSpeedlTransport` |
+| `speedl_stream`(토픽, depth 10) | `msg/SpeedlStream` | `float64[6] vel` [mm/s×3, deg/s×3], `float64[2] acc` [mm/s², deg/s²], `float64 time` 2주기 [s] | — | `DoosanSpeedlTransport`·`stream_bench.py` |
+| `system/get_last_alarm` | `srv/GetLastAlarm` | 없음 | `LogAlarm log_alarm`(`level`·`group`·`index`), `success` | `stream_bench.py`(기록만) |
+| `servol_stream`(토픽, depth 20) | `msg/ServolStream` | `float64[6] pos` [mm×3, deg ZYZ×3](절대), `float64[2] vel` [mm/s, deg/s], `float64[2] acc` [mm/s², deg/s²], `float64 time` 0 | — | `stream_bench.py --iface servol` |
+
+`stream_bench.py`는 `<ns>/joint_states`(`sensor_msgs/JointState`, 100 Hz)와 `<ns>/robot_description`(`std_msgs/String`, transient local)을 받아 URDF 순기구학으로 실제 위치를 구한다.
 
 stub 시험이 확인하지 않는 것(virtual 모드나 OFF-2에서 확인):
 
@@ -273,6 +278,7 @@ OFF-2에서 확인할 것(결과로 위 기본값·규칙을 고친다):
 - `src/robot_control/test/test_safe_retreat_place_back.py`: TC-ROB-016-01~04. `test_robot_controller_place_back.py`와 `contract/test_robot_controller_contract.py`(place-back 1건): TC-ROB-016-05(C).
 - `src/robot_control/test/test_dsr_register_io.py`: TC-GRP-017-01(가짜 서비스 `test/fakes/dsr.py`). `test_dsr_service_caller_ros.py`: TC-GRP-017-02(C, `std_srvs` 서버). `test_doosan_backend.py`: TC-ROB-017-01~03(가짜 팔 `test/fakes/doosan.py`). `test_dsr_motion_client.py`: TC-ROB-017-04(가짜 caller). 모두 실기 미검증 코드의 시험이다.
 - `src/robot_control/test/test_dsr_driver_stub_format.py`: TC-ROB-011-01(C, 실제 `dsr_msgs2` 형식 stub `test/fakes/dsr_driver_stub.py`, `dsr_msgs2`가 없으면 skip, 판정은 `dsr_msgs2`가 있는 PC).
+- `tools/bench/test_stream_bench_ros.py`: TC-ROB-011-02(C, 측정 스크립트를 대역 드라이버에 붙여 dry-run·STANDBY 아님 거부·speedl·servol·안전 중단까지 실행, 주입한 지연을 분석이 찾는지는 `realtime_pc`, `dsr_msgs2`가 없으면 skip).
 - `robot_controller_node` 계약: `tools/testing/contracts/robot_controller_contract.py`가 기대하는 feedback phase·metric, lifecycle, heartbeat, Stop.
 - `[ON]` 항목은 실행 전까지 완료로 표시하지 않는다.
 

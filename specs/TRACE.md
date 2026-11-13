@@ -3,7 +3,7 @@
 `tools/spec/trace.py`가 생성한다. 손으로 고치지 않는다.
 
 - REQ 147개 중 TC 연결 147개
-- pytest 대상 TC 284개 중 테스트 연결 282개
+- pytest 대상 TC 285개 중 테스트 연결 283개
 
 | TC | 수준 | REQ | 테스트 |
 |---|---|---|---|
@@ -248,6 +248,7 @@
 | TC-ROB-010-02 | U | REQ-ROB-010 | `src/robot_control/test/test_dynamic_place.py::test_keep_sync_never_succeeds_without_capability_or_speed`<br>`src/robot_control/test/test_skill_logic.py::test_safe_retreat_without_keep_sync_transport_fails_closed` |
 | TC-ROB-010-91 | U | REQ-ROB-010 | `src/robot_control/test/test_dynamic_place.py::test_keep_sync_retreat_settles_xy_speed_before_rising` |
 | TC-ROB-011-01 | C | REQ-ROB-011 | `src/robot_control/test/test_dsr_driver_stub_format.py::<module>` |
+| TC-ROB-011-02 | C | REQ-ROB-011 | `tools/bench/test_stream_bench_ros.py::test_dry_run_and_refusal_send_nothing`<br>`tools/bench/test_stream_bench_ros.py::test_speedl_run_streams_stops_and_records`<br>`tools/bench/test_stream_bench_ros.py::test_speedl_analysis_recovers_injected_delay`<br>`tools/bench/test_stream_bench_ros.py::test_guard_abort_still_stops`<br>`tools/bench/test_stream_bench_ros.py::test_servol_run_message_format` |
 | TC-ROB-012-01 | C | REQ-ROB-012 | `src/robot_control/test/test_robot_controller_heartbeat.py::test_heartbeat_and_status_10hz_for_10s` |
 | TC-ROB-012-91 | C | REQ-ROB-012 | `src/robot_control/test/test_robot_controller_status.py::test_status_reports_measured_gripper_state`<br>`src/robot_control/test/test_robot_controller_status.py::test_gripper_state_kept_when_open_not_confirmed` |
 | TC-ROB-013-01 | U | REQ-ROB-013 | `src/robot_control/test/test_belt_sync.py::test_release_time_reference_not_source_stamp`<br>`src/robot_control/test/test_belt_sync.py::test_new_revision_accepted`<br>`src/robot_control/test/test_belt_sync.py::test_ros_message_mapping` |

@@ -100,8 +100,9 @@
 - [ ] **연속 제어 인터페이스 계약 확정** (SPEC-500)
   - [x] `[ON]` 후보 조사·문서화: `servol_stream` / `speedl_stream`(일반), `servol_rt_stream` / `speedl_rt_stream`(RT, `realtime/connect_rt_control` 등 초기화 필요). 단위(mm, deg)·자세 규약·`time` 인수 의미·timeout 동작
     - `records/reviews/stream-candidates-2026-11-12.md`: 메시지 필드·`time` 의미·RT 초기화(real 모드에서 드라이버가 기동 시 연결), 2026-11-07 실측 정리, 1순위 `speedl_stream` 100 Hz(`time` = 2주기, 제어기 0.1 s 무지령 timeout). RT 계열·servol stale·설치 커밋과 원문 일치는 OFF-2 확인 목록(문서 4절)이다.
-  - [ ] `[ON]` 측정 스크립트(사인 궤적 지령, 주기·지연·지터·추종 오차 기록)를 `mode:=virtual`에서 동작 확인
-    - `tools/bench/stream_bench.py`·`stop_bench.py`의 단위 시험·dry-run·실기 기록. virtual 확인과 구분한다.
+  - [x] `[ON]` 측정 스크립트(사인 궤적 지령, 주기·지연·지터·추종 오차 기록)를 `mode:=virtual`에서 동작 확인
+    - `tools/bench/stream_bench.py`를 대역 드라이버(`tools/bench/test_stream_bench_ros.py`: 실제 `dsr_msgs2` 형식, 합성 6축 URDF, `joint_states` 100 Hz, 순수 지연 50 ms 가짜 팔)에 하위 프로세스로 붙여 시험 전용 도메인·namespace·임시 기록 폴더에서 끝까지 실행했다(TC-ROB-011-02): dry-run, STANDBY 아님 거부(지령 0), speedl 100 Hz·servol 50 Hz 지령 형식, 끝의 속도 0과 `move_stop`(2), 안전 중단(종료 코드 3), 주입한 지연 50 ms를 분석이 0.056 s로 찾음(지연 보정 추종 오차 p95 약 8 µm). virtual 모드는 DRCF 에뮬레이터(docker)가 필요한데 쓸 수 있는 PC(집 PC·사무실 PC WSL)에 docker·에뮬레이터가 없고, 드라이버가 설치된 LEGION에는 접속할 수 없어 대역으로 대체했다(SPEC-500 4.6절). 2026-11-13 사무실 PC WSL 5 passed ×3. 이 실행에서 일찍 난 안전 중단 뒤 분석이 예외로 끝나 요약이 남지 않던 결함을 고쳤다.
+    - 대역이 증명하지 않는 것: 제어기 수락·거부 조건, 실제 지령 지연·지터·추종 오차, speedl 무지령 정지와 `move_stop`의 실제 정지, E0509 URDF 순기구학과 posx의 일치(2026-11-07 실기 실행에서 확인), 현장 드라이버 형식과의 일치. `stop_bench.py`의 단위 시험·실기 기록은 별도다.
   - [ ] `[OFF]` OFF-2: 안전 높이에서 작은 진폭 사인 궤적으로 지령 주기·지연 p50/p95/p99·지터·추종 오차 측정(비전·rosbag 부하 포함) → `records/bench/stream-<date>.csv`
     - 로봇 단독 4조건과 D455·rosbag·ArUco 참조 부하 4조건의 원시 기록. 참조 부하 speedl 100 Hz: 간격 p99 10.146 ms, 지연 29 ms, 지연 보정 후 추종 p95 0.062 mm. servol 50 Hz는 실제 이동 부재로 추종 불합격. 생산 vision 부하의 성능 판정과 구분한다(`records/bench/loaded-stream-comparison-2026-11-07.csv`).
   - [ ] `[OFF]` OFF-2: 통신 단절·stale 지령·cancel 시 실제 정지 동작 확인

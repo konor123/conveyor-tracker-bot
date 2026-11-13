@@ -60,6 +60,26 @@ def test_analyze_recovers_known_lag_and_intervals():
 
 
 @pytest.mark.level('U')
+@pytest.mark.parametrize('n_cmd', [0, 1, 155])
+def test_analyze_early_abort_keeps_interval_stats(n_cmd):
+    """안전 중단이 ramp(1 s) 안에서 나면 추종 통계는 생략하고(사유 기록) 지령 간격 통계는 남긴다. 예외 없음."""
+    period = 0.01
+    rows = []
+    for k in range(n_cmd):
+        t = k * period
+        d, v = sb.sine_target(t, 0.005, 0.5, 1.0, 6.0)
+        rows.append({'kind': 'cmd', 't_steady': t, 'x_m': d})
+        rows.append({'kind': 'fb', 't_steady': t + 0.005, 'x_m': d})
+    s = sb.analyze(rows, period, 1.0)
+    assert s['commands'] == n_cmd and s['lag_s'] is None
+    assert s['tracking_error_raw_m'] == {} and s['tracking_error_lag_comp_m'] == {} and 'note' in s
+    if n_cmd > 1:
+        assert s['cmd_interval_s']['p99'] == pytest.approx(period) and s['cmd_interval_p99_ok']
+    else:
+        assert s['cmd_interval_s'] == {} and not s['cmd_interval_p99_ok']
+
+
+@pytest.mark.level('U')
 def test_sine_ramps_down_to_rest_at_center():
     T = 60.0
     d, v = sb.sine_target(T, 0.01, 0.5, 2.0, T)

@@ -10,7 +10,7 @@ robot_description URDF 순기구학을 적용해 얻는다(/tf는 발행 주기�
   # 측정(비상정지 담당자 대기, 안전 높이)
   python3 tools/bench/stream_bench.py --iface servol --rate-hz 50 --amp-m 0.010 --freq-hz 0.5 --duration-s 60
 
-결과: records/bench/stream-<날짜>-<시각>-<iface>-<rate>hz.csv(원시 열) + .summary.txt
+결과: records/bench/stream-<날짜>-<시각>-<iface>-<rate>hz.csv(원시 열) + .summary.txt(`--out-dir`로 폴더 변경)
 안전: 진폭 ≤ 20 mm, 최대 속도 ≤ 50 mm/s, 로봇 상태 STANDBY·알람 없음일 때만 시작한다. 종료·예외·Ctrl-C 때는
 지령을 멈추고(speedl은 0 속도 1회) move_stop을 부른다. 단위 변환(m ↔ mm)은 이 측정 도구 안에서만 한다.
 """
@@ -105,6 +105,8 @@ def sine_target(t: float, amp: float, freq: float, ramp_s: float,
 
 def quantiles(x) -> dict[str, float]:
     x = np.asarray(x, float)
+    if x.size == 0:
+        return {}
     return {'p50': float(np.percentile(x, 50)), 'p95': float(np.percentile(x, 95)),
             'p99': float(np.percentile(x, 99)), 'max': float(np.max(x))}
 
@@ -123,20 +125,26 @@ def analyze(rows: list[dict], period_s: float, ramp_s: float) -> dict:
     x_cmd = np.array([r['x_m'] for r in cmd])
     t_fb = np.array([r['t_steady'] for r in fb])
     x_fb = np.array([r['x_m'] for r in fb])
-    t0 = t_cmd[0] + ramp_s                                   # 앞뒤 ramp 구간은 오차 통계에서 뺀다
-    keep = (t_fb >= t0) & (t_fb <= t_cmd[-1] - ramp_s)
+    gaps = np.diff(t_cmd)
+    out = {
+        'commands': len(cmd), 'feedback': len(fb), 'period_s': period_s,
+        'cmd_interval_s': quantiles(gaps),
+        'cmd_interval_p99_ok': bool(gaps.size > 0 and np.percentile(gaps, 99) <= 1.5 * period_s),
+        'fb_interval_s': quantiles(np.diff(t_fb)),
+    }
+    keep = np.zeros(len(t_fb), bool)
+    if len(t_cmd):
+        keep = (t_fb >= t_cmd[0] + ramp_s) & (t_fb <= t_cmd[-1] - ramp_s)   # 앞뒤 ramp 구간은 오차 통계에서 뺀다
+    if np.count_nonzero(keep) < 2:
+        # 안전 중단이 일찍 나면 ramp 밖 표본이 없다. 원시 CSV와 지령 간격 통계는 그대로 남긴다
+        out.update(lag_s=None, tracking_error_raw_m={}, tracking_error_lag_comp_m={},
+                   note=f'추종 통계 생략: 앞뒤 ramp {ramp_s} s를 뺀 feedback 표본 {int(np.count_nonzero(keep))}개')
+        return out
     lag = estimate_lag(t_cmd, x_cmd, t_fb[keep], x_fb[keep])
     raw = np.abs(x_fb[keep] - np.interp(t_fb[keep], t_cmd, x_cmd))
     comp = np.abs(x_fb[keep] - np.interp(t_fb[keep] - lag, t_cmd, x_cmd))
-    gaps = np.diff(t_cmd)
-    fb_gaps = np.diff(t_fb)
-    return {
-        'commands': len(cmd), 'feedback': len(fb), 'period_s': period_s,
-        'cmd_interval_s': quantiles(gaps), 'cmd_interval_p99_ok': bool(np.percentile(gaps, 99) <= 1.5 * period_s),
-        'fb_interval_s': quantiles(fb_gaps) if len(fb_gaps) else {},
-        'lag_s': lag,
-        'tracking_error_raw_m': quantiles(raw), 'tracking_error_lag_comp_m': quantiles(comp),
-    }
+    out.update(lag_s=lag, tracking_error_raw_m=quantiles(raw), tracking_error_lag_comp_m=quantiles(comp))
+    return out
 
 
 # ------------------------------------------------------------------ ROS 측정
@@ -273,7 +281,8 @@ def run(args) -> int:
         rclpy.try_shutdown()
 
     stamp = datetime.now().strftime('%Y-%m-%d-%H%M%S')
-    base = os.path.join(REPO, 'records', 'bench', f'stream-{stamp}-{args.iface}-{int(args.rate_hz)}hz')
+    os.makedirs(args.out_dir, exist_ok=True)
+    base = os.path.join(args.out_dir, f'stream-{stamp}-{args.iface}-{int(args.rate_hz)}hz')
     with open(base + '.csv', 'w', newline='') as fh:
         w = csv.DictWriter(fh, fieldnames=['kind', 't_steady', 't_ros', 'seq', 'x_m', 'y_m', 'z_m', 'v_mps'])
         w.writeheader()
@@ -302,6 +311,8 @@ def main(argv=None) -> int:
     ap.add_argument('--acc-limit-mps2', type=float, default=0.200)
     ap.add_argument('--cmd-time-s', type=float, default=0.0, help='DRFL time 인수(servol 도달 시간 / speedl 유지 시간)')
     ap.add_argument('--ns', default='/dsr01')
+    ap.add_argument('--out-dir', default=os.path.join(REPO, 'records', 'bench'),
+                    help='기록 폴더(기본 records/bench). 대역 시험은 저장소 밖 임시 폴더를 준다')
     ap.add_argument('--dry-run', action='store_true')
     args = ap.parse_args(argv)
     if args.iface == 'speedl' and args.cmd_time_s <= 0:
