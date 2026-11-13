@@ -155,7 +155,8 @@ def test_replay_has_no_robot_command_path(ros, tmp_path, with_bag):
         if with_bag:
             # 재생 → 실제 vision → tracker가 흐른다(재생기가 영상을 내고 있다)
             h.wait_for(lambda: dets and tracks, timeout=20.0, what='bag 영상에서 나온 검출·track')
-            assert 'rosbag2_player' in _publisher_nodes(h, IMAGE)
+            # 그래프 발견은 데이터 흐름보다 늦을 수 있다(2026-11-13 CI run 43350122545)
+            h.wait_for(lambda: 'rosbag2_player' in _publisher_nodes(h, IMAGE), timeout=10.0, what='재생기 영상 발행자 발견')
             assert all(m.calibration_id != 'old' for _, m in dets)        # bag의 이전 출력이 아니다
             assert _publisher_nodes(h, '/objects/detections') == ['vision_node']
             assert _publisher_nodes(h, STREAM_DECOY) == []

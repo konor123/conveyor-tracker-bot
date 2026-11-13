@@ -76,6 +76,13 @@ class SupervisorMonitor:
 
 
 class SafetySupervisorNode(Node):
+    # 진단 상태의 기본값(생성자를 거치지 않는 시험 대역도 같은 경로를 쓴다)
+    _t_start = 0.0
+    _last_tick = None
+    _ctrl_last_seq = None
+    _ctrl_beats = 0
+    _ctrl_lost_at = None
+
     def __init__(self, **kwargs):
         super().__init__('safety_supervisor_node', **kwargs)
         self.declare_parameter('config', '')
@@ -98,6 +105,13 @@ class SafetySupervisorNode(Node):
         self.create_subscription(TaskStatus, 'task/status', self._on_task, STATUS_QOS, event_callbacks=no_sub_events())
         # 감시 타이머는 steady 시계(REQ-ABT-009)
         self.create_timer(0.05, self._tick, clock=Clock(clock_type=ClockType.STEADY_TIME))
+        # 진단(판정에 쓰지 않음): controller heartbeat 손실을 낸 순간의 상태와, 다시 받았을 때 seq가 이어지는지.
+        # seq가 이어지면 controller는 계속 냈고 전달·처리가 늦었다. 건너뛰면 controller 쪽 발행이 멈췄다.
+        self._t_start = self.steady_clock.steady_now()
+        self._last_tick = None
+        self._ctrl_last_seq = None
+        self._ctrl_beats = 0
+        self._ctrl_lost_at = None
 
     @staticmethod
     def _default_config() -> str:
@@ -106,6 +120,17 @@ class SafetySupervisorNode(Node):
 
     def _on_hb(self, msg: Heartbeat) -> None:
         self.monitor.on_heartbeat(msg.node_name, msg.error_code)
+        if msg.node_name == 'robot_controller_node':
+            if self._ctrl_lost_at is not None:
+                silent = self.steady_clock.steady_now() - self._ctrl_lost_at
+                prev = self._ctrl_last_seq
+                missing = (int(msg.seq) - prev - 1) if prev is not None else -1
+                self.get_logger().warning(
+                    f'controller heartbeat 재수신: 손실 판정 {silent:.3f} s 뒤, seq {prev}→{msg.seq} '
+                    f'(빠진 seq {missing})')
+                self._ctrl_lost_at = None
+            self._ctrl_last_seq = int(msg.seq)
+            self._ctrl_beats += 1
         if msg.error_code == ERROR_PROTECTIVE_STOP:
             self._tick()
 
@@ -119,9 +144,18 @@ class SafetySupervisorNode(Node):
 
     def _tick(self) -> None:
         # Fault detection and delivery confirmation have separate lifetimes.
-        self.monitor.check()
+        latched = self.monitor.check()
         reason = self.monitor.active_fault()
         now = self.steady_clock.steady_now()
+        tick_gap = None if self._last_tick is None else now - self._last_tick
+        self._last_tick = now
+        if latched == 'CONTROLLER_HEARTBEAT_LOST':
+            self._ctrl_lost_at = now
+            age = self.monitor._hb.age('robot_controller_node')
+            gap = f'{tick_gap:.3f}' if tick_gap is not None else 'n/a'
+            self.get_logger().warning(
+                f'CONTROLLER_HEARTBEAT_LOST: 마지막 수신 {age:.3f} s 전, 받은 개수 {self._ctrl_beats}, '
+                f'마지막 seq {self._ctrl_last_seq}, 직전 감시 주기 간격 {gap} s, 기동 뒤 {now - self._t_start:.3f} s')
         if self._stop_future is not None:
             if not self._stop_future.done():
                 if now >= getattr(self, '_stop_warn_at', now + 1.):

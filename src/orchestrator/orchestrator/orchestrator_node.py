@@ -401,19 +401,36 @@ class RosSkillPort:
             self._skipped_tracks.add(self.target[0])
         self._pass_index = pass_index
         retry = float(self.n.node_cfg['select_retry_s'])
+        last, tries = None, 0
         while True:
             r = self._call(SelectTarget, 'tracking/select_target', deadline,
                            object_class=ObjectDetection.CLASS_CAP, min_observation_count=1)
             if r is None:
+                self._log_no_target(last, tries, 'SelectTarget 응답 없음')
                 return None
+            tries += 1
             if r.result == 0 and r.track_id not in self._skipped_tracks:
                 self.target = (r.track_id, r.epoch)
                 self._target_clock_epoch = self.clock_epoch
                 self._select_seq = self.n.tracked_seq
                 return self._cap_obs()
+            last = r
             if not self._wait(lambda: False, min(deadline, self.clock.ros_now() + retry)) and \
                     (self._interrupting() or self.clock.ros_now() >= deadline):
+                self._log_no_target(last, tries, '제한시간·중단')
                 return None
+
+    def _log_no_target(self, last, tries, why):
+        """진단(판정에 쓰지 않음): 대상을 못 고른 채 끝날 때 마지막 SelectTarget 응답과 track 목록을 남긴다."""
+        g = getattr
+        tracked = g(self.n.tracked, 'tracks', None) or []
+        brief = [(g(t, 'track_id', None), g(t, 'epoch', None), g(t, 'status', None), g(t, 'observation_count', None),
+                  round(float(g(g(t, 'position', None), 'x', float('nan'))), 3)) for t in tracked]
+        resp = (None if last is None else
+                (g(last, 'result', None), g(last, 'reason_code', ''), g(last, 'track_id', None), g(last, 'epoch', None)))
+        self.n.get_logger().warning(
+            f'SelectTarget 대상 없음({why}): 시도 {tries}, 마지막 응답 {resp}, 제외 {sorted(self._skipped_tracks)}, '
+            f'track(id, epoch, status, 관측 수, x) {brief}')
 
     def observe_cap(self, deadline):
         seq = self.n.tracked_seq

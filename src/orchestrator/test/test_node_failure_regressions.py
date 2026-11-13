@@ -560,3 +560,30 @@ def test_phase_done_gives_up_after_drain_and_stopped_result_is_immediate():
     assert p._phase_done('RELEASE', 10.) is None                 # 정지 결과는 기다리지 않는다
     assert time.monotonic() - t < 0.05
     assert p._fault is Event.ROBOT_STOPPED
+
+
+@pytest.mark.req('REQ-ABT-010')
+@pytest.mark.level('U')
+def test_supervisor_logs_heartbeat_loss_and_seq_continuity_on_resume():
+    """진단: 손실 판정 때 마지막 수신 나이·seq·감시 주기 간격을, 재수신 때 빠진 seq 개수를 남긴다(판정은 바꾸지 않음)."""
+    stop = NS(Request=lambda **kw: NS(**kw))
+    stop.Request.SUPERVISOR = 1
+    env = load('safety_supervisor_node.py', ['SafetySupervisorNode'], Stop=stop, ERROR_PROTECTIVE_STOP=100)
+    n = env['SafetySupervisorNode'].__new__(env['SafetySupervisorNode'])
+    t = [10.0]
+    logs = []
+    latched = ['CONTROLLER_HEARTBEAT_LOST']
+    n.monitor = NS(check=lambda: latched[0], active_fault=lambda: None, on_heartbeat=lambda *a: None,
+                   _hb=NS(age=lambda name: 0.31))
+    n.steady_clock = NS(steady_now=lambda: t[0])
+    n._stop_future, n._stop_reason, n._stop_confirmed, n._next_stop_try = None, None, False, 0.
+    n.get_logger = lambda: NS(warning=logs.append)
+    n._on_hb(NS(node_name='robot_controller_node', error_code=0, seq=41))
+    n._tick()
+    assert 'CONTROLLER_HEARTBEAT_LOST' in logs[-1] and '0.310' in logs[-1] and 'seq 41' in logs[-1]
+    latched[0] = None
+    t[0] = 10.2
+    n._on_hb(NS(node_name='robot_controller_node', error_code=0, seq=42))
+    assert '41→42' in logs[-1] and '빠진 seq 0' in logs[-1] and '0.200' in logs[-1]
+    n._on_hb(NS(node_name='robot_controller_node', error_code=0, seq=43))
+    assert len(logs) == 2
