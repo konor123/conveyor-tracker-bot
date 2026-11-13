@@ -1,6 +1,6 @@
 # SPEC-700 mocks
 
-- 버전: v0.10
+- 버전: v0.11
 - 근거: PLAN.md 7절
 - REQ 영역: MCK, INT
 
@@ -8,6 +8,7 @@
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
+| v0.11 | 2026-11-13 | 정지 진단은 출력을 계속 읽는 곳에서만 켠다(읽지 않는 pipe가 차면 진단이 프로세스를 멈춘다, 4.8절) |
 | v0.10 | 2026-11-13 | REQ-MCK-011 정지 벨트(초기 속도 0)에서 처음부터 관측 구간 안에 있는 병뚜껑의 track, REQ-MCK-012·4.8절 heartbeat 경로 정지 진단(`DROP_MOCK_STALL_DUMP_S`) |
 | v0.9 | 2026-11-13 | REQ-MCK-009 `mock_robot_controller_node` TCP 1차 지연 모델(`tcp_lag_s` 29 ms, `drop/intercept_plan` 구독), REQ-MCK-010 실제 controller와 함께 띄운 mock 세계의 VerifyDrop은 UNKNOWN(`verify_scripted`), 4.7절 기동 확인 중 종료는 정상 종료 |
 | v0.8 | 2026-11-11 | REQ-MCK-008 대역의 Stop 정지 유지·작업자 해제 |
@@ -177,6 +178,7 @@ measured: {<키 경로>: <출처>}
 - 대상: 대역 노드 프로세스(`spin_mock`으로 띄운 것). 시험 프로세스 안에서 만든 대역 노드는 대상이 아니다.
 - 켜기: 환경 변수 `DROP_MOCK_STALL_DUMP_S`가 유한한 양수 [s]일 때만 켠다. 미설정·0·음수·숫자 아님은 끔이고, 끄면 동작이 바뀌지 않는다. 대역만 띄우는 ROS I0 시험(`src/drop_bringup/test/test_i0_integration.py`)의 launch는 값이 없으면 0.25로 켠다(감시 노드의 controller heartbeat 손실 판정 0.3 s보다 짧게). 실제 노드와 함께 띄우는 시험은 켜지 않는다.
 - heartbeat 콜백에 들어올 때마다 faulthandler 감시를 그 시간으로 다시 건다. 그 시간 안에 다음 진입이 없으면 모든 Python 스레드의 스택을 stderr에 쓴다(`Timeout (` 머리줄). faulthandler 감시 스레드는 GIL 없이 돌므로 다른 스레드가 GIL을 쥔 채 막혀 있어도 그 순간의 스택이 남는다.
+- 출력은 계속 읽혀야 한다. 덤프 한 번이 약 2 KB라, 출력을 읽지 않는 pipe(64 KiB)가 차면 감시 스레드의 쓰기가 막히고 다음 진입의 감시 재설정(`dump_traceback_later`)이 GIL을 쥔 채 그 스레드를 기다려 프로세스 전체가 멈춘다(2026-11-13 사무실 PC WSL: 정지 약 30회째). launch는 출력을 계속 읽는다. 대역 프로세스를 직접 띄우는 시험은 출력을 읽는 스레드를 둔다.
 - 다음 진입은 `STALL heartbeat 경로 공백` 경고에 공백 길이, 그 사이 프로세스 CPU 시간(사용자 + 커널)과 자발·비자발 문맥 전환 증가량을 남긴다. 판독: 스택이 C 호출(그래프 조회·발행)에서 멈춤 → 프로세스 안 막힘, 같은 callback group의 다른 콜백 실행 중 → 그룹 경합, 모든 스레드가 대기 중이고 CPU 증가가 작음 → 프로세스가 CPU를 받지 못함.
 - 프로세스 전체가 멈춘 경우(SIGSTOP 등)는 감시 스레드도 멈추므로 스택 출력이 재개 순간의 경합에 달려 있다. 이때도 공백 경고는 남는다.
 - 종료할 때 감시를 풀고 그 뒤의 진입은 감시를 다시 걸지 않아, 종료 과정에서는 스택을 쓰지 않는다.

@@ -524,37 +524,51 @@ def test_mock_exits_when_real_provider_appears_after_start(ros, service):
 @pytest.mark.req('REQ-MCK-012')
 @pytest.mark.tc('TC-MCK-012-02')
 @pytest.mark.level('C')
+@pytest.mark.realtime_pc       # 공유 CI 러너에서 재개 뒤 heartbeat 5 s 초과(2026-11-13 run 43382239331·43394241548), PC 판정
 @pytest.mark.parametrize('limit', ['0.25', ''])
 def test_stall_watch_reports_heartbeat_gap_in_process(ros, limit):
     """`DROP_MOCK_STALL_DUMP_S`를 준 대역 controller 프로세스를 0.6 s 멈췄다 재개하면 공백·CPU·문맥 전환 경고가
     출력에 남는다. 값이 없으면 진단을 켜지 않고 같은 정지에도 아무것도 남기지 않는다. 멈춘 동안 스택 출력은
     faulthandler 감시 스레드도 같이 멈춰 재개 순간의 경합이라 판정하지 않는다(진단의 본래 대상은 프로세스 안 막힘)."""
     import signal
+    import threading
     env = dict(os.environ, ROS_DOMAIN_ID=str(DOMAIN))
     env.pop('DROP_MOCK_STALL_DUMP_S', None)
     if limit:
         env['DROP_MOCK_STALL_DUMP_S'] = limit
+    # 별도 namespace: 실패해 강제 종료된 프로세스의 서비스가 그래프에 남아도 뒤 시험의 동시 기동 거부와 겹치지 않는다
+    # (2026-11-13 CI run 43382239331에서 뒤 시험 8건이 `REAL_NODE_PRESENT ['/robot/stop']`으로 연달아 실패)
     proc = subprocess.Popen(
-        [sys.executable, '-m', 'drop_mocks.mock_robot_controller_node', '--ros-args',
+        [sys.executable, '-m', 'drop_mocks.mock_robot_controller_node', '--ros-args', '-r', '__ns:=/stall_probe',
          '-p', f'scenario:={scenario_path("nominal_20mms")}', '-p', 'exclusive_check_s:=0.2'],
         env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    # 출력을 계속 읽는다. 읽지 않는 pipe(64 KiB)가 차면 faulthandler 덤프 쓰기가 막히고, 다음 beat()의
+    # dump_traceback_later가 GIL을 쥔 채 그 스레드를 기다려 프로세스 전체가 멈춘다(2026-11-13 사무실 PC: 덤프 약 30회)
+    lines = []
+    reader = threading.Thread(target=lambda: lines.extend(iter(proc.stdout.readline, '')), daemon=True)
+    reader.start()
     h = Harness()
     try:
-        hbs = h.record(Heartbeat, 'system/heartbeat')
+        hbs = h.record(Heartbeat, '/stall_probe/system/heartbeat')
         h.wait_for(lambda: _count_hb(hbs, 'robot_controller_node') >= 5, timeout=10.0, what='대역 controller heartbeat')
         proc.send_signal(signal.SIGSTOP)
         time.sleep(0.6)
         proc.send_signal(signal.SIGCONT)
         n = _count_hb(hbs, 'robot_controller_node')
-        h.wait_for(lambda: _count_hb(hbs, 'robot_controller_node') >= n + 5, timeout=5.0, what='재개 뒤 heartbeat')
+        try:
+            h.wait_for(lambda: _count_hb(hbs, 'robot_controller_node') >= n + 5, timeout=5.0, what='재개 뒤 heartbeat')
+        except TimeoutError as e:
+            raise TimeoutError(f'{e}; 대역 출력 끝:\n{"".join(lines)[-3000:]}') from None
     finally:
         proc.send_signal(signal.SIGINT)
         try:
-            out = proc.communicate(timeout=10)[0]
+            proc.wait(timeout=10)
         except subprocess.TimeoutExpired:
             proc.kill()
-            out = proc.communicate(timeout=5)[0]
+            proc.wait(timeout=5)
+        reader.join(timeout=5)
         h.close()
+    out = ''.join(lines)
     stalls = [ln for ln in out.splitlines() if 'STALL heartbeat 경로 공백' in ln]
     if limit:
         assert 'heartbeat 경로 정지 진단 켬' in out, out[-2000:]

@@ -574,7 +574,7 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-MCK-011-01 | 정지 벨트 track(엔진) | U | `[ON]` | 벨트 속도 0, 병뚜껑 x0 0.10 m(관측 구간 안), 가림 없음 / 1.0~1.5 s 가림. 프레임 0~60 | 예외 0, track 1개, `observation_count` = k + 1, `last_observed_t` 유한(가림 중 가림 직전 프레임 시각). 2.0 s 대상 선택 OK·진입 시각 inf, 계획 FAILED `TIME_INSUFFICIENT` |
 | TC-MCK-011-02 | 정지 벨트 track(노드) | C | `[ON]` | `mock_world_node scenario:=stopped_belt`(시험 자료), t0 2 s 전 | `objects/tracked` 10개 이상(관측 수 ≥ 60, 위치 0.10 m, 속도 0), `SelectTarget` FAILED `BELT_STOPPED`, `ComputeIntercept` FAILED `TIME_INSUFFICIENT` |
 | TC-MCK-012-01 | heartbeat 경로 정지 진단(모듈) | U | `[ON]` | 환경 값 미설정·''·0·−1·abc·nan·inf·0.25 / 하위 프로세스에서 기준 0.2 s, 0.05 s 간격 5회 뒤 함수 안에서 0.5 s 멈춤 / 감시 건 뒤 `stop()`, 그 뒤 `beat()` | 0.25만 켬 / `Timeout (` 1회·멈춘 함수 이름이 스택에 있음, 공백 경고 1줄(CPU·비자발 문맥 전환 포함) / 0.4 s 뒤에도 스택 출력 없음 |
-| TC-MCK-012-02 | heartbeat 경로 정지 진단(프로세스) | C | `[ON]` | `mock_robot_controller_node` 프로세스, `DROP_MOCK_STALL_DUMP_S` 0.25 / 미설정, heartbeat 5개 뒤 SIGSTOP 0.6 s → SIGCONT | 0.25: 진단 켬 로그, 공백 경고 최대 ≥ 0.5 s / 미설정: 진단 로그·공백 경고·스택 출력 없음 |
+| TC-MCK-012-02 | heartbeat 경로 정지 진단(프로세스, `realtime_pc`: CI는 기록만) | C | `[ON]` | `mock_robot_controller_node` 프로세스(namespace `/stall_probe`, 출력은 읽는 스레드가 계속 받음), `DROP_MOCK_STALL_DUMP_S` 0.25 / 미설정, heartbeat 5개 뒤 SIGSTOP 0.6 s → SIGCONT | 0.25: 진단 켬 로그, 공백 경고 최대 ≥ 0.5 s / 미설정: 진단 로그·공백 경고·스택 출력 없음 |
 
 ### 3.12 REC — 기록·분석
 
