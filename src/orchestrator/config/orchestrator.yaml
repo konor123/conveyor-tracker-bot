@@ -61,7 +61,7 @@ step_timeout:
   approach_s: 3.0                      # 1.5 × T_transit(p99), TBD(측정 G0)
   synchronize_s: 2.0
   descend_s: 1.5
-  release_s: 1.0                       # 1.5 × T_release(p99), TBD(측정 G0)
+  release_s: 2.0                       # REQ-ABT-007 max(ceil(1.5×p99), p95+0.5), 실제 controller I0(fake transport) 0.91 s 기준 잠정, TBD(측정 G0)
   retreat_s: 3.0
   verify_s: 3.0
   lap_s: 30.0                          # T_lap, WAIT_CAP 제한시간 = lap_s × (max_passes + 1), TBD(실측 OFF-1)

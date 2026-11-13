@@ -241,7 +241,7 @@ class DynamicPlaceCfg:
     z_kp_hz: float = 10.
     z_max_speed_mps: float = .05
     z_max_accel_mps2: float = .3
-    release_wait_max_s: float = 2.
+    release_wait_max_s: float = 1.     # + 개방·확인 유지가 orchestrator RELEASE 제한 안(REQ-ROB-019)
     release_hold_s: float = .3
     release_timeout_s: float = 1.
     commit_late_tol_s: float = .02

@@ -1,6 +1,6 @@
 # SPEC-100 orchestrator
 
-- 버전: v0.17
+- 버전: v0.18
 - 근거: PLAN.md 4절
 - REQ 영역: ORC
 
@@ -8,6 +8,7 @@
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
+| v0.18 | 2026-11-14 | RELEASE 단계 제한 측정 전 1.0 → 2.0 s(REQ-ABT-007 식, 실제 controller I0 fake transport 0.91 s 기준 잠정). 여러 단계 goal deadline 동적 11.5 s·STATIC 9.5 s(REQ-ORC-015) |
 | v0.17 | 2026-11-13 | phase 끝 feedback을 못 받은 경로를 경고로 남기고, 실패 단계 경고에 단계 길이를 붙인다(REQ-ORC-020) |
 | v0.16 | 2026-11-13 | Stop 해제 직후 goal: 수락 뒤 controller heartbeat 2개·`robot/status`를 새로 받은 다음 장애 latch 무장(REQ-ORC-012). WAIT_CAP 시간 예산 = `time_budget.evaluate_budget`, 동적 deadline = `deadlines.dynamic_deadline`(4.9절, REQ-ORC-019). `budget.x_reach_start_m`·`x_exit_m` ROS 파라미터. PRECHECK `BELT_UNSTEADY`는 지속 규칙(SPEC-110 REQ-ABT-013). 감시 latch 구간(4.8절) |
 | v0.15 | 2026-11-12 | PRECHECK 이유 코드 `CALIBRATION_MISMATCH`: vision 검출과 orchestrator `calibration_id`가 둘 다 있고 다르면(SPEC-600 REQ-CAL-005). vision 쪽이 비었으면 `CALIBRATION_INVALID`, orchestrator 쪽이 비었으면 비교하지 않는다 |
@@ -228,7 +229,7 @@ phase 끝 대기가 feedback 없이 끝나면(포트가 None → `STEP_TIMEOUT`)
 | APPROACH | `1.5 × T_transit(p99)`, 측정 전 3.0 |
 | SYNCHRONIZE | 2 |
 | DESCEND | 1.5 |
-| RELEASE | `1.5 × T_release(p99)`, 측정 전 1.0 |
+| RELEASE | `1.5 × T_release(p99)`(REQ-ABT-007 식), 측정 전 2.0(실제 controller I0 fake transport 기준) |
 | RETREAT | 3 |
 | VERIFY | 3 |
 
@@ -253,7 +254,7 @@ phase 끝 대기가 feedback 없이 끝나면(포트가 None → `STEP_TIMEOUT`)
 - REQ-ORC-018: WAIT_CAP의 `t_to_window_s`는 고른 순간 값이 아니라 매 관측의 대상 track으로 다시 계산한다. 대상의 `velocity.x`가 고른 뒤 바뀌면 `t_to_window_s`도 `(x_reach_start − x) / v`로 따라 바뀌고, `x ≥ x_reach_start`면 0, `v ≤ 0`이거나 대상이 목록에 없으면 ∞다.
 - REQ-ORC-019: WAIT_CAP 관측의 `t_available_s`·`t_required_s`·`budget_<성분>_s`는 `intercept_planner.time_budget.evaluate_budget`(4.9절 입력)의 값과 같고, 동적 deadline은 `now + t_available − budget.retreat_margin_s`다. 벨트가 멈췄거나 거꾸로 가면 `t_available_s` 0, `t_to_window_s` ∞이고 판정은 `WAIT`(`TOO_EARLY`)다.
 - REQ-ORC-014: `DynamicPlace.Goal.position_std_max`는 `sync.release_position_std_max_m`(0.5 mm)이고 계획 단계 기준 `plan.position_std_max_m`(3.25 mm)와 독립이다.
-- REQ-ORC-015: `PlaceStone`·`DynamicPlace`처럼 여러 단계(APPROACH~RETREAT)를 한 goal이 수행할 때 `goal.deadline`은 전송 시각 + 그 goal이 거치는 단계 제한시간의 합(동적: `approach_s + synchronize_s + descend_s + release_s + retreat_s` = 10.5 s, STATIC: SYNCHRONIZE 제외 8.5 s)이다. APPROACH 단계 deadline을 넣지 않는다. 단계·동적·사이클 deadline은 실행기가 포트 대기와 cancel로 집행한다. 대역 소요시간 축척 1.0(`DynamicPlace` 3.0 s)에서 한 사이클이 SUCCESS다.
+- REQ-ORC-015: `PlaceStone`·`DynamicPlace`처럼 여러 단계(APPROACH~RETREAT)를 한 goal이 수행할 때 `goal.deadline`은 전송 시각 + 그 goal이 거치는 단계 제한시간의 합(동적: `approach_s + synchronize_s + descend_s + release_s + retreat_s` = 11.5 s, STATIC: SYNCHRONIZE 제외 9.5 s)이다. APPROACH 단계 deadline을 넣지 않는다. 단계·동적·사이클 deadline은 실행기가 포트 대기와 cancel로 집행한다. 대역 소요시간 축척 1.0(`DynamicPlace` 3.0 s)에서 한 사이클이 SUCCESS다.
 - REQ-ORC-016: WAIT_CAP 대기 중 관측이 `target_lost`이면 `passes_skipped`를 올리지 않고 같은 `pass_index`로 `select_target`을 다시 호출한다. 실제 tracker가 WAIT_CAP 도중 초기화(epoch +1)되어도 그 통과에서 사이클이 SUCCESS로 끝난다.
 - REQ-ORC-017: WAIT_CAP이 대기(`WAIT`) 중에 통과 제한·사이클 제한·장애로 끝나면 그 기록에 마지막 대기 판정의 지표와 사유(`detail`, 예 `OBSERVATION_COUNT`·`TOO_EARLY`·`TRACK_NOT_OBSERVED`)를 남긴다. 대상을 한 번도 얻지 못했으면 `detail`은 `NO_TARGET`이고 지표는 없다. `orchestrator_node`는 실패한 단계 기록마다 단계·사유·`detail`·지표를 WARN 로그로 남긴다.
 - REQ-ORC-020: phase 끝 대기가 feedback 없이 끝나면 `orchestrator_node`는 4.10절 경고를 정확히 한 줄 남긴다. controller 결과가 먼저 끝난 경우 그 result 코드와 `reason_code`(예 `GATE_TRACK_STALE`)가, 대기가 끝난 경우 ROS·steady 경과가 들어가며, 단계 판정·중단 등급은 바뀌지 않는다.

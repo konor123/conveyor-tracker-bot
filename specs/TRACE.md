@@ -2,8 +2,8 @@
 
 `tools/spec/trace.py`가 생성한다. 손으로 고치지 않는다.
 
-- REQ 152개 중 TC 연결 152개
-- pytest 대상 TC 295개 중 테스트 연결 293개
+- REQ 153개 중 TC 연결 153개
+- pytest 대상 TC 296개 중 테스트 연결 294개
 
 | TC | 수준 | REQ | 테스트 |
 |---|---|---|---|
@@ -274,6 +274,7 @@
 | TC-ROB-017-03 | U | REQ-ROB-017 | `src/robot_control/test/test_doosan_backend.py::test_tcp_pose_is_measured_or_nan`<br>`src/robot_control/test/test_doosan_backend.py::test_gripper_goes_through_the_session_and_reports_measured_values`<br>`src/robot_control/test/test_doosan_backend.py::test_gripper_failures_are_reported_without_values` |
 | TC-ROB-017-04 | U | REQ-ROB-017 | `src/robot_control/test/test_dsr_motion_client.py::<module>` |
 | TC-ROB-018-01 | U | REQ-ROB-018 | `src/robot_control/test/test_dynamic_place_summary.py::test_summary_reports_release_wait_and_gate_hold_reason`<br>`src/robot_control/test/test_dynamic_place_summary.py::test_summary_without_gate_wait`<br>`src/robot_control/test/test_dynamic_place_summary.py::test_summary_of_failed_goal_names_reason_and_last_phase` |
+| TC-ROB-019-01 | U | REQ-ROB-019 | `tools/spec/test_release_budget.py::test_release_step_limit_covers_controller_release_window` |
 | TC-SIM-001-01 | S | REQ-SIM-001(SPEC 없음) | 절차 시험 |
 | TC-SIM-002-01 | S | REQ-SIM-002(SPEC 없음) | 절차 시험 |
 | TC-SIM-003-01 | S | REQ-SIM-003(SPEC 없음) | 절차 시험 |
