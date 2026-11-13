@@ -17,9 +17,11 @@ class FakeStaticBackend:
         self.stop_sent = False
         self.stopped = True
         self.calls: list[tuple[str, object]] = []
+        self.quats: list[np.ndarray] = []        # move_line마다 받은 자세(quaternion)
 
     def move_line(self, target_pos_m, target_quat_xyzw) -> MoveOutcome:
         self.calls.append(('move_line', np.asarray(target_pos_m, dtype=float).copy()))
+        self.quats.append(np.asarray(target_quat_xyzw, dtype=float).copy())
         if self.move_ok:
             self.tcp_pos = np.asarray(target_pos_m, dtype=float).copy()
         return MoveOutcome(self.move_ok, self.move_error_m)

@@ -22,7 +22,7 @@ import numpy as np
 
 from .belt_sync import BeltSynchronizer, PlanSample, SyncConfig
 from .motion_adapter import tracking_command
-from .skill_logic import Result
+from .skill_logic import Result, SkillResult
 
 MODE_STATIC, MODE_PREDICTED, MODE_SYNCHRONIZED = 0, 1, 2          # DropTask.Goal.MODE_*
 TRACK_OBSERVED, TRACK_COASTING, TRACK_LOST = 0, 1, 2              # TrackedObject.*
@@ -395,6 +395,27 @@ class KeepSyncRetreat:
     def _end(self, result, reason, fb, metrics=None) -> TickOut:
         self.result = PlaceResult(result, reason, metrics=dict(metrics or {}))
         return TickOut(tuple(fb), self.result)
+
+
+def run_keep_sync_retreat(retreat: KeepSyncRetreat, clock, sleep, cancel=None, stop=None, feedback=None,
+                          alive=None) -> SkillResult:
+    """`KeepSyncRetreat`를 `period_s`마다 돌려 끝날 때까지 기다린다(노드와 U 시험이 같이 쓴다).
+
+    `clock`은 `ros_now()`·`steady_now()`, `sleep(dt)`는 주기 대기다. `cancel()`·`stop()`은 매 주기 읽고, `feedback`은
+    `(phase, metrics, phase_done)`을 받는다. `alive()`가 거짓이 되면(ROS 종료) `FAULT`(`SHUTDOWN`)로 끝낸다.
+    """
+    while True:
+        out = retreat.tick(clock.ros_now(), clock.steady_now(), cancel=bool(cancel is not None and cancel()),
+                           stop=bool(stop is not None and stop()))
+        if feedback is not None:
+            for fb in out.feedback:
+                feedback(fb.phase, dict(fb.metrics), fb.phase_done)
+        if out.result is not None:
+            r = out.result
+            return SkillResult(r.result, r.reason_code, dict(r.metrics))
+        if alive is not None and not alive():
+            return SkillResult(Result.FAULT, 'SHUTDOWN')
+        sleep(retreat.period_s)
 
 
 # ================================================================== 순서기

@@ -15,6 +15,7 @@ pytest.importorskip('rclpy')
 
 import robot_controller_contract as shared  # noqa: E402
 from drop_interfaces.action import DropTask  # noqa: E402
+from drop_interfaces.srv import Stop  # noqa: E402
 from drop_interfaces.msg import (BeltMotion, InterceptPlan, ObjectDetection, TrackedObject,  # noqa: E402
                                  TrackedObjectArray)
 from drop_ros import Target, to_time  # noqa: E402
@@ -49,6 +50,8 @@ PARAMS = {
     'sync.max_loop_gap_s': 0.2, 'dynamic.commit_late_tol_s': 0.2, 'fake_cmd_hold_s': 0.5,
     # 정적 skill 계약 goal(원점 자세)이 TCP를 원점 근처로 옮기므로 XY 상자를 넓힌다
     'sync.min_xy_m': '[-1.0,-1.0]', 'sync.max_xy_m': '[1.0,1.0]',
+    # SafeRetreat place-back(REQ-ROB-016): 매트 반납 위치(시험 값)
+    'place_back_xyz_m': '[0.40,-0.10,0.06]',
 }
 LAUNCH = ('import sys, rclpy; from rclpy.executors import MultiThreadedExecutor; '
           'from robot_control.robot_controller_node import RobotControllerNode; '
@@ -140,3 +143,23 @@ def robot_contract(robot_target):
             next(source)
         except StopIteration:
             pass
+
+
+@pytest.mark.req('REQ-ROB-016')
+@pytest.mark.tc('TC-ROB-016-05')
+def test_real_node_safe_retreat_place_back(robot_contract):
+    """공통 계약 밖의 실제 노드 확인: SafeRetreat(place_back=true)는 RETREAT → PLACE_BACK, 측정 개방 뒤 반납 보고."""
+    h = robot_contract
+    # 공통 계약의 비활성화 시험(on_deactivate의 backend.stop)이 시뮬레이션 backend를 정지 상태로 남기고 재활성으로는
+    # 풀리지 않는다. 작업자 절차(Stop → 사유 있는 해제)로 정지를 풀고 시작한다
+    assert h.call(Stop, 'robot/stop', requester=Stop.Request.ORCHESTRATOR, reason_code='CONTRACT_SETUP').stopped
+    assert shared._release(h, 'contract: place-back setup').successful
+    phases = []
+    goal = shared._goal(h, 'robot/safe_retreat', deadline_s=10.0)
+    goal.place_back = True
+    gh = shared._send(h, 'robot/safe_retreat', goal, lambda fb: phases.append(fb.feedback.phase))
+    assert gh.accepted
+    res = shared._result(gh)
+    assert (res.result.result, res.result.reason_code) == (0, ''), res.result
+    assert res.result.stone_placed_back is True
+    assert [p for i, p in enumerate(phases) if i == 0 or phases[i - 1] != p] == ['RETREAT', 'PLACE_BACK']

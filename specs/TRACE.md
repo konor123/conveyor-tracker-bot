@@ -2,8 +2,8 @@
 
 `tools/spec/trace.py`가 생성한다. 손으로 고치지 않는다.
 
-- REQ 139개 중 TC 연결 139개
-- pytest 대상 TC 254개 중 테스트 연결 251개
+- REQ 142개 중 TC 연결 142개
+- pytest 대상 TC 264개 중 테스트 연결 261개
 
 | TC | 수준 | REQ | 테스트 |
 |---|---|---|---|
@@ -101,6 +101,8 @@
 | TC-GRP-016-02 | U | REQ-GRP-016 | `src/robot_control/test/test_resident_transport.py::test_armed_trigger_delay_is_spin_plus_one_write` |
 | TC-GRP-016-03 | U | REQ-GRP-016 | `src/robot_control/test/test_resident_transport.py::test_fake_static_cycle_spends_far_less_time_on_the_gripper` |
 | TC-GRP-016-04 | U | REQ-GRP-016 | `src/robot_control/test/test_resident_transport.py::test_timeouts_shorter_than_the_loop_sample_period_are_rejected` |
+| TC-GRP-017-01 | U | REQ-GRP-017 | `src/robot_control/test/test_dsr_register_io.py::test_read_decodes_the_top_byte_like_doosan_client`<br>`src/robot_control/test/test_dsr_register_io.py::test_write_sends_only_pc_values_and_reports_failed_writes`<br>`src/robot_control/test/test_dsr_register_io.py::test_failures_and_timeouts_are_errors_not_values`<br>`src/robot_control/test/test_dsr_register_io.py::test_drl_start_checks_robot_and_drl_state_first`<br>`src/robot_control/test/test_dsr_register_io.py::test_resident_session_runs_over_service_register_io` |
+| TC-GRP-017-02 | C | REQ-GRP-017 | `src/robot_control/test/test_dsr_service_caller_ros.py::test_helper_node_calls_from_inside_an_executor_callback`<br>`src/robot_control/test/test_dsr_service_caller_ros.py::test_timeout_and_missing_service_raise_without_values` |
 | TC-IF-001-01 | U | REQ-IF-001 | `tools/spec/test_interfaces.py::test_interface_snapshots_match` |
 | TC-IF-002-01 | U | REQ-IF-002 | `tools/spec/test_interfaces.py::test_common_request_fields_order` |
 | TC-IF-003-01 | U | REQ-IF-003 | `tools/spec/test_interfaces.py::test_interface_constants_match_spec` |
@@ -227,7 +229,7 @@
 | TC-ROB-009-04 | U | REQ-ROB-009 | `src/robot_control/test/test_release_gate.py::<module>` |
 | TC-ROB-009-05 | U | REQ-ROB-009 | `src/robot_control/test/test_dynamic_place.py::test_program_transport_commits_once_ahead_and_ignores_updates` |
 | TC-ROB-010-01 | U | REQ-ROB-010 | `src/robot_control/test/test_dynamic_place.py::test_post_release_retreat_keeps_plan_speed`<br>`src/robot_control/test/test_dynamic_place.py::test_safe_retreat_after_pre_release_abort_keeps_sync`<br>`src/robot_control/test/test_dynamic_place.py::test_keep_sync_already_at_safe_height_needs_no_motion`<br>`src/robot_control/test/test_dynamic_place.py::test_keep_sync_abort_hold_then_long_silence_is_bounded` |
-| TC-ROB-010-02 | U | REQ-ROB-010 | `src/robot_control/test/test_dynamic_place.py::test_keep_sync_never_succeeds_without_capability_or_speed`<br>`src/robot_control/test/test_skill_logic.py::test_safe_retreat_unsupported_modes_fail_closed` |
+| TC-ROB-010-02 | U | REQ-ROB-010 | `src/robot_control/test/test_dynamic_place.py::test_keep_sync_never_succeeds_without_capability_or_speed`<br>`src/robot_control/test/test_skill_logic.py::test_safe_retreat_without_keep_sync_transport_fails_closed` |
 | TC-ROB-011-01 | C | REQ-ROB-011(SPEC 없음) | — |
 | TC-ROB-012-01 | C | REQ-ROB-012 | `src/robot_control/test/test_robot_controller_heartbeat.py::test_heartbeat_and_status_10hz_for_10s` |
 | TC-ROB-013-01 | U | REQ-ROB-013 | `src/robot_control/test/test_belt_sync.py::test_release_time_reference_not_source_stamp`<br>`src/robot_control/test/test_belt_sync.py::test_new_revision_accepted`<br>`src/robot_control/test/test_belt_sync.py::test_ros_message_mapping` |
@@ -241,6 +243,14 @@
 | TC-ROB-014-01 | U | REQ-ROB-014 | `src/robot_control/test/test_stop_latch.py::<module>` |
 | TC-ROB-014-02 | C | REQ-ROB-014 | `src/robot_control/test/test_robot_controller_stop.py::test_stop_latches_until_operator_release`<br>`src/robot_control/test/test_robot_controller_stop.py::test_release_refused_while_goal_active`<br>`src/robot_control/test/test_robot_controller_stop.py::test_accept_reserves_goal_and_noop_release_keeps_backend_stop` |
 | TC-ROB-015-01 | U | REQ-ROB-015 | `src/robot_control/test/test_doosan_stream.py::<module>` |
+| TC-ROB-016-01 | U | REQ-ROB-016 | `src/robot_control/test/test_safe_retreat_place_back.py::test_static_place_back_sequence_uses_measured_values`<br>`src/robot_control/test/test_safe_retreat_place_back.py::test_goal_pose_overrides_parameter_only_when_position_is_nonzero`<br>`src/robot_control/test/test_safe_retreat_place_back.py::test_keep_sync_leg_runs_keep_sync_retreat_then_places_back` |
+| TC-ROB-016-02 | U | REQ-ROB-016 | `src/robot_control/test/test_safe_retreat_place_back.py::test_missing_settings_precondition_without_motion`<br>`src/robot_control/test/test_safe_retreat_place_back.py::test_keep_sync_without_transport_and_invalid_goal_pose_do_not_move` |
+| TC-ROB-016-03 | U | REQ-ROB-016 | `src/robot_control/test/test_safe_retreat_place_back.py::test_open_width_must_be_measured_within_tolerance`<br>`src/robot_control/test/test_safe_retreat_place_back.py::test_pose_error_over_tolerance_fails_before_opening`<br>`src/robot_control/test/test_safe_retreat_place_back.py::test_keep_sync_failure_stops_before_place_back`<br>`src/robot_control/test/test_safe_retreat_place_back.py::test_retreat_failure_after_open_keeps_placed_back`<br>`src/robot_control/test/test_safe_retreat_place_back.py::test_unreadable_tcp_never_becomes_a_target` |
+| TC-ROB-016-04 | U | REQ-ROB-016 | `src/robot_control/test/test_safe_retreat_place_back.py::test_cancel_and_deadline_at_each_step` |
+| TC-ROB-016-05 | C | REQ-ROB-016 | `src/robot_control/test/contract/test_robot_controller_contract.py::test_real_node_safe_retreat_place_back`<br>`src/robot_control/test/test_robot_controller_place_back.py::test_place_back_parameters_accept_float_arrays`<br>`src/robot_control/test/test_robot_controller_place_back.py::test_static_place_back_on_fake_backend`<br>`src/robot_control/test/test_robot_controller_place_back.py::test_keep_sync_place_back_routes_through_keep_sync_retreat`<br>`src/robot_control/test/test_robot_controller_place_back.py::test_place_back_unset_and_stop_on_real_node` |
+| TC-ROB-017-01 | U | REQ-ROB-017 | `src/robot_control/test/test_doosan_backend.py::test_move_line_converts_units_and_completes_on_measured_pose`<br>`src/robot_control/test/test_doosan_backend.py::test_pure_rotation_waits_for_orientation_and_standby`<br>`src/robot_control/test/test_doosan_backend.py::test_refuses_motion_while_a_drl_program_runs`<br>`src/robot_control/test/test_doosan_backend.py::test_refusals_and_unreached_moves_report_measured_error` |
+| TC-ROB-017-02 | U | REQ-ROB-017 | `src/robot_control/test/test_doosan_backend.py::test_cancel_issues_move_stop_and_waits_for_stopped_state`<br>`src/robot_control/test/test_doosan_backend.py::test_executor_reports_cancel_and_deadline_through_backend`<br>`src/robot_control/test/test_doosan_backend.py::test_unconfirmed_stop_is_a_fault_not_a_clean_cancel`<br>`src/robot_control/test/test_doosan_backend.py::test_move_timeout_stops_the_arm`<br>`src/robot_control/test/test_doosan_backend.py::test_stop_during_motion_latches_until_reset`<br>`src/robot_control/test/test_doosan_backend.py::test_is_stopped_reads_the_robot_state_each_time` |
+| TC-ROB-017-03 | U | REQ-ROB-017 | `src/robot_control/test/test_doosan_backend.py::test_tcp_pose_is_measured_or_nan`<br>`src/robot_control/test/test_doosan_backend.py::test_gripper_goes_through_the_session_and_reports_measured_values`<br>`src/robot_control/test/test_doosan_backend.py::test_gripper_failures_are_reported_without_values` |
 | TC-SIM-001-01 | S | REQ-SIM-001(SPEC 없음) | 절차 시험 |
 | TC-SIM-002-01 | S | REQ-SIM-002(SPEC 없음) | 절차 시험 |
 | TC-SIM-003-01 | S | REQ-SIM-003(SPEC 없음) | 절차 시험 |

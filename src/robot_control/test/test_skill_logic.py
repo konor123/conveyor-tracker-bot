@@ -233,10 +233,9 @@ def test_place_reads_measured_open_width():
 @pytest.mark.req('REQ-ROB-010')
 @pytest.mark.tc('TC-ROB-010-02')
 @pytest.mark.level('U')
-def test_safe_retreat_unsupported_modes_fail_closed():
+def test_safe_retreat_without_keep_sync_transport_fails_closed():
     ex, _ = executor()
     assert ex.safe_retreat(keep_sync=True, place_back=False).reason_code == 'SYNC_NOT_AVAILABLE'
-    assert ex.safe_retreat(keep_sync=False, place_back=True).reason_code == 'PLACE_BACK_UNSUPPORTED'
     result = ex.safe_retreat(keep_sync=False, place_back=False)
     assert result.result == Result.OK
     assert result.metrics['tcp_z_m'] == pytest.approx(0.15)

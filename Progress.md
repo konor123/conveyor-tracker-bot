@@ -114,7 +114,8 @@
     - 플랜지 RS-485 57600 bps 8N1, Modbus ID 1, Model Number 35074 응답. 일회성 DRL 경로이며 펌웨어·Protocol Type 값 조회 및 상주 루프 계약은 별도 검증 대상(`records/sessions/gripper-takeover-2026-11-07.md`).
   - [x] `[ON]` 상주 루프 DRL 작성(`PLAN.md` 1.1절): 참고 구현 `dsr_study`의 `gripper_service`(상주 루프) 구조에 트리거 레지스터 1개, FC03 상태 읽기, 생존 카운터 추가. Modbus 프레임·레지스터 인코딩은 단위 테스트(TC-GRP-011~013)
     - `robot_control/drl/gripper_resident.drl`(seq 트리거·예약·생존 카운터·실행 결과 레지스터, REQ-GRP-016), 본문을 가짜 제어기(`test/fakes/drl_env.py`)에서 그대로 실행하는 TC-GRP-015·016과 TC-GRP-011~013. 2026-11-12 집 PC WSL(`ce86f9b`) robot_control 115 passed. 실기 동작은 OFF-2 항목이다.
-  - [ ] `[ON]` `gripper_adapter` transport 구현(`drl_start`, `set_output_register_int`), fake gripper로 지연·무응답·오류·생존 카운터 정지 단위 테스트(TC-GRP-*)
+  - [x] `[ON]` `gripper_adapter` transport 구현(`drl_start`, `set_output_register_int`), fake gripper로 지연·무응답·오류·생존 카운터 정지 단위 테스트(TC-GRP-*)
+    - `resident_transport.ResidentLoopTransport` + ROS 레지스터 입출력 `dsr_register_io.DsrRegisterIO`(`/dsr01/drl/drl_start`, `/dsr01/plc/set·get_output_register_int`, 읽기는 상위 1바이트, 쓰기 0~127, STANDBY·DRL 정지 상태 확인 뒤 `drl_start`, 전용 helper 노드·steady 제한시간, REQ-GRP-017). TC-GRP-007·013·015·016·017. 2026-11-13 사무실 PC WSL robot_control 318 passed ×2. 실기 미검증(레지스터 방향·PC가 쓴 값의 읽기 형식은 OFF-2).
   - [ ] `[ON]` `mode:=virtual`에서 `drl_start`·레지스터 서비스 형식 확인(시리얼·그리퍼 동작은 확인하지 않음)
     - 실기 일회성 경로: `/dsr01/drl/drl_start`, 레지스터 `/dsr01/plc/*`. 하위 1바이트 반환 관측은 `records/sessions/OFF-2-2026-11-07.md`를 기준으로 하며 virtual 시험을 대체하지 않는다.
   - [ ] `[OFF]` OFF-2: 상주 루프 기동(STANDBY), 상태 읽기 레지스터 방향·서비스 확정, 상주 루프가 도는 동안 `move_line`이 받아들여지는지 확인
@@ -133,7 +134,7 @@
 - [x] `[ON]` `motion_adapter` 구현: SI/quaternion ↔ mm/deg/ZYZ 변환 + 단위 테스트, 단일 지령 권한, freshness 감시(L0)(TC-ROB-*)
   - TC-ROB-001~006(`test_motion_adapter.py`), 2026-11-12 집 PC WSL(`ce86f9b`) robot_control 115 passed. 스트림 지령 경로에 붙이는 것은 10절 항목이다.
 - [x] `[ON]` `robot_controller_node` skill 서버: `PickStone`, `MoveToPose`, `PlaceStone`(move_line 기반), `SafeRetreat`, `Stop`, Heartbeat 발행, goal deadline 자체 중단
-  - `skill_logic.StaticSkillExecutor`(backend의 `move_line`·그리퍼 계약) + 노드, backend는 `disabled`(기본)·`fake`. TC-ROB-007·009·010·014, Heartbeat·`robot/status` 10 Hz(TC-ROB-012-01, 2026-11-13 집 PC WSL robot_control 116 passed). Doosan 실제 backend와 virtual 확인은 아래 별도 항목이다.
+  - `skill_logic.StaticSkillExecutor`(backend의 `move_line`·그리퍼 계약) + 노드, backend는 `disabled`(기본)·`fake`. Doosan 어댑터 `doosan_backend.DoosanBackend`(측정 자세·STANDBY로 완료 판정, DRL 실행 중 이동 거부, cancel·deadline에 `move_stop` 후 정지 확인, 미확인이면 FAULT, REQ-ROB-017)는 실기 미검증이라 노드 backend에 연결하지 않았다(11-14 현장 뒤, SPEC-500 4.6절). TC-ROB-007·009·010·014, Heartbeat·`robot/status` 10 Hz(TC-ROB-012-01, 2026-11-13 집 PC WSL robot_control 116 passed). Doosan 실제 backend와 virtual 확인은 아래 별도 항목이다.
 - [x] `[ON]` `test/fakes/`의 fake transport·fake gripper로 단위 변환·stale·cancel 단위 테스트
   - `test/fakes/transport.py`·`backend.py`·`resident.py`, TC-ROB-001~004·007-02, TC-GRP-007-01. 2026-11-12 집 PC WSL(`ce86f9b`) robot_control 115 passed.
 - [ ] `[ON]` Doosan `mode:=virtual`에서 E0509 모델·선정한 stream·`move_line` 형식이 동작하는지 확인. 지원하지 않으면 형식 확인용 최소 ROS stub을 두고 선택 근거를 기록(그리퍼 통신은 virtual에서 확인하지 않음)
@@ -321,6 +322,7 @@
 - [x] `[ON]` 추적 손실·속도 급변: 해제 전이면 SAFE_ABORT(L3)
   - 대상 관측 나이 > 0.3 s → `OBS_STALE` L3(TC-ABT-011-02). `steady=false`가 1.0 s(`watchdog.belt_unsteady_hold_s`) 넘게 이어지면 해제 전 L3, 해제 뒤 RETREAT·VERIFY 계속, 그보다 짧은 맥동은 중단하지 않는다(REQ-ABT-013, TC-ABT-013-01·02, `records/reviews/fable-decisions-2026-11-12.md` (b)). ROS 시각 역행(약 50 ms 표본)은 들고 있으면 L3, 아니면 L2이고 이전 대상·계획을 다시 쓰지 않는다(TC-ABT-012-02·03). 그리퍼 오류·응답 지연은 `RobotStatus`로 판정한다(TC-ABT-014-02). 2026-11-13 사무실 PC WSL(병합본) orchestrator 789, I0 18 passed.
 - [ ] `[ON]` 작업 가능 시간 부족: 다음 통과 대기, 통과 보내기 소진 시 공깃돌을 매트에 내려놓고 NOT_ATTEMPTED
+  - 오케스트레이터 판정(TC-INT-005-01, TC-ORC-007)과 로봇 쪽 `SafeRetreat(place_back)`(동기 유지 상승 → 안전 높이 → 매트 위 `place_back_xyz_m` → 하강 → 개방 폭 확인 → 상승, 좌표 미설정이면 `PLACE_BACK_POSE_UNSET`, REQ-ROB-016, TC-ROB-016-01~05)을 구현했다. 실제 controller를 붙인 I0와 현장 매트 좌표가 남은 조건이다.
 - [x] `[ON]` 보호 정지·통신 끊김: 자동 리셋·무조건 원점 복귀 금지, 작업자 확인 후 재개(L4)
   - TC-INT-003-01(I0 보호정지 → WAIT_OPERATOR → 사유 있는 재개), TC-ORC-009-01, `ROBOT_COMM_LOST` L4(`test_node_failure_regressions.py`·`test_safety_supervisor.py`), TC-ORC-012-01. 2026-11-12 집 PC WSL(`ce86f9b`) orchestrator 716 passed, I0 해당 시험 통과.
 - [x] `[ON]` 중단 경로 제한시간(L2 10 s, L3 15 s) 초과 시 승격 확인

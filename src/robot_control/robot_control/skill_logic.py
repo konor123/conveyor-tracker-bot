@@ -10,7 +10,7 @@
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import IntEnum
 from typing import Callable, Protocol
 
@@ -48,6 +48,10 @@ def _vec3(value, name: str) -> np.ndarray:
     if arr.size != 3 or not np.all(np.isfinite(arr)):
         raise ValueError(f'{name}: 유한한 길이 3 필요')
     return arr
+
+
+# backend 이동 결과 중 cancel·deadline이어도 FAULT로 보고하는 이유(정지 미확인)
+FAULT_MOVE_REASONS = frozenset({'STOP_NOT_CONFIRMED'})
 
 
 def _deadline_passed(deadline_s: float | None, now_s: float) -> bool:
@@ -124,6 +128,9 @@ class StaticSkillCfg:
     grip_min_current_ma: float | None = None
     move_v_mps: float = 0.03
     move_a_mps2: float = 0.05
+    # SafeRetreat place-back(REQ-ROB-016): 매트 반납 TCP 위치(robot_base) [m]와 개방 폭 [m]. None = 미설정
+    place_back_xyz_m: tuple[float, float, float] | None = None
+    open_width_m: float | None = None
 
 
 class SingleCommandAuthority:
@@ -202,12 +209,20 @@ class StaticSkillExecutor:
             self.authority.release(command_id)
 
     def _interrupted(self, cancel_requested: Callable[[], bool] | None,
-                     deadline_s: float | None) -> SkillResult | None:
-        """이동이 끊겼을 때 원인이 cancel·deadline이면 그 결과(REQ-ROB-007), 아니면 None."""
+                     deadline_s: float | None, out: MoveOutcome | None = None,
+                     metrics: dict | None = None) -> SkillResult | None:
+        """이동이 끊겼을 때 원인이 cancel·deadline이면 그 결과(REQ-ROB-007), 아니면 None.
+
+        backend가 정지를 확인하지 못했다고 알리면(`STOP_NOT_CONFIRMED`) cancel·deadline보다 앞서 `FAULT`다:
+        팔이 아직 움직일 수 있는데 깨끗한 취소로 보고하지 않는다(REQ-ROB-017).
+        """
+        metrics = dict(metrics or {})
+        if out is not None and out.reason_code in FAULT_MOVE_REASONS:
+            return SkillResult(Result.FAULT, out.reason_code, metrics)
         if cancel_requested is not None and cancel_requested():
-            return SkillResult(Result.CANCELED, 'CANCELED')
+            return SkillResult(Result.CANCELED, 'CANCELED', metrics)
         if _deadline_passed(deadline_s, self._now()):
-            return SkillResult(Result.TIMEOUT, 'DEADLINE')
+            return SkillResult(Result.TIMEOUT, 'DEADLINE', metrics)
         return None
 
     @staticmethod
@@ -242,7 +257,7 @@ class StaticSkillExecutor:
             out = self.backend.move_line(pos, quat / np.linalg.norm(quat))
             metrics = {'pose_error_m': float(out.pose_error_m)}
             if not out.completed:
-                return (self._interrupted(cancel_requested, deadline_s)
+                return (self._interrupted(cancel_requested, deadline_s, out)
                         or SkillResult(Result.FAILED, out.reason_code or 'MOVE_FAILED', metrics))
             if not math.isfinite(out.pose_error_m) or out.pose_error_m > self.cfg.pose_tolerance_m:
                 return SkillResult(Result.FAILED, 'POSE_ERROR', metrics)
@@ -280,7 +295,7 @@ class StaticSkillExecutor:
                     return SkillResult(Result.TIMEOUT, 'DEADLINE')
                 out = self.backend.move_line(pose, np.array([0.0, 0.0, 0.0, 1.0]))
                 if not out.completed or not math.isfinite(out.pose_error_m):
-                    return (self._interrupted(cancel_requested, deadline_s) if not out.completed else None) \
+                    return (self._interrupted(cancel_requested, deadline_s, out) if not out.completed else None) \
                         or SkillResult(Result.FAILED, out.reason_code or 'MOVE_FAILED')
 
             self._emit(feedback, 'GRIP', {}, False)
@@ -306,7 +321,7 @@ class StaticSkillExecutor:
                 return SkillResult(Result.TIMEOUT, 'DEADLINE', metrics)
             out = self.backend.move_line(approach, np.array([0.0, 0.0, 0.0, 1.0]))
             if not out.completed or out.pose_error_m > self.cfg.pose_tolerance_m:
-                interrupted = self._interrupted(cancel_requested, deadline_s) if not out.completed else None
+                interrupted = self._interrupted(cancel_requested, deadline_s, out) if not out.completed else None
                 if interrupted is not None:
                     return SkillResult(interrupted.result, interrupted.reason_code, metrics, holding=holding)
                 return SkillResult(Result.FAILED, out.reason_code or 'LIFT_FAILED', metrics,
@@ -354,7 +369,7 @@ class StaticSkillExecutor:
             out = self.backend.move_line(approach, quat / np.linalg.norm(quat))
             metrics['pose_error_m'] = float(out.pose_error_m)
             if not out.completed or out.pose_error_m > self.cfg.pose_tolerance_m:
-                return (self._interrupted(cancel_requested, deadline_s) if not out.completed else None) \
+                return (self._interrupted(cancel_requested, deadline_s, out) if not out.completed else None) \
                     or SkillResult(Result.FAILED, out.reason_code or 'APPROACH_FAILED', metrics)
             metrics['plan_valid'] = 1.0
             self._emit(feedback, 'APPROACH', metrics, True)
@@ -367,7 +382,7 @@ class StaticSkillExecutor:
             metrics['rim_clearance_m'] = float(release_height_m)
             metrics['height_error_m'] = float(abs(out.pose_error_m)) if math.isfinite(out.pose_error_m) else math.nan
             if not out.completed or out.pose_error_m > self.cfg.pose_tolerance_m:
-                return (self._interrupted(cancel_requested, deadline_s) if not out.completed else None) \
+                return (self._interrupted(cancel_requested, deadline_s, out) if not out.completed else None) \
                     or SkillResult(Result.FAILED, out.reason_code or 'DESCEND_FAILED', metrics)
             self._emit(feedback, 'DESCEND', metrics, True)
 
@@ -394,7 +409,7 @@ class StaticSkillExecutor:
             metrics['outside_workspace'] = 1.0 if not out.completed else 0.0
             metrics['stone_in_gripper'] = 0.0
             if not out.completed:
-                interrupted = self._interrupted(cancel_requested, deadline_s)
+                interrupted = self._interrupted(cancel_requested, deadline_s, out)
                 if interrupted is not None:          # 개방 뒤이므로 released=True를 유지한다
                     return SkillResult(interrupted.result, interrupted.reason_code, metrics, released=True)
                 return SkillResult(Result.FAILED, out.reason_code or 'RETREAT_FAILED', metrics)
@@ -407,40 +422,142 @@ class StaticSkillExecutor:
     def safe_retreat(self, keep_sync: bool, place_back: bool, place_back_pose=None,
                      deadline_s: float | None = None,
                      cancel_requested: Callable[[], bool] | None = None,
-                     feedback=None) -> SkillResult:
+                     feedback=None, keep_sync_retreat=None) -> SkillResult:
+        """안전 높이로 후퇴하고, `place_back`이면 매트에 공깃돌을 내려놓는다(REQ-ROB-010·016).
+
+        `keep_sync_retreat(feedback) -> SkillResult`는 동기 유지 후퇴(`dynamic_place.KeepSyncRetreat`)를 실행하는
+        주입 함수다. 없으면 `keep_sync`는 움직이지 않고 `PRECONDITION`(`SYNC_NOT_AVAILABLE`)이다. 시작 조건은 어느
+        구간도 움직이기 전에 모두 확인한다.
+        """
         early = self._start('safe_retreat', deadline_s, cancel_requested)
         if early is not None:
             return early
         try:
-            if keep_sync:
-                return self._precondition('SYNC_NOT_AVAILABLE')
+            target = None
             if place_back:
-                return self._precondition('PLACE_BACK_UNSUPPORTED')
-            pos, quat = self.backend.read_tcp_pose()
-            pos = _vec3(pos, 'tcp_pose')
-            if self.cfg.safe_z_m is not None and pos[2] >= self.cfg.safe_z_m:
-                return SkillResult(Result.OK, '', {'tcp_z_m': float(pos[2])})
-            if self.cfg.safe_z_m is None:
-                safe = self.cfg.named_poses.get('safe')
-                if safe is None:
-                    return self._precondition('SAFE_POSE_UNSET')
-                target = _vec3(safe[0], 'safe_pose')
+                target = self._place_back_target(place_back_pose)
+                if isinstance(target, SkillResult):
+                    return target
+            if keep_sync:
+                if keep_sync_retreat is None:
+                    return self._precondition('SYNC_NOT_AVAILABLE')
+                res = keep_sync_retreat(
+                    None if feedback is None else (lambda ph, m, done: self._emit(feedback, ph, m, done)))
             else:
-                target = np.array([pos[0], pos[1], float(self.cfg.safe_z_m)])
-            self._emit(feedback, 'RETREAT', {}, False)
-            if cancel_requested is not None and cancel_requested():
-                return SkillResult(Result.CANCELED, 'CANCELED')
-            if _deadline_passed(deadline_s, self._now()):
-                return SkillResult(Result.TIMEOUT, 'DEADLINE')
-            out = self.backend.move_line(target, quat)
-            metrics = {'tcp_z_m': float(target[2]), 'pose_error_m': float(out.pose_error_m)}
-            if not out.completed:
-                return (self._interrupted(cancel_requested, deadline_s)
-                        or SkillResult(Result.FAILED, out.reason_code or 'RETREAT_FAILED', metrics))
-            self._emit(feedback, 'RETREAT', metrics, True)
-            return SkillResult(Result.OK, '', metrics)
+                res = self._retreat_static(deadline_s, cancel_requested, feedback)
+            if not place_back or res.result != Result.OK:
+                return res             # 후퇴 실패(SYNC_SPEED 등)는 반납하지 않고 그대로 낸다(PLAN.md 5.1절 L4)
+            return self._place_back(target, deadline_s, cancel_requested, feedback)
         finally:
             self.authority.release('safe_retreat')
+
+    def _retreat_static(self, deadline_s, cancel_requested, feedback) -> SkillResult:
+        pos, quat = self.backend.read_tcp_pose()
+        pos = _vec3(pos, 'tcp_pose')
+        if self.cfg.safe_z_m is not None and pos[2] >= self.cfg.safe_z_m:
+            self._emit(feedback, 'RETREAT', {}, False)
+            metrics = {'tcp_z_m': float(pos[2])}
+            self._emit(feedback, 'RETREAT', metrics, True)
+            return SkillResult(Result.OK, '', metrics)
+        if self.cfg.safe_z_m is None:
+            safe = self.cfg.named_poses.get('safe')
+            if safe is None:
+                return self._precondition('SAFE_POSE_UNSET')
+            target = _vec3(safe[0], 'safe_pose')
+        else:
+            target = np.array([pos[0], pos[1], float(self.cfg.safe_z_m)])
+        self._emit(feedback, 'RETREAT', {}, False)
+        if cancel_requested is not None and cancel_requested():
+            return SkillResult(Result.CANCELED, 'CANCELED')
+        if _deadline_passed(deadline_s, self._now()):
+            return SkillResult(Result.TIMEOUT, 'DEADLINE')
+        out = self.backend.move_line(target, quat)
+        metrics = {'tcp_z_m': float(target[2]), 'pose_error_m': float(out.pose_error_m)}
+        if not out.completed:
+            return (self._interrupted(cancel_requested, deadline_s, out)
+                    or SkillResult(Result.FAILED, out.reason_code or 'RETREAT_FAILED', metrics))
+        self._emit(feedback, 'RETREAT', metrics, True)
+        return SkillResult(Result.OK, '', metrics)
+
+    def _place_back_target(self, place_back_pose):
+        """반납 목표 (위치, 자세 또는 None=측정 자세) 또는 시작 조건 실패. goal 위치가 0이 아니면 goal 자세."""
+        c = self.cfg
+        if c.pose_tolerance_m is None:
+            return self._precondition('POSE_TOLERANCE_UNSET')
+        if c.safe_z_m is None:
+            return self._precondition('SAFE_Z_UNSET')
+        pos = quat = None
+        if place_back_pose is not None:
+            goal_pos, goal_quat = _pose_parts(place_back_pose)
+            goal_pos = np.asarray(goal_pos, dtype=float).reshape(-1)
+            if goal_pos.size != 3 or np.any(goal_pos != 0.0):      # 기본 Pose(원점)는 지정 없음
+                pos, quat = goal_pos, np.asarray(goal_quat, dtype=float).reshape(-1)
+        if pos is None:
+            if c.place_back_xyz_m is None:
+                return self._precondition('PLACE_BACK_POSE_UNSET')
+            pos = np.asarray(c.place_back_xyz_m, dtype=float).reshape(-1)
+        if c.open_width_m is None:
+            return self._precondition('OPEN_WIDTH_UNSET')
+        if c.open_width_tolerance_m is None:
+            return self._precondition('OPEN_WIDTH_TOLERANCE_UNSET')
+        if pos.size != 3 or not np.all(np.isfinite(pos)) or pos[2] >= c.safe_z_m:
+            return SkillResult(Result.FAILED, 'RANGE')             # 안전 높이 이상이면 내려갈 곳이 아니다
+        if quat is not None:
+            if quat.size != 4 or not np.all(np.isfinite(quat)) or np.linalg.norm(quat) <= 0.0:
+                return SkillResult(Result.FAILED, 'RANGE')
+            quat = quat / np.linalg.norm(quat)
+        return pos, quat
+
+    def _place_back(self, target, deadline_s, cancel_requested, feedback) -> SkillResult:
+        """안전 높이에서 매트 위로 → 내려감 → 개방(측정 폭 확인) → 안전 높이로 올림. 옆 이동은 안전 높이에서만."""
+        pos, quat = target
+        safe_z = float(self.cfg.safe_z_m)
+        if quat is None:
+            _, quat = self.backend.read_tcp_pose()                 # 측정 자세 유지
+            quat = np.asarray(quat, dtype=float).reshape(-1)
+            if quat.size != 4 or not np.all(np.isfinite(quat)) or np.linalg.norm(quat) <= 0.0:
+                return SkillResult(Result.FAILED, 'TCP_POSE_INVALID')
+            quat = quat / np.linalg.norm(quat)
+        metrics: dict[str, float] = {}
+        self._emit(feedback, 'PLACE_BACK', {}, False)
+        for name, goal in (('TRANSIT', np.array([pos[0], pos[1], safe_z])), ('DESCEND', pos)):
+            if cancel_requested is not None and cancel_requested():
+                return SkillResult(Result.CANCELED, 'CANCELED', metrics)
+            if _deadline_passed(deadline_s, self._now()):
+                return SkillResult(Result.TIMEOUT, 'DEADLINE', metrics)
+            out = self.backend.move_line(goal, quat)
+            metrics['pose_error_m'] = float(out.pose_error_m)
+            if not out.completed:
+                return (self._interrupted(cancel_requested, deadline_s, out, metrics)
+                        or SkillResult(Result.FAILED, out.reason_code or f'{name}_FAILED', metrics))
+            if not math.isfinite(out.pose_error_m) or out.pose_error_m > self.cfg.pose_tolerance_m:
+                return SkillResult(Result.FAILED, 'POSE_ERROR', metrics)
+        if cancel_requested is not None and cancel_requested():
+            return SkillResult(Result.CANCELED, 'CANCELED', metrics)
+        if _deadline_passed(deadline_s, self._now()):
+            return SkillResult(Result.TIMEOUT, 'DEADLINE', metrics)
+        width = float(self.cfg.open_width_m)
+        opened = self.backend.gripper_open(width)
+        metrics['open_width_m'] = float(opened.width_m) if opened.width_m is not None else math.nan
+        if not opened.opened or opened.width_m is None:
+            return SkillResult(Result.FAILED, opened.reason_code or 'OPEN_FAILED', metrics)
+        if abs(opened.width_m - width) > self.cfg.open_width_tolerance_m:
+            return SkillResult(Result.FAILED, 'OPEN_WIDTH', metrics)
+        # 측정 개방 뒤: 공깃돌은 매트 위다(released). 상승은 cancel·deadline으로 미리 막지 않는다(PlaceStone과 같음)
+        now_pos, _ = self.backend.read_tcp_pose()
+        now_pos = np.asarray(now_pos, dtype=float).reshape(-1)
+        xy = now_pos[:2] if now_pos.size == 3 and np.all(np.isfinite(now_pos)) else pos[:2]   # 못 읽으면 반납 XY
+        rise = np.array([xy[0], xy[1], safe_z])
+        out = self.backend.move_line(rise, quat)
+        metrics['pose_error_m'] = float(out.pose_error_m)
+        metrics['tcp_z_m'] = safe_z
+        if not out.completed:
+            interrupted = self._interrupted(cancel_requested, deadline_s, out, metrics)
+            if interrupted is not None:
+                return replace(interrupted, released=True)
+            return SkillResult(Result.FAILED, out.reason_code or 'RISE_FAILED', metrics, released=True)
+        self._emit(feedback, 'PLACE_BACK', metrics, True)
+        return SkillResult(Result.OK, '', metrics, released=True)
 
     # ------------------------------------------------------------ DynamicPlace
     def dynamic_place(self, *args, **kwargs) -> SkillResult:

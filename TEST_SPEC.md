@@ -68,6 +68,8 @@ def test_l2_path_timeout_escalates_to_l4(fake_clock): ...
 | `SimulatedPlaceTransport` | `robot_control/robot_control/fake_place_transport.py`(`backend:=fake`와 U 시험이 함께 씀) | DynamicPlace 해제 transport 대역 | TCP 1차 지연(시정수 29 ms 가정), speedl처럼 마지막 지령 유지 시간, commit 뒤 개방 지연·공깃돌 낙하 위치, `abort(keep_sync)`, 프로그램 실행형(`mid_course_update=False`) 흉내, commit·개방·abort·지령 기록, 시험용 외란(XY 속도 배율, 표본 시각 지연) |
 | `PlaceWorld`·`Rig` | `robot_control/test/fakes/place_world.py` | DynamicPlace 순서기 U 시험 세계 | 등속 뚜껑, planner처럼 같은 `release_time`으로 revision을 올린 계획, track·벨트 상태 대본, FakeClock 10 ms tick |
 | `FakeGripper` | `robot_control/test/fakes/gripper.py` | 제어기 레지스터 + 상주 루프 DRL + RH-P12-RN(A) 대역 | 제어기 레지스터 쓰기 기록, 루프 주기(기본 20 ms) 모사, 생존 카운터, 그리퍼 Modbus 주소 맵, 응답 지연 분포, 무응답, Hardware Error 비트, pulse 실측표 기반 위치 응답, 파지 시 전류 응답, Model Number 35074 |
+| `FakeDoosanArm` | `robot_control/test/fakes/doosan.py` | Doosan 팔 대역(`doosan_backend.DoosanMotionClient`, Doosan 단위) | 비동기 직선 이동(수락 뒤 MOVING까지 지연, 지령 속도 보간), `move_stop` 정지 지연, 거절·받고도 움직이지 않음·목표 앞 정지·정지 무시·속도 배율·읽기 실패·DRL 상태·로봇 상태 주입, 지령·정지 기록, 시각 hook |
+| `FakeDsrServices` | `robot_control/test/fakes/dsr.py` | Doosan 드라이버 서비스 대역(`dsr_register_io.ServiceCaller`) | 레지스터 읽기 응답을 최상위 바이트 자리 int32로(OFF-2 관찰), 저장소 = 내부 dict 또는 `FakeResidentController`, 실패 응답·시간 초과 주입, 로봇·DRL 상태, 호출 기록(형식·이름·필드) |
 | `SyntheticCamera` | `vision/test/fakes/camera.py` | 합성 영상·투영 | 내부 행렬·왜곡·외부 자세, `project(point)`, `render(objects, background)`(매트 검정·벨트 녹색·원형 물체·잡음·그림자 선택) |
 | `TrajectoryFixture` | `tracking/test/fixtures/` | 합성 병뚜껑 궤적 → `ObjectDetectionArray` 열 | 등속·속도 계단·가림 구간·프레임 누락·역순 stamp |
 | `ScenarioEngine` | `drop_mocks` | I0·C 시험용 세계 모델 | 7.3절 시나리오 YAML, seed |
@@ -215,6 +217,24 @@ class DynamicPlaceSequencer:
 class KeepSyncRetreat:
     def __init__(self, transport: PlaceTransport, velocity_xy_mps, cfg: DynamicPlaceCfg, deadline_s=0.): ...
     def tick(self, ros_now_s, steady_now_s, cancel=False, stop=False) -> TickOut
+def run_keep_sync_retreat(retreat, clock, sleep, cancel=None, stop=None, feedback=None, alive=None) -> SkillResult
+
+# skill_logic.py — 정적 skill(SPEC-500 4.4절). backend = StaticBackend(move_line·read_tcp_pose·gripper_open·gripper_close·stop·is_stopped)
+class StaticSkillExecutor:
+    def safe_retreat(self, keep_sync, place_back, place_back_pose=None, deadline_s=None, cancel_requested=None,
+                     feedback=None, keep_sync_retreat=None) -> SkillResult   # keep_sync_retreat(feedback) -> SkillResult
+
+# dsr_register_io.py·doosan_backend.py — Doosan 실제 backend 준비(SPEC-500 4.6절, 실기 미검증)
+class DsrRegisterIO:                       # resident_transport.RegisterIO
+    def __init__(self, caller: ServiceCaller, namespace='dsr01', srv_types=None, call_timeout_s=1.0): ...
+    def get(self, address: int) -> int     # (응답 value >> 24) & 255
+    def set(self, address: int, value: int) -> bool   # 0~127
+    def drl_start(self, code: str) -> bool # STANDBY·DRL STOP/LAST 확인 뒤
+class RosServiceCaller:                    # 전용 helper 노드 + executor 스레드, steady 제한시간
+    def call(self, srv_type, name: str, timeout_s: float, **fields)
+class DoosanBackend:                       # skill_logic.StaticBackend + reset_stop·start_gripper
+    def __init__(self, client: DoosanMotionClient, gripper: GripperSession | None, clock, sleep,
+                 cfg=DoosanBackendCfg(), cancel_requested=None): ...
 
 # ---------- calibration (SPEC-600) ----------
 def plane_frame(normal, offset_m: float, x_hint, origin_xy) -> np.ndarray   # frames.py, 4×4 robot_base ← 평면 좌표계
@@ -449,6 +469,14 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-ROB-014-01 | 정지 유지 판정 | U | `[ON]` | Stop(사유) / 해제: 빈 사유, 실행 중 goal, 보호정지, 정상 사유 / 보호정지와 유지 동시 | 유지·`ready=false`·코드 101 / `REASON_REQUIRED`·`GOAL_ACTIVE`·`PROTECTIVE_STOP`으로 유지, 정상 사유는 해제·코드 0 / 코드 100; 유지 중이 아닐 때 해제 요청은 무동작 성공 |
 | TC-ROB-014-02 | 실제 노드 정지 유지 | C | `[ON]` | fake backend, Stop 뒤 skill goal, lifecycle 비활성·재활성, `stop_release_reason` 빈 값·정상 값 | goal 수락 후 백엔드 이동 지령 0회로 `CANCELED`(`STOPPED`), 재활성 뒤에도 heartbeat 101·`ready=false`, 빈 사유 설정 실패, 정상 사유 뒤 goal 실행 |
 | TC-ROB-015-01 | speedl 스트림 해제 transport(실기 미검증) | U | `[ON]` | 가짜 발행 함수·메시지 형식·TCP·그리퍼 세션: 지령 1회 / 지령 간격 19.999·20.000·20.001 ms / 지령 끊김 뒤 `tick` / 속도 한도 초과·NaN / `prepare` 뒤 commit 2회 / `prepare` 없이 commit / `abort(keep_sync)` / `stop` | `vel` [20, 0, −5, 0, 0, 0] mm/s·`acc` [300, 60]·`time` 0.02 s / 유지·유지·속도 0 1회 뒤 `rearm` 전까지 거부(`STREAM_STALE`) / 속도 0 1회 / 송신 없음, 속도 0 1회, `RANGE` / `fire_open`은 제어 주기 밖 1회, 두 번째 거부, 결과 뒤 `released` / 늦은 예약(`late_arm`) / 유지 시간 동안 계획 XY 속도(z 0) 뒤 속도 0 1회 / 속도 0, 피드백 속도 0일 때만 정지 확인 |
+| TC-ROB-016-01 | SafeRetreat place-back 정상 순서 | U | `[ON]` | 정적(TCP z 0.20 m, 안전 높이 0.25 m, 그리퍼 아래 자세) / goal `place_back_pose` 기본값(원점, w=1)·위치 지정 / `keep_sync`: `SimulatedPlaceTransport`로 계획 속도 0.02 m/s 유지 중 | 이동 = 수직으로 안전 높이 → 안전 높이에서 반납 위치 위 → 반납 위치 → 개방 1회(`dynamic.open_width_m`) → 안전 높이, 자세는 측정 자세, phase `RETREAT`·`PLACE_BACK` 시작·끝, OK·`stone_placed_back` / 기본값이면 `place_back_xyz_m`, 위치 지정이면 goal 위치·자세 / `KeepSyncRetreat` 표본 XY 속도가 안전 높이까지 계획 속도 ±1 mm/s, 뒤이어 정적 이동 3회, OK |
+| TC-ROB-016-02 | place-back 시작 조건 | U | `[ON]` | `place_back_xyz_m`·`safe_z_m`·`dynamic.open_width_m`·`open_width_tolerance_m`·`pose_tolerance_m` 각각 미설정(`keep_sync` 참·거짓) / transport 없는 `keep_sync` / goal quaternion 0·비유한 위치·z ≥ 안전 높이, 파라미터 z ≥ 안전 높이 | `PRECONDITION`(`PLACE_BACK_POSE_UNSET`·`SAFE_Z_UNSET`·`OPEN_WIDTH_UNSET`·`OPEN_WIDTH_TOLERANCE_UNSET`·`POSE_TOLERANCE_UNSET`), backend 지령·동기 유지 후퇴 0회 / `PRECONDITION`(`SYNC_NOT_AVAILABLE`) / FAILED `RANGE`, 지령 0회 |
+| TC-ROB-016-03 | place-back 측정값 판정 | U | `[ON]` | 측정 개방 폭 = 목표 + 1.1 mm(허용 1 mm) / 폭 측정 없음 / 개방 실패 / 이동 측정 오차 1.1 mm / 동기 유지 후퇴 `SYNC_SPEED`·`SYNC_NOT_AVAILABLE`·`RETREAT_TIMEOUT` / 개방 확인 뒤 상승 실패 / 측정 자세 NaN / 개방 확인 뒤 TCP NaN | FAILED `OPEN_WIDTH`·`OPEN_FAILED`·backend 이유, `stone_placed_back` 거짓, 이후 이동 0회 / FAILED `POSE_ERROR`, 개방 0회 / 같은 결과, 반납 지령 0회 / FAILED, `stone_placed_back` 참 / FAILED `TCP_POSE_INVALID`, 지령 0회 / 반납 위치 XY에서 안전 높이로 올림, OK·반납 참 |
+| TC-ROB-016-04 | place-back cancel·deadline | U | `[ON]` | RETREAT·TRANSIT·DESCEND·RELEASE·RISE 각각 시작 전 요청 / 이동 중 끊김(RELEASE 제외) × cancel·deadline | `CANCELED`(`CANCELED`)·`TIMEOUT`(`DEADLINE`), 요청 뒤 새 지령 0회, `stone_placed_back`은 RISE 중 끊김만 참 / RISE 시작 전 요청은 상승을 마치고 OK·반납 |
+| TC-ROB-016-05 | 실제 노드 place-back | C | `[ON]` | `robot_controller_node` `backend:=fake`: `place_back_xyz_m`(음수 y)·`safe_pose` 7개·빈 배열 / `place_back=true` / 기본 goal / `keep_sync`+`place_back`, 계획 속도 없음·있음 / 반납 위치 미설정 / goal 위치 지정 중 Stop / 공통 계약 대상 노드(Stop·해제 뒤)에서 `place_back=true` | 실수 배열 수락·빈 배열 = 미설정 / OK, `stone_placed_back` 참, phase `RETREAT` → `PLACE_BACK`, TCP = 반납 위치 위 안전 높이 / OK, `stone_placed_back` 거짓 / `PRECONDITION`(`SYNC_NOT_AVAILABLE`)·TCP 그대로 / OK, 해제 transport 지령 증가 / `PRECONDITION`(`PLACE_BACK_POSE_UNSET`) / `CANCELED`(`STOPPED`), 반납 거짓 / OK, 반납 참, phase 순서 |
+| TC-ROB-017-01 | Doosan 정적 backend 지령·완료 판정(실기 미검증) | U | `[ON]` | `FakeDoosanArm`: 목표 z +50 mm(0.03 m/s) / 같은 위치에서 z축 30° 회전 / DRL PLAY·HOLD / SAFE_STOP / NaN 위치·0 quaternion / 지령 거절 / 받고도 움직이지 않음 / 목표 3 mm 앞 정지 | posx [500, 0, 250, ·, 180, ·] mm·deg, vel [30 mm/s, 20.05 deg/s], acc [50 mm/s², 40.1 deg/s²], 도착(0.1 + 50/30 s) 전 완료 없음, 측정 오차 ≤ 1 mm / 자세 오차 ≤ 1°·STANDBY일 때만 완료 / `DRL_BUSY`, 지령 0회 / `NOT_STANDBY` / `RANGE`, 지령 0회 / `MOVE_REJECTED` / `start_grace_s`(1.0 s) 뒤 `MOVE_NOT_STARTED`, 오차 50 mm / `MOVE_NOT_REACHED`, 오차 3 mm |
+| TC-ROB-017-02 | Doosan 정적 backend cancel·deadline·Stop | U | `[ON]` | 이동 중 cancel(0.6 s) / 실행기 MoveToPose cancel·deadline / 정지 무시 / 실제 속도 10% / 이동 중 Stop / 이동 중 `is_stopped`·실행기 Stop, 읽기 실패 | `move_stop` 1회, STANDBY 확인 뒤 `CANCELED`, 요청 뒤 ≤ 0.5 s, 멈춘 자리 측정 오차 / `CANCELED`·`TIMEOUT`, ≤ 0.5 s / `STOP_NOT_CONFIRMED`(≤ `poll_s` + 0.4 s), 실행기 `FAULT`(`STOP_NOT_CONFIRMED`) / `MOVE_TIMEOUT`, `move_stop` 1회 / 이동 `STOPPED`, Stop `stopped=true`, `reset_stop` 전까지 이동·그리퍼 지령 0회 / 거짓, `FAULT`(`STOP_NOT_CONFIRMED`) / 거짓 |
+| TC-ROB-017-03 | Doosan 정적 backend 측정값만 보고 | U | `[ON]` | posx (400, −100, 300, 0, 180, 0) / 읽기 실패 / 가짜 상주 루프 세션: 시작 전 열기, `start_gripper`, 300 pulse 폭 열기, 같은 폭 다시, 150 mA 파지 / 그리퍼 없음 / STANDBY 아닐 때 시작 / 표 밖 폭·151 mA | (0.4, −0.1, 0.3) m·그리퍼 아래 자세 / NaN / `SESSION_NOT_STARTED`, 루프 기동 1회, 측정 폭(±3 pulse), 트리거 없이 방금 읽은 폭, 막힘 659 pulse·`holding` 참 / `GRIPPER_UNAVAILABLE`, 값 없음 / `ROBOT_NOT_STANDBY`, `drl_start` 0회 / `WIDTH`·`CURRENT`, 값 없음 |
 
 ### 3.9 GRP — 그리퍼(RH-P12-RN(A), 상주 루프 DRL 경유)
 
@@ -481,6 +509,8 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-GRP-016-02 | 예약 뒤 트리거 지연 | U | `[ON]` | 가짜 제어기 왕복 0.58 s, 쓰기 도달 0.58 s / 0.01 s, 예약 뒤 3 s 대기 후 트리거 | 그리퍼가 목표를 받기까지 ≤ spin + 쓰기 도달 시간, 추가 왕복 ≤ 3회 |
 | TC-GRP-016-03 | 공통 순서의 정적 사이클 시간(모델) | U | `[ON]` | 가짜 제어기 왕복 0.58 s, 이동은 2026-11-09 3회차 측정 시간 | 첫 열기 0 s(생략), 파지 유지, 그리퍼 합계 < 측정 19.76 s의 30%, 사이클 = 이동 합 + 그리퍼 합 |
 | TC-GRP-016-04 | 표본 주기 대비 제한시간 | U | `[ON]` | 표본 주기 0.58 s, 기본 설정(응답 0.5 s·생존 0.1 s) / 응답 2.90 s·생존 1.74 s에서 트리거 위상 0~0.58 s 30가지로 첫 파지·전류 바꾼 재파지·같은 전류 열기·예약 뒤 열기 / 각각 0.001 s 짧게 | `PRECONDITION`(`TIMEOUT_BELOW_LOOP_PERIOD`) / 생성, 모든 위상에서 지령 완료 / `PRECONDITION` |
+| TC-GRP-017-01 | Doosan 서비스 레지스터 경로(실기 미검증) | U | `[ON]` | `FakeDsrServices`: 응답 최상위 바이트 0·1·39·127·128·242·250·255(하위 3바이트 잡음 포함) / 쓰기 127·128·−1·실수·불리언·실패 응답 / 읽기 실패 응답·시간 초과, 쓰기 시간 초과 / `drl_start` 로봇·DRL 상태 조합 / 가짜 상주 루프 + 세션 시작·열기·파지·읽기 시간 초과 | 그 바이트(`doosan_client.decode_register_byte`와 같음), `/dsr01/plc/get_output_register_int`(`address`, `timeout_ms` 1000) / 127만 송신, 나머지는 송신 없이 예외, 실패 응답은 False / `SERVICE_FAILED`·`SERVICE_TIMEOUT` 예외(값 없음) / STANDBY + STOP·LAST만 `drl_start`(`robot_system` 0), PLAY·HOLD는 `DRL_BUSY`, STANDBY 아님은 `ROBOT_NOT_STANDBY`, 둘 다 `drl_start` 0회 / 루프 기동 1회, 목표 폭·막힘 659 pulse, 보낸 값 모두 0~127, 시간 초과는 그리퍼 오류(성공 보고 없음) |
+| TC-GRP-017-02 | 전용 helper 노드 서비스 호출 | C | `[ON]` | rclpy, `std_srvs` 서버(즉시·실패 응답·1.0 s 지연), 전역 `__node` 이름 바꾸기 인자 / MultiThreadedExecutor 노드 콜백 안 동기 호출 / 제한시간 0.3 s / 없는 서비스 0.5 s | 콜백 안 호출 완료, 실패 응답은 응답 그대로, helper 노드 이름 유지 / 0.3 s 이상 0.9 s 미만에 `SERVICE_TIMEOUT`, 늦은 응답이 대기 요청으로 남지 않음, 이후 호출 정상 / 1.5 s 안 `SERVICE_UNAVAILABLE` |
 
 ### 3.10 CAL — 보정
 

@@ -6,6 +6,7 @@ DynamicPlace는 해제 transport가 있을 때만 실행하고(`backend:=fake`�
 PRECONDITION(`PLANNER_NOT_READY`)으로 닫는다. 계획은 `drop/intercept_plan`, track은 `objects/tracked`, 벨트는
 `belt/measured_motion`에서 받는다.
 `Stop`은 정지 유지를 걸고, 작업자가 `stop_release_reason`에 사유를 쓸 때만 풀린다(SPEC-010 4.5절, REQ-ROB-014).
+`SafeRetreat`는 정적 실행기가 판단하고, `keep_sync`이면 해제 transport의 동기 유지 후퇴를 주입해 쓴다(REQ-ROB-010·016).
 """
 from __future__ import annotations
 
@@ -23,7 +24,7 @@ from drop_interfaces.msg import BeltMotion, Heartbeat, InterceptPlan, RobotStatu
 from drop_interfaces.srv import Stop
 from geometry_msgs.msg import Point, Pose, Quaternion
 from lifecycle_msgs.msg import State
-from rcl_interfaces.msg import SetParametersResult
+from rcl_interfaces.msg import ParameterDescriptor, SetParametersResult
 from rclpy.action import ActionServer, CancelResponse, GoalResponse
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup, ReentrantCallbackGroup
 from rclpy.clock import Clock, ClockType
@@ -35,7 +36,7 @@ from std_msgs.msg import Header
 
 from .belt_sync import PlanSample, SyncConfig
 from .dynamic_place import (BeltInfo, DynamicPlaceCfg, DynamicPlaceSequencer, GateLimits, KeepSyncRetreat,
-                            PlaceGoal, TrackInfo)
+                            PlaceGoal, TrackInfo, run_keep_sync_retreat)
 from .fake_backend import SimulatedBackend
 from .fake_place_transport import SimulatedPlaceTransport
 from .skill_logic import Result, SkillResult, StaticSkillCfg, StaticSkillExecutor
@@ -52,6 +53,9 @@ INPUT_QOS = QoSProfile(depth=5, reliability=ReliabilityPolicy.RELIABLE,
 POLL_S = 0.01
 # 정적 skill 파라미터와 같은 값을 쓰는 DynamicPlace 설정(따로 선언하지 않는다)
 SHARED_DYNAMIC_KEYS = {'safe_z_m': 'safe_z_m', 'open_width_tolerance_m': 'open_width_tolerance_m'}
+# 빈 배열이 기본값(미설정)인 실수 배열 파라미터. 빈 목록으로 선언하면 rclpy가 BYTE_ARRAY로 정해 실수 배열 덮어쓰기를
+# 거부하므로 동적 형식으로 선언한다
+ARRAY_PARAMS = ('standby_pose', 'safe_pose', 'place_back_xyz_m')
 
 ACTIONS = {
     'MoveToPose': (MoveToPose, 'robot/move_to_pose'),
@@ -79,6 +83,17 @@ def _array_or_none(node, name: str):
     if value is None or len(value) == 0:
         return None
     return [float(v) for v in value]
+
+
+def _xyz_or_none(node, name: str):
+    """[x, y, z] m. 비어 있으면 미설정. 좌표는 음수도 유효하므로 −1 미설정 규약을 쓰지 않는다."""
+    values = _array_or_none(node, name)
+    if values is None:
+        return None
+    if len(values) != 3:
+        node.get_logger().error(f'{name}: [x, y, z] 3개 필요, 받은 값 {values}; 미설정으로 둔다')
+        return None
+    return tuple(values)
 
 
 def _plan_sample(msg) -> PlanSample:
@@ -157,8 +172,6 @@ class RobotControllerNode(LifecycleNode):
             'fake_tcp_x_m': 0.0,
             'fake_tcp_y_m': 0.0,
             'fake_tcp_z_m': 0.1,
-            'standby_pose': [],
-            'safe_pose': [],
             'stop_release_reason': '',
             # backend:=fake 해제 transport(가정값, SPEC-500 3절)
             'fake_tcp_lag_s': 0.029,
@@ -168,6 +181,8 @@ class RobotControllerNode(LifecycleNode):
         }
         for name, value in defs.items():
             self.declare_parameter(name, value)
+        for name in ARRAY_PARAMS:
+            self.declare_parameter(name, [], ParameterDescriptor(dynamic_typing=True))
         for f in fields(DynamicPlaceCfg):
             if f.name not in SHARED_DYNAMIC_KEYS:
                 self.declare_parameter(f'dynamic.{f.name}', float(f.default))
@@ -207,6 +222,8 @@ class RobotControllerNode(LifecycleNode):
             grip_min_current_ma=_float_or_none(self, 'grip_min_current_ma'),
             move_v_mps=float(self.get_parameter('move_v_mps').value),
             move_a_mps2=float(self.get_parameter('move_a_mps2').value),
+            place_back_xyz_m=_xyz_or_none(self, 'place_back_xyz_m'),
+            open_width_m=_float_or_none(self, 'dynamic.open_width_m'),
         )
 
     def _make_backend(self):
@@ -356,11 +373,11 @@ class RobotControllerNode(LifecycleNode):
                 res = self.skill.place_stone((pos, quat), float(goal.release_height),
                                              float(goal.open_width), deadline_s, cancel, feedback)
             elif name == 'SafeRetreat':
-                if goal.keep_sync and not goal.place_back and self.place_transport is not None:
-                    res = self._keep_sync_retreat(goal_handle, deadline_s)
-                else:
-                    res = self.skill.safe_retreat(bool(goal.keep_sync), bool(goal.place_back),
-                                                  goal.place_back_pose, deadline_s, cancel, feedback)
+                runner = (self._keep_sync_runner(goal_handle, deadline_s)
+                          if self.place_transport is not None else None)
+                res = self.skill.safe_retreat(bool(goal.keep_sync), bool(goal.place_back),
+                                              goal.place_back_pose, deadline_s, cancel, feedback,
+                                              keep_sync_retreat=runner)
             elif self.place_transport is None:
                 res = self.skill.dynamic_place()
             else:
@@ -401,7 +418,7 @@ class RobotControllerNode(LifecycleNode):
             result.released = bool(res.released)
             result.release_error = float(res.metrics.get('target_error_m', float('nan')))
         elif name == 'SafeRetreat':
-            result.stone_placed_back = False
+            result.stone_placed_back = bool(res.released)       # 측정 개방 폭을 확인한 뒤에만 참(REQ-ROB-016)
         elif name == 'DynamicPlace':
             result.released = bool(res.released)
             for key, field_name in (('gate_e_xy_m', 'gate_e_xy'), ('gate_v_rel_mps', 'gate_v_rel'),
@@ -456,11 +473,13 @@ class RobotControllerNode(LifecycleNode):
         finally:
             self.skill.authority.release('dynamic_place')
 
-    def _keep_sync_retreat(self, goal_handle, deadline_s):
-        """SafeRetreat(keep_sync=true): 마지막 DynamicPlace 계획 속도로 XY를 유지하며 안전 높이까지(REQ-ROB-010)."""
-        if not self.skill.authority.acquire('safe_retreat'):
-            return SkillResult(Result.PRECONDITION, 'BUSY')
-        try:
+    def _keep_sync_runner(self, goal_handle, deadline_s):
+        """SafeRetreat(keep_sync=true) 구간: 마지막 DynamicPlace 계획 속도로 XY를 유지하며 안전 높이까지(REQ-ROB-010).
+
+        단일 지령 권한은 정적 실행기(`safe_retreat`)가 잡는다. 계획 속도가 없거나 오래되면 `KeepSyncRetreat`가
+        움직이지 않고 `PRECONDITION`(`SYNC_NOT_AVAILABLE`)으로 끝낸다.
+        """
+        def run(feedback):
             v = None
             if self._sync_velocity is not None:
                 velocity, t = self._sync_velocity
@@ -468,19 +487,11 @@ class RobotControllerNode(LifecycleNode):
                     v = velocity
             retreat = KeepSyncRetreat(self.place_transport, v, self.dyn_cfg, deadline_s or 0.0,
                                       period_s=self.sync_cfg.period_s)
-            while True:
-                out = retreat.tick(self.ros_now(), time.monotonic(), cancel=bool(goal_handle.is_cancel_requested),
-                                   stop=bool(self._stop_requested or self.stop_latch.latched))
-                for fb in out.feedback:
-                    goal_handle.publish_feedback(SafeRetreat.Feedback(phase=fb.phase))
-                if out.result is not None:
-                    r = out.result
-                    return SkillResult(r.result, r.reason_code, dict(r.metrics))
-                if not rclpy.ok():
-                    return SkillResult(Result.FAULT, 'SHUTDOWN')
-                time.sleep(self.sync_cfg.period_s)
-        finally:
-            self.skill.authority.release('safe_retreat')
+            return run_keep_sync_retreat(
+                retreat, self, time.sleep, cancel=lambda: bool(goal_handle.is_cancel_requested),
+                stop=lambda: bool(self._stop_requested or self.stop_latch.latched), feedback=feedback,
+                alive=rclpy.ok)
+        return run
 
     def _plans_since(self, last, fresh_s=None):
         now = time.monotonic()
