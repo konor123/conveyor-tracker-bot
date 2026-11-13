@@ -23,7 +23,7 @@ git diff --stat e509c87 HEAD -- src/static_pick_place src/vision src/calibration
 | 이전에 띄운 카메라 노드가 장치를 잡고 있지 않다 | `ros2 node list`에 camera 노드가 없고 RealSense 드라이버 프로세스가 없는지 본다. 있으면 끄고 D455 확인을 다시 한다 | 11-13 첫 D455 확인에서 4일 전 노드 때문에 `Device or resource busy`, 같은 이름 노드 중복 |
 | 큰 공유 메모리 프로파일 | 카메라 드라이버와 영상을 받는 노드 모두 `FASTRTPS_DEFAULT_PROFILES_FILE`에 `src/drop_bringup/config/fastdds_large_shm.xml`을 준다(`camera.launch.py`는 자기 노드에 자동 적용) | 프로파일 없이 1280×800 영상이 최대 2 s씩 끊김(11-13) |
 | 발견 범위 | `echo $ROS_AUTOMATIC_DISCOVERY_RANGE` 값을 세션 기록에 적는다 | 발행 0.33 s 정지 미세 재현은 이 값이 비었을 때만 됐다(`records/reviews/publish-stall-repro-2026-11-13.md`) |
-| 기동 직후 heartbeat | 안전 절차대로 기동 → 2 s 대기 → controller heartbeat `error_code` 확인. 다만 원격 관찰의 정지는 기동 2.5~3.9 s 뒤였으므로 2 s 대기 뒤에도 4 s 무렵까지 `CONTROLLER_HEARTBEAT_LOST` Stop이 날 수 있다. 그때도 같은 해제 절차다 | `docs/operations/safety-procedure.md` 2절, `records/reviews/heartbeat-stall-evidence-2026-11-13.md` |
+| 기동 직후 heartbeat | 안전 절차대로 기동 → 5 s 대기 → controller heartbeat `error_code` 확인(2 s에서 늘림, 원격 관찰의 정지가 기동 2.5~3.9 s 뒤). 대기 뒤에도 Stop이 나면 같은 해제 절차다 | `docs/operations/safety-procedure.md` 2절, `records/reviews/heartbeat-stall-evidence-2026-11-13.md` |
 | 비상정지 담당 입회 | 시작 전 "입회 중" 확인을 세션 기록에 남긴다 | 11-13 기록에는 이 확인이 따로 남지 않았다 |
 
 ## 3. 알려진 장비·설정 상태
@@ -66,4 +66,4 @@ git am <빈 폴더>/0002 <빈 폴더>/0003      # 별도 사본에서만, main�
 
 ## 6. 오늘 바꾸지 않는 것
 
-DDS 발행 설정, 감시 노드 손실 판정 0.3 s, 기동 대기 시간, RELEASE 단계 제한 1.0 s(실제 controller I0 정상 0.88~0.91 s), 그리퍼 통신 설정·펌웨어. 근거와 후보는 `records/reviews/publish-stall-repro-2026-11-13.md`, `records/reviews/release-step-timeout-2026-11-13.md`다.
+DDS 발행 설정, 감시 노드 손실 판정 0.3 s, 그리퍼 통신 설정·펌웨어. 오늘 정한 것(기동 대기 5 s, RELEASE 단계 제한, 종료 신호 처리 확장)은 `records/reviews/decisions-2026-11-14.md`다. 근거와 후보는 `records/reviews/publish-stall-repro-2026-11-13.md`, `records/reviews/release-step-timeout-2026-11-13.md`다.

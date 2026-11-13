@@ -34,7 +34,7 @@ from spec_metrics import EXPECTED_METRIC_KEYS  # noqa: E402
 
 DATE_STR = '2026-11-13'
 ROBOT = 'robot_controller_node'
-BRINGUP_SETTLE_S = 1.5
+BRINGUP_SETTLE_S = 5.0     # 기동 직후 발행 정지 관찰 2.5~3.9 s 뒤(records/reviews/decisions-2026-11-14.md D3)
 BRINGUP_RELEASE_REASON = 'i0: bring-up supervisor heartbeat transient'
 DYNAMIC_STATES = ['PRECHECK', 'DETECT_STONE', 'PICK_STONE', 'MOVE_STANDBY', 'WAIT_CAP', 'PLAN_INTERCEPT', 'APPROACH',
                   'SYNCHRONIZE', 'DESCEND', 'RELEASE', 'RETREAT', 'VERIFY', 'DONE']

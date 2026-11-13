@@ -27,7 +27,7 @@
 - [ ] 실행 중인 다른 DRL 프로그램이 없는지 확인한다(`DRL_BUSY`·`NOT_STANDBY`는 시작 조건 불충족). 근거: `docs/learn/2026-11-10-fast-static-cycle.md`
 - [ ] 그리퍼 통신 설정(Protocol Type, ID, 통신 속도)은 조회만 하고 설정 파일·펌웨어는 건드리지 않는다(6절). 근거: `AGENTS.md` 장비·안전, `Progress.md` 2절(OFF-1 “설정 변경 없이 조회만”)
 - [ ] `robot_controller_node` backend를 확인한다. 기본은 실기 연결을 만들지 않는 `disabled`이며, 시험은 `backend:=fake`로 명시한다. 어떤 파라미터도 `/dsr01` 실기 연결을 암묵적으로 만들지 않는다. 근거: `src/robot_control/config/robot_control.yaml`, `specs/SPEC-500-robot-control.md` 2절
-- [ ] 시스템 기동 후 **2 s 대기**한 뒤 controller heartbeat `error_code`를 확인한다. `101`이고 Stop 사유가 `CONTROLLER_HEARTBEAT_LOST`이며 로봇이 정지·대기 자세이면 `stop_release_reason`으로 사유를 남기고 해제한다(5절). 근거: `Progress.md` 2절
+- [ ] 시스템 기동 후 **5 s 대기**한 뒤 controller heartbeat `error_code`를 확인한다(기동 직후 발행 정지가 2.5~3.9 s 뒤에 관찰되어 2 s에서 늘림, `records/param_changes.csv` 2026-11-14). `101`이고 Stop 사유가 `CONTROLLER_HEARTBEAT_LOST`이며 로봇이 정지·대기 자세이면 `stop_release_reason`으로 사유를 남기고 해제한다(5절). 근거: `Progress.md` 2절
 - [ ] 보정·평면 파일이 지금 배치와 맞는지 확인한다(컨베이어·매트를 옮긴 뒤에는 평면을 다시 잰다). 근거: `docs/learn/2026-11-10-fast-static-cycle.md`(배치 확인), `records/sessions/OFF-4-2026-11-09.md`(재배치 후 재측정 미완)
 - [ ] 비상정지 위치·펜던트 위치: 현장에서 기입
 - [ ] 작업 구간과 비상정지 담당자·관찰자 위치: 현장에서 기입

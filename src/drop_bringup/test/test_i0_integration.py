@@ -108,7 +108,7 @@ def _wait_ready(h: Harness, timeout_s: float = 15.0) -> None:
     raise AssertionError(f'mock bringup 준비 시간 초과: seen={ {m.node_name for _, m in hbs} }, task={len(statuses)}')
 
 
-BRINGUP_SETTLE_S = 1.5
+BRINGUP_SETTLE_S = 5.0     # 기동 직후 발행 정지 관찰 2.5~3.9 s 뒤(records/reviews/decisions-2026-11-14.md D3)
 BRINGUP_RELEASE_REASON = 'i0: bring-up supervisor heartbeat transient'
 
 

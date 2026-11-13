@@ -38,7 +38,7 @@ SPEC의 REQ 확인 → 이 문서의 TC 선택 → fake·fixture 준비(1절) �
 
 - `[ON*]` 시험은 필요한 자료가 없으면 **skip**으로 끝나야 하며 pass로 세지 않는다(`needs_data` 마커, 0.4절).
 - 실시간 스케줄에 의존하는 C·I0 시험은 `realtime_pc` 마커를 단다. CI(공유 러너)는 이 시험을 판정 단계에서 빼고 별도 단계에서 실행·기록만 하며(실패해도 CI 통과 조건 아님), 판정은 PC(LEGION, 꺼져 있으면 officepc WSL)에서 하고 결과를 `records/worklog/`에 남긴다.
-- I0 기동 절차: 모든 노드의 heartbeat(ACTIVE)와 `task/status`를 받은 뒤 1.5 s 안정 대기한다. 이 구간에 감시 노드가 보낸 `CONTROLLER_HEARTBEAT_LOST` Stop(기동 직후 감시 노드의 controller heartbeat 수신 지연)은 시험이 작업자 역할로 사유(`i0: bring-up supervisor heartbeat transient`)를 남기고 해제한다(SPEC-010 4.5절). Stop 사유는 대역의 `stop_history_json`, 실제 controller는 같은 이름의 진단 파라미터로 읽는다. 다른 사유의 Stop과 첫 goal 이후 시험이 의도하지 않은 감시 노드 Stop은 해제하지 않고 실패로 본다. 해제 뒤(해제가 없었으면 안정 대기 뒤)에는 controller heartbeat `error_code` 0과 `RobotStatus.ready`를 새로 받은 다음 첫 goal을 보낸다(운용 절차와 같은 순서).
+- I0 기동 절차: 모든 노드의 heartbeat(ACTIVE)와 `task/status`를 받은 뒤 5.0 s 안정 대기한다(기동 직후 발행 정지가 2.5~3.9 s 뒤에 관찰됨). 이 구간에 감시 노드가 보낸 `CONTROLLER_HEARTBEAT_LOST` Stop(기동 직후 감시 노드의 controller heartbeat 수신 지연)은 시험이 작업자 역할로 사유(`i0: bring-up supervisor heartbeat transient`)를 남기고 해제한다(SPEC-010 4.5절). Stop 사유는 대역의 `stop_history_json`, 실제 controller는 같은 이름의 진단 파라미터로 읽는다. 다른 사유의 Stop과 첫 goal 이후 시험이 의도하지 않은 감시 노드 Stop은 해제하지 않고 실패로 본다. 해제 뒤(해제가 없었으면 안정 대기 뒤)에는 controller heartbeat `error_code` 0과 `RobotStatus.ready`를 새로 받은 다음 첫 goal을 보낸다(운용 절차와 같은 순서).
 - `dsr_msgs2`가 필요한 C 시험(TC-ROB-011-01)은 메시지 패키지가 없으면(CI 등) skip이며 pass로 세지 않는다. 판정은 `dsr_msgs2`가 있는 PC에서 하고 결과를 `records/worklog/`에 남긴다.
 - `[OFF]` 시험은 pytest로 돌리지 않는다. 절차·합격 기준·기록 위치를 이 문서에 두고, 결과는 `records/`와 게이트 보고서에 남긴다.
 
