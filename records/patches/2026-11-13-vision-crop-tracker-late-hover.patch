@@ -1,0 +1,637 @@
+From cddb764c791bf5f6e14a8bec84d3a0d86e6ad7b7 Mon Sep 17 00:00:00 2001
+From: chhowm <chhowm@gmail.com>
+Date: Fri, 13 Nov 2026 21:53:18 +0900
+Subject: [PATCH 1/3] Crop vision detection to each ROI and keep counting late
+ detections as input in the tracker
+
+Vision handed the whole 1280x800 frame to detect for every ROI, so one
+frame took 160 ms on the site laptop. process_frame now passes only the
+ROI bounding box plus 64 px and shifts the blobs back; results match the
+full-frame call and the real site frame takes 28.5 ms.
+
+The tracker dropped detections older than t_state without counting them as
+received, so once an input gap let the empty-frame timer move t_state to
+wall time, detections arriving 0.3 s late were dropped forever.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ TEST_SPEC.md                                  |  3 ++
+ specs/SPEC-200-vision.md                      |  4 +-
+ specs/SPEC-300-tracking.md                    |  6 ++-
+ specs/TRACE.md                                |  7 ++-
+ .../contract/test_tracker_node_contract.py    | 37 +++++++++++++
+ src/tracking/tracking/tracker_node.py         |  3 ++
+ src/vision/test/test_pipeline.py              | 54 +++++++++++++++++++
+ src/vision/vision/pipeline.py                 | 26 ++++++++-
+ 8 files changed, 133 insertions(+), 7 deletions(-)
+
+diff --git a/TEST_SPEC.md b/TEST_SPEC.md
+index 814aacd..d58e725 100644
+--- a/TEST_SPEC.md
++++ b/TEST_SPEC.md
+@@ -384,6 +384,8 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
+ | TC-VIS-008-02 | `DetectObjects` deadline | C | `[ON]` | 이미 지난 deadline / 처리 중 경과 | 즉시 `TIMEOUT` / `TIMEOUT` |
+ | TC-VIS-009-01 | 투입 자동 확인(합성) | U | `[ON]` | 정상 투입(1 s 유지) / 가림으로 미확인 / 0.9 s 안에 있다가 나감 / 튕겨 나가 벨트 위 / 그리퍼에 붙음 | SUCCESS / UNKNOWN / UNKNOWN / UNKNOWN / UNKNOWN(FAILURE를 내지 않음) |
+ | TC-VIS-010-01 | 실데이터 검출 회귀 | I1 | `[ON*]` | `off1_bags` replay | 라벨 프레임 recall ≥ 99%, 오선택 ≤ 1%(class별) |
++| TC-VIS-011-01 | ROI 잘라 계산 | U | `[ON]` | 640×400 합성 장면을 1280×800 바탕 가운데에 넣고 ROI 2개 | 검출기에 넘긴 영상 면적 < 전체의 50%, 호출 2회 |
++| TC-VIS-011-02 | 잘라 계산한 결과 동일 | U | `[ON]` | TC-VIS-011-01 장면 | 전체 프레임 ROI별 `detect`와 class·region·중심(1e-6 px)·지름·공분산·윤곽 일치, 검출 4개 |
+ 
+ ### 3.6 TRK — 추적
+ 
+@@ -412,6 +414,7 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
+ | TC-TRK-013-01 | 실데이터 추적 회귀 | I1 | `[ON*]` | `off1_bags`(정상·가림·누락·속도 변화) | 유효 추적 ≥ 99%(가림 구간 별도), 속도 변화 검출 지연 ≤ 1.0 s |
+ | TC-TRK-014-01 | 관측 구간 밖 새 track 금지 | U | `[ON]` | 관측 구간 0~0.10 m: 상류 밖 검출 / 20 mm/s로 0 → 0.133 m 통과 / 경계 x −0.1 mm, 0, 0.10 m, 0.1001 m | track 없음 / track 1개·`LOST` 1회, 구간 끝 뒤 새 track 0 / 없음, 생성, 생성, 없음 |
+ | TC-TRK-014-02 | 구간 밖 검출만 있을 때 경고 | C | `[ON]` | 항등 변환·구간 ±0.35 m에 x 0.8 m 검출 89프레임 / 90번째 프레임 | track 0개·WARN 0건 / WARN 1건(구간 밖, 마지막 x 0.800 포함) |
++| TC-TRK-015-01 | 늦은 검출의 수신 공백 뒤 회복 | C | `[ON]` | 검출 stamp = 수신 − 0.3 s, 0.15 s 간격 4프레임 → 수신 공백 0.25 s → 같은 지연으로 14프레임 | 마지막 검출 stamp가 track `last_observed_stamp`로 나온다 |
+ 
+ ### 3.7 PLN — 계획
+ 
+diff --git a/specs/SPEC-200-vision.md b/specs/SPEC-200-vision.md
+index c734375..efb7b82 100644
+--- a/specs/SPEC-200-vision.md
++++ b/specs/SPEC-200-vision.md
+@@ -1,6 +1,6 @@
+ # SPEC-200 vision
+ 
+-- 버전: v0.3
++- 버전: v0.4
+ - 근거: PLAN.md 0.2-4, 4.5절
+ - REQ 영역: VIS
+ 
+@@ -8,6 +8,7 @@
+ 
+ | 버전 | 날짜 | 내용 |
+ |---|---|---|
++| v0.4 | 2026-11-13 | 검출은 ROI를 감싸는 사각형 + 64 px만 잘라 계산한다(REQ-VIS-011). 전체 1280×800 계산은 프레임당 160 ms였다(2026-11-13 현장) |
+ | v0.3 | 2026-11-12 | 투입 자동 확인 순수 모듈 `verifier.py`의 입력·판정 규칙(4.6절), `max_gap_s`, REQ-VIS-009 |
+ | v0.2 | 2026-11-10 | 투입 자동 확인은 SUCCESS/UNKNOWN만 낸다(실패 판정은 관찰자) |
+ | v0.1 | 2026-11-09 | 픽셀 검출(공깃돌 배경 색 거리·병뚜껑 색 범위+원 적합), `stone_inside`, 로봇 마스크 표시, 광선-평면 교차·공분산, 프레임 처리, DetectObjects 안정 창 |
+@@ -83,6 +84,7 @@ SPEC-010 wire schema v0.2 기준.
+ - REQ-VIS-007: 로봇 마스크와 겹친 검출은 `occluded_partial = true`로 표시하고 `DetectObjects` 개수에서 뺀다.
+ - REQ-VIS-008: `DetectObjects`는 4.5절 안정 창을 쓰며 지터 0.3 mm는 OK, 0.6 mm는 FAILED, 지난 deadline은 즉시 TIMEOUT이다.
+ - REQ-VIS-009: 투입 자동 확인(4.6절)은 선택한 병뚜껑에서 `stone_inside`가 `hold_time_s`(1 s) 이상 끊기지 않을 때만 SUCCESS이고, 가림·0.9 s 유지 뒤 이탈·벨트 위로 튕겨 나감·그리퍼에 붙음은 UNKNOWN이며, 어떤 입력에도 FAILURE를 내지 않는다.
++- REQ-VIS-011: `process_frame`은 ROI마다 ROI를 감싸는 사각형(+ 64 px)만 검출기에 넘기며, 결과(class·region·중심·지름·공분산·윤곽)는 전체 프레임에서 같은 ROI로 검출한 것과 같다.
+ 
+ ## 5. 시간 제약(주기·제한시간)
+ 
+diff --git a/specs/SPEC-300-tracking.md b/specs/SPEC-300-tracking.md
+index 5c550c8..1c2f276 100644
+--- a/specs/SPEC-300-tracking.md
++++ b/specs/SPEC-300-tracking.md
+@@ -1,6 +1,6 @@
+ # SPEC-300 tracking
+ 
+-- 버전: v0.7
++- 버전: v0.8
+ - 근거: PLAN.md 2.5, 3.1, 4.3, 5.3, 7절
+ - REQ 영역: TRK
+ 
+@@ -8,6 +8,7 @@
+ 
+ | 버전 | 날짜 | 내용 |
+ |---|---|---|
++| v0.8 | 2026-11-13 | 늦게 온 검출도 입력 수신으로 센다(REQ-TRK-015). 검출 지연 > `input_timeout_s`인 입력에서 빈 프레임이 `t_state`를 계속 당겨 추적이 영영 멈추던 결함(2026-11-13 현장) |
+ | v0.7 | 2026-11-13 | 6절 오케스트레이터 쪽 처리: 속도 변화는 `steady = false`가 1.0 s 넘게 이어질 때만 중단, 시각 역행은 들고 있으면 L3·아니면 L2(SPEC-110 REQ-ABT-012·013) |
+ | v0.6 | 2026-11-12 | 속도 변화 검출 `cusum_k` 2·`cusum_h` 16·`recover_s` 0.5 s(OFF-1 벨트 영상의 맥동 기준), REQ-TRK-006 계단 크기 20 mm/s와 실영상 기준 |
+ | v0.5 | 2026-11-12 | 관측 구간 밖 검출은 새 track을 만들지 않음(REQ-TRK-014), 시각 역행 초기화 WARN 로그(REQ-TRK-008) |
+@@ -108,7 +109,7 @@ SPEC-010 wire schema v0.2 / runtime contract v0.4 기준.
+ - `tracker_node`는 Managed Lifecycle 노드이며 SPEC-010 4.3절의 비활성 응답 규칙을 따른다.
+ - 관측 TF `conveyor_frame → cap_<track_id>`는 `OBSERVED`·`COASTING` track마다 프레임 처리 직후 발행한다. stamp = `t_state`, orientation identity. 미래 stamp는 발행하지 않는다. TF는 시각화 전용이며 planner·controller는 TF가 아니라 `objects/tracked`를 쓴다.
+ - 공통 요청 필드의 `deadline`이 이미 지났으면 처리하지 않고 `TIMEOUT`으로 응답한다.
+-- 검출 입력이 `input_timeout_s` 넘게 끊기면 빈 프레임을 넣어 상태 전이를 진행한다. 정상 지연 범위의 입력 사이에는 빈 프레임을 넣지 않으며, ROS 시각이 멈추면 상태도 늙지 않는다.
++- 검출 입력이 `input_timeout_s` 넘게 끊기면 빈 프레임을 넣어 상태 전이를 진행한다. 정상 지연 범위의 입력 사이에는 빈 프레임을 넣지 않으며, ROS 시각이 멈추면 상태도 늙지 않는다. `t_state`보다 이른 stamp라 버린 검출도 입력 수신으로 센다(입력이 끊긴 것이 아니다).
+ 
+ ## 5. 시간 제약(주기·제한시간)
+ 
+@@ -143,6 +144,7 @@ SPEC-010 wire schema v0.2 / runtime contract v0.4 기준.
+ - REQ-TRK-012: 관측 TF `cap_<id>`의 stamp는 `t_state`와 같고, 미래 stamp는 0건이며, orientation은 identity다.
+ - REQ-TRK-014: 배정되지 않은 검출은 `x_obs_min ≤ x ≤ x_obs_max`일 때만 새 track을 만든다(경계 포함). 구간을 지나가는 뚜껑 하나는 track 하나를 만들고 `LOST`는 한 번만 나온다. 모든 검출이 구간 밖이어서 track이 하나도 없으면 `tracker_node`가 WARN으로 알린다.
+ - REQ-TRK-013: OFF-1 실제 bag replay에서 유효 추적 ≥ 99%(가림 구간은 별도 집계), 속도 변화 검출 지연 ≤ 1.0 s다.
++- REQ-TRK-015: 검출이 노출 뒤 0.3 s에 도착하는 입력(`input_timeout_s` 0.2 s)에서 수신 공백이 한 번 생겨 빈 프레임이 들어가도, 이후 계속 들어오는 검출로 2 s 안에 다시 추적한다(마지막 검출이 track의 `last_observed_stamp`).
+ 
+ ## 8. 검증 방법(`TEST_SPEC.md` TC ID, 게이트)
+ 
+diff --git a/specs/TRACE.md b/specs/TRACE.md
+index 202d1c2..54557d4 100644
+--- a/specs/TRACE.md
++++ b/specs/TRACE.md
+@@ -2,8 +2,8 @@
+ 
+ `tools/spec/trace.py`가 생성한다. 손으로 고치지 않는다.
+ 
+-- REQ 150개 중 TC 연결 150개
+-- pytest 대상 TC 289개 중 테스트 연결 287개
++- REQ 152개 중 TC 연결 152개
++- pytest 대상 TC 292개 중 테스트 연결 290개
+ 
+ | TC | 수준 | REQ | 테스트 |
+ |---|---|---|---|
+@@ -308,6 +308,7 @@
+ | TC-TRK-013-01 | I1 | REQ-TRK-013 | — |
+ | TC-TRK-014-01 | U | REQ-TRK-014 | `src/tracking/test/test_tracking_edges.py::test_no_new_track_outside_observation_region`<br>`src/tracking/test/test_tracking_edges.py::test_new_track_region_boundary`<br>`src/tracking/test/test_tracking_edges.py::test_ignored_detections_are_counted_until_first_track` |
+ | TC-TRK-014-02 | C | REQ-TRK-014 | `src/tracking/test/contract/test_tracker_node_contract.py::test_all_detections_outside_region_is_warned` |
++| TC-TRK-015-01 | C | REQ-TRK-015 | `src/tracking/test/contract/test_tracker_node_contract.py::test_late_detections_after_input_gap_are_tracked_again` |
+ | TC-VIS-001-01 | U | REQ-VIS-001 | `src/vision/test/test_detector.py::test_stone_center_accuracy_on_mat` |
+ | TC-VIS-001-02 | U | REQ-VIS-001 | `src/vision/test/test_detector.py::test_cap_center_accuracy_on_belt` |
+ | TC-VIS-002-01 | U | REQ-VIS-002 | `src/vision/test/test_detector.py::test_mixed_scene_classification` |
+@@ -320,6 +321,8 @@
+ | TC-VIS-008-02 | C | REQ-VIS-008 | `src/vision/test/contract/test_vision_node_contract.py::test_deadlines` |
+ | TC-VIS-009-01 | U | REQ-VIS-009 | `src/vision/test/test_verifier.py::test_verify_cases`<br>`src/vision/test/test_verifier.py::test_hold_time_boundary`<br>`src/vision/test/test_verifier.py::test_missing_cap_frames_bound_continuity`<br>`src/vision/test/test_verifier.py::test_no_frames_and_constants` |
+ | TC-VIS-010-01 | I1 | REQ-VIS-010(SPEC 없음) | — |
++| TC-VIS-011-01 | U | REQ-VIS-011 | `src/vision/test/test_pipeline.py::test_detect_runs_on_roi_crop_not_full_frame` |
++| TC-VIS-011-02 | U | REQ-VIS-011 | `src/vision/test/test_pipeline.py::test_roi_crop_gives_same_detections_as_full_frame` |
+ 
+ ## TC가 없는 REQ
+ 
+diff --git a/src/tracking/test/contract/test_tracker_node_contract.py b/src/tracking/test/contract/test_tracker_node_contract.py
+index 55fa3e4..2938a82 100644
+--- a/src/tracking/test/contract/test_tracker_node_contract.py
++++ b/src/tracking/test/contract/test_tracker_node_contract.py
+@@ -260,3 +260,40 @@ def test_track_stamp_is_exposure_time_exactly(rig):
+         tr = out.tracks[0]
+         assert (tr.header.stamp.sec, tr.header.stamp.nanosec) == (T.sec, T.nanosec)
+         assert (tr.last_observed_stamp.sec, tr.last_observed_stamp.nanosec) == (T.sec, T.nanosec)
++
++
++@pytest.mark.req('REQ-TRK-015')
++@pytest.mark.tc('TC-TRK-015-01')
++def test_late_detections_after_input_gap_are_tracked_again(rig):
++    """검출이 노출 뒤 0.3 s(> input_timeout_s 0.2 s)에 오는 입력에서 수신 공백이 한 번 생겨도 회복한다.
++
++    공백 동안 빈 프레임이 t_state를 현재 시각으로 당기면 뒤의 검출(stamp = 수신 − 0.3 s)은 한동안 늦은 프레임이다.
++    늦은 프레임도 수신으로 세어야 빈 프레임이 계속 들어가지 않고, stamp가 t_state를 넘는 즉시 다시 추적한다.
++    (2026-11-13 현장: vision 6.6 Hz·지연 p95 422 ms에서 track이 영영 생기지 않았다.)
++    """
++    r = rig
++    lag, period = .3, .15
++
++    def send(t):
++        r.set_time(t)
++        x = -.2 + .02*(t-100.)
++        det = ObjectDetection(object_class=2, position_valid=True, position=Point(x=x, y=.01, z=.02),
++                              position_cov=list((np.eye(3)*9e-8).ravel()))
++        r.pub.publish(ObjectDetectionArray(header=Header(stamp=stamp(t-lag), frame_id='robot_base'),
++                                           detections=[det]))
++        r.spin(.06)
++
++    t = 100.
++    for _ in range(4):
++        send(t)
++        t += period
++    r.set_time(t+.1)                       # 수신 공백 0.25 s: 이 사이에 빈 프레임이 들어간다
++    r.spin(.15)
++    t += .1
++    for _ in range(14):                    # 2 s 동안 같은 지연으로 계속 들어온다
++        send(t)
++        t += period
++    last_stamp = stamp(t-period-lag)
++    observed = [tr for msg in r.tracks[-5:] for tr in msg.tracks
++                if (tr.last_observed_stamp.sec, tr.last_observed_stamp.nanosec) == (last_stamp.sec, last_stamp.nanosec)]
++    assert observed, 'late detections after an input gap were never tracked again'
+diff --git a/src/tracking/tracking/tracker_node.py b/src/tracking/tracking/tracker_node.py
+index be43cb0..f2af5bb 100644
+--- a/src/tracking/tracking/tracker_node.py
++++ b/src/tracking/tracking/tracker_node.py
+@@ -165,6 +165,9 @@ class TrackerNode(LifecycleNode):
+         now = self._check_clock()
+         t = seconds(msg.header.stamp)
+         if self.manager.t_state is not None and t < self.manager.t_state:
++            # 늦은 프레임도 입력이 이어지는 증거다. 세지 않으면 빈 프레임이 t_state를 계속 당겨
++            # 지연 > input_timeout_s인 입력이 영영 버려진다(REQ-TRK-015)
++            self._last_received = now
+             self.manager.process_frame(t, [])  # preserve the pure dropped-frame counter
+             return
+         if msg.header.frame_id != 'robot_base':
+diff --git a/src/vision/test/test_pipeline.py b/src/vision/test/test_pipeline.py
+index 9f314c0..7b2de9b 100644
+--- a/src/vision/test/test_pipeline.py
++++ b/src/vision/test/test_pipeline.py
+@@ -115,3 +115,57 @@ def test_window_pixel_fallback_without_calibration():
+     _fill(win, 0.0, valid=False)
+     r = win.evaluate(REGION_MAT, CLASS_STONE, 2, 1.0)
+     assert r.result == OK and all(np.isnan(s) for s in r.position_std)
++
++
++def _padded_scene(pad_u=320, pad_v=200):
++    """합성 장면을 1280×800 크기의 회색 바탕 가운데에 넣고, ROI도 같은 만큼 옮긴다."""
++    small = _two_region_image()
++    big = np.full((H + 2 * pad_v, W + 2 * pad_u, 3), 128, np.uint8)
++    big[pad_v:pad_v + H, pad_u:pad_u + W] = small
++    cfg = _cfg()
++    shift = lambda roi: Roi(roi.region, tuple((u + pad_u, v + pad_v) for u, v in roi.polygon))
++    return big, SceneConfig(mat_roi=shift(cfg.mat_roi), belt_roi=shift(cfg.belt_roi), classes=cfg.classes,
++                            inside=cfg.inside)
++
++
++@pytest.mark.req('REQ-VIS-011')
++@pytest.mark.tc('TC-VIS-011-01')
++@pytest.mark.level('U')
++def test_detect_runs_on_roi_crop_not_full_frame(monkeypatch):
++    """ROI를 감싸는 사각형(+ 여유)만 검출기에 넘긴다. 2026-11-13 현장: 전체 프레임 계산으로 160 ms/프레임."""
++    import vision.pipeline as pipeline
++    image, cfg = _padded_scene()
++    shapes = []
++    real = pipeline.detect
++
++    def spy(img, roi, *a, **k):
++        shapes.append(img.shape[:2])
++        return real(img, roi, *a, **k)
++
++    monkeypatch.setattr(pipeline, 'detect', spy)
++    process_frame(image, cfg)
++    assert len(shapes) == 2
++    for shape in shapes:
++        assert shape[0] * shape[1] < 0.5 * image.shape[0] * image.shape[1], shape
++
++
++@pytest.mark.req('REQ-VIS-011')
++@pytest.mark.tc('TC-VIS-011-02')
++@pytest.mark.level('U')
++def test_roi_crop_gives_same_detections_as_full_frame():
++    """잘라서 계산해도 전체 프레임에서 ROI별로 detect를 부른 결과와 중심·지름·class·region이 같다."""
++    from vision.detector import detect
++    image, cfg = _padded_scene()
++    got = process_frame(image, cfg)
++    ref = []
++    for roi in (cfg.mat_roi, cfg.belt_roi):
++        classes = cfg.classes if roi.region == REGION_BELT else {CLASS_STONE: cfg.classes[CLASS_STONE]}
++        ref += detect(image, roi, classes, params=cfg.detect)
++    key = lambda b: (b.object_class, b.region, round(b.u, 6), round(b.v, 6))
++    assert sorted(key(d.blob) for d in got) == sorted(key(b) for b in ref)
++    assert len(got) == 4
++    for d in got:
++        r = next(b for b in ref if key(b) == key(d.blob))
++        assert d.blob.diameter_px == pytest.approx(r.diameter_px, abs=1e-9)
++        assert d.blob.center_cov_px == pytest.approx(r.center_cov_px, abs=1e-12)
++        assert d.blob.contour is not None and np.array_equal(d.blob.contour, r.contour)
+diff --git a/src/vision/vision/pipeline.py b/src/vision/vision/pipeline.py
+index 74a3ea8..04a0880 100644
+--- a/src/vision/vision/pipeline.py
++++ b/src/vision/vision/pipeline.py
+@@ -1,7 +1,7 @@
+ """한 프레임 처리: ROI별 검출 → stone_inside → 대상물별 평면 교차(SPEC-200 4.4절). ROS와 무관한 순수 모듈."""
+ from __future__ import annotations
+ 
+-from dataclasses import dataclass, field
++from dataclasses import dataclass, field, replace
+ 
+ import numpy as np
+ 
+@@ -58,6 +58,28 @@ def _rois(image_bgr, cfg: SceneConfig) -> list[Roi]:
+     return [r for r in (mat, belt) if r is not None]
+ 
+ 
++CROP_MARGIN_PX = 64     # ROI 끝에 중심이 걸친 뚜껑(지름 ≤ 52 px)과 형태 연산 커널이 잘리지 않는 여유
++
++
++def _detect_in_crop(image_bgr, roi: Roi, classes, robot_mask, params) -> list[Blob]:
++    """ROI를 감싸는 사각형(+ 여유)만 잘라 detect를 부르고 픽셀 좌표를 원래 프레임으로 되돌린다(REQ-VIS-011).
++
++    detect는 넘긴 영상 전체를 계산한다. 1280×800 전체를 넘기면 프레임당 약 160 ms였다(2026-11-13 현장).
++    """
++    poly = np.round(np.asarray(roi.polygon, np.float64)).astype(np.int64)
++    H, W = image_bgr.shape[:2]
++    x0 = max(int(poly[:, 0].min()) - CROP_MARGIN_PX, 0)
++    y0 = max(int(poly[:, 1].min()) - CROP_MARGIN_PX, 0)
++    x1 = min(int(poly[:, 0].max()) + CROP_MARGIN_PX + 1, W)
++    y1 = min(int(poly[:, 1].max()) + CROP_MARGIN_PX + 1, H)
++    crop_roi = Roi(roi.region, tuple((u - x0, v - y0) for u, v in roi.polygon))
++    mask = None if robot_mask is None else robot_mask[y0:y1, x0:x1]
++    blobs = detect(image_bgr[y0:y1, x0:x1], crop_roi, classes, robot_mask=mask, params=params)
++    return [replace(b, u=b.u + x0, v=b.v + y0,
++                    contour=None if b.contour is None else b.contour + np.array([x0, y0], b.contour.dtype))
++            for b in blobs]
++
++
+ def process_frame(image_bgr: np.ndarray, cfg: SceneConfig, geom: Geometry | None = None,
+                   robot_mask: np.ndarray | None = None) -> list[Detection]:
+     """매트 ROI는 공깃돌만, 벨트 ROI는 병뚜껑·공깃돌을 찾는다."""
+@@ -65,7 +87,7 @@ def process_frame(image_bgr: np.ndarray, cfg: SceneConfig, geom: Geometry | None
+     for roi in _rois(image_bgr, cfg):
+         classes = cfg.classes if roi.region == REGION_BELT else {
+             c: m for c, m in cfg.classes.items() if c == CLASS_STONE}
+-        blobs = detect(image_bgr, roi, classes, robot_mask=robot_mask, params=cfg.detect)
++        blobs = _detect_in_crop(image_bgr, roi, classes, robot_mask, cfg.detect)
+         stones = [b for b in blobs if b.object_class == CLASS_STONE]
+         caps = [b for b in blobs if b.object_class == CLASS_CAP]
+         r_in = {id(c): 0.5 * c.diameter_px * cfg.inside.inner_diameter_ratio for c in caps}
+-- 
+2.43.0
+
+
+From e8740d08da5db5884c5a90371fb1d839075fdc56 Mon Sep 17 00:00:00 2001
+From: chhowm <chhowm@gmail.com>
+Date: Fri, 13 Nov 2026 22:02:12 +0900
+Subject: [PATCH 2/3] Add a non-contact hover test at the predicted release
+ point (G4 pre-check, no stone)
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ tools/robot/hover_predicted.py      | 211 ++++++++++++++++++++++++++++
+ tools/robot/test_hover_predicted.py |  26 ++++
+ 2 files changed, 237 insertions(+)
+ create mode 100644 tools/robot/hover_predicted.py
+ create mode 100644 tools/robot/test_hover_predicted.py
+
+diff --git a/tools/robot/hover_predicted.py b/tools/robot/hover_predicted.py
+new file mode 100644
+index 0000000..4e9e2e0
+--- /dev/null
++++ b/tools/robot/hover_predicted.py
+@@ -0,0 +1,211 @@
++#!/usr/bin/env python3
++"""예측 해제 지점 위 비접촉 정지 시험(G4 사전 확인, 공깃돌 없음, [OFF] 입회 필수).
++
++실제 tracker·planner가 낸 MODE_PREDICTED 계획(해제 지점 XY·해제 시각)을 받아, 로봇을 그 XY 위 이동 높이
++(`travel_z_m`, 정지 투입과 같은 높이)로 직선 이동해 멈춰 두고, 뚜껑이 실제로 언제·어디로 지나가는지 기록한다.
++벨트를 따라 움직이지 않고, 그리퍼·DRL을 쓰지 않는다. 끝나면 대기 자세(park)로 돌아간다.
++
++  # 계획만(로봇 지령 없음): 고른 계획·정지 지점·IK만 출력
++  python3 tools/robot/hover_predicted.py --config records/calib/2026-11-09-planes/site.yaml
++  # 실행([OFF], 비상정지 담당 입회)
++  python3 tools/robot/hover_predicted.py --config records/calib/2026-11-09-planes/site.yaml --execute
++
++전제: 드라이버(`dsr01`), 카메라, vision·tracker·planner가 같은 ROS 도메인에서 떠 있다(`replay.launch.py`를
++bag 없이 `use_sim_time:=false`). 로봇 지령은 `motion/move_line` 두 번(정지 지점, park)뿐이다.
++멈추는 법: move_line 실행 중에는 Ctrl+C로 팔이 서지 않는다. 비상정지·펜던트로 멈춘다.
++"""
++from __future__ import annotations
++
++import argparse
++import json
++import sys
++import time
++
++import numpy as np
++
++
++def log(event: str, **fields) -> None:
++    print(json.dumps({'t': round(time.time(), 3), 'event': event, **fields}, ensure_ascii=False, default=str),
++          flush=True)
++
++
++def crossing(samples, x_line: float):
++    """(t, x, y) 표본에서 x가 x_line을 처음 넘는 시각과 그때 y를 선형 보간한다. 넘지 않으면 None."""
++    s = sorted(samples)
++    for (t0, x0, y0), (t1, x1, y1) in zip(s, s[1:]):
++        if (x0 - x_line) * (x1 - x_line) <= 0 and x0 != x1:
++            a = (x_line - x0) / (x1 - x0)
++            return t0 + a * (t1 - t0), y0 + a * (y1 - y0)
++    return None
++
++
++def move_time_s(dist_m: float, v_mps: float, a_mps2: float) -> float:
++    """사다리꼴 속도 직선 이동 시간(가감속 포함)."""
++    if dist_m <= v_mps * v_mps / a_mps2:
++        return 2.0 * np.sqrt(dist_m / a_mps2)
++    return dist_m / v_mps + v_mps / a_mps2
++
++
++def main(argv=None) -> int:
++    ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
++    ap.add_argument('--config', action='append', default=[], help='static_pick_place 덮어쓰기 YAML')
++    ap.add_argument('--execute', action='store_true', help='실제 로봇을 움직인다([OFF], 입회 필수)')
++    ap.add_argument('--wait-plan-s', type=float, default=60.0, help='쓸 수 있는 계획을 기다리는 최대 시간')
++    ap.add_argument('--slack-s', type=float, default=1.0, help='도착 예상 뒤 해제 시각까지 최소 여유')
++    ap.add_argument('--after-s', type=float, default=3.0, help='해제 시각 뒤 더 지켜보는 시간')
++    ap.add_argument('--min-obs', type=int, default=10, help='SelectTarget 최소 관측 수')
++    ap.add_argument('--image', help='해제 시각에 카메라 프레임을 저장할 경로(.png)')
++    ap.add_argument('--wait-xy', type=float, nargs=2, metavar=('X', 'Y'),
++                    help='계획을 기다릴 벨트 위 대기 지점 XY [m](z = travel_z_m). --execute면 먼저 이리로 옮긴다')
++    args = ap.parse_args(argv)
++
++    import rclpy
++    from rclpy.duration import Duration
++    from drop_interfaces.action import DropTask
++    from drop_interfaces.msg import ObjectDetection, ObjectDetectionArray
++    from drop_interfaces.srv import ComputeIntercept, SelectTarget
++    from static_pick_place.doosan_client import DoosanClient, RobotError
++    from static_pick_place.pick_place import load_config, make_params
++    from static_pick_place.plan import DOWN_QUAT_XYZW
++
++    p = make_params(load_config(args.config))
++    rclpy.init()
++    node = rclpy.create_node('hover_predicted')
++    caps = []          # (t_stamp, x, y) robot_base, 뚜껑 검출
++    latest = {}
++
++    def on_dets(msg):
++        t = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
++        for d in msg.detections:
++            if d.object_class == ObjectDetection.CLASS_CAP and d.position_valid:
++                caps.append((t, d.position.x, d.position.y))
++
++    node.create_subscription(ObjectDetectionArray, 'objects/detections', on_dets, 10)
++    if args.image:
++        from sensor_msgs.msg import Image
++        node.create_subscription(Image, '/camera/camera/color/image_raw', lambda m: latest.__setitem__('img', m), 1)
++    sel = node.create_client(SelectTarget, 'tracking/select_target')
++    plan_cli = node.create_client(ComputeIntercept, 'planner/compute_intercept')
++    robot = DoosanClient(node, 'dsr01')
++
++    def now_s():
++        return node.get_clock().now().nanoseconds * 1e-9
++
++    def call(cli, req):
++        fut = cli.call_async(req)
++        rclpy.spin_until_future_complete(node, fut, timeout_sec=2.0)
++        return fut.result()
++
++    def spin_until(t_end):
++        while now_s() < t_end:
++            rclpy.spin_once(node, timeout_sec=0.01)
++
++    try:
++        if not (sel.wait_for_service(5.0) and plan_cli.wait_for_service(5.0)):
++            log('abort', reason='SERVICE_UNAVAILABLE', detail='tracking/select_target·planner/compute_intercept')
++            return 2
++        log('ready', status=robot.check_ready())
++        start, _ = robot.tcp_pose()
++        log('tcp', pos_m=[round(float(v), 4) for v in start])
++        if args.wait_xy is not None:
++            # 대기 자세에서 정지 지점까지 3.7~3.9 s라 계획의 해제 시각(약 3 s 앞)에 늦는다. 벨트 위 이동 높이에서 기다린다
++            wait = np.array([args.wait_xy[0], args.wait_xy[1], p.travel_z_m])
++            if not (p.x_min_m <= wait[0] <= p.x_max_m and p.y_min_m <= wait[1] <= p.y_max_m):
++                log('abort', reason='WAIT_OUT_OF_WORKSPACE', wait_m=wait.round(4).tolist())
++                return 2
++            j = robot.ik_joints(wait, DOWN_QUAT_XYZW)
++            if abs(j[2]) < p.j3_min_rad:
++                log('abort', reason='NEAR_REACH_LIMIT', step='wait', j3_rad=round(float(j[2]), 4))
++                return 2
++            log('wait_pose', wait_m=wait.round(4).tolist(), j3_rad=round(float(j[2]), 4),
++                move_s=round(move_time_s(float(np.linalg.norm(wait - start)), p.travel_v_mps, p.travel_a_mps2), 2))
++            if args.execute:
++                start = robot.move_line(wait, DOWN_QUAT_XYZW, p.travel_v_mps, p.travel_a_mps2)
++                log('done', step='wait', reached_m=[round(float(v), 4) for v in start])
++            else:
++                start = wait
++
++        chosen = None
++        t_give_up = time.monotonic() + args.wait_plan_s
++        step = 0
++        while chosen is None and time.monotonic() < t_give_up:
++            step += 1
++            stamp_now = node.get_clock().now()
++            deadline = (stamp_now + Duration(seconds=1.0)).to_msg()
++            r = call(sel, SelectTarget.Request(cycle_id='hover', step_id=step, deadline=deadline,
++                                               object_class=ObjectDetection.CLASS_CAP, min_observation_count=args.min_obs))
++            if r is None or r.result != 0:
++                time.sleep(0.2)
++                continue
++            c = call(plan_cli, ComputeIntercept.Request(cycle_id='hover', step_id=step, deadline=deadline,
++                                                        target_track_id=r.track_id, target_epoch=r.epoch,
++                                                        mode=DropTask.Goal.MODE_PREDICTED,
++                                                        earliest_release=stamp_now.to_msg()))
++            if c is None or c.result != 0 or c.plan.status != 0:
++                log('plan_rejected', track_id=r.track_id, reason=None if c is None else c.reason_code)
++                time.sleep(0.2)
++                continue
++            pl = c.plan
++            hover = np.array([pl.target_tcp_pose.position.x, pl.target_tcp_pose.position.y, p.travel_z_m])
++            t_release = pl.release_time.sec + pl.release_time.nanosec * 1e-9
++            t_move = move_time_s(float(np.linalg.norm(hover - start)), p.travel_v_mps, p.travel_a_mps2)
++            margin = t_release - now_s() - t_move
++            if not (p.x_min_m <= hover[0] <= p.x_max_m and p.y_min_m <= hover[1] <= p.y_max_m):
++                log('plan_skipped', reason='OUT_OF_WORKSPACE', hover_m=hover.round(4).tolist())
++                continue
++            if margin < args.slack_s:
++                log('plan_skipped', reason='TOO_LATE', margin_s=round(margin, 2), move_s=round(t_move, 2))
++                time.sleep(0.2)
++                continue
++            j = robot.ik_joints(hover, DOWN_QUAT_XYZW)
++            if abs(j[2]) < p.j3_min_rad:
++                log('plan_skipped', reason='NEAR_REACH_LIMIT', j3_rad=round(float(j[2]), 4))
++                continue
++            chosen = (pl, hover, t_release, t_move, margin, float(j[2]))
++        if chosen is None:
++            log('abort', reason='NO_USABLE_PLAN', waited_s=args.wait_plan_s)
++            return 2
++        pl, hover, t_release, t_move, margin, j3 = chosen
++        log('plan', plan_id=pl.plan_id, track_id=pl.target_track_id, hover_m=hover.round(4).tolist(),
++            release_xyz_m=[round(pl.target_tcp_pose.position.x, 4), round(pl.target_tcp_pose.position.y, 4),
++                           round(pl.target_tcp_pose.position.z, 4)],
++            cap_v_mps=[round(pl.target_velocity.x, 4), round(pl.target_velocity.y, 4)],
++            position_std_m=round(pl.position_std, 5), release_in_s=round(t_release - now_s(), 2),
++            move_s=round(t_move, 2), margin_s=round(margin, 2), j3_rad=round(j3, 4),
++            v_mps=p.travel_v_mps, a_mps2=p.travel_a_mps2)
++        if not args.execute:
++            log('dry_run_done')
++            return 0
++
++        reached = robot.move_line(hover, DOWN_QUAT_XYZW, p.travel_v_mps, p.travel_a_mps2)
++        t_arrive = now_s()
++        log('arrived', reached_m=[round(float(v), 4) for v in reached], before_release_s=round(t_release - t_arrive, 2))
++        spin_until(t_release)
++        if args.image and 'img' in latest:
++            import cv2
++            m = latest['img']
++            img = np.frombuffer(m.data, np.uint8).reshape(m.height, m.step)[:, :m.width * 3].reshape(m.height, m.width, 3)
++            cv2.imwrite(args.image, img[:, :, ::-1] if m.encoding == 'rgb8' else img)
++            log('image', path=args.image)
++        spin_until(t_release + args.after_s)
++        seen = [c for c in caps if c[0] >= t_release - 5.0]
++        cross = crossing(seen, hover[0])
++        if cross is None:
++            log('result', crossed=False, cap_samples=len(seen))
++        else:
++            t_cross, y_cross = cross
++            log('result', crossed=True, cross_minus_release_s=round(t_cross - t_release, 3),
++                y_at_cross_minus_hover_mm=round((y_cross - hover[1]) * 1000, 1), cap_samples=len(seen))
++        back = robot.move_line([p.park_x_m, p.park_y_m, p.park_z_m], DOWN_QUAT_XYZW, p.travel_v_mps, p.travel_a_mps2)
++        log('done', step='park', reached_m=[round(float(v), 4) for v in back])
++        return 0
++    except RobotError as exc:
++        log('abort', reason=exc.reason if hasattr(exc, 'reason') else 'ROBOT_ERROR', detail=str(exc))
++        return 2
++    finally:
++        node.destroy_node()
++        rclpy.shutdown()
++
++
++if __name__ == '__main__':
++    sys.exit(main())
+diff --git a/tools/robot/test_hover_predicted.py b/tools/robot/test_hover_predicted.py
+new file mode 100644
+index 0000000..9de5657
+--- /dev/null
++++ b/tools/robot/test_hover_predicted.py
+@@ -0,0 +1,26 @@
++"""hover_predicted.py 순수 함수 단위 시험."""
++import pytest
++
++from tools.robot.hover_predicted import crossing, move_time_s
++
++
++def test_crossing_interpolates_time_and_y():
++    samples = [(10.0, 0.60, 0.080), (10.1, 0.62, 0.082), (10.2, 0.64, 0.084)]
++    t, y = crossing(samples, 0.63)
++    assert t == pytest.approx(10.15)
++    assert y == pytest.approx(0.083)
++
++
++def test_crossing_none_when_line_not_reached():
++    assert crossing([(0.0, 0.5, 0.0), (1.0, 0.55, 0.0)], 0.6) is None
++
++
++def test_crossing_unsorted_input():
++    t, _ = crossing([(1.0, 0.7, 0.0), (0.0, 0.5, 0.0)], 0.6)
++    assert t == pytest.approx(0.5)
++
++
++def test_move_time_trapezoid_and_triangle():
++    assert move_time_s(0.35, 0.1, 0.3) == pytest.approx(0.35 / 0.1 + 0.1 / 0.3)
++    short = 0.01            # 0.1²/0.3 = 0.033 m보다 짧으면 최고 속도에 닿지 않는다
++    assert move_time_s(short, 0.1, 0.3) == pytest.approx(2 * (short / 0.3) ** 0.5)
+-- 
+2.43.0
+
+
+From 723dc6dff39a87a56f39e21bb3fd8c3f365392fd Mon Sep 17 00:00:00 2001
+From: chhowm <chhowm@gmail.com>
+Date: Fri, 13 Nov 2026 22:05:57 +0900
+Subject: [PATCH 3/3] Return to park when the hover test gives up waiting for a
+ plan, and log why target selection failed
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ tools/robot/hover_predicted.py | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/tools/robot/hover_predicted.py b/tools/robot/hover_predicted.py
+index 4e9e2e0..8233907 100644
+--- a/tools/robot/hover_predicted.py
++++ b/tools/robot/hover_predicted.py
+@@ -126,6 +126,7 @@ def main(argv=None) -> int:
+                 start = wait
+ 
+         chosen = None
++        select_fail = {}
+         t_give_up = time.monotonic() + args.wait_plan_s
+         step = 0
+         while chosen is None and time.monotonic() < t_give_up:
+@@ -135,6 +136,8 @@ def main(argv=None) -> int:
+             r = call(sel, SelectTarget.Request(cycle_id='hover', step_id=step, deadline=deadline,
+                                                object_class=ObjectDetection.CLASS_CAP, min_observation_count=args.min_obs))
+             if r is None or r.result != 0:
++                why = 'NO_REPLY' if r is None else r.reason_code
++                select_fail[why] = select_fail.get(why, 0) + 1
+                 time.sleep(0.2)
+                 continue
+             c = call(plan_cli, ComputeIntercept.Request(cycle_id='hover', step_id=step, deadline=deadline,
+@@ -163,7 +166,12 @@ def main(argv=None) -> int:
+                 continue
+             chosen = (pl, hover, t_release, t_move, margin, float(j[2]))
+         if chosen is None:
+-            log('abort', reason='NO_USABLE_PLAN', waited_s=args.wait_plan_s)
++            log('abort', reason='NO_USABLE_PLAN', waited_s=args.wait_plan_s, select_fail=select_fail)
++            if args.execute and args.wait_xy is not None:
++                # 대기 지점(벨트 위)에 두고 끝내지 않는다(2026-11-13 run-01)
++                back = robot.move_line([p.park_x_m, p.park_y_m, p.park_z_m], DOWN_QUAT_XYZW,
++                                       p.travel_v_mps, p.travel_a_mps2)
++                log('done', step='park', reached_m=[round(float(v), 4) for v in back])
+             return 2
+         pl, hover, t_release, t_move, margin, j3 = chosen
+         log('plan', plan_id=pl.plan_id, track_id=pl.target_track_id, hover_m=hover.round(4).tolist(),
+-- 
+2.43.0
+
