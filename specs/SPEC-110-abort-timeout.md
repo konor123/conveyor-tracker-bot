@@ -1,6 +1,6 @@
 # SPEC-110 abort-timeout
 
-- 버전: v0.11
+- 버전: v0.12
 - 근거: PLAN.md 5, 6절
 - REQ 영역: ABT
 
@@ -8,6 +8,7 @@
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
+| v0.12 | 2026-11-13 | 8절 Stop 재시도 간격: `stopped=false`가 이어지면 0.1 s에서 두 배씩 늘려 상한 1 s, 거부 경고는 처음과 5 s마다, 사유가 바뀌면 바로 송신 |
 | v0.11 | 2026-11-13 | 중단 경로 skill이 OK로 끝나지 않으면(`PRECONDITION` 포함) L4·Stop(4.2절), 실제 controller I0 TC-INT-016-01·017-01 |
 | v0.10 | 2026-11-13 | 벨트 불안정은 `steady=false`가 `belt_unsteady_hold_s`(1.0 s) 넘게 이어질 때만(PRECHECK 포함, REQ-ABT-013), 감시 적용 구간(4.4절), ROS 시각 역행 표본 주기와 역행 전 대상·계획 재사용 거부(REQ-ABT-012), 그리퍼 감시 입력 `RobotStatus`(REQ-ABT-014), 동적 deadline 식(5절, REQ-ABT-006), TC-ABT-011-02~014-02 I0 |
 | v0.9 | 2026-11-11 | `ROBOT_STOPPED`에 controller 정지 유지(heartbeat 101) 포함, 재개 순서(로봇 해제 → `resume`) |
@@ -139,7 +140,7 @@ REQ-ABT-011~014의 U 판정·이벤트 입력·적용 구간은 M0다. TC-ABT-01
 
 포트 대기의 자체 steady 상한은 진입 시 남은 ROS 시간 × `cycle_steady_factor_ratio`다(SPEC-100 4.10절). 대기 중에도 REQ-ABT-003·008의 독립 steady 예산을 검사한다. cancel 응답·Stop 호출·L2/L3 중단 경로 제한시간에는 이 배율을 적용하지 않는다. 중단 경로는 사용자 cancel을 재적용하지 않으며 독립 steady 상한을 따른다. context 종료는 하드 중단으로 처리한다. 미확정 action 수락·terminal result는 cancel 확인이 아니며 대체 모션을 금지한다.
 
-Supervisor는 장애 latch와 Stop 전달 확인을 분리한다. `stopped=true` 전에는 0.1 s 이상 간격으로 재시도하며 서비스 부재·호출 예외·`stopped=false`를 경고한다. 진행 중 Stop RPC는 최대 1개다. 응답이 없는 RPC가 남으면 중복 요청을 보내지 않고 1 s 간격으로 미확인 상태를 경고한다. Stop만 호출하는 단일 지령 권한은 유지한다.
+Supervisor는 장애 latch와 Stop 전달 확인을 분리한다. `stopped=true` 전에는 재시도한다. 서비스 부재·호출 예외 뒤에는 0.1 s 간격이고 매번 경고한다. `stopped=false` 응답(Stop은 전달됐고 controller가 정지 유지를 걸었지만 정지를 확인하지 못함, SPEC-500 REQ-ROB-014)이 이어지면 간격을 0.1 s에서 두 배씩 늘려 1 s를 상한으로 하고, 경고는 첫 거부와 그 뒤 5 s마다 사유·연속 횟수와 함께 남긴다. `stopped=true`·장애 해소·사유 변경 때 간격은 처음으로 돌아가며, 사유가 바뀌면 늘어난 간격을 기다리지 않고 보낸다. 진행 중 Stop RPC는 최대 1개다. 응답이 없는 RPC가 남으면 중복 요청을 보내지 않고 1 s 간격으로 미확인 상태를 경고한다. Stop만 호출하는 단일 지령 권한은 유지한다.
 
 ## 9. 미결 사항
 

@@ -82,6 +82,11 @@ class SafetySupervisorNode(Node):
     _ctrl_last_seq = None
     _ctrl_beats = 0
     _ctrl_lost_at = None
+    _stop_rejects = 0           # 같은 장애 구간에서 이어진 `stopped=false` 응답 수
+    STOP_RETRY_S = 0.1          # 서비스 부재·호출 예외 뒤 재시도 간격, `stopped=false` 뒤 첫 재시도 간격(SPEC-110 8절)
+    STOP_RETRY_MAX_S = 1.0      # `stopped=false`가 이어질 때 두 배씩 늘리는 재시도 간격의 상한
+    STOP_REJECT_WARN_S = 5.0    # 연속 거부 경고 간격(첫 거부는 바로 경고)
+    _reject_warn_at = 0.0
 
     def __init__(self, **kwargs):
         super().__init__('safety_supervisor_node', **kwargs)
@@ -162,24 +167,36 @@ class SafetySupervisorNode(Node):
                     self.get_logger().warning('Stop response pending; no overlapping RPC permitted')
                     self._stop_warn_at = now + 1.
                 return  # never overlap Stop RPCs, including after fault recovery
+            delay = self.STOP_RETRY_S
             try:
                 response = self._stop_future.result()
                 self._stop_confirmed = bool(response and response.stopped)
-                if not self._stop_confirmed:
-                    self.get_logger().warning('Stop rejected: stopped=false')
+                if self._stop_confirmed:
+                    self._stop_rejects = 0
+                else:
+                    # 전달됐고 controller는 정지 유지를 걸었지만 정지를 확인하지 못했다(예: 실기 연결 없는 backend).
+                    # 확인될 때까지 재시도하되 간격을 두 배씩 늘려 상한 1 s로 두고, 경고는 처음과 5 s마다 남긴다.
+                    self._stop_rejects += 1
+                    delay = min(self.STOP_RETRY_S * 2 ** (self._stop_rejects - 1), self.STOP_RETRY_MAX_S)
+                    if self._stop_rejects == 1 or now >= self._reject_warn_at:
+                        self.get_logger().warning(
+                            f'Stop rejected: stopped=false (사유 {self._stop_reason}, 연속 {self._stop_rejects}회, '
+                            f'다음 재시도 {delay:.1f} s 뒤)')
+                        self._reject_warn_at = now + self.STOP_REJECT_WARN_S
             except Exception as exc:
                 self.get_logger().warning(f'Stop failed: {exc}')
                 self._stop_confirmed = False
             self._stop_future = None
-            self._next_stop_try = now + 0.1
+            self._next_stop_try = now + delay
         if reason is None:
-            self._stop_reason, self._stop_confirmed = None, False
+            self._stop_reason, self._stop_confirmed, self._stop_rejects = None, False, 0
             return
         if reason != self._stop_reason:
-            self._stop_reason, self._stop_confirmed = reason, False
+            self._stop_reason, self._stop_confirmed, self._stop_rejects = reason, False, 0
+            self._next_stop_try = min(self._next_stop_try, now)    # 새 사유는 늘어난 간격을 기다리지 않는다
         if not self._stop_confirmed and now >= self._next_stop_try:
             self._request_stop(reason)
-            self._next_stop_try = now + 0.1
+            self._next_stop_try = now + self.STOP_RETRY_S
 
     def _request_stop(self, reason: str) -> None:
         self.stop_calls.append((reason, time.monotonic()))

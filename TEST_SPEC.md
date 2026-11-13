@@ -349,7 +349,7 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-ABT-008-01 | `/clock`이 멈춰도 사이클은 끝난다 | U | `[ON]` | `freeze_ros()`, steady만 `goal.timeout × 2` 진행 | 사이클 중단(L2, 들고 있으면 L3) |
 | TC-ABT-009-01 | 감시 타이머는 steady 시계를 쓴다 | U | `[ON]` | `jump_ros(−5 s)` 후 heartbeat 정상 / `freeze_ros()` 후 heartbeat 0.3 s 끊김 | 오검출 없음 / 검출 |
 | TC-ABT-009-02 | heartbeat·상태 발행 및 감시 ROS 타이머가 steady 시계 | C | `[ON]` | `use_sim_time:=true`, `/clock` 없음(ROS 시각 정지): `mock_world_node`·`mock_robot_controller_node`·`robot_controller_node` 1 s, `safety_supervisor_node`에 controller heartbeat 1회 후 끊김, `orchestrator_node._watch` 타이머 시계 | heartbeat·`robot/status` 각 7회 이상 / 0.5 s 안에 `Stop(CONTROLLER_HEARTBEAT_LOST)` / `STEADY_TIME` |
-| TC-ABT-009-03 | Supervisor Stop 재시도 | U | `[ON]` | 서비스 지연·future 지연·거부·예외 | in-flight 최대 1개, stopped=true까지 재시도·오류 경고 |
+| TC-ABT-009-03 | Supervisor Stop 재시도 | U | `[ON]` | 서비스 지연·future 지연·거부·예외 / 0.05 s 감시 주기에서 `stopped=false` 12 s 연속 뒤 사유 변경 | in-flight 최대 1개, stopped=true까지 재시도·오류 경고, 거부·예외 뒤 첫 재시도 0.1 s / 재시도 간격이 줄지 않고 1.05 s(상한 1 s + 1주기)에서 멈춤, 재시도 16회 이하, 거부 경고 3회(처음·5 s마다), 사유 변경 주기에 바로 송신 |
 | TC-ABT-010-01 | heartbeat 3회 누락 | U | `[ON]` | 누락 0.299 / 0.300 s, 대상 vision(동적 구간) / vision(비동적) / robot_controller | 유지 / 검출 → L3 / L2 / L4 |
 | TC-ABT-011-01 | 동적 구간 관측 신선도 | U | `[ON]` | `t_now − t_last_obs` = 0.300 / 0.301 s, 해제 전; 적용 구간: 단계 전부 × 해제 전·후 | 유지 / L3; `OBS_STALE`은 해제 전 APPROACH~RELEASE에서만 |
 | TC-ABT-012-01 | ROS 시각 역행 | U | `[ON]` | 역행 1회, 멈춤; 적용 구간: 단계 전부 | U: 역행 검출(멈춤은 아님)과 이벤트 등급(holding L3 / 비holding L2); `CLOCK_JUMP`는 DETECT_STONE~VERIFY에서만 |

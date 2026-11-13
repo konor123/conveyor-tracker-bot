@@ -130,6 +130,48 @@ def test_supervisor_retries_until_confirmed_with_one_inflight():
     assert n._stop_confirmed
 
 
+@pytest.mark.req('REQ-ABT-009')
+@pytest.mark.tc('TC-ABT-009-03')
+@pytest.mark.level('U')
+def test_supervisor_backs_off_while_stop_stays_unconfirmed():
+    """실기 연결 없는 backend처럼 `stopped=false`가 끝없이 이어져도 재시도 간격은 0.1 s에서 두 배씩 늘어 1 s에서
+    멈추고, 경고는 처음과 5 s마다만 남는다. 사유가 바뀌면 늘어난 간격을 기다리지 않고 바로 보낸다."""
+    from concurrent.futures import Future
+    stop = NS(Request=lambda **kw: NS(**kw))
+    stop.Request.SUPERVISOR = 1
+    cls = load('safety_supervisor_node.py', ['SafetySupervisorNode'], Stop=stop)['SafetySupervisorNode']
+    n = cls.__new__(cls)
+    fault = ['ROBOT_COMM_LOST']
+    n.monitor = NS(check=lambda: None, active_fault=lambda: fault[0])
+    now = [0.]
+    n.steady_clock = NS(steady_now=lambda: now[0])
+    n._stop_future, n._stop_reason, n._stop_confirmed, n._next_stop_try = None, None, False, 0.
+    n.stop_calls = []
+    warnings, calls = [], []
+    n.get_logger = lambda: NS(warning=warnings.append)
+
+    def send(req):
+        f = Future()
+        f.set_result(NS(stopped=False))
+        calls.append((now[0], req.reason_code))
+        return f
+    n._stop_cli = NS(service_is_ready=lambda: True, call_async=send)
+    for i in range(241):                     # 12 s, 감시 주기 0.05 s
+        now[0] = i * 0.05
+        n._tick()
+    times = [t for t, _ in calls]
+    gaps = [round(b - a, 6) for a, b in zip(times, times[1:])]
+    assert gaps[0] == pytest.approx(0.15) and gaps == sorted(gaps)        # 0.1 + 응답 처리 1주기에서 늘어남
+    assert max(gaps) == pytest.approx(1.05)                               # 상한 1 s + 1주기
+    assert len(calls) <= 16                                               # 고정 0.1 s면 약 80회
+    rejected = [w for w in warnings if w.startswith('Stop rejected')]
+    assert len(rejected) == 3 and 'ROBOT_COMM_LOST' in rejected[0]       # 0.05 s, 5 s 뒤, 10 s 뒤
+    fault[0] = 'PROTECTIVE_STOP'
+    now[0] = 12.05
+    n._tick()
+    assert calls[-1] == (12.05, 'PROTECTIVE_STOP')
+
+
 def bounded_wait(p, deadline):
     results = []
     worker = threading.Thread(target=lambda: results.append(p._wait(lambda: False, deadline)), daemon=True)

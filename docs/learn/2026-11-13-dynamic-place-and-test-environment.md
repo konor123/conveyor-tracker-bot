@@ -106,3 +106,9 @@ replay launch 시험은 로봇 지령 경로가 그래프에 0개인지 본다. 
 ## 14. "Traceback 없음" 검사가 잡은 종료 경합
 
 `test_real_bringup.py`의 도달 구간 시험이 가끔 실패했다. 실패 로그를 남기도록 실행하자 원인이 보였다. 시험은 세 노드의 파라미터를 확인하자마자 launch를 SIGINT로 끝낸다. 그때 mock 노드는 아직 생성자 안에서 같은 역할의 실제 노드가 있는지 1 s 동안 그래프를 보고 있었고(`exclusive_check_s`), 그 `time.sleep`에서 `KeyboardInterrupt` traceback이 찍혔다. `spin_mock`은 실행 중 인터럽트는 조용히 처리했지만 생성 중 인터럽트는 처리하지 않았다. 생성 중에도 같은 방식으로 끝내도록 고치고 시험(TC-MCK-007-03)을 붙였다. 교훈은 두 가지다. 간헐 실패는 "다시 돌리니 통과"로 넘기지 말고 실패 출력을 파일로 남겨 다음에 원인을 보게 한다. 그리고 출력에 traceback이 없어야 한다는 단순한 검사가 종료 경로의 빈틈을 잡는다.
+
+## 15. 확인되지 않는 Stop은 간격을 늘려 재시도한다
+
+실기 연결이 없는 기본 bringup(`robot_backend` 기본 `disabled`)에 오케스트레이터를 켜면 Stop이 끝없이 반복됐다. controller가 `connected=false`를 내면 감시 노드가 `ROBOT_COMM_LOST`(L4)로 `robot/stop`을 부르고, controller는 정지 유지를 걸지만 확인할 backend가 없어 `stopped=false`로 답한다. 감시 노드는 0.1 s 뒤 다시 보낸다. 12 s 동안 Stop 60회, 경고 61줄이었다.
+
+쉬워 보이는 해법은 disabled backend가 `stopped=true`로 답하는 것이다. 그러면 로봇을 볼 수 없는 쪽이 정지 확인을 지어내게 된다. `stopped`는 "정지를 확인했다"는 뜻이다(SPEC-010, REQ-ROB-007). 대신 재시도 간격을 늘렸다. `stopped=false`가 이어지면 0.1 s에서 두 배씩 늘려 1 s를 상한으로 하고, 경고는 처음과 5 s마다만 남긴다. 안전 효과는 줄지 않는다. controller는 Stop을 받는 즉시 정지 유지를 걸고(REQ-ROB-014), `stopped=false`는 Stop이 전달됐다는 뜻이기 때문이다. 전달 여부가 불확실한 서비스 부재·호출 예외는 0.1 s를 그대로 두고, 사유가 바뀌면 바로 보낸다. 판단 근거와 버린 선택지는 `records/reviews/stop-retry-decision-2026-11-13.md`에 있다.
