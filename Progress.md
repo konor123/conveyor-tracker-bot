@@ -78,7 +78,7 @@
 - [x] `[ON]` 계약 테스트 틀(`test/contract/`, 대상을 인자로 받음), `mock_world_node`의 vision·tracker 계약 통과
 - [x] `[ON]` `mock.launch.py`, `launch_testing` 기반 I0 통합 테스트(ROS I0 시나리오 5종)를 CI에 등록(TC-INT-*)
   - `drop.launch.py`·`mock.launch.py`·동시 기동 거부와 ROS I0 정상·장애 시험(pytest에서 launch를 띄우는 방식), GitHub Actions `CI (M0 Offline & I0 Mock Suite)`. TC-INT-001~006 시험 연결 100%, 커밋 `199e363`에서 CI run 42563966553 2회 연속 통과(`records/worklog/2026-11-09.md`).
-  - launch 종료 신호(SIGINT 여러 번, SIGTERM)에 노드 진입점이 traceback 없이 끝난다(REQ-SYS-007, SPEC-000 4.5절 `ShutdownGuard`). 받은 메시지를 바꾸는 중의 SIGINT가 `RuntimeError`로 바뀌어 실제 감시·planner 노드가 traceback을 남기던 경쟁이다. 2026-11-13 사무실 PC WSL TC-SYS-007-01 4건 통과, 실제 controller I0 로그 3묶음 Traceback 0건.
+  - launch 종료 신호(SIGINT 여러 번, SIGTERM)에 노드 진입점이 traceback 없이 끝난다(REQ-SYS-007, SPEC-000 4.5절 `ShutdownGuard`). 받은 메시지를 바꾸는 중의 SIGINT가 `RuntimeError`로 바뀌어 실제 감시·planner 노드가 traceback을 남기던 경쟁이다. 정리 뒤 늦게 온 SIGINT에 Python 종료 단계가 −2로 끝내던 것도 `close()`로 막는다. 2026-11-13 사무실 PC WSL TC-SYS-007-01 5건 통과, 실제 controller I0 로그의 종료 코드 −2가 20건에서 0건, Traceback 0건. CI run 43395588938 통과.
 - [x] `[ON]` `records/` 디렉터리, trial·step JSONL 기록, `devlog.csv`, `param_changes.csv`(TC-REC-*)
   - JSON Schema·StepRecord/trial JSONL 및 2026-11-09 devlog: unit 793/793·contract 72/72·I0 8/8(officepc WSL), 통합 커밋 `74013cf`. TC-MCK-005-01 실시간 실행은 `realtime_pc` 마커로 CI에서 기록만 하고 PC에서 판정한다(SPEC-700 v0.7). 2026-11-10 officepc WSL 판정 3/3 통과(발행 지연 최대 0.056 s). 커밋 `7c63b0b` CI run 42788599903 전체 실행 3회 연속 통과.
 - [x] `[ON]` `tools/spec/trace.py` 추적 행렬 생성(REQ·TC 연결 검사)
