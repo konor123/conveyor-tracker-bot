@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import math
 
+import numpy as np
 import pytest
 
 from fakes.backend import FakeStaticBackend
@@ -203,7 +204,7 @@ def test_pick_missing_grip_criteria_precondition():
     assert ex.pick_stone([0.1, 0.0, 0.0], 0.05, 100).reason_code == 'GRIP_CRITERIA_UNSET'
     ex, _ = executor()
     assert ex.pick_stone([0.1, 0.0, 0.0], None, 100).reason_code == 'APPROACH_HEIGHT_UNSET'
-    assert ex.pick_stone([0.1, 0.0, 0.0], 0.05, 101).reason_code == 'CURRENT_OUT_OF_RANGE'
+    assert ex.pick_stone([0.1, 0.0, 0.0], 0.05, 151).reason_code == 'CURRENT_OUT_OF_RANGE'
 
 
 @pytest.mark.req('REQ-ROB-007')
@@ -249,3 +250,79 @@ def test_dynamic_place_fails_closed_until_ready():
     result = ex.dynamic_place()
     assert result.result == Result.PRECONDITION
     assert result.reason_code == 'PLANNER_NOT_READY'
+
+
+@pytest.mark.req('REQ-ROB-007')
+@pytest.mark.tc('TC-ROB-007-91')
+@pytest.mark.level('U')
+@pytest.mark.parametrize('limit_ma, ok', [(0, False), (1, True), (150, True), (151, False)])
+def test_pick_grip_current_limit_range_is_1_to_150(limit_ma, ok):
+    """PickStone `grip_current_limit` 허용 범위는 그리퍼 전류 허용 1~150 mA(SPEC-500 3절)다. 150 mA goal을 거부하지 않는다."""
+    backend = FakeStaticBackend()
+    ex, _ = executor(backend=backend)
+    result = ex.pick_stone([0.1, 0.0, 0.0], 0.05, limit_ma)
+    if ok:
+        assert (result.result, result.holding) == (Result.OK, True), result
+        assert ('gripper_close', limit_ma) in backend.calls
+    else:
+        assert (result.result, result.reason_code) == (Result.PRECONDITION, 'CURRENT_OUT_OF_RANGE')
+        assert backend.calls == []
+
+
+@pytest.mark.req('REQ-ROB-007')
+@pytest.mark.tc('TC-ROB-007-92')
+@pytest.mark.level('U')
+def test_place_stone_retreat_rises_to_safe_z_and_reports_measured_height():
+    """PlaceStone RETREAT는 개방 뒤 측정 XY에서 `safe_z_m`까지 수직으로 올리고, `tcp_z_m`은 측정 TCP z,
+    `outside_workspace`는 측정 z ≥ `safe_z_m`일 때만 1이다(PLAN.md 4.3절 RETREAT 판정과 같은 기준)."""
+    backend = FakeStaticBackend()
+    ex, _ = executor(backend=backend)                      # safe_z_m 0.15
+    result = ex.place_stone(([0.1, 0.02, 0.03], QUAT), 0.002, 0.021)
+    assert result.result == Result.OK, result
+    moves = [v for k, v in backend.calls if k == 'move_line']
+    assert moves[-1] == pytest.approx([0.1, 0.02, 0.15])     # 마지막 이동 = 수직 상승
+    assert result.metrics['tcp_z_m'] == pytest.approx(0.15)
+    assert (result.metrics['outside_workspace'], result.metrics['stone_in_gripper']) == (1.0, 0.0)
+
+    # 상승을 받고도 안전 높이에 못 미치면(측정 z) 작업영역 안으로 보고하고 성공으로 만들지 않는다
+    class ShortRise(FakeStaticBackend):
+        def move_line(self, target_pos_m, target_quat_xyzw):
+            out = super().move_line(target_pos_m, target_quat_xyzw)
+            if target_pos_m[2] >= 0.15:
+                self.tcp_pos[2] = 0.12
+            return out
+    backend = ShortRise()
+    ex, _ = executor(backend=backend)
+    result = ex.place_stone(([0.1, 0.02, 0.03], QUAT), 0.002, 0.021)
+    assert (result.result, result.reason_code, result.released) == (Result.FAILED, 'RETREAT_FAILED', True)
+    assert result.metrics['tcp_z_m'] == pytest.approx(0.12)
+    assert result.metrics['outside_workspace'] == 0.0
+
+    # 안전 높이가 없으면 움직이기 전에 거부한다
+    backend = FakeStaticBackend()
+    ex, _ = executor(backend=backend, safe_z_m=None)
+    result = ex.place_stone(([0.1, 0.02, 0.03], QUAT), 0.002, 0.021)
+    assert (result.result, result.reason_code) == (Result.PRECONDITION, 'SAFE_Z_UNSET')
+    assert backend.calls == []
+
+
+@pytest.mark.req('REQ-ROB-007')
+@pytest.mark.tc('TC-ROB-007-92')
+@pytest.mark.level('U')
+def test_place_stone_release_reports_measured_hold_at_target():
+    """PlaceStone RELEASE `sync_held`(정지 목표의 동기 유지 = 개방하는 동안 목표 위치 유지)는 개방 전·후 측정 TCP가
+    둘 다 목표에서 `pose_tolerance_m` 안일 때만 1이다. 값이 0이어도 개방 뒤이므로 후퇴는 계속한다."""
+    backend = FakeStaticBackend()
+    ex, _ = executor(backend=backend)
+    result = ex.place_stone(([0.1, 0.02, 0.03], QUAT), 0.002, 0.021)
+    assert result.result == Result.OK and result.metrics['sync_held'] == 1.0
+
+    class DriftOnOpen(FakeStaticBackend):
+        def gripper_open(self, width_m):
+            self.tcp_pos = self.tcp_pos + np.array([0.0015, 0.0, 0.0])      # 개방 중 1.5 mm 밀림(허용 1 mm)
+            return super().gripper_open(width_m)
+    backend = DriftOnOpen()
+    ex, _ = executor(backend=backend)
+    result = ex.place_stone(([0.1, 0.02, 0.03], QUAT), 0.002, 0.021)
+    assert result.metrics['sync_held'] == 0.0
+    assert result.released is True and result.metrics['tcp_z_m'] == pytest.approx(0.15)

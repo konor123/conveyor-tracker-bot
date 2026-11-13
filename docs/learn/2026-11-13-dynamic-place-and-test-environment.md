@@ -88,3 +88,21 @@ replay launch 시험은 로봇 지령 경로가 그래프에 0개인지 본다. 
 ## 11. 짧은 경보는 "지속 시간"으로 판정하고, 적용 구간을 나눈다
 
 벨트 `steady=false`는 PRECHECK·WAIT_CAP·동적 단계에서 뜻이 다르다. PRECHECK와 동적 단계에서는 1 s 넘게 이어질 때만 장애이고, WAIT_CAP에서는 그동안 기다린다. 새 감시 장애는 PRECHECK·중단 경로·WAIT_OPERATOR에서는 잡지 않는다. 그 구간에서 잡으면 로봇이 아직 안 움직였는데 L3 동작을 하거나, 이미 진행 중인 중단 경로를 L4로 올려 버린다(SPEC-110 4.4절).
+
+## 12. 실제 controller를 통합 시험에 넣으면 대역이 숨기던 어긋남이 드러난다
+
+`drop.launch.py use_mock_robot:=false robot_backend:=fake`는 대역 대신 실제 `robot_controller_node`를 띄운다. backend만 시뮬레이션이고 skill 순서기·해제 게이트·정지 유지는 실기와 같은 코드다. 이 구성으로 오케스트레이터 I0(TC-INT-014~018)를 돌리자 대역으로는 보이지 않던 결함 6건이 나왔다. 대역은 정해진 답만 내므로 SPEC과 코드가 어긋나도 통과한다.
+
+- **같은 시간을 두 노드가 따로 재면 경계에서 실패한다.** controller는 SYNCHRONIZE를 0.3 s 유지하고 끝냈는데, 오케스트레이터가 feedback 수신 시각으로 다시 재면 0.2998 s가 되어 TIMEOUT이었다. 받는 쪽이 정확히 맞추기를 기대하지 말고, 보내는 쪽이 여유(`sync_hold_margin_s` 0.03 s)를 두고 연속 통과가 시작된 주기에도 feedback을 낸다.
+- **cancel 직후의 속도는 아직 지령 속도가 아니다.** TCP가 1차 지연(시정수 29 ms)을 따르므로, 추종을 멈춘 직후에는 보정 속도가 남아 있다. 첫 표본부터 동기 유지 상승을 판정하면 `SYNC_SPEED` → L4가 된다. XY 속도가 계획 속도에 정착한 뒤(최대 0.2 s) 올린다.
+- **SPEC과 코드의 상수가 다르면 통합에서 바로 걸린다.** 오케스트레이터는 PickStone을 150 mA로 보내는데 controller 코드 상한은 100 mA라 거부했다. SPEC의 1~150 mA로 맞췄다. PlaceStone의 `sync_held`가 0으로 고정돼 있던 것, `robot/status`의 그리퍼 필드가 거짓으로 고정돼 있던 것도 같은 종류다.
+- **모르는 결과는 지어내지 않는다.** mock 세계는 실제 controller가 떨어뜨린 공깃돌의 위치를 모른다. 그래서 VerifyDrop은 SUCCESS가 아니라 UNKNOWN을 내고, 사이클 결과도 UNKNOWN이다(REQ-MCK-010). 시험이 통과하려고 성공을 만들어 내면 그 시험은 아무것도 증명하지 않는다.
+- **action 결과는 제3자가 다시 읽을 수 있다.** skill 결과(`released`, `stone_placed_back`)는 오케스트레이터만 받지만, 시험은 action 서버의 `_action/get_result` 서비스로 같은 결과를 다시 읽어 확인한다.
+
+## 13. 실시간 루프에 기대는 I0는 PC에서 판정한다
+
+실제 controller의 DynamicPlace는 0.01 s 주기로 돌고, 주기 사이가 30 ms(`max_loop_gap_s`)를 넘으면 `LOOP_GAP`으로 멈춘다. 실기에서는 맞는 안전 동작이지만, 여러 노드를 한꺼번에 띄운 공유 CI 러너에서는 스케줄 지연만으로 넘을 수 있다. 그래서 이 루프를 쓰는 I0(TC-INT-014-01, TC-INT-017-01)에는 `realtime_pc`를 달고, CI는 별도 단계에서 실행·기록만 한다. 판정은 시계가 안정된 PC(사무실 PC WSL)에서 한다(TEST_SPEC 0.3절). 루프를 쓰지 않는 STATIC·통과 소진·bringup I0는 CI에서 그대로 판정한다.
+
+## 14. "Traceback 없음" 검사가 잡은 종료 경합
+
+`test_real_bringup.py`의 도달 구간 시험이 가끔 실패했다. 실패 로그를 남기도록 실행하자 원인이 보였다. 시험은 세 노드의 파라미터를 확인하자마자 launch를 SIGINT로 끝낸다. 그때 mock 노드는 아직 생성자 안에서 같은 역할의 실제 노드가 있는지 1 s 동안 그래프를 보고 있었고(`exclusive_check_s`), 그 `time.sleep`에서 `KeyboardInterrupt` traceback이 찍혔다. `spin_mock`은 실행 중 인터럽트는 조용히 처리했지만 생성 중 인터럽트는 처리하지 않았다. 생성 중에도 같은 방식으로 끝내도록 고치고 시험(TC-MCK-007-03)을 붙였다. 교훈은 두 가지다. 간헐 실패는 "다시 돌리니 통과"로 넘기지 말고 실패 출력을 파일로 남겨 다음에 원인을 보게 한다. 그리고 출력에 traceback이 없어야 한다는 단순한 검사가 종료 경로의 빈틈을 잡는다.

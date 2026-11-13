@@ -263,3 +263,18 @@ def test_scenario_geometry_matches_engine(load_scenario):
     p = np.array([0.12, -0.03, 0.01])
     np.testing.assert_allclose((T @ [*p, 1.0])[:3], engine.conveyor_to_base(p), atol=1e-12)
     assert geo['zones'] == {k: float(v) for k, v in sc['world']['zones'].items()}
+
+
+@pytest.mark.req('REQ-MCK-010')
+@pytest.mark.tc('TC-MCK-010-01')
+@pytest.mark.level('U')
+@pytest.mark.parametrize('scripted_verdict', ['SUCCESS', 'FAILURE'])
+def test_unscripted_verify_reports_unknown(load_scenario, scripted_verdict):
+    """대본을 쓰지 않는 VerifyDrop(실제 controller와 함께 띄운 mock 세계)은 대본과 무관하게 UNKNOWN이고
+    뚜껑 안 공깃돌·안착 오프셋을 지어내지 않는다. 대본을 쓰면 기존과 같다."""
+    sc = load_scenario('nominal_20mms')
+    sc['world']['verify'] = [{'verdict': scripted_verdict}]
+    eng = ScenarioEngine(sc)
+    v = eng.verify(0, scripted=False)
+    assert (v.verdict, v.stone_inside, v.stone_offset_valid) == (VERDICT['UNKNOWN'], False, False)
+    assert eng.verify(0).verdict == VERDICT[scripted_verdict]

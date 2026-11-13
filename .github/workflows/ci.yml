@@ -118,7 +118,21 @@ jobs:
           source /opt/ros/jazzy/setup.bash
           source install/setup.bash
           python3 -m pytest src/drop_mocks/test/contract -m "not realtime_pc" -v
-          PYTHONPATH="$PWD/tools/spec:${PYTHONPATH:-}" python3 -m pytest src/drop_bringup/test -v
+          PYTHONPATH="$PWD/tools/spec:${PYTHONPATH:-}" python3 -m pytest src/drop_bringup/test -m "not realtime_pc" -v
+
+      # 실제 robot_controller_node의 100 Hz 동적 루프(간격 한도 30 ms)에 의존하는 I0는 공유 러너에서 실행·기록만 한다. 판정은 PC.
+      - name: Run realtime I0 tests (record only, judged on PC)
+        shell: bash
+        continue-on-error: true
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          source install/setup.bash
+          if PYTHONPATH="$PWD/tools/spec:${PYTHONPATH:-}" python3 -m pytest src/drop_bringup/test -m realtime_pc -v -rA; then
+            echo "I0 realtime_pc: passed on CI (record only; judged on PC)" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "I0 realtime_pc: FAILED on CI (record only; judged on PC, see step log)" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
 
       - name: Check M0 requirement/test trace
         shell: bash

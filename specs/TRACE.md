@@ -2,8 +2,8 @@
 
 `tools/spec/trace.py`가 생성한다. 손으로 고치지 않는다.
 
-- REQ 143개 중 TC 연결 143개
-- pytest 대상 TC 265개 중 테스트 연결 263개
+- REQ 145개 중 TC 연결 145개
+- pytest 대상 TC 280개 중 테스트 연결 278개
 
 | TC | 수준 | REQ | 테스트 |
 |---|---|---|---|
@@ -123,6 +123,11 @@
 | TC-INT-011-01 | I0 | REQ-INT-011(SPEC 없음) | `src/drop_bringup/test/test_i0_integration.py::test_i0_lost_target_is_reselected` |
 | TC-INT-012-01 | I0 | REQ-INT-012(SPEC 없음) | `src/drop_bringup/test/test_i0_integration.py::test_i0_predicted_marker_matches_observed_tf` |
 | TC-INT-013-01 | I0 | REQ-INT-013(SPEC 없음) | `src/drop_bringup/test/test_i0_integration.py::test_i0_static_mode_full_sequence` |
+| TC-INT-014-01 | I0 | REQ-INT-014(SPEC 없음) | `src/drop_bringup/test/test_i0_real_controller.py::test_i0_real_controller_dynamic_cycle` |
+| TC-INT-015-01 | I0 | REQ-INT-015(SPEC 없음) | `src/drop_bringup/test/test_i0_real_controller.py::test_i0_real_controller_static_cycle` |
+| TC-INT-016-01 | I0 | REQ-INT-016(SPEC 없음) | `src/drop_bringup/test/test_i0_real_controller.py::test_i0_real_controller_passes_exhausted_place_back` |
+| TC-INT-017-01 | I0 | REQ-INT-017(SPEC 없음) | `src/drop_bringup/test/test_i0_real_controller.py::test_i0_real_controller_dynamic_failure_keep_sync_place_back` |
+| TC-INT-018-01 | I0 | REQ-INT-018(SPEC 없음) | `src/drop_bringup/test/test_i0_real_controller.py::test_real_controller_bringup_defaults_and_single_provider`<br>`src/drop_bringup/test/test_i0_real_controller.py::test_robot_params_follow_mock_world_geometry` |
 | TC-INT-020-01 | I3 | REQ-INT-020(SPEC 없음) | 절차 시험 |
 | TC-INT-021-01 | I4 | REQ-INT-021(SPEC 없음) | 절차 시험 |
 | TC-MCK-001-01 | U | REQ-MCK-001 | `src/drop_mocks/test/test_scenario_engine.py::test_same_scenario_and_seed_give_same_output` |
@@ -135,7 +140,11 @@
 | TC-MCK-006-02 | I0 | REQ-MCK-006 | `src/drop_bringup/test/test_i0_integration.py::test_i0_nominal_20_cycles_and_records` |
 | TC-MCK-007-01 | I0 | REQ-MCK-007 | `src/drop_bringup/test/test_mock_bringup.py::test_mock_refuses_when_real_provider_is_running` |
 | TC-MCK-007-02 | C | REQ-MCK-007 | `src/drop_mocks/test/test_mock_nodes.py::test_mock_exits_when_real_provider_appears_after_start` |
+| TC-MCK-007-03 | U | REQ-MCK-007 | `src/drop_mocks/test/test_mock_nodes.py::test_spin_mock_interrupted_during_startup_exits_quietly` |
 | TC-MCK-008-01 | C | REQ-MCK-008 | `src/drop_mocks/test/contract/test_mock_robot_controller_contract.py::<module>` |
+| TC-MCK-009-01 | U | REQ-MCK-009 | `src/drop_mocks/test/test_tcp_lag.py::test_ramp_reference_lags_by_speed_times_time_constant`<br>`src/drop_mocks/test/test_tcp_lag.py::test_step_response_and_partition_independence`<br>`src/drop_mocks/test/test_tcp_lag.py::test_lag_value_and_disable` |
+| TC-MCK-009-02 | C | REQ-MCK-009 | `src/drop_mocks/test/test_mock_nodes.py::test_dynamic_place_feedback_from_tcp_lag_model`<br>`src/drop_mocks/test/test_mock_nodes.py::test_dynamic_place_status_tcp_lags_plan` |
+| TC-MCK-010-01 | U | REQ-MCK-010 | `src/drop_mocks/test/test_scenario_engine.py::test_unscripted_verify_reports_unknown` |
 | TC-ORC-001-01 | U | REQ-ORC-001 | `src/orchestrator/test/test_cycle_runner.py::test_synchronized_nominal_sequence` |
 | TC-ORC-001-02 | U | REQ-ORC-001 | `src/orchestrator/test/test_cycle_runner.py::test_static_skips_synchronize_and_detects_cap`<br>`src/orchestrator/test/test_step_judges.py::test_static_place` |
 | TC-ORC-001-03 | U | REQ-ORC-001 | `src/orchestrator/test/test_cycle_runner.py::test_predicted_uses_entry_judgement`<br>`src/orchestrator/test/test_step_judges.py::test_predicted_entry` |
@@ -218,11 +227,14 @@
 | TC-ROB-007-01 | C | REQ-ROB-007 | `src/robot_control/test/contract/test_robot_controller_contract.py::<module>`<br>`src/robot_control/test/test_skill_logic.py::test_move_to_pose_uses_measured_pose_error`<br>`src/robot_control/test/test_skill_logic.py::test_named_pose_and_missing_config_precondition`<br>`src/robot_control/test/test_skill_logic.py::test_inactive_lifecycle_rejects_skills`<br>`src/robot_control/test/test_skill_logic.py::test_disabled_backend_never_reports_success`<br>`src/robot_control/test/test_skill_logic.py::test_pick_success_requires_measured_holding`<br>`src/robot_control/test/test_skill_logic.py::test_pick_missing_grip_criteria_precondition`<br>`src/robot_control/test/test_skill_logic.py::test_place_reads_measured_open_width` |
 | TC-ROB-007-02 | C | REQ-ROB-007 | `src/robot_control/test/test_robot_controller_stop.py::test_stop_preempts_goal_with_stopped_reason`<br>`src/robot_control/test/test_robot_controller_stop.py::test_client_cancel_keeps_canceled_reason`<br>`src/robot_control/test/test_skill_logic.py::test_deadline_and_cancel_paths`<br>`src/robot_control/test/test_skill_logic.py::test_interrupted_move_reports_cancel_or_deadline`<br>`src/robot_control/test/test_skill_logic.py::test_stop_requires_confirmed_feedback` |
 | TC-ROB-007-03 | U | REQ-ROB-007 | `src/robot_control/test/test_dynamic_place.py::test_cancel_stop_deadline_each_phase` |
+| TC-ROB-007-91 | U | REQ-ROB-007 | `src/robot_control/test/test_skill_logic.py::test_pick_grip_current_limit_range_is_1_to_150` |
+| TC-ROB-007-92 | U | REQ-ROB-007 | `src/robot_control/test/test_skill_logic.py::test_place_stone_retreat_rises_to_safe_z_and_reports_measured_height`<br>`src/robot_control/test/test_skill_logic.py::test_place_stone_release_reports_measured_hold_at_target` |
 | TC-ROB-008-01 | U | REQ-ROB-008 | `src/robot_control/test/test_dynamic_place.py::test_lower_revision_ignored`<br>`src/robot_control/test/test_dynamic_place.py::test_epoch_change_or_expiry_fails_plan_invalid` |
 | TC-ROB-008-02 | U | REQ-ROB-008 | `src/robot_control/test/test_dynamic_place.py::test_nominal_sequence_feedback_and_single_commit`<br>`src/robot_control/test/test_dynamic_place.py::test_fake_transport_idle_after_goal_is_cheap_and_still` |
 | TC-ROB-008-03 | U | REQ-ROB-008 | `src/robot_control/test/test_dynamic_place.py::test_preconditions_and_missing_plan`<br>`src/robot_control/test/test_dynamic_place.py::test_uncertain_longer_than_hold_fails`<br>`src/robot_control/test/test_skill_logic.py::test_dynamic_place_fails_closed_until_ready` |
 | TC-ROB-008-04 | C | REQ-ROB-008 | `src/robot_control/test/contract/test_robot_controller_contract.py::<module>` |
 | TC-ROB-008-91 | U | REQ-ROB-008 | `src/robot_control/test/test_dynamic_place.py::test_sample_read_after_tick_time_is_not_stale` |
+| TC-ROB-008-92 | U | REQ-ROB-008 | `src/robot_control/test/test_dynamic_place.py::test_synchronize_feedback_covers_hold_as_received` |
 | TC-ROB-009-01 | U | REQ-ROB-009 | `src/robot_control/test/test_dynamic_place.py::test_each_gate_violation_opens_zero_and_requests_l3` |
 | TC-ROB-009-02 | U | REQ-ROB-009 | `src/robot_control/test/test_dynamic_place.py::test_synchronized_waits_through_short_pulse`<br>`src/robot_control/test/test_dynamic_place.py::test_synchronized_gives_up_when_window_ends` |
 | TC-ROB-009-03 | U | REQ-ROB-009 | `src/robot_control/test/test_dynamic_place.py::test_predicted_commits_at_planned_time_or_fails_without_waiting` |
@@ -230,8 +242,10 @@
 | TC-ROB-009-05 | U | REQ-ROB-009 | `src/robot_control/test/test_dynamic_place.py::test_program_transport_commits_once_ahead_and_ignores_updates` |
 | TC-ROB-010-01 | U | REQ-ROB-010 | `src/robot_control/test/test_dynamic_place.py::test_post_release_retreat_keeps_plan_speed`<br>`src/robot_control/test/test_dynamic_place.py::test_safe_retreat_after_pre_release_abort_keeps_sync`<br>`src/robot_control/test/test_dynamic_place.py::test_keep_sync_already_at_safe_height_needs_no_motion`<br>`src/robot_control/test/test_dynamic_place.py::test_keep_sync_abort_hold_then_long_silence_is_bounded` |
 | TC-ROB-010-02 | U | REQ-ROB-010 | `src/robot_control/test/test_dynamic_place.py::test_keep_sync_never_succeeds_without_capability_or_speed`<br>`src/robot_control/test/test_skill_logic.py::test_safe_retreat_without_keep_sync_transport_fails_closed` |
+| TC-ROB-010-91 | U | REQ-ROB-010 | `src/robot_control/test/test_dynamic_place.py::test_keep_sync_retreat_settles_xy_speed_before_rising` |
 | TC-ROB-011-01 | C | REQ-ROB-011 | `src/robot_control/test/test_dsr_driver_stub_format.py::<module>` |
 | TC-ROB-012-01 | C | REQ-ROB-012 | `src/robot_control/test/test_robot_controller_heartbeat.py::test_heartbeat_and_status_10hz_for_10s` |
+| TC-ROB-012-91 | C | REQ-ROB-012 | `src/robot_control/test/test_robot_controller_status.py::test_status_reports_measured_gripper_state`<br>`src/robot_control/test/test_robot_controller_status.py::test_gripper_state_kept_when_open_not_confirmed` |
 | TC-ROB-013-01 | U | REQ-ROB-013 | `src/robot_control/test/test_belt_sync.py::test_release_time_reference_not_source_stamp`<br>`src/robot_control/test/test_belt_sync.py::test_new_revision_accepted`<br>`src/robot_control/test/test_belt_sync.py::test_ros_message_mapping` |
 | TC-ROB-013-02 | U | REQ-ROB-013 | `src/robot_control/test/test_belt_sync.py::test_invalid_plan_latches`<br>`src/robot_control/test/test_belt_sync.py::test_old_revision_ignored_without_refresh`<br>`src/robot_control/test/test_belt_sync.py::test_source_stale_even_with_recent_receipt` |
 | TC-ROB-013-03 | U | REQ-ROB-013 | `src/robot_control/test/test_belt_sync.py::test_watchdogs`<br>`src/robot_control/test/test_belt_sync.py::test_freeze_ros_clock_detected_by_steady_time`<br>`src/robot_control/test/test_belt_sync.py::test_expiration_without_loop_gap`<br>`src/robot_control/test/test_belt_sync.py::test_no_plan_and_nonfinite_tcp` |
@@ -241,7 +255,8 @@
 | TC-ROB-013-07 | U | REQ-ROB-013 | `src/robot_control/test/test_sync_metrics.py::<module>` |
 | TC-ROB-013-08 | U | REQ-ROB-013 | `src/robot_control/test/test_sync_uncertain_hold.py::<module>` |
 | TC-ROB-014-01 | U | REQ-ROB-014 | `src/robot_control/test/test_stop_latch.py::<module>` |
-| TC-ROB-014-02 | C | REQ-ROB-014 | `src/robot_control/test/test_robot_controller_stop.py::test_stop_latches_until_operator_release`<br>`src/robot_control/test/test_robot_controller_stop.py::test_release_refused_while_goal_active`<br>`src/robot_control/test/test_robot_controller_stop.py::test_accept_reserves_goal_and_noop_release_keeps_backend_stop` |
+| TC-ROB-014-02 | C | REQ-ROB-014 | `src/robot_control/test/test_robot_controller_status.py::test_stop_history_diagnostic_parameter`<br>`src/robot_control/test/test_robot_controller_stop.py::test_stop_latches_until_operator_release`<br>`src/robot_control/test/test_robot_controller_stop.py::test_release_refused_while_goal_active`<br>`src/robot_control/test/test_robot_controller_stop.py::test_accept_reserves_goal_and_noop_release_keeps_backend_stop` |
+| TC-ROB-014-91 | C | REQ-ROB-014 | `src/robot_control/test/test_robot_controller_status.py::test_reactivation_without_stop_accepts_motion` |
 | TC-ROB-015-01 | U | REQ-ROB-015 | `src/robot_control/test/test_doosan_stream.py::<module>` |
 | TC-ROB-016-01 | U | REQ-ROB-016 | `src/robot_control/test/test_safe_retreat_place_back.py::test_static_place_back_sequence_uses_measured_values`<br>`src/robot_control/test/test_safe_retreat_place_back.py::test_goal_pose_overrides_parameter_only_when_position_is_nonzero`<br>`src/robot_control/test/test_safe_retreat_place_back.py::test_keep_sync_leg_runs_keep_sync_retreat_then_places_back` |
 | TC-ROB-016-02 | U | REQ-ROB-016 | `src/robot_control/test/test_safe_retreat_place_back.py::test_missing_settings_precondition_without_motion`<br>`src/robot_control/test/test_safe_retreat_place_back.py::test_keep_sync_without_transport_and_invalid_goal_pose_do_not_move` |

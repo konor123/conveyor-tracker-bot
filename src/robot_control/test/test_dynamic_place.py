@@ -344,6 +344,49 @@ def test_safe_retreat_after_pre_release_abort_keeps_sync():
     assert len(errs) > 10 and max(errs) <= CFG.sync_speed_tol_mps
 
 
+# ------------------------------------------------------------------ TC-ROB-010-91 상승 전 XY 속도 정착
+def _cancel_then_keep_sync(phase, gap_s):
+    """phase에서 DynamicPlace를 cancel하고 gap_s 뒤 SafeRetreat(keep_sync)의 동기 유지 후퇴를 끝까지 돌린다."""
+    r = Rig(MODE_SYNCHRONIZED, start_xyz=(.40, 0., .20))     # 멀리서 다가와 SYNCHRONIZE 초입에 추종 보정이 큼
+    ticks = []
+
+    def hook(rr):
+        if rr.seq.phase == phase:
+            ticks.append(1)
+            if len(ticks) >= (20 if phase == 'APPROACH' else 1):   # APPROACH는 계획을 받아 움직이는 중에
+                return rr.tick(cancel=True)
+        return None
+    res = r.run(hook)
+    assert (res.result, res.reason_code) == (Result.CANCELED, 'CANCELED')
+    for _ in range(round(gap_s / PERIOD_S)):
+        r.clock.advance(PERIOD_S)
+    retreat = KeepSyncRetreat(r.transport, r.seq.plan_velocity_xy, CFG)
+    t0, z0 = r.clock.ros_now(), r.transport.pos[2]
+    for _ in range(600):
+        out = retreat.tick(r.clock.ros_now(), r.clock.steady_now())
+        if out.result is not None:
+            return r, out.result, t0, z0
+        r.clock.advance(PERIOD_S)
+    raise AssertionError('후퇴 결과 없음')
+
+
+@pytest.mark.req('REQ-ROB-010')
+@pytest.mark.tc('TC-ROB-010-91')
+@pytest.mark.level('U')
+@pytest.mark.parametrize('phase', ['APPROACH', 'SYNCHRONIZE'])
+def test_keep_sync_retreat_settles_xy_speed_before_rising(phase):
+    """해제 전 cancel 직후(0.03 s) SafeRetreat(keep_sync): 남은 추종 보정 속도(SYNCHRONIZE)나 정지(APPROACH의
+    abort(keep_sync=false))에서 XY 속도가 계획 속도 ±1 mm/s에 들 때까지(최대 `keep_sync_settle_s`) z를 올리지 않고,
+    올리는 동안의 표본은 모두 그 안이다(2026-11-13 I0: SYNCHRONIZE cancel 뒤 첫 표본부터 판정해 SYNC_SPEED → L4)."""
+    r, res, t0, z0 = _cancel_then_keep_sync(phase, .03)
+    assert (res.result, res.reason_code) == (Result.OK, ''), res
+    assert res.metrics['tcp_z_m'] >= CFG.safe_z_m
+    rising = [s for s in r.transport.log if s.t_s >= t0 and s.pos_m[2] > z0 + 1e-4 and s.pos_m[2] < CFG.safe_z_m]
+    assert rising and max(math.hypot(s.vel_mps[0] - r.world.v[0], s.vel_mps[1] - r.world.v[1])
+                          for s in rising) <= CFG.sync_speed_tol_mps
+    assert rising[0].t_s - t0 <= CFG.keep_sync_settle_s + 2 * PERIOD_S
+
+
 @pytest.mark.req('REQ-ROB-010')
 @pytest.mark.tc('TC-ROB-010-02')
 @pytest.mark.level('U')
@@ -373,6 +416,42 @@ def test_sample_read_after_tick_time_is_not_stale(offset_s, ok):
         assert res.result == Result.OK, res
     else:
         assert (res.result, res.reason_code) == (Result.FAILED, 'TCP_STALE')
+
+
+# ------------------------------------------------------------------ TC-ROB-008-92 수신 쪽이 다시 재는 동기 유지 시간
+def _receiver_hold(samples, e_max, v_max):
+    """orchestrator `judge_synchronize`처럼 SYNCHRONIZE feedback 열(수신 시각, e_xy, v_rel)의 마지막 연속 통과 시간."""
+    run = None
+    for t, e, v in samples:
+        good = e <= e_max + 1e-9 and v <= v_max + 1e-9
+        run = (run if run is not None else t) if good else None
+    return 0.0 if run is None else samples[-1][0] - run
+
+
+@pytest.mark.req('REQ-ROB-008')
+@pytest.mark.tc('TC-ROB-008-92')
+@pytest.mark.level('U')
+@pytest.mark.parametrize('start_xyz', [None, (.455, .003, .21)], ids=['nominal', 'run_starts_between_samples'])
+def test_synchronize_feedback_covers_hold_as_received(start_xyz):
+    """MODE_SYNCHRONIZED: 연속 통과가 시작한 주기에 feedback을 내고, `sync_hold_s + sync_hold_margin_s`를 채운 뒤에
+    끝낸다. 수신 쪽이 feedback 수신 시각으로 다시 잰 연속 시간은 수신 지연 차가 여유(0.03 s) 안이면 `sync_hold_s` 이상이다
+    (2026-11-13 I0: 같은 0.3 s를 controller 주기 시각과 orchestrator 수신 시각으로 따로 재서 0.2998 s → TIMEOUT)."""
+    r = Rig(MODE_SYNCHRONIZED, **({} if start_xyz is None else {'start_xyz': start_xyz}))
+    assert r.run().result == Result.OK
+    sync = [(t, f) for t, f in r.feedback if f.phase == 'SYNCHRONIZE']
+    done_t, done = next((t, f) for t, f in sync if f.phase_done)
+    samples = [(t, f.e_xy_m, f.v_rel_mps) for t, f in sync]
+    lim = r.seq.goal.limits
+    hold = done.metrics['hold_s']
+    assert hold >= CFG.sync_hold_s + CFG.sync_hold_margin_s - 1e-9
+    # controller의 연속 통과 시작 주기에 낸 표본이 있다(주기 표본 사이에서 시작해도 수신 쪽 시작이 늦어지지 않는다)
+    assert any(abs(t - (done_t - hold)) <= 1e-9 for t, _, _ in samples)
+    sent = _receiver_hold(samples, lim.e_xy_max_m, lim.v_rel_max_mps)
+    assert sent >= hold - 1e-9
+    # 수신 지연: 연속 통과 첫 표본은 늦게(여유 − 1 ms), 끝 표본은 바로 받은 경우가 가장 짧다
+    first = done_t - sent
+    worst = [(t + (CFG.sync_hold_margin_s - .001 if abs(t - first) <= 1e-9 else 0.), e, v) for t, e, v in samples]
+    assert _receiver_hold(worst, lim.e_xy_max_m, lim.v_rel_max_mps) >= CFG.sync_hold_s
 
 
 @pytest.mark.req('REQ-ROB-010')

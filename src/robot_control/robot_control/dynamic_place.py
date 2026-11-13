@@ -230,6 +230,9 @@ class DynamicPlaceCfg:
     approach_timeout_s: float = 2.25
     plan_wait_s: float = .5
     sync_hold_s: float = .3
+    # 수신 쪽(orchestrator)이 feedback 수신 시각으로 다시 재는 연속 시간이 sync_hold_s 밑으로 떨어지지 않게 더 유지하는
+    # 시간(feedback 간격 1개 = 수신 지연 차 허용)
+    sync_hold_margin_s: float = .03
     sync_timeout_s: float = 2.
     sync_feedback_period_s: float = .03
     entry_lead_s: float = 1.3
@@ -246,6 +249,9 @@ class DynamicPlaceCfg:
     retreat_margin_m: float = .002
     retreat_timeout_s: float = 3.
     sync_speed_tol_mps: float = .001
+    # 동기 유지 후퇴: XY 속도가 계획 속도 ±sync_speed_tol_mps에 들 때까지 z를 올리지 않고 기다리는 최대 시간
+    # (해제 전 cancel 직후 남은 추종 보정 속도·정지 상태에서 시작할 때). 제안: 1차 지연 29 ms의 약 7배, TBD(OFF-2)
+    keep_sync_settle_s: float = .2
     keep_sync_ref_max_age_s: float = 2.
     release_above_rim_m: float = .1656
     # 실측 기록이 있을 때만 채운다. 음수 = 미설정 → PRECONDITION(SPEC-500 3절)
@@ -315,8 +321,9 @@ def _z_command(z_target, z, v_prev, dt, kp, v_max, a_max) -> float:
 class KeepSyncRetreat:
     """동기 유지 후퇴(REQ-ROB-010): XY는 계획 속도 그대로, z는 안전 높이까지 올린다.
 
-    판정은 보낸 지령이 아니라 `poll()` 표본의 XY 속도로 한다. 안전 높이에 닿기 전 모든 표본이 계획 속도
-    ±`sync_speed_tol_mps` 안이어야 OK다. 어긋나도 안전 높이까지는 올리고 `SYNC_SPEED`로 끝낸다. 처음부터 안전
+    판정은 보낸 지령이 아니라 `poll()` 표본의 XY 속도로 한다. 먼저 z를 그대로 두고 XY 속도가 계획 속도
+    ±`sync_speed_tol_mps` 안에 들 때까지(최대 `keep_sync_settle_s`) 기다린 뒤 올리기 시작하고, 그때부터 안전 높이에
+    닿기 전 모든 표본이 그 안이어야 OK다. 어긋나도 안전 높이까지는 올리고 `SYNC_SPEED`로 끝낸다. 처음부터 안전
     높이 이상이면 올릴 것이 없으므로 지령 없이 OK다. `keep_sync_retreat`가 없는
     transport와 계획 속도가 없는 경우는 움직이지 않고 `PRECONDITION`(`SYNC_NOT_AVAILABLE`)이다.
     """
@@ -331,6 +338,7 @@ class KeepSyncRetreat:
         self.errors: list[float] = []
         self.result: PlaceResult | None = None
         self._t0 = None
+        self._rise_t = None                  # 정착을 마치고 올리기 시작한 ROS 시각
         self._vz = 0.0
         self._steady = None
 
@@ -345,7 +353,17 @@ class KeepSyncRetreat:
             return {'tcp_z_m': float(pos[2]), 'outside_workspace': 1.0,
                     'stone_in_gripper': 0.0 if sample.released else 1.0,
                     'sync_speed_error_max_mps': max(self.errors, default=0.0)}
-        self.errors.append(_norm(vel[:2] - self.v))
+        error = _norm(vel[:2] - self.v)
+        if self._t0 is None:                 # DynamicPlace RETREAT는 tick() 없이 step()만 부른다
+            self._t0 = ros
+        if self._rise_t is None:
+            settled = error <= self.cfg.sync_speed_tol_mps + EPS
+            if not settled and ros - self._t0 < self.cfg.keep_sync_settle_s - EPS:
+                # 정착 대기: XY는 계획 속도, z는 그대로(올리지 않는다)
+                self.t.update(MotionRef(ros, tuple(float(v) for v in pos), (*self.v, 0.0), (*self.v, 0.0)))
+                return None
+            self._rise_t = ros
+        self.errors.append(error)
         dt = self.period_s if self._steady is None else max(steady - self._steady, 1e-6)
         self._steady = steady
         self._vz = _z_command(self.target_z, pos[2], self._vz, dt, self.cfg.z_kp_hz, self.cfg.retreat_speed_mps,
@@ -579,13 +597,15 @@ class DynamicPlaceSequencer:
                 return self._fail(fb, 'APPROACH_TIMEOUT', keep_sync=False)
         elif self.phase == 'SYNCHRONIZE':
             z_t = z_app
-            if ros - self._last_sync_fb >= c.sync_feedback_period_s - 1e-9:
+            # 연속 통과가 시작한 주기에도 feedback을 낸다: 수신 쪽이 같은 시작 시각부터 연속 시간을 잰다
+            started = g.mode == MODE_SYNCHRONIZED and good and self._run_t is None
+            if started or ros - self._last_sync_fb >= c.sync_feedback_period_s - 1e-9:
                 self._last_sync_fb = ros
                 fb.append(self._fb('SYNCHRONIZE', False, {}, e_xy, v_rel))
             if g.mode == MODE_SYNCHRONIZED:
                 self._run_t = (self._run_t if self._run_t is not None else ros) if good else None
                 hold = 0.0 if self._run_t is None else ros - self._run_t
-                if self._run_t is not None and hold >= c.sync_hold_s - 1e-9:
+                if self._run_t is not None and hold >= c.sync_hold_s + c.sync_hold_margin_s - 1e-9:
                     fb.append(self._fb('SYNCHRONIZE', True, {'elapsed_s': ros - self._phase_t, 'hold_s': hold,
                                                              'e_xy_m': e_xy, 'v_rel_mps': v_rel}, e_xy, v_rel))
                     self._enter(fb, 'DESCEND', ros, e_xy, v_rel)

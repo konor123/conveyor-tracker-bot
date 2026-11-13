@@ -1,6 +1,10 @@
 """mock_robot_controller_node(SPEC-700 4.5절): skill 액션 5종 + Stop + RobotStatus + Heartbeat 대역.
 
 `Stop`은 실제 노드와 같은 정지 유지를 건다(SPEC-010 4.5절, REQ-MCK-008). 해제는 `stop_release_reason`.
+`tcp_lag_s` > 0이면 DynamicPlace 동적 phase(APPROACH~RELEASE)에서 goal의 계획(`drop/intercept_plan`) 목표 궤적을
+1차 지연으로 따르는 TCP를 `robot/status`와 SYNCHRONIZE `e_xy`·`v_rel`에 쓴다(REQ-MCK-009, `tcp_lag.py`).
+기준 궤적은 그 goal에서 처음 쓴 revision으로 고정한다(revision 사이 잡음이 모델 속도로 번지지 않게).
+그 계획을 받지 못했으면 대본 값을 쓴다.
 """
 from __future__ import annotations
 
@@ -10,17 +14,19 @@ import time
 
 import rclpy
 from drop_interfaces.action import DynamicPlace, MoveToPose, PickStone, PlaceStone, SafeRetreat
-from drop_interfaces.msg import Heartbeat, RobotStatus
+from drop_interfaces.msg import Heartbeat, InterceptPlan, RobotStatus
 from drop_interfaces.srv import Stop
 from geometry_msgs.msg import Point, Pose, Quaternion
 from rclpy.action import ActionServer, CancelResponse, GoalResponse
-from rclpy.callback_groups import ReentrantCallbackGroup
+from rclpy.callback_groups import MutuallyExclusiveCallbackGroup, ReentrantCallbackGroup
+from rclpy.event_handler import SubscriptionEventCallbacks
 from rcl_interfaces.msg import SetParametersResult
 from rclpy.parameter import Parameter
 
-from .ros_common import (ERROR_PROTECTIVE_STOP, ERROR_STOP_LATCHED, HEARTBEAT_PERIOD_S, HEARTBEAT_QOS,
+from .ros_common import (DATA_QOS, ERROR_PROTECTIVE_STOP, ERROR_STOP_LATCHED, HEARTBEAT_PERIOD_S, HEARTBEAT_QOS,
                          MockLifecycleNode, from_time, no_pub_events, spin_mock, steady_clock)
 from .scenario_engine import GRIPPER_SKILLS, MODE_PREDICTED, RESULT
+from .tcp_lag import DEFAULT_TCP_LAG_S, PlanRef, make_lag
 
 ACTIONS = {
     'PickStone': (PickStone, 'robot/pick_stone', ('APPROACH', 'DESCEND', 'GRIP', 'LIFT')),
@@ -34,6 +40,7 @@ PLACE_SKILLS = ('PlaceStone', 'DynamicPlace')
 WORKSPACE_PHASES = ('APPROACH', 'SYNCHRONIZE', 'DESCEND', 'RELEASE')
 POLL_S = 0.005
 SYNC_FEEDBACK_PERIOD_S = 0.04
+PLAN_CACHE = 16                    # 기억하는 계획 수(plan_id별 마지막 revision)
 
 
 class MockRobotControllerNode(MockLifecycleNode):
@@ -52,6 +59,10 @@ class MockRobotControllerNode(MockLifecycleNode):
         self.declare_parameter('stop_history_json', '[]')
         self.declare_parameter('stop_release_reason', '')
         self.declare_parameter('skill_run_count', 0)
+        # TCP 1차 지연 시정수 [s]. 0 = 모델 끔(대본 값). 기본 29 ms = OFF-2 speedl 100 Hz 부하 지연(측정 근거 모델)
+        self.declare_parameter('tcp_lag_s', DEFAULT_TCP_LAG_S)
+        self._plans: dict[int, PlanRef] = {}
+        self._model_pose = None            # 동적 phase 동안 지연 모델 TCP 위치(robot_base)
         self._cancel_count = 0
         self._stop_history = []
         self._observer_lock = threading.Lock()
@@ -72,6 +83,9 @@ class MockRobotControllerNode(MockLifecycleNode):
                          callback_group=group)
             for name, (typ, topic, _) in ACTIONS.items()]
         self.create_service(Stop, 'robot/stop', self._on_stop, callback_group=group)
+        self.create_subscription(InterceptPlan, 'drop/intercept_plan', self._on_plan, DATA_QOS,
+                                 event_callbacks=SubscriptionEventCallbacks(use_default_callbacks=False),
+                                 callback_group=MutuallyExclusiveCallbackGroup())
         self.status_pub = self.create_publisher(RobotStatus, 'robot/status', HEARTBEAT_QOS,
                                                 event_callbacks=no_pub_events())
         self.hb_pub = self.create_publisher(Heartbeat, 'system/heartbeat', HEARTBEAT_QOS,
@@ -83,6 +97,13 @@ class MockRobotControllerNode(MockLifecycleNode):
 
     def protective_stop(self) -> bool:
         return self._pstop_latched or self.engine.protective_stop(self.scenario_t())
+
+    def _on_plan(self, msg):
+        p, v = msg.target_tcp_pose.position, msg.target_velocity
+        with self._lock:
+            self._plans[int(msg.plan_id)] = PlanRef(from_time(msg.release_time), (p.x, p.y, p.z), (v.x, v.y, v.z))
+            while len(self._plans) > PLAN_CACHE:
+                self._plans.pop(next(iter(self._plans)))
 
     # ------------------------------------------------------------ goal 수락
     def _on_goal(self, goal_request):
@@ -135,10 +156,13 @@ class MockRobotControllerNode(MockLifecycleNode):
         deadline = from_time(goal.deadline)
         sent_phase = -1
         last_sync_fb = -1.0
+        tau = float(self.get_parameter('tcp_lag_s').value) if name == 'DynamicPlace' else 0.0
+        self._lag = None                   # (TcpLag, PlanRef): goal의 계획을 받은 뒤부터
         with self._lock:
             self._active_skill = name
             self._active_phase = phases[0]
         while True:
+            self._advance_lag(tau, goal, phases[max(sent_phase, 0)])
             if time.monotonic() - self._last_hb_mono >= HEARTBEAT_PERIOD_S * 0.5:
                 self._on_heartbeat()
                 self._on_status()
@@ -181,34 +205,72 @@ class MockRobotControllerNode(MockLifecycleNode):
                 if elapsed - last_sync_fb >= SYNC_FEEDBACK_PERIOD_S:
                     last_sync_fb = elapsed
                     goal_handle.publish_feedback(
-                        self._feedback(typ, name, 'SYNCHRONIZE', reply, phase_done=False, predicted=predicted))
+                        self._feedback(typ, name, 'SYNCHRONIZE', reply, phase_done=False, predicted=predicted,
+                                       model=self._lag_errors()))
             time.sleep(POLL_S)
+
+    # ------------------------------------------------------------ TCP 1차 지연 모델(REQ-MCK-009)
+    def _advance_lag(self, tau, goal, phase):
+        """동적 phase에서 지연 모델을 지금 ROS 시각까지 진행하고 status TCP로 쓴다. 그 밖에서는 대본 자세."""
+        if not tau > 0.0 or phase not in WORKSPACE_PHASES:      # 0·음수·NaN = 모델 끔
+            if self._model_pose is not None:
+                with self._lock:
+                    self._model_pose = None
+            return
+        now = self.ros_now()
+        if self._lag is None:
+            with self._lock:
+                ref = self._plans.get(int(goal.plan_id))
+            if ref is None:
+                return                     # 계획을 아직 못 받음: 대본 값
+            start = self._model_pose if self._model_pose is not None else self.engine.robot_status_pose()[:3]
+            self._lag = (make_lag(tau, start, now), ref)
+        lag, ref = self._lag                # 처음 쓴 revision으로 고정한 기준
+        lag.advance(now, ref)
+        with self._lock:
+            self._model_pose = tuple(float(v) for v in lag.pos)
+
+    def _lag_errors(self):
+        """지연 모델의 (e_xy, v_rel) 또는 None(모델 없음)."""
+        if getattr(self, '_lag', None) is None:
+            return None
+        lag, ref = self._lag
+        return lag.errors(ref)
 
     # ------------------------------------------------------------ 결과·feedback
     def _enter_phase(self, goal_handle, typ, name, phase, reply):
         with self._lock:
             self._active_phase = phase
-        goal_handle.publish_feedback(self._feedback(typ, name, phase, reply, phase_done=False))
+        goal_handle.publish_feedback(self._feedback(typ, name, phase, reply, phase_done=False,
+                                                    model=self._lag_errors()))
 
     def _close_phase(self, goal_handle, typ, name, phase, reply, predicted):
         if name in PLACE_SKILLS:
             goal_handle.publish_feedback(
-                self._feedback(typ, name, phase, reply, phase_done=True, predicted=predicted))
+                self._feedback(typ, name, phase, reply, phase_done=True, predicted=predicted,
+                               model=self._lag_errors()))
             if phase == 'RELEASE':
                 with self._lock:
                     self._holding = False
 
     @staticmethod
-    def _feedback(typ, name, phase, reply, phase_done: bool = False, predicted: bool = False):
+    def _feedback(typ, name, phase, reply, phase_done: bool = False, predicted: bool = False, model=None):
+        """`model` = 지연 모델의 (e_xy, v_rel). 대본의 SYNCHRONIZE `phase_metrics`가 있으면 대본이 우선한다."""
         fb = typ.Feedback(phase=phase)
+        sync_ov = reply.phase_metrics.get('SYNCHRONIZE') or {}
+        e_xy, v_rel = model if model is not None else (reply.values['gate_e_xy_m'], reply.values['gate_v_rel_mps'])
         if name == 'DynamicPlace':
-            sync_ov = reply.phase_metrics.get('SYNCHRONIZE') or {}
-            fb.e_xy = float(sync_ov.get('e_xy_m', reply.values['gate_e_xy_m']))
-            fb.v_rel = float(sync_ov.get('v_rel_mps', reply.values['gate_v_rel_mps']))
+            fb.e_xy = float(sync_ov.get('e_xy_m', e_xy))
+            fb.v_rel = float(sync_ov.get('v_rel_mps', v_rel))
         if name in PLACE_SKILLS:
             fb.phase_done = phase_done
             if phase_done:
-                fb.metric_keys, fb.metric_values = reply.metrics_for(phase, predicted=predicted)
+                keys, values = reply.metrics_for(phase, predicted=predicted)
+                if name == 'DynamicPlace' and phase == 'SYNCHRONIZE' and model is not None:
+                    measured = {'e_xy_m': e_xy, 'v_rel_mps': v_rel}
+                    values = [float(sync_ov.get(k, measured[k])) if k in measured else v
+                              for k, v in zip(keys, values)]
+                fb.metric_keys, fb.metric_values = keys, values
         return fb
 
     def _finish(self, goal_handle, typ, name, goal, reply, result, reason):
@@ -302,6 +364,10 @@ class MockRobotControllerNode(MockLifecycleNode):
             holding = self._holding
             in_ws = self._active_skill in PLACE_SKILLS and self._active_phase in WORKSPACE_PHASES
         x, y, z, qx, qy, qz, qw = self.engine.robot_status_pose()
+        with self._lock:
+            model = self._model_pose
+        if model is not None:
+            x, y, z = model
         st = RobotStatus(
             connected=True,
             ready=self.active and not pstop and not self._stop_latched,

@@ -238,6 +238,10 @@ def spin_mock(node_cls, name: str, num_threads: int, args=None) -> None:
         get_logger(name).error(str(e))
         rclpy.try_shutdown()
         raise SystemExit(1)
+    except (KeyboardInterrupt, ExternalShutdownException):
+        # 기동 확인 창(`exclusive_check_s`) 안에서 launch가 끝나도 실행 중 종료와 같이 조용히 끝낸다
+        rclpy.try_shutdown()
+        return
     executor = MultiThreadedExecutor(num_threads=num_threads)
     executor.add_node(node)
     try:

@@ -7,9 +7,12 @@ PRECONDITION(`PLANNER_NOT_READY`)으로 닫는다. 계획은 `drop/intercept_pla
 `belt/measured_motion`에서 받는다.
 `Stop`은 정지 유지를 걸고, 작업자가 `stop_release_reason`에 사유를 쓸 때만 풀린다(SPEC-010 4.5절, REQ-ROB-014).
 `SafeRetreat`는 정적 실행기가 판단하고, `keep_sync`이면 해제 transport의 동기 유지 후퇴를 주입해 쓴다(REQ-ROB-010·016).
+`robot/status`의 그리퍼 필드는 마지막 skill이 측정한 그리퍼 상태(파지 폭·전류 또는 개방 폭)이며, 바뀌면 곧바로
+한 번 더 발행한다(REQ-ROB-012). 받은 Stop은 `stop_history_json` 진단 파라미터와 로그에 남긴다(판정에 쓰지 않음).
 """
 from __future__ import annotations
 
+import json
 import math
 import threading
 import time
@@ -31,6 +34,7 @@ from rclpy.clock import Clock, ClockType
 from rclpy.event_handler import PublisherEventCallbacks, SubscriptionEventCallbacks
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.lifecycle import LifecycleNode, TransitionCallbackReturn
+from rclpy.parameter import Parameter
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 from std_msgs.msg import Header
 
@@ -56,6 +60,9 @@ SHARED_DYNAMIC_KEYS = {'safe_z_m': 'safe_z_m', 'open_width_tolerance_m': 'open_w
 # 빈 배열이 기본값(미설정)인 실수 배열 파라미터. 빈 목록으로 선언하면 rclpy가 BYTE_ARRAY로 정해 실수 배열 덮어쓰기를
 # 거부하므로 동적 형식으로 선언한다
 ARRAY_PARAMS = ('standby_pose', 'safe_pose', 'place_back_xyz_m')
+STOP_HISTORY_MAX = 100        # stop_history_json에 남기는 최근 Stop 수(받을 수 없는 정지 확인을 감시 노드가 재시도해도 유한)
+# DynamicPlace commit 뒤에도 개방을 확인하지 못한 결과: 그리퍼 상태를 바꾸지 않는다(쥔 채일 수 있다)
+OPEN_UNCONFIRMED = ('OPEN_NOT_CONFIRMED', 'OPEN_WIDTH')
 
 ACTIONS = {
     'MoveToPose': (MoveToPose, 'robot/move_to_pose'),
@@ -134,6 +141,9 @@ class RobotControllerNode(LifecycleNode):
         self._tracks: dict[int, TrackInfo] = {}
         self._belt: BeltInfo | None = None
         self._sync_velocity = None              # (계획 속도 XY, steady 시각): SafeRetreat keep_sync 기준
+        # 마지막 skill이 측정한 그리퍼 상태(robot/status). 시작은 개방(쥔 것 없음)이며 폭은 아직 모른다
+        self._gripper = {'holding': False, 'width_m': math.nan, 'current_ma': 0.0}
+        self._stop_history: list[dict] = []
         # 입력 구독(합쳐 약 90 Hz)은 별도 그룹에 둬서 기본 그룹의 status·heartbeat 타이머를 늦추지 않는다
         no_events = SubscriptionEventCallbacks(use_default_callbacks=False)
         inputs = MutuallyExclusiveCallbackGroup()
@@ -173,6 +183,7 @@ class RobotControllerNode(LifecycleNode):
             'fake_tcp_y_m': 0.0,
             'fake_tcp_z_m': 0.1,
             'stop_release_reason': '',
+            'stop_history_json': '[]',      # 진단: 받은 Stop마다 요청자·사유·수신 steady 시각(판정에 쓰지 않음)
             # backend:=fake 해제 transport(가정값, SPEC-500 3절)
             'fake_tcp_lag_s': 0.029,
             'fake_open_delay_s': 0.1,
@@ -258,6 +269,12 @@ class RobotControllerNode(LifecycleNode):
         return TransitionCallbackReturn.SUCCESS
 
     def on_activate(self, state):
+        # 비활성화가 멈춘 backend는 Stop 정지 유지가 아니면 다시 지령을 받게 한다. 정지 유지는 lifecycle로
+        # 풀리지 않는다(REQ-ROB-014). 풀지 않으면 ready=true인데 이동이 모두 끊긴다
+        if self.backend is not None and not self.stop_latch.latched:
+            reset = getattr(self.place_transport, 'reset_stop', None) or getattr(self.backend, 'reset_stop', None)
+            if reset is not None:
+                reset()
         self.state_id = State.PRIMARY_STATE_ACTIVE
         self._active = True
         self.skill.active = True
@@ -398,6 +415,8 @@ class RobotControllerNode(LifecycleNode):
         result.result = int(res.result)
         result.reason_code = res.reason_code
         self._fill_result(name, result, res)
+        if self._update_gripper(name, res):
+            self._on_status()             # 그리퍼 상태가 바뀌면 결과보다 먼저 한 번 더 알린다
         if res.result == Result.OK:
             goal_handle.succeed()
         elif res.result == Result.CANCELED and goal_handle.is_cancel_requested:
@@ -405,6 +424,24 @@ class RobotControllerNode(LifecycleNode):
         else:
             goal_handle.abort()
         return result
+
+    def _update_gripper(self, name, res) -> bool:
+        """skill 결과의 측정값으로 그리퍼 상태를 바꾼다. 쥠 여부나 폭이 바뀌었으면 True."""
+        m = res.metrics
+        before = dict(self._gripper)
+        if name == 'PickStone' and res.holding is not None:
+            self._gripper = {'holding': bool(res.holding),
+                             'width_m': float(m.get('grip_width_m', math.nan)),
+                             'current_ma': float(m.get('grip_current_ma', 0.0)) if res.holding else 0.0}
+        elif name in ('PlaceStone', 'DynamicPlace', 'SafeRetreat') and res.released and not (
+                name == 'DynamicPlace' and (res.reason_code in OPEN_UNCONFIRMED
+                                            or not math.isfinite(m.get('open_width_m', math.nan)))):
+            # 측정 개방 폭을 확인한 뒤의 결과(PlaceStone·SafeRetreat 반납, DynamicPlace RELEASE 개방 확인)
+            self._gripper = {'holding': False, 'width_m': float(m.get('open_width_m', math.nan)),
+                             'current_ma': 0.0}
+        width, old = self._gripper['width_m'], before['width_m']
+        same_width = width == old or (math.isnan(width) and math.isnan(old))
+        return self._gripper['holding'] != before['holding'] or not same_width
 
     @staticmethod
     def _fill_result(name, result, res):
@@ -444,6 +481,7 @@ class RobotControllerNode(LifecycleNode):
             # goal 전에 받은 계획 중 신선한 것만 넘긴다: 오래된 revision은 입력 상태 나이로 PLAN_INVALID가 된다
             plans, last = self._plans_since(None, fresh_s=self.sync_cfg.max_plan_age_s)
             out = None
+            open_width = math.nan                # RELEASE 끝 feedback의 측정 개방 폭(robot/status 그리퍼 상태)
             period = self.sync_cfg.period_s
             next_t = time.monotonic()
             while True:
@@ -454,6 +492,8 @@ class RobotControllerNode(LifecycleNode):
                                stop=bool(self._stop_requested or self.stop_latch.latched))
                 for fb in out.feedback:
                     goal_handle.publish_feedback(_dynamic_feedback(fb))
+                    if fb.phase == 'RELEASE' and fb.phase_done:
+                        open_width = float(fb.metrics.get('open_width_m', math.nan))
                 if out.result is not None:
                     break
                 if not rclpy.ok():
@@ -469,7 +509,8 @@ class RobotControllerNode(LifecycleNode):
             if seq.plan_velocity_xy is not None:
                 self._sync_velocity = (seq.plan_velocity_xy, time.monotonic())
             r = out.result
-            return SkillResult(r.result, r.reason_code, {**r.gate, **r.metrics}, released=bool(r.released))
+            return SkillResult(r.result, r.reason_code, {**r.gate, **r.metrics, 'open_width_m': open_width},
+                               released=bool(r.released))
         finally:
             self.skill.authority.release('dynamic_place')
 
@@ -526,6 +567,7 @@ class RobotControllerNode(LifecycleNode):
     # ------------------------------------------------------------ Stop·Status·Heartbeat
     def _on_stop(self, request, response):
         self.stop_latch.latch(f'{int(request.requester)}:{request.reason_code}')
+        self._record_stop(request)
         self._stop_requested = True
         res = self.skill.stop(str(request.reason_code))
         if self.place_transport is not None:
@@ -539,6 +581,19 @@ class RobotControllerNode(LifecycleNode):
         response.result = int(Result.OK) if stopped else int(Result.FAULT)
         response.reason_code = '' if stopped else (res.reason_code or 'STOP_NOT_CONFIRMED')
         return response
+
+    def _record_stop(self, request) -> None:
+        """진단 기록: 요청자·사유·수신 steady 시각. 판정에 쓰지 않는다(작업자가 해제 전에 원인을 본다)."""
+        entry = {'requester': int(request.requester), 'reason_code': str(request.reason_code),
+                 'received_steady_s': time.monotonic()}
+        with self._lock:
+            last = self._stop_history[-1] if self._stop_history else None
+            self._stop_history = (self._stop_history + [entry])[-STOP_HISTORY_MAX:]
+            text = json.dumps(self._stop_history)
+        # 같은 요청자·사유의 연속 재시도는 기록만 하고 로그는 처음 한 번
+        if last is None or (last['requester'], last['reason_code']) != (entry['requester'], entry['reason_code']):
+            self.get_logger().info(f'STOP_LATCHED requester={entry["requester"]} reason={entry["reason_code"]}')
+        self.set_parameters([Parameter('stop_history_json', value=text)])
 
     def _on_status(self):
         if not self._active or self.status_pub is None:
@@ -561,7 +616,11 @@ class RobotControllerNode(LifecycleNode):
             msg.tcp_pose = Pose(position=Point(x=float(pos[0]), y=float(pos[1]), z=float(pos[2])),
                                 orientation=Quaternion(x=float(quat[0]), y=float(quat[1]),
                                                        z=float(quat[2]), w=float(quat[3])))
-            msg.holding = False
+            g = dict(self._gripper)
+            msg.holding = bool(g['holding'])
+            msg.gripper_open = not msg.holding
+            msg.gripper_width = float(g['width_m'])
+            msg.gripper_current = float(g['current_ma'])
             msg.gripper_alive = True
         self.status_pub.publish(msg)
 

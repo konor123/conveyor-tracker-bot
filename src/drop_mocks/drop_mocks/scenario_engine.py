@@ -480,7 +480,11 @@ class ScenarioEngine:
         return PlanReply(RESULT['OK'], '', 0, tr.track_id, tr.epoch, fr.t, fr.t + dt_rel,
                          valid_until_t, p_base, v_base, self._pos_std, margin)
 
-    def verify(self, call_index: int) -> VerifyReply:
+    def verify(self, call_index: int, scripted: bool = True) -> VerifyReply:
+        """`world.verify` 대본의 판정. `scripted=False`(실제 controller와 함께 띄운 mock 세계)면 대본 대신 UNKNOWN:
+        mock 세계는 실제 controller가 떨어뜨린 공깃돌의 위치를 모르므로 투입 여부를 지어내지 않는다(REQ-MCK-010)."""
+        if not scripted:
+            return VerifyReply(VERDICT['UNKNOWN'], False, 0.0, False)
         e = self._verify[min(call_index, len(self._verify) - 1)] or {}
         verdict = VERDICT[e.get('verdict', 'SUCCESS')]
         inside = bool(e.get('stone_inside', verdict == VERDICT['SUCCESS']))

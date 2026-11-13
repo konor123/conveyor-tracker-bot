@@ -510,3 +510,105 @@ def test_mock_nodes_have_no_qos_event_handlers(ros):
     finally:
         world.destroy_node()
         robot.destroy_node()
+
+
+# ------------------------------------------------------------------ TC-MCK-009-02
+def _lag_cycle(h, tau, shift_after_start_m=0.0):
+    """계획(release 3 s 뒤, 0.02 m/s)을 발행하고 같은 plan_id로 DynamicPlace 한 번. shift면 goal 뒤 revision 2를 옮겨 발행."""
+    from drop_interfaces.action import DynamicPlace
+    from drop_interfaces.msg import InterceptPlan
+    from geometry_msgs.msg import Point, Pose, Vector3
+    from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
+    pub = h.client.create_publisher(InterceptPlan, 'drop/intercept_plan', QoSProfile(
+        depth=5, reliability=ReliabilityPolicy.RELIABLE, durability=DurabilityPolicy.VOLATILE))
+    h.wait_for(lambda: pub.get_subscription_count() >= 1, 5.0, 'drop/intercept_plan 구독')
+    t_rel = h.now() + 3.0
+
+    def plan(revision, x):
+        m = InterceptPlan(plan_id=7, revision=revision, release_time=to_time(t_rel), valid_until=to_time(t_rel + 1.2),
+                          target_tcp_pose=Pose(position=Point(x=x, y=-0.25, z=0.1756)),
+                          target_velocity=Vector3(x=0.02), status=InterceptPlan.OK)
+        m.header.frame_id = 'robot_base'
+        return m
+    pub.publish(plan(1, 0.5))
+    h.wait_until(h.now() + 0.2)
+    fbs = []
+    ac = h.action(DynamicPlace, 'robot/dynamic_place')
+    t_goal = h.now()
+    gh = wait_future(ac.send_goal_async(DynamicPlace.Goal(plan_id=7, mode=2),
+                                        feedback_callback=lambda f: fbs.append(f.feedback)), 5.0)
+    assert gh.accepted
+    if shift_after_start_m:
+        h.wait_until(h.now() + 0.3)
+        pub.publish(plan(2, 0.5 + shift_after_start_m))
+    res = wait_future(gh.get_result_async(), 10.0).result
+    assert res.result == RESULT['OK']
+    return t_goal, t_rel, fbs
+
+
+@pytest.mark.req('REQ-MCK-009')
+@pytest.mark.tc('TC-MCK-009-02')
+@pytest.mark.level('C')
+@pytest.mark.parametrize('tau', [0.029, 0.0], ids=['lag_29ms', 'off'])
+def test_dynamic_place_feedback_from_tcp_lag_model(ros, tau):
+    """SYNCHRONIZE `e_xy`(= v·τ)·`v_rel`(≈ 0)은 지연 모델 값이고, goal 뒤 revision이 1 mm 옮겨져도 기준은 처음
+    revision으로 고정된다. `tcp_lag_s:=0`이면 대본 값(1 mm, 2 mm/s)과 대본 자세다. 모델이 정확한 닫힌 해라 시각과 무관하다."""
+    robot = MockRobotControllerNode(parameter_overrides=_params('nominal_20mms', time.time(), tcp_lag_s=tau))
+    h = Harness(robot)
+    try:
+        status = h.record(RobotStatus, 'robot/status')
+        _, _, fbs = _lag_cycle(h, tau, shift_after_start_m=0.001)
+        sync = [f for f in fbs if f.phase == 'SYNCHRONIZE']
+        done = next(dict(zip(f.metric_keys, f.metric_values)) for f in sync if f.phase_done)
+        if tau > 0:
+            assert all(f.e_xy == pytest.approx(0.02 * tau, abs=1e-4) and f.v_rel <= 1e-4 for f in sync)
+            assert done['e_xy_m'] == pytest.approx(0.02 * tau, abs=1e-4)
+        else:
+            assert all((f.e_xy, f.v_rel) == (0.001, 0.002) for f in sync)
+            dyn = [m for _, m in status if m.in_workspace]
+            assert dyn and all((m.tcp_pose.position.x, m.tcp_pose.position.y) == (0.40, 0.0) for m in dyn)
+    finally:
+        h.close()
+
+
+@pytest.mark.req('REQ-MCK-009')
+@pytest.mark.tc('TC-MCK-009-02')
+@pytest.mark.level('C')
+@pytest.mark.realtime_pc
+def test_dynamic_place_status_tcp_lags_plan(ros):
+    """동적 phase `robot/status` TCP는 목표 궤적보다 v·τ 뒤(발행 시각 기준 ±0.5 mm = 실행 스레드 25 ms 지연 허용)."""
+    tau = 0.029
+    robot = MockRobotControllerNode(parameter_overrides=_params('nominal_20mms', time.time(), tcp_lag_s=tau))
+    h = Harness(robot)
+    try:
+        status = h.record(RobotStatus, 'robot/status')
+        t_goal, t_rel, _ = _lag_cycle(h, tau)
+        dyn = [m for _, m in status if m.in_workspace and from_time(m.header.stamp) >= t_goal + 0.5]   # 시작 과도 뒤
+        assert dyn
+        for m in dyn:
+            want = 0.5 + 0.02 * (from_time(m.header.stamp) - t_rel) - 0.02 * tau
+            assert m.tcp_pose.position.x == pytest.approx(want, abs=5e-4)
+            assert m.tcp_pose.position.y == pytest.approx(-0.25, abs=1e-6)
+    finally:
+        h.close()
+
+
+@pytest.mark.req('REQ-MCK-007')
+@pytest.mark.tc('TC-MCK-007-03')
+@pytest.mark.level('U')
+@pytest.mark.parametrize('exc', ['KeyboardInterrupt', 'ExternalShutdownException'])
+def test_spin_mock_interrupted_during_startup_exits_quietly(exc):
+    """기동 확인 창 안에서 launch가 SIGINT로 끝나면 대역은 traceback 없이 종료 코드 0으로 끝난다(2026-11-13 CI run
+    43355936161·PC real_bringup 실패). launch와 같이 새 프로세스에서 `spin_mock`을 부른다."""
+    code = (
+        'import rclpy\n'
+        'from rclpy.executors import ExternalShutdownException\n'
+        'from drop_mocks.ros_common import spin_mock\n'
+        'def interrupted():\n'
+        f'    raise {exc}()\n'
+        "spin_mock(interrupted, 'interrupted_mock', num_threads=1, args=[])\n"
+        'assert not rclpy.ok()\n'
+        "print('CLEAN')\n")
+    env = dict(os.environ, ROS_DOMAIN_ID=str(DOMAIN), PYTHONPATH=os.pathsep.join(p for p in sys.path if p))
+    res = subprocess.run([sys.executable, '-c', code], env=env, capture_output=True, text=True, timeout=60)
+    assert (res.returncode, res.stdout.strip()) == (0, 'CLEAN') and 'Traceback' not in res.stderr, res.stderr[-2000:]

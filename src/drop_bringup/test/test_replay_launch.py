@@ -106,8 +106,8 @@ def _stop(proc):
     return ''.join(proc.lines)
 
 
-def _violations(h):
-    """그래프의 금지 항목 [(노드, 종류, 이름)]. 시험 클라이언트 자신은 뺀다."""
+def _violations(h, errors=None):
+    """그래프의 금지 항목 [(노드, 종류, 이름)]. 시험 클라이언트 자신은 뺀다. `errors`가 있으면 조회 예외를 모은다."""
     c = h.client
     out = []
     for name, ns in c.get_node_names_and_namespaces():
@@ -118,7 +118,9 @@ def _violations(h):
             clients = [s for s, _ in c.get_client_names_and_types_by_node(name, ns)]
             act_clients = [a for a, _ in get_action_client_names_and_types_by_node(c, name, ns)]
             act_servers = [a for a, _ in get_action_server_names_and_types_by_node(c, name, ns)]
-        except Exception:                       # 조회 사이 노드가 사라짐
+        except Exception as exc:                # 조회 사이 노드가 사라짐
+            if errors is not None:
+                errors.append(f'{ns}/{name}: {type(exc).__name__}: {exc}')
             continue
         if name in FORBIDDEN_NODES:
             out.append((name, 'node', name))
@@ -169,7 +171,14 @@ def test_replay_has_no_robot_command_path(ros, tmp_path, with_bag):
                           probe.create_publisher(Float64MultiArray, STREAM_DECOY, 1)]
         want = {(PROBE, 'action_client', '/robot/pick_stone'), (PROBE, 'service_client', '/dsr01/gripper/cmd'),
                 (PROBE, 'stream_publisher', STREAM_DECOY)}
-        h.wait_for(lambda: want <= set(_violations(h)), timeout=10.0, what='탐침 금지 항목 발견')
+        try:
+            h.wait_for(lambda: want <= set(_violations(h)), timeout=10.0, what='탐침 금지 항목 발견')
+        except TimeoutError as e:
+            # 진단(2026-11-13 CI run 43355434543): 같은 프로세스의 탐침을 그래프 조회가 못 찾은 이유
+            errors = []
+            found = _violations(h, errors)
+            nodes = sorted(f'{ns}/{n}' for n, ns in h.client.get_node_names_and_namespaces())
+            raise TimeoutError(f'{e}; 찾은 항목={found}, 조회 예외={errors}, 노드={nodes}') from None
         found = _violations(h)
         assert [v for v in found if v[0] != PROBE] == []
         names = {n for n, _ in h.client.get_node_names_and_namespaces()}

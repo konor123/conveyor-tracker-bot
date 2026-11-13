@@ -52,6 +52,8 @@ def _vec3(value, name: str) -> np.ndarray:
 
 # backend 이동 결과 중 cancel·deadline이어도 FAULT로 보고하는 이유(정지 미확인)
 FAULT_MOVE_REASONS = frozenset({'STOP_NOT_CONFIRMED'})
+# PickStone `grip_current_limit` 허용 범위 [mA]: 그리퍼 전류 허용 1~150(SPEC-500 3절, REQ-GRP-004)
+GRIP_CURRENT_LIMIT_MA = (1, 150)
 
 
 def _deadline_passed(deadline_s: float | None, now_s: float) -> bool:
@@ -282,7 +284,7 @@ class StaticSkillExecutor:
                 return self._precondition('GRIP_CRITERIA_UNSET')
             if approach_height_m is None or not math.isfinite(float(approach_height_m)):
                 return self._precondition('APPROACH_HEIGHT_UNSET')
-            if not (1 <= int(grip_current_limit_ma) <= 100):
+            if not (GRIP_CURRENT_LIMIT_MA[0] <= int(grip_current_limit_ma) <= GRIP_CURRENT_LIMIT_MA[1]):
                 return SkillResult(Result.PRECONDITION, 'CURRENT_OUT_OF_RANGE')
             target = _vec3(target_position, 'target_position')
             approach = target + np.array([0.0, 0.0, float(approach_height_m)])
@@ -332,6 +334,11 @@ class StaticSkillExecutor:
         finally:
             self.authority.release('pick_stone')
 
+    def _near(self, measured, target) -> bool:
+        p = np.asarray(measured, dtype=float).reshape(-1)
+        return (p.size == 3 and bool(np.all(np.isfinite(p)))
+                and float(np.linalg.norm(p - target)) <= self.cfg.pose_tolerance_m + 1e-12)
+
     def _holding(self, width_m: float, current_ma: float) -> bool:
         return (self.cfg.grip_min_width_m - 1e-12 <= width_m <= self.cfg.grip_max_width_m + 1e-12
                 and current_ma >= self.cfg.grip_min_current_ma - 1e-12)
@@ -350,6 +357,8 @@ class StaticSkillExecutor:
                 return self._precondition('POSE_TOLERANCE_UNSET')
             if self.cfg.open_width_tolerance_m is None:
                 return self._precondition('OPEN_WIDTH_TOLERANCE_UNSET')
+            if self.cfg.safe_z_m is None:
+                return self._precondition('SAFE_Z_UNSET')        # RETREAT 목표 높이(움직이기 전에 확인)
             if release_height_m is None or not math.isfinite(float(release_height_m)):
                 return self._precondition('RELEASE_HEIGHT_UNSET')
             if open_width_m is None or not math.isfinite(float(open_width_m)):
@@ -391,28 +400,39 @@ class StaticSkillExecutor:
                 return SkillResult(Result.CANCELED, 'CANCELED')
             if _deadline_passed(deadline_s, self._now()):
                 return SkillResult(Result.TIMEOUT, 'DEADLINE')
+            before, _ = self.backend.read_tcp_pose()
             opened = self.backend.gripper_open(float(open_width_m))
+            after, _ = self.backend.read_tcp_pose()
             metrics['open_width_m'] = (float(opened.width_m)
                                        if opened.width_m is not None else math.nan)
-            metrics['sync_held'] = 0.0
+            # 정지 목표의 동기 유지: 개방하는 동안 목표 위치에 머물렀는가(개방 전·후 측정 TCP)
+            metrics['sync_held'] = 1.0 if all(self._near(p, target) for p in (before, after)) else 0.0
             if not opened.opened or opened.width_m is None:
                 return SkillResult(Result.FAILED, opened.reason_code or 'OPEN_FAILED', metrics)
             if abs(opened.width_m - float(open_width_m)) > self.cfg.open_width_tolerance_m:
                 return SkillResult(Result.FAILED, 'OPEN_WIDTH', metrics)
             self._emit(feedback, 'RELEASE', metrics, True)
 
+            # RETREAT: 측정 XY에서 안전 높이까지 수직 상승. 판정은 지령이 아니라 상승 뒤 측정 TCP z로 한다
+            # (PLAN.md 4.3절 RETREAT: z ≥ 안전 높이 = 투입 작업영역 밖, 개방 확인 뒤라 공깃돌 없음)
             self._emit(feedback, 'RETREAT', {}, False)
             pos_now, _ = self.backend.read_tcp_pose()
-            retreat = _vec3(pos_now, 'tcp_pose') + np.array([0.0, 0.0, float(release_height_m)])
+            pos_now = _vec3(pos_now, 'tcp_pose')
+            safe_z = float(self.cfg.safe_z_m)
+            retreat = np.array([pos_now[0], pos_now[1], max(safe_z, float(pos_now[2]))])
             out = self.backend.move_line(retreat, quat / np.linalg.norm(quat))
-            metrics['tcp_z_m'] = float(retreat[2])
-            metrics['outside_workspace'] = 1.0 if not out.completed else 0.0
+            pos_after, _ = self.backend.read_tcp_pose()
+            z = float(np.asarray(pos_after, dtype=float).reshape(-1)[2])
+            metrics['tcp_z_m'] = z
+            metrics['outside_workspace'] = 1.0 if math.isfinite(z) and z >= safe_z - 1e-9 else 0.0
             metrics['stone_in_gripper'] = 0.0
             if not out.completed:
                 interrupted = self._interrupted(cancel_requested, deadline_s, out)
                 if interrupted is not None:          # 개방 뒤이므로 released=True를 유지한다
                     return SkillResult(interrupted.result, interrupted.reason_code, metrics, released=True)
-                return SkillResult(Result.FAILED, out.reason_code or 'RETREAT_FAILED', metrics)
+                return SkillResult(Result.FAILED, out.reason_code or 'RETREAT_FAILED', metrics, released=True)
+            if not metrics['outside_workspace']:
+                return SkillResult(Result.FAILED, 'RETREAT_FAILED', metrics, released=True)
             self._emit(feedback, 'RETREAT', metrics, True)
             return SkillResult(Result.OK, '', metrics, released=True)
         finally:

@@ -1,6 +1,6 @@
 # SPEC-700 mocks
 
-- 버전: v0.8
+- 버전: v0.9
 - 근거: PLAN.md 7절
 - REQ 영역: MCK, INT
 
@@ -8,6 +8,7 @@
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
+| v0.9 | 2026-11-13 | REQ-MCK-009 `mock_robot_controller_node` TCP 1차 지연 모델(`tcp_lag_s` 29 ms, `drop/intercept_plan` 구독), REQ-MCK-010 실제 controller와 함께 띄운 mock 세계의 VerifyDrop은 UNKNOWN(`verify_scripted`), 4.7절 기동 확인 중 종료는 정상 종료 |
 | v0.8 | 2026-11-11 | REQ-MCK-008 대역의 Stop 정지 유지·작업자 해제 |
 | v0.7 | 2026-11-10 | 실시간 실행 판정은 PC(LEGION 또는 officepc), CI는 실행·기록만 |
 | v0.6 | 2026-11-10 | 실시간 데이터 수신 지연을 미들웨어 수신 시각으로 측정 |
@@ -21,7 +22,7 @@
 
 `drop_mocks` 패키지의 시나리오 엔진(`scenario_engine.py`)과 ROS 대역 2종(`mock_world_node`, `mock_robot_controller_node`)을 정한다. 대역은 I0·C 시험에서 vision·tracker·robot_controller를 대신한다. 대역 결과로 정확도·성공률을 보고하지 않는다(PLAN.md 7.4절).
 
-M0 planner 대역은 등속 해석해·`publish_plan`·`ComputeIntercept`를 제공하며 실제 planner가 계약 시험을 통과하면 사용하지 않는다. `time_insufficient` 시나리오, `test/contract/`의 역할별 계약 시험과 trial 가정값 복사는 M0 범위다. TCP 1차 지연 모델은 G5 범위다.
+M0 planner 대역은 등속 해석해·`publish_plan`·`ComputeIntercept`를 제공하며 실제 planner가 계약 시험을 통과하면 사용하지 않는다. `time_insufficient` 시나리오, `test/contract/`의 역할별 계약 시험과 trial 가정값 복사는 M0 범위다. TCP 1차 지연 모델(4.5절)은 측정 지연에 근거한 모델이며 추종 성능의 증거가 아니다.
 
 ## 2. 입력·출력(interface 버전)
 
@@ -32,7 +33,7 @@ SPEC-010 wire schema v0.2 / runtime contract v0.4(`src/drop_interfaces/`) 기준
 | `mock_world_node` | `vision` | `objects/detections` | `vision/detect_objects`, `vision/verify_drop` | `vision_node` |
 | `mock_world_node` | `tracking` | `objects/tracked`, `belt/measured_motion` | `tracking/reset`, `tracking/select_target` | `tracker_node` |
 | `mock_world_node` | `all` | 위 둘 합집합 | 위 둘 합집합 | 둘 다 |
-| `mock_robot_controller_node` | — | `robot/status` | `robot/pick_stone`, `robot/move_to_pose`, `robot/place_stone`, `robot/dynamic_place`, `robot/safe_retreat`(action), `robot/stop`(srv) | `robot_controller_node` |
+| `mock_robot_controller_node` | — | `robot/status` | `robot/pick_stone`, `robot/move_to_pose`, `robot/place_stone`, `robot/dynamic_place`, `robot/safe_retreat`(action), `robot/stop`(srv). 구독 `drop/intercept_plan`(reliable/volatile depth 5, QoS 이벤트 핸들러 없음) | `robot_controller_node` |
 
 모든 노드는 `system/heartbeat`를 10 Hz로 발행하고, `mock_robot_controller_node`는 활성 상태에서 `robot/status`(`RobotStatus`)를 10 Hz로 발행한다. QoS는 PLAN.md 3.3절·SPEC-010 3.5절 제안값을 쓴다.
 
@@ -44,6 +45,8 @@ SPEC-010 wire schema v0.2 / runtime contract v0.4(`src/drop_interfaces/`) 기준
 | `seed` | -1 | -1이면 시나리오 파일의 `seed` |
 | `t0_s` | 0.0 | 시나리오 시각 0에 해당하는 ROS 시각 [s]. 0이면 노드 기동 시각. 역할별 프로세스는 같은 값을 받아야 한다 |
 | `role` | `all` | `mock_world_node` 전용 |
+| `verify_scripted` | true | `mock_world_node` 전용. false면 VerifyDrop이 대본 대신 UNKNOWN(REQ-MCK-010). `drop.launch.py`는 실제 robot_controller와 함께 띄울 때 false로 준다 |
+| `tcp_lag_s` | 0.029 | `mock_robot_controller_node` 전용. TCP 1차 지연 시정수 [s], 0이면 모델 끔(REQ-MCK-009). 근거: 2026-11-07 OFF-2 참조 부하 speedl 100 Hz 지령→위치 지연 29 ms(`records/bench/loaded-stream-comparison-2026-11-07.csv`)를 시정수로 옮긴 값(측정 근거 모델) |
 | `autostart` | true | 기동 시 configure·activate까지 진행 |
 | `assumed_params` | (읽기 전용) | 엔진이 낸 가정값 목록(REQ-MCK-006). 기록 노드가 파라미터로 읽는다 |
 
@@ -137,19 +140,20 @@ measured: {<키 경로>: <출처>}
 | 서비스 | 응답 |
 |---|---|
 | `DetectObjects` | 요청 시각의 프레임에서 `region`·`object_class`가 맞는 검출. `min_count` 미만이면 FAILED `NOT_ENOUGH_OBJECTS`. `position_std` = `position_std_m`. `stable_window`는 v0.1에서 쓰지 않는다 |
-| `VerifyDrop` | `world.verify` 대본(기본 SUCCESS, `stone_offset_m` 0.002) |
+| `VerifyDrop` | `world.verify` 대본(기본 SUCCESS, `stone_offset_m` 0.002). `verify_scripted:=false`면 대본과 무관하게 UNKNOWN, `stone_inside` 거짓, `stone_offset_valid` 거짓(REQ-MCK-010): mock 세계는 실제 controller가 떨어뜨린 공깃돌의 위치를 모른다 |
 | `ResetTracking` | epoch + 1, `new_epoch` 반환 |
 | `SelectTarget` | 도달 구간 시작(`reach_start_m`)에 아직 들어오지 않았고 보이며 `observation_count ≥ min_observation_count`인 병뚜껑 중 가장 먼저 들어올 것. `t_enter_window`는 현재 속도 유지 가정. 없으면 FAILED `NO_TARGET` |
 
 ### 4.5 mock_robot_controller
 
 - `robot/status`(`RobotStatus`)를 활성 상태에서 10 Hz(Reliable, Volatile, depth 1, `header.frame_id = "robot_base"`)로 발행한다. 비활성(lifecycle)이면 발행하지 않으며, `heartbeat_stop`(`role: robot_controller`) 구간에서도 `robot/status`는 계속 발행한다.
-  - 필드 값: `connected = true`, `ready = active and not protective_stop`, `protective_stop = protective_stop()`, `tcp_pose` = 시나리오 `robot.status` 절이 있으면 그 값, 없으면 `(x=0.40, y=0.0, z=0.20)` m·orientation identity `(0, 0, 0, 1)`, `in_workspace` = `DynamicPlace`·`PlaceStone` 진행 중 `APPROACH`~`RELEASE` phase이면 `true`(그 외 `false`), `holding` = 마지막 `PickStone` 결과 `holding`이 `true`였고 그 뒤 `PlaceStone`·`DynamicPlace`의 `RELEASE` phase 또는 `SafeRetreat(place_back=true)` 완료가 아직 일어나지 않았으면 `true`, `gripper_alive = true`, `gripper_response_s = 0.1 + gripper_delay(t)`, `gripper_error_bits = 0`, `gripper_open = not holding`, `gripper_width = 0.0175 if holding else 0.022`, `gripper_current = 150.0 if holding else 0.0`.
+  - 필드 값: `connected = true`, `ready = active and not protective_stop`, `protective_stop = protective_stop()`, `tcp_pose` = DynamicPlace `APPROACH`~`RELEASE` 동안 TCP 1차 지연 모델 위치(아래), 그 밖에는 시나리오 `robot.status` 절이 있으면 그 값, 없으면 `(x=0.40, y=0.0, z=0.20)` m·orientation identity `(0, 0, 0, 1)`, `in_workspace` = `DynamicPlace`·`PlaceStone` 진행 중 `APPROACH`~`RELEASE` phase이면 `true`(그 외 `false`), `holding` = 마지막 `PickStone` 결과 `holding`이 `true`였고 그 뒤 `PlaceStone`·`DynamicPlace`의 `RELEASE` phase 또는 `SafeRetreat(place_back=true)` 완료가 아직 일어나지 않았으면 `true`, `gripper_alive = true`, `gripper_response_s = 0.1 + gripper_delay(t)`, `gripper_error_bits = 0`, `gripper_open = not holding`, `gripper_width = 0.0175 if holding else 0.022`, `gripper_current = 150.0 if holding else 0.0`.
 - skill goal마다 해당 skill 대본의 다음 항목을 쓴다. feedback `phase`는 소요시간을 같은 간격으로 나눠 차례로 보낸다(PickStone: APPROACH·DESCEND·GRIP·LIFT / MoveToPose: MOVE / PlaceStone: APPROACH·DESCEND·RELEASE·RETREAT / DynamicPlace: APPROACH·SYNCHRONIZE·DESCEND·RELEASE·RETREAT / SafeRetreat: RETREAT, `place_back`이면 PLACE_BACK 추가).
 - `PlaceStone`·`DynamicPlace` feedback(SPEC-010 2.3.1절):
   - 각 phase 시작 시 `phase_done = false`인 feedback을 1회 이상 보내고, phase 끝에 `phase_done = true`와 해당 phase의 `metric_keys`·`metric_values`를 채운 feedback을 보낸다(`DynamicPlace`의 `SYNCHRONIZE` 중에는 20 Hz 이상으로 `e_xy`·`v_rel`을 채운 `phase_done = false` feedback을 보낸다).
   - `DynamicPlace` goal의 `mode`가 `MODE_PREDICTED(1)`이면 `SYNCHRONIZE` 끝 키는 `entry_time_error_s`, `v_rel_mps`이고, 그 외(`MODE_SYNCHRONIZED`)에는 `e_xy_m`, `v_rel_mps`이다.
   - 측정값 기본값: `plan_valid=1`, `pose_error_m=0.0005`, `e_xy_m=0.001`, `v_rel_mps=0.002`, `entry_time_error_s=0.01`, `sync_ok=1`, `rim_clearance_m=0.0025`, `height_error_m=0.0002`, `target_error_m=0.0005`, `open_width_m=0.022`, `sync_held=1`, `tcp_z_m=0.12`, `outside_workspace=1`, `stone_in_gripper=0`. 대본 항목의 `phase_metrics: {DESCEND: {rim_clearance_m: 0.001}, ...}`로 덮어쓸 수 있다.
+- TCP 1차 지연 모델(REQ-MCK-009, `tcp_lag.py`): `tcp_lag_s` > 0이고 goal의 `plan_id` 계획을 `drop/intercept_plan`에서 받았으면, DynamicPlace `APPROACH`~`RELEASE` 동안 TCP는 계획 목표 궤적 `r(t) = target_tcp_pose.position + target_velocity·(t − release_time)`(그 goal에서 처음 쓴 같은 `plan_id` revision으로 고정: revision 사이 위치 잡음 δ가 모델 속도 δ/τ로 번지지 않게)을 `dp/dt = (r − p)/tcp_lag_s`로 따른다(시작 = 그때의 `robot/status` 자세, 구간마다 닫힌 해). 등속 기준의 정상 상태 오차는 `v·tcp_lag_s`(20 mm/s에서 0.58 mm), 상대 속도 0이다. 이 동안 SYNCHRONIZE feedback의 `e_xy`·`v_rel`과 SYNCHRONIZE 끝 `e_xy_m`·`v_rel_mps`는 모델의 XY 오차·상대 속도다. 대본의 SYNCHRONIZE `phase_metrics`가 있으면 대본이 우선하고, 계획을 받지 못했거나 `tcp_lag_s` = 0이면 대본 값이다. 나머지 phase 지표와 skill 결과는 대본이다.
 - 보호정지는 `protective_stop` 이벤트 구간, 또는 대본의 `protective_stop_at_ratio`에 이른 뒤 노드가 다시 뜰 때까지다(작업자 처리 모사, `Stop`으로 풀리지 않는다).
 - 보호정지 중: 진행 중 goal은 FAULT `PROTECTIVE_STOP`으로 끝내고, 새 goal은 수락 후 바로 같은 결과로 끝낸다. Heartbeat `error_code = 100`, `detail = "PROTECTIVE_STOP"`.
 - `Stop`: 진행 중 goal(hang 포함)을 CANCELED `STOPPED`로 끝내고, 모두 끝난 뒤 `stopped = true`로 응답한다.
@@ -165,6 +169,7 @@ measured: {<키 경로>: <출처>}
 - 기동할 때 `exclusive_check_s`(기본 1.0 s) 동안 같은 역할의 서버(vision: `vision/detect_objects`·`vision/verify_drop`, tracking: `tracking/reset`·`tracking/select_target`, robot: `robot/stop`)가 그래프에 있는지 본다. 있으면 `REAL_NODE_PRESENT`를 기록하고 종료 코드 1로 끝난다.
 - 서버 이름은 namespace·remap을 푼 이름으로 센다. 기동 뒤에도 0.5 s(steady)마다 같은 서버의 제공자 수를 본다. 자기 외의 제공자가 생기면 `REAL_NODE_PRESENT`를 기록하고 종료 코드 1로 끝난다. DDS discovery는 수 s 걸릴 수 있으므로(실측 최대 약 2.6 s) 기동 확인 창에서 놓친 서버도 이 감시로 잡는다.
 - bringup은 대역이 0이 아닌 코드로 끝나면 전체를 내린다.
+- 기동 확인 창 안에서 launch가 끝나면(SIGINT, context 종료) 실행 중 종료와 같이 traceback 없이 종료 코드 0으로 끝난다.
 
 ## 5. 시간 제약(주기·제한시간)
 
@@ -186,14 +191,17 @@ measured: {<키 경로>: <출처>}
 - REQ-MCK-006: 시나리오의 `world`·`robot` 수치 값은 100% `assumed` 또는 `measured`로 분류되고(중복 0), `assumed`로 분류된 키 목록이 trial 기록 `assumed_params`로 복사된다.
 - REQ-MCK-007: 같은 역할의 실제 노드와 대역을 동시에 지정하면 bringup이 기동을 거부한다.
 - REQ-MCK-008: `mock_robot_controller_node`는 SPEC-010 4.5절의 정지 유지·해제를 실제 노드와 같게 따른다(`ready=false`, heartbeat 101, 유지 중 goal은 지령 없이 `CANCELED`(`STOPPED`), `stop_release_reason` 해제 조건). 대본의 보호정지(100)와는 별개다.
+- REQ-MCK-009: `mock_robot_controller_node`의 TCP 1차 지연 모델(4.5절)은 등속 기준에서 정상 상태 XY 오차 `v·tcp_lag_s`(±1e-9 m)·상대 속도 0, 정지 기준 계단에서 τ 뒤 오차 `e⁻¹`배이고 진행 간격과 무관하다. 노드는 동적 phase에서 이 모델의 TCP를 `robot/status`(목표 궤적보다 `v·tcp_lag_s` 뒤, 발행 시각 기준 ±0.5 mm)와 SYNCHRONIZE `e_xy`·`v_rel`로 내고, `tcp_lag_s` = 0이면 대본 값·대본 자세다. 기본값으로 I0 시험(TC-INT-001~013, TC-ABT-011-02~014-02)이 그대로 통과한다.
+- REQ-MCK-010: `verify_scripted` = false인 mock 세계의 VerifyDrop은 대본이 SUCCESS·FAILURE여도 UNKNOWN(`stone_inside`·`stone_offset_valid` 거짓)이다. `drop.launch.py`는 실제 robot_controller(`use_mock_robot:=false`)와 mock vision을 함께 띄울 때 false로 준다. 그래서 그 조합의 정상 사이클 결과는 SPEC-100 4.7절대로 `UNKNOWN`이다.
 
 ## 8. 검증 방법(`TEST_SPEC.md` TC ID, 게이트)
 
-TC-MCK-001-01, 002-01, 003-01, 004-01, 005-01, 005-02, 006-01, 006-02, 007-01, 007-02, 008-01(M0).
+TC-MCK-001-01, 002-01, 003-01, 004-01, 005-01, 005-02, 006-01, 006-02, 007-01, 007-02, 008-01(M0), 009-01(U), 009-02(C), 010-01(U). 실제 controller와 함께 띄운 VerifyDrop UNKNOWN의 사이클 결과는 TC-INT-014-01·015-01(I0).
 
 ## 9. 미결 사항
 
 - 대역 지연·소요시간: TBD(측정 G0).
+- `tcp_lag_s`는 지령→위치 지연 측정값을 시정수로 옮긴 값이다. 속도·가속 한계를 포함한 동특성은 G5 실측으로 정한다.
 
 ### 관측용 진단 파라미터
 

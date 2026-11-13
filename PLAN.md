@@ -684,7 +684,7 @@ Isaac Sim은 대역으로 쓰지 않는다. 무겁고 결정적이지 않아 CI 
 |---|---|---|
 | `scenario_engine.py` | 시나리오 YAML 하나로 매트 위 공깃돌·벨트에 붙은 병뚜껑·벨트 속도·한 바퀴 주기·가림 구간·이벤트 시각을 정의하는 단일 세계 모델. seed 고정 | 이벤트 시각표 |
 | `mock_world_node` | `scenario_engine`에서 `ObjectDetectionArray`, `TrackedObjectArray`, `BeltMotion`을 일관되게 만들고, `DetectObjects`·`VerifyDrop`·`ResetTracking`·`SelectTarget`에 응답. Heartbeat는 역할별로 발행 | 판정 결과 지정, 상태 전환(COASTING/LOST), epoch 증가, `steady=false`, 뚜껑 안 공깃돌 남음, 역할별 heartbeat 중단 |
-| `mock_robot_controller_node` | skill 액션 5종 + `Stop`의 수락·feedback·결과·cancel, Heartbeat. M0에서는 소요시간·결과를 시나리오로 지정한다. TCP 1차 지연 모델은 G5(I3 추종 시험)에서 추가한다 | 소요 시간 배율, 실패, 무응답(hang), 보호정지, 파지 실패, 그리퍼 응답 지연 |
+| `mock_robot_controller_node` | skill 액션 5종 + `Stop`의 수락·feedback·결과·cancel, Heartbeat. 소요시간·결과는 시나리오로 지정한다. DynamicPlace 동적 phase의 TCP는 계획 목표 궤적을 1차 지연(시정수 29 ms = OFF-2 speedl 100 Hz 부하 지연)으로 따르는 모델이며 SYNCHRONIZE `e_xy`·`v_rel`도 그 모델에서 낸다 | 소요 시간 배율, 실패, 무응답(hang), 보호정지, 파지 실패, 그리퍼 응답 지연 |
 
 - `mock_world_node`는 `role:=vision|tracking|all` 인자로 역할별 프로세스로 띄울 수 있다. 역할별 프로세스도 같은 시나리오 파일·seed·시계를 쓰므로 detections와 tracked가 같은 세계를 보인다. 역할을 나눠 띄우면 vision만 또는 tracker만 heartbeat를 끊는 시험을 할 수 있다.
 - planner가 아직 없을 때만 `mock_world_node`의 임시 옵션(`publish_plan:=true`, 등속 해석해)으로 `InterceptPlan`을 낸다. 실제 planner가 계약 테스트를 통과하면 이 옵션은 쓰지 않는다.
@@ -725,6 +725,7 @@ Isaac Sim은 대역으로 쓰지 않는다. 무겁고 결정적이지 않아 CI 
 | 단계 | vision | tracker | planner | robot | 목적 | 돌리는 시나리오 | 실행 |
 |---|---|---|---|---|---|---|---|
 | I0 | mock_world | mock_world | (임시 plan 또는 real) | mock | 오케스트레이터 전이·중단·제한시간 | 7.3절 ROS I0 5종 | CI(`launch_testing`), 매 커밋 |
+| I0(실제 controller) | mock_world | real | real | real(`backend:=fake`) | 실제 skill 계약을 오케스트레이터 사이클로: DynamicPlace 두 mode, PlaceStone, SafeRetreat place-back(통과 보내기 소진, 해제 전 동적 구간 실패). mock 세계의 VerifyDrop은 UNKNOWN(실제 controller가 놓은 공깃돌을 모름) | 정상, `time_insufficient`, heartbeat 손실 | CI, 매 커밋 |
 | I1 | replay(real) | real | — | — | 실데이터 검출→추적 | 회귀 bag 세트(정상·가림·누락·속도 변화) | CI |
 | I2 | — | fixture 또는 replay→real | real | — | 예측·시간 예산 | 정상, `time_insufficient`, `UNCERTAIN`, 만료·epoch 불일치·clock reset | CI |
 | I3 | mock_world | mock_world 또는 fixture | real | real | 실제 로봇·그리퍼 skill, L0/L4, plan 추종 | 정상, deadline 자체 중단, stale 지령(L0), `Stop`, plan 갱신 중단, 추종 중 그리퍼 개방 | 실기, 안전 높이 |

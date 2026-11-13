@@ -284,8 +284,8 @@
   - SPEC-500 4.5절: XY는 추종 코어(REQ-ROB-013) 지령, z는 `z_kp_hz` 비례 지령을 별도 속도·가속 한도로 제한, 자세는 계획의 고정 공구 자세(SPEC-400 `target.tool_quat_xyzw`, 수직 하향). 접근 높이는 해제 높이 + `approach_above_m`이다.
 - [x] `[ON]` `DynamicPlace` 액션의 접근·동기 구간 먼저 구현, `intercept_plan` revision·epoch 확인
   - APPROACH → SYNCHRONIZE → DESCEND → RELEASE(해제 게이트, commit 1회) → RETREAT 전체를 구현했다(SPEC-500 v0.7 4.5절, REQ-ROB-008~010, TC-ROB-008·009·010). transport 경계는 해제 확정이라 스트림 + 상주 루프와 한 DRL 프로그램 방식을 같은 게이트로 바꿔 끼운다(`records/reviews/fable-decisions-2026-11-12.md` (a)). 가짜 transport: TCP 1차 지연 29 ms·개방 지연 0.1 s(가정값). 2026-11-13 집 PC WSL robot_control 236 passed.
-- [ ] `[ON*]` `mock_robot_controller_node`에 TCP 1차 지연 모델 추가(G0 측정값 사용)
-  - 실제 노드의 가짜 backend(`fake_place_transport.py`)에는 1차 지연 29 ms(2026-11-07 speedl 100 Hz 부하 측정 지연)를 넣었다. `drop_mocks`의 대역 controller에는 아직 없다.
+- [x] `[ON*]` `mock_robot_controller_node`에 TCP 1차 지연 모델 추가(G0 측정값 사용)
+  - `drop_mocks/tcp_lag.py` 1차 지연(시정수 29 ms = 2026-11-07 speedl 100 Hz 부하 측정 지연, 실제 노드 가짜 transport와 같은 값). 기본으로 켜고 `tcp_lag_s:=0`이면 대본 값이다. 동적 phase feedback의 `e_xy`·`v_rel`과 `robot/status` TCP가 이 모델 값이고, 기준 궤적은 goal에서 처음 받은 revision으로 고정한다(REQ-MCK-009, TC-MCK-009-01·02). 2026-11-13 사무실 PC WSL drop_mocks 87 passed, 지연 모델을 켠 I0 18 passed.
 - [x] `[ON]` plan 갱신 중단·epoch 변경·만료 시 `DynamicPlace`가 `PLAN_INVALID`로 끝나고, 이미 받은 것 이하의 revision은 무시하는지 확인(fake transport, TC-ROB-008-01)
   - TC-ROB-008-01·02·03, `UNCERTAIN` revision은 래치하지 않고 마지막 OK 계획을 `uncertain_hold_s` 0.6 s 동안 따른다(TC-ROB-013-08). 2026-11-13 집 PC WSL robot_control 236 passed.
 - [ ] `[OFF]` OFF-5: **비접촉 동기 추종**. 안전 높이(병뚜껑 테두리 위 30 mm)에서 추종만 시험(I3: 합성 tracked → 실제 planner → 실제 controller, 실제 planner가 낸 `plan_id`·`revision`·`epoch`을 controller가 따르는지 확인 → I5: 실제 병뚜껑)
@@ -302,6 +302,7 @@
 ### 11A. 예측 타이밍 투입 (MODE_PREDICTED, 중간 단계)
 
 - [ ] `[ON]` 예측 해제점·시각으로 접근하고, 마지막 하강·해제 구간만 미리 계획한 속도로 벨트와 일치시킴(지속 피드백 없음). I0·S에서 시퀀스 확인
+  - I0: 실제 `robot_controller_node`(`robot_backend:=fake`) + 실제 tracker·planner + 오케스트레이터 MODE_PREDICTED 한 사이클(TC-INT-014-01, `realtime_pc`). 2026-11-13 사무실 PC WSL 실제 controller I0 8 passed. S(Isaac Sim)는 장비가 없어(부록 A) 남은 조건이다.
 - [ ] `[OFF]` OFF-6: 저속(초기 10~30 mm/s 중 실제 안정 범위)에서 시험
 
 **G4 합격 기준(제안):** 해제 horizon 예측 오차 p95 ≤ 1.5 mm / 저속 30회 성공 ≥ 80% / 통과 보내기 횟수와 NOT_ATTEMPTED 횟수 공개.
@@ -309,7 +310,7 @@
 ### 11B. 속도 동기 추종 투입 (MODE_SYNCHRONIZED)
 
 - [ ] `[ON]` 지속 갱신 목표 + 10절 추종 루프로 하강·해제, 해제 게이트 미통과 시 SAFE_ABORT(동기 유지하며 상승). I0·S에서 시퀀스 확인
-  - I0: 실제 tracker·planner 한 사이클(TC-INT-009-01), 대역 소요시간 축척 1.0(TC-INT-010-01, goal deadline = goal 전체 상한 REQ-ORC-015), WAIT_CAP 대상 재선택(TC-INT-011-01, REQ-ORC-016). 실제 `DynamicPlace`(10절)와 S 확인이 남은 조건이다.
+  - I0: 실제 tracker·planner 한 사이클(TC-INT-009-01), 대역 소요시간 축척 1.0(TC-INT-010-01, goal deadline = goal 전체 상한 REQ-ORC-015), WAIT_CAP 대상 재선택(TC-INT-011-01, REQ-ORC-016). 실제 controller `DynamicPlace` 한 사이클(TC-INT-014-01)과 해제 전 동적 구간 실패 → 동기 유지 상승·매트 내려놓기(TC-INT-017-01), 둘 다 `realtime_pc`. 2026-11-13 사무실 PC WSL 실제 controller I0 8 passed. S(Isaac Sim, 부록 A) 확인이 남은 조건이다.
 - [ ] `[OFF]` OFF-6: 실제 E0509 동적 투입, 투입 후 공깃돌이 뚜껑과 함께 1 s 이동하는지 확인
   - 자동 확인 순수 모듈 `vision/verifier.py`(SUCCESS/UNKNOWN만, REQ-VIS-009, TC-VIS-009-01). `vision/verify_drop` 서비스 연결은 vision에 `T_base_conveyor`가 없어 track과 검출을 잇는 방법을 정한 뒤 한다(SPEC-200 미결).
 - [ ] `[ON*]` 해제 오차·성공률 분석
@@ -319,14 +320,16 @@
 ## 12. 전체 시스템 통합 → G7
 
 - [ ] `[ON]` ROS 2 노드·Launch 통합(real / sim / replay / mock 분리, replay는 로봇 지령 경로 미연결)
+  - real: `drop.launch.py use_mock_robot:=false`가 실제 `robot_controller_node`를 configure → activate한다. `robot_backend` 기본은 `disabled`(실기 연결 없음)이고 `fake`면 `config/robot_fake.yaml` → 시나리오 기하(대기 자세·반납 위치) → `robot_params_file` 순으로 겹친다. robot 역할 서버는 실제 controller 하나다(TC-INT-018-01).
   - replay: `drop_bringup/launch/replay.launch.py`(영상 토픽만 재생, 실제 vision·tracker·planner, robot·orchestrator·그리퍼·스트림 경로 없음), TC-INT-007-01이 그래프에서 지령 경로 0개를 확인한다(합성 bag 포함). sim은 Isaac Sim을 돌릴 장비가 없어(부록 A) 남는다.
 - [x] `[ON]` 상태 머신·단계 판정·중단 등급(`PLAN.md` 4, 5절): PRECHECK, WAIT_CAP, SAFE_ABORT, PROTECTIVE_STOP, WAIT_OPERATOR 포함. I0 전 시나리오 통과
   - `PLAN.md` 7.3절 ROS I0 5종과 감시 연결 I0(TC-ABT-011~014-02), MODE_STATIC(TC-INT-013-01), 실제 tracker·planner 두 모드(TC-INT-009-01). 2026-11-13 사무실 PC WSL(병합본) orchestrator 789, I0 18 passed. 장애 10종 단위 시험은 M0에서 확인했다.
-- [ ] `[ON]` 공깃돌 파지부터 투입까지 자동화(시도 사이 공깃돌 회수는 작업자)
+- [x] `[ON]` 공깃돌 파지부터 투입까지 자동화(시도 사이 공깃돌 회수는 작업자)
+  - 실제 controller(`robot_backend:=fake`)로 PRECHECK → … → DONE이 자동으로 진행된다: 두 동적 모드(TC-INT-014-01)와 MODE_STATIC(TC-INT-015-01). mock 세계는 실제 controller가 떨어뜨린 공깃돌을 모르므로 결과는 `UNKNOWN`이다(REQ-MCK-010). 이 통합에서 드러난 controller 결함 6건(SYNCHRONIZE 유지 시간 경계, 동기 유지 상승 전 속도 정착, PickStone 전류 한도 150 mA, PlaceStone `sync_held`·후퇴 높이, `robot/status` 그리퍼 필드, 재활성 뒤 정지 잔류)을 고쳤다(SPEC-500 v0.10). 2026-11-13 사무실 PC WSL 실제 controller I0 8 passed. 실기 확인은 OFF-6·OFF-7이다.
 - [x] `[ON]` 추적 손실·속도 급변: 해제 전이면 SAFE_ABORT(L3)
   - 대상 관측 나이 > 0.3 s → `OBS_STALE` L3(TC-ABT-011-02). `steady=false`가 1.0 s(`watchdog.belt_unsteady_hold_s`) 넘게 이어지면 해제 전 L3, 해제 뒤 RETREAT·VERIFY 계속, 그보다 짧은 맥동은 중단하지 않는다(REQ-ABT-013, TC-ABT-013-01·02, `records/reviews/fable-decisions-2026-11-12.md` (b)). ROS 시각 역행(약 50 ms 표본)은 들고 있으면 L3, 아니면 L2이고 이전 대상·계획을 다시 쓰지 않는다(TC-ABT-012-02·03). 그리퍼 오류·응답 지연은 `RobotStatus`로 판정한다(TC-ABT-014-02). 2026-11-13 사무실 PC WSL(병합본) orchestrator 789, I0 18 passed.
-- [ ] `[ON]` 작업 가능 시간 부족: 다음 통과 대기, 통과 보내기 소진 시 공깃돌을 매트에 내려놓고 NOT_ATTEMPTED
-  - 오케스트레이터 판정(TC-INT-005-01, TC-ORC-007)과 로봇 쪽 `SafeRetreat(place_back)`(동기 유지 상승 → 안전 높이 → 매트 위 `place_back_xyz_m` → 하강 → 개방 폭 확인 → 상승, 좌표 미설정이면 `PLACE_BACK_POSE_UNSET`, REQ-ROB-016, TC-ROB-016-01~05)을 구현했다. 실제 controller를 붙인 I0와 현장 매트 좌표가 남은 조건이다.
+- [x] `[ON]` 작업 가능 시간 부족: 다음 통과 대기, 통과 보내기 소진 시 공깃돌을 매트에 내려놓고 NOT_ATTEMPTED
+  - 오케스트레이터 판정(TC-INT-005-01, TC-ORC-007)과 로봇 쪽 `SafeRetreat(place_back)`(동기 유지 상승 → 안전 높이 → 매트 위 `place_back_xyz_m` → 하강 → 개방 폭 확인 → 상승, 좌표 미설정이면 `PLACE_BACK_POSE_UNSET`, REQ-ROB-016, TC-ROB-016-01~05)을 구현했다. 실제 controller I0: 반납 위치가 있으면 `NOT_ATTEMPTED`·Stop 0·매트 위 안전 높이, 없으면 `PLACE_BACK_POSE_UNSET` → L4(TC-INT-016-01). 2026-11-13 사무실 PC WSL 실제 controller I0 8 passed. 현장 매트 좌표 `place_back_xyz_m`는 OFF-2에서 정한다.
 - [x] `[ON]` 보호 정지·통신 끊김: 자동 리셋·무조건 원점 복귀 금지, 작업자 확인 후 재개(L4)
   - TC-INT-003-01(I0 보호정지 → WAIT_OPERATOR → 사유 있는 재개), TC-ORC-009-01, `ROBOT_COMM_LOST` L4(`test_node_failure_regressions.py`·`test_safety_supervisor.py`), TC-ORC-012-01. 2026-11-12 집 PC WSL(`ce86f9b`) orchestrator 716 passed, I0 해당 시험 통과.
 - [x] `[ON]` 중단 경로 제한시간(L2 10 s, L3 15 s) 초과 시 승격 확인

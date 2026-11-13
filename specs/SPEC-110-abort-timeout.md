@@ -1,6 +1,6 @@
 # SPEC-110 abort-timeout
 
-- 버전: v0.10
+- 버전: v0.11
 - 근거: PLAN.md 5, 6절
 - REQ 영역: ABT
 
@@ -8,6 +8,7 @@
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
+| v0.11 | 2026-11-13 | 중단 경로 skill이 OK로 끝나지 않으면(`PRECONDITION` 포함) L4·Stop(4.2절), 실제 controller I0 TC-INT-016-01·017-01 |
 | v0.10 | 2026-11-13 | 벨트 불안정은 `steady=false`가 `belt_unsteady_hold_s`(1.0 s) 넘게 이어질 때만(PRECHECK 포함, REQ-ABT-013), 감시 적용 구간(4.4절), ROS 시각 역행 표본 주기와 역행 전 대상·계획 재사용 거부(REQ-ABT-012), 그리퍼 감시 입력 `RobotStatus`(REQ-ABT-014), 동적 deadline 식(5절, REQ-ABT-006), TC-ABT-011-02~014-02 I0 |
 | v0.9 | 2026-11-11 | `ROBOT_STOPPED`에 controller 정지 유지(heartbeat 101) 포함, 재개 순서(로봇 해제 → `resume`) |
 | v0.8 | 2026-11-10 | 하드 이상에 `ROBOT_STOPPED`(실행 중 skill이 Stop으로 끝남) 추가 |
@@ -65,6 +66,7 @@ M0는 감시 판정 함수와 이벤트 입력의 U 검증 범위다. ROS 관측
 
 - 심각도 순서: `NONE < L2 < L3 < CONTINUE_TO_RETREAT_VERIFY < L4`. `escalate(current, new)`는 둘 중 심각한 쪽을 낸다.
 - 중단 경로가 시작되면(L2·L3) steady 시계로 경과를 잰다. 제한시간을 넘으면 L4.
+- 중단 경로 skill(L2 `MoveToPose(safe)`, L3 `SafeRetreat(keep_sync, place_back=true)`)이 OK로 끝나지 않으면(응답 없음, `FAILED`, 설정 누락 `PRECONDITION` 포함) L4로 올리고 `Stop`을 보낸다. 로봇·공깃돌 상태를 확인하지 못한 채 작업자 확인 없이 다음 사이클로 가지 않는다. 예: 매트 반납 위치 미설정(`PLACE_BACK_POSE_UNSET`), 동기 유지 후퇴 `SYNC_SPEED`.
 - cancel을 보낸 뒤 `cancel_response_s` 안에 응답이 없으면 한 단계 올린다(L2→L3, L3→L4).
 - WAIT_OPERATOR에는 제한시간이 없다. `Stop`을 받은 controller는 작업자가 정지 유지를 해제(`stop_release_reason`)할 때까지 지령을 실행하지 않으므로, 재개는 로봇 해제 뒤 `resume` 순서다(SPEC-010 4.5절, REQ-ORC-012).
 
@@ -129,7 +131,7 @@ M0는 감시 판정 함수와 이벤트 입력의 U 검증 범위다. ROS 관측
 
 ## 8. 검증 방법(`TEST_SPEC.md` TC ID, 게이트)
 
-TC-ABT-001-01 ~ TC-ABT-016-01, TC-ABT-006-02, TC-ABT-012-03(U, M0). ROS 수준은 TC-ABT-009-02(heartbeat·감시 타이머 시계), TC-INT-002-01(cancel 0.5 s), TC-INT-003-01(`Stop`), TC-INT-004-01(heartbeat 300 ms).
+TC-ABT-001-01 ~ TC-ABT-016-01, TC-ABT-006-02, TC-ABT-012-03(U, M0). ROS 수준은 TC-ABT-009-02(heartbeat·감시 타이머 시계), TC-INT-002-01(cancel 0.5 s), TC-INT-003-01(`Stop`), TC-INT-004-01(heartbeat 300 ms). 실제 robot_controller(`backend:=fake`)의 L3 경로는 TC-INT-016-01(통과 보내기 소진 → place-back, 반납 위치 미설정 → L4)·TC-INT-017-01(해제 전 동적 구간 실패 → 동기 유지 후퇴·place-back).
 
 REQ-ABT-011~014의 U 판정·이벤트 입력·적용 구간은 M0다. TC-ABT-011-02는 G3/G4 관측 ROS 연결, TC-ABT-012-02는 G3 역행 무효화, TC-ABT-013-02는 G3 벨트 ROS 이벤트, TC-ABT-014-02는 G0 그리퍼 ROS 연결의 I0 필수 시험이다(mock 시나리오 이벤트, 역행은 `use_sim_time` 시험 시계).
 

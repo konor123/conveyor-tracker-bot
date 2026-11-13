@@ -32,6 +32,8 @@ class MockWorldNode(MockLifecycleNode):
         super().__init__('mock_world_node', **kwargs)
         self.declare_parameter('role', 'all')
         self.declare_parameter('publish_plan', True)
+        # false = VerifyDrop이 대본 대신 UNKNOWN(실제 controller와 함께 띄울 때, REQ-MCK-010)
+        self.declare_parameter('verify_scripted', True)
         role = self.get_parameter('role').value
         if role not in ('vision', 'tracking', 'all'):
             raise ValueError(f'role은 vision|tracking|all: {role}')
@@ -145,7 +147,7 @@ class MockWorldNode(MockLifecycleNode):
     def _verify(self, req, res):
         if self._refuse(req, res):
             return res
-        r = self.engine.verify(self.verify_calls)
+        r = self.engine.verify(self.verify_calls, scripted=bool(self.get_parameter('verify_scripted').value))
         self.verify_calls += 1
         res.result, res.verdict = RESULT['OK'], r.verdict
         res.stone_inside, res.stone_offset, res.stone_offset_valid = (
