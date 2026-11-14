@@ -7,6 +7,7 @@
   status       읽기만: robot·DRL 상태, TCP, 상주 루프 레지스터 30~40
   loop-start   상주 루프 DRL 기동(그리퍼 토크가 꺼져 있으면 켠다, 팔 지령 없음) → 시작 상태·생존 카운터 3 s
   grip-hold    지금 그리퍼 위치를 그대로 목표로(전류 100 mA) 써서 명령 경로만 확인(손가락은 움직이지 않아야 한다)
+  grip-move    --pulse로 그리퍼만 옮기고 멈출 때까지 기다린다(0~750, 100 mA, 팔 지령 없음). 실측표용
   move         루프가 도는 동안 팔을 z로 --dz-mm(기본 +10, |dz| ≤ 20) 직선 이동했다가 원위치(20 mm/s)
   loop-stop    종료 레지스터(25)를 써서 루프를 끝내고 DRL이 STOP·LAST로 돌아오는지 본다
 
@@ -20,6 +21,7 @@ import sys
 import time
 
 DZ_MAX_MM = 20.0
+PULSE_WORK_MAX = 750       # 현장 운용 범위(SPEC-500 3절)
 MOVE_V = [20.0, 10.0]          # mm/s, deg/s
 MOVE_A = [50.0, 20.0]          # mm/s², deg/s²
 
@@ -45,7 +47,8 @@ class SteadyClock:
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
-    ap.add_argument('step', choices=['status', 'loop-start', 'grip-hold', 'move', 'loop-stop'])
+    ap.add_argument('step', choices=['status', 'loop-start', 'grip-hold', 'grip-move', 'move', 'loop-stop'])
+    ap.add_argument('--pulse', type=int, help='grip-move 목표 pulse(0~750, 현장 운용 범위)')
     ap.add_argument('--dz-mm', type=float, default=10.0)
     ap.add_argument('--ns', default='dsr01')
     args = ap.parse_args(argv)
@@ -118,6 +121,30 @@ def main(argv=None) -> int:
                 time.sleep(0.02)
             log('grip_hold', wrote_pulse=pos, wrote_current_ma=CURRENT_DEFAULT_MA, ok=ok, seq=seq, done=done, done_s=round(time.monotonic() - t0, 3),
                 before=before, after=loop_regs())
+        elif args.step == 'grip-move':
+            if args.pulse is None or not 0 <= args.pulse <= PULSE_WORK_MAX:
+                log('abort', reason='BAD_PULSE', pulse=args.pulse, allowed=[0, PULSE_WORK_MAX])
+                return 2
+            before = loop_regs()
+            if before['init'] != 1:
+                log('abort', reason='LOOP_NOT_RUNNING', regs=before)
+                return 2
+            t0 = time.monotonic()
+            ok = (loop.write_register(MODBUS.goal_current, CURRENT_DEFAULT_MA) and loop.write_goal_position(args.pulse)
+                  and loop.trigger())
+            positions = []
+            while time.monotonic() - t0 < 8.0:
+                done = loop.last_command()
+                pos = loop._word(regs.st_pos_hi)
+                positions.append((round(time.monotonic() - t0, 2), pos))
+                # 예약·실행 중에는 상태가 갱신되지 않아 지난 위치가 보인다(2026-11-14 현장). 목표 근처면 끝,
+                # 아니면(공깃돌·맞닿음으로 막힘) 실행 뒤 3 s 지나고 마지막 네 표본(약 1 s)이 같을 때 끝
+                if done and done[0] and (abs(pos - args.pulse) <= 5 or (
+                        time.monotonic() - t0 > 3.0 and len({p for _, p in positions[-4:]}) == 1)):
+                    break
+                time.sleep(0.25)
+            log('grip_move', cmd_pulse=args.pulse, ok=ok, done=loop.last_command(), positions=positions,
+                after=loop_regs())
         elif args.step == 'move':
             start = snapshot()
             log('before', **start)
