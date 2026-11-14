@@ -1,0 +1,6 @@
+{"t": 1794632130.717, "event": "ready", "status": {"robot_state": 1, "robot_mode": 1, "drl_state": 0, "alarm": [1, 2, 3206, ["Change singularity region status(Inside -> Outside), Singularity handling mode(1)", "", ""]]}}
+{"t": 1794632130.865, "event": "check", "step": "wait", "pos_m": [0.67, 0.16, 0.2844], "j3_rad": 0.3648, "ok": "True"}
+{"t": 1794632131.294, "event": "stone", "pos_m": [0.7059, -0.0934, -0.0186]}
+{"t": 1794632176.313, "event": "no_plan", "waited": {"NO_PASS_SEEN": 898}}
+{"t": 1794632176.313, "event": "abort", "reason": "NOT_RELEASED", "outcome": null}
+{"t": 1794632176.313, "event": "summary", "moved": 0, "results": [], "reason": "NOT_RELEASED"}

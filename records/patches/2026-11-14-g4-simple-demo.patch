@@ -1,7 +1,7 @@
 From c2c278b4d2570403bef0e88d84dcae8e17673744 Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Fri, 13 Nov 2026 22:02:12 +0900
-Subject: [PATCH 01/14] Add a non-contact hover test at the predicted release
+Subject: [PATCH 01/15] Add a non-contact hover test at the predicted release
  point (G4 pre-check, no stone)
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
@@ -268,7 +268,7 @@ index 0000000..9de5657
 From 9f994ed7ab67486c648a61c0861e7aa850f63f33 Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Fri, 13 Nov 2026 22:05:57 +0900
-Subject: [PATCH 02/14] Return to park when the hover test gives up waiting for
+Subject: [PATCH 02/15] Return to park when the hover test gives up waiting for
  a plan, and log why target selection failed
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
@@ -318,7 +318,7 @@ index 4e9e2e0..8233907 100644
 From e66332c6865f3dc0950e5a2c0b533edd19c74748 Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Sat, 14 Nov 2026 11:19:35 +0900
-Subject: [PATCH 03/14] Add a simple G4 demo script: grip with the resident
+Subject: [PATCH 03/15] Add a simple G4 demo script: grip with the resident
  loop, wait at the predicted release point, fire the armed open
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
@@ -586,7 +586,7 @@ index 0000000..de3a5e4
 From f63dc3ae2fd342c277bde8470d5833b56378d48e Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Sat, 14 Nov 2026 11:23:45 +0900
-Subject: [PATCH 04/14] Check the drop from beside the belt before parking
+Subject: [PATCH 04/15] Check the drop from beside the belt before parking
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 ---
@@ -617,7 +617,7 @@ index de3a5e4..b570954 100644
 From bcb1132afeac08a34705f167df3e9149b75ac686 Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Sat, 14 Nov 2026 11:29:12 +0900
-Subject: [PATCH 05/14] Hold height until the gripper opens, keep going home
+Subject: [PATCH 05/15] Hold height until the gripper opens, keep going home
  after a short retreat, skip release points beyond x 0.68
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
@@ -704,7 +704,7 @@ index b570954..fdc320a 100644
 From 67d1a548e91a674551908997a14965d8aceb0b03 Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Sat, 14 Nov 2026 11:44:19 +0900
-Subject: [PATCH 06/14] Ask IK again when it answers with all-zero joints
+Subject: [PATCH 06/15] Ask IK again when it answers with all-zero joints
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 ---
@@ -733,7 +733,7 @@ index fdc320a..eef1b63 100644
 From b7b6a2e5aeb042cd9392c87c3d470c54fe1d2513 Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Sat, 14 Nov 2026 11:44:48 +0900
-Subject: [PATCH 07/14] Retry the first status call while driver services are
+Subject: [PATCH 07/15] Retry the first status call while driver services are
  being discovered
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
@@ -767,7 +767,7 @@ index eef1b63..9fc33e7 100644
 From 2e8c35eced5f9cf059820aca5bfe6d5ac00d28c8 Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Sat, 14 Nov 2026 11:46:14 +0900
-Subject: [PATCH 08/14] Add --holding to skip the pick when the last run parked
+Subject: [PATCH 08/15] Add --holding to skip the pick when the last run parked
  with the stone still in the gripper
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
@@ -886,7 +886,7 @@ index 9fc33e7..e2fa4b1 100644
 From d4add27aee208de9c6a14df712f514422a70df54 Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Sat, 14 Nov 2026 11:56:51 +0900
-Subject: [PATCH 09/14] Fire the gripper 1.5 s before release, during the
+Subject: [PATCH 09/15] Fire the gripper 1.5 s before release, during the
  approach move if needed: it takes about 1.5 s to let the stone go
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
@@ -979,7 +979,7 @@ index e2fa4b1..f7dc87d 100644
 From 9be23995ae02b46d97c640a1fa8eebfdaac70ee9 Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Sat, 14 Nov 2026 11:59:06 +0900
-Subject: [PATCH 10/14] Allow release points up to x 0.70: at 0.68 run-08
+Subject: [PATCH 10/15] Allow release points up to x 0.70: at 0.68 run-08
  dropped 125 plans in 30 s
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
@@ -1008,7 +1008,7 @@ index f7dc87d..239699c 100644
 From f7c904d70035a4b401444850bd2ed3c680cf5de0 Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Sat, 14 Nov 2026 12:01:49 +0900
-Subject: [PATCH 11/14] Resend gripper commands when the resident loop reports
+Subject: [PATCH 11/15] Resend gripper commands when the resident loop reports
  a Modbus write failure (242)
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
@@ -1067,7 +1067,7 @@ index 239699c..ac5bb11 100644
 From f6c0fd7688c4a07fc5aeec65bea46a4450c046b3 Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Sat, 14 Nov 2026 12:12:26 +0900
-Subject: [PATCH 12/14] Keep release points within x 0.685, accept caps after
+Subject: [PATCH 12/15] Keep release points within x 0.685, accept caps after
  15 observations, and go on if the approach stops a few mm short
 
 Beyond x 0.69 the controller's singularity handling bends or cuts the
@@ -1122,7 +1122,7 @@ index ac5bb11..8eaf6f6 100644
 From e989daabc6f7f0ae477e12a97a0f402d185058a4 Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Sat, 14 Nov 2026 12:44:23 +0900
-Subject: [PATCH 13/14] Time the release from live cap detections at a fixed
+Subject: [PATCH 13/15] Time the release from live cap detections at a fixed
  release point, record each attempt, and judge it from the detection log
 
 With the new battery the belt runs near 50 mm/s and the planner's 2.8 s
@@ -2155,7 +2155,7 @@ index 0000000..8222eb7
 From f3f93e8f87049223de19fb738a425fba0b0f498f Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Sat, 14 Nov 2026 13:13:34 +0900
-Subject: [PATCH 14/14] Trigger the gripper 0.5 s before the cap arrives and
+Subject: [PATCH 14/15] Trigger the gripper 0.5 s before the cap arrives and
  open to 450 pulse, so the stone leaves the fingers at full opening speed
 
 Run-11 video: with a 600 pulse target the stone only came free at the end of the
@@ -2560,6 +2560,901 @@ index 5a893b4..04c2fa4 100644
                  move('park_holding', park, tolerate=True)
              return 2
          move('retreat', [rel[0], rel[1], p.travel_z_m], p.vertical_v_mps, p.vertical_a_mps2, tolerate=True)
+-- 
+2.43.0
+
+
+From 6abe532d8dfc9c742f19a4760019ebfdfb5c4c00 Mon Sep 17 00:00:00 2001
+From: chhowm <chhowm@gmail.com>
+Date: Sat, 14 Nov 2026 14:02:25 +0900
+Subject: [PATCH 15/15] Move every stone without parking in between, and add a
+ button window for one / all / return / stop
+
+g4_simple.py: --count N (0 = until the mat is empty) goes from the release point
+straight to the next stone and opens the gripper to the picking width on the way;
+the next stone is looked up from beside the belt, where the arm does not hide the
+mat. --stop-file ends after the stone in hand, --park-only only returns to park,
+--speed-scale scales the pick and transfer moves. Each release is judged from the
+cap's stone_inside flags within 6 s of the trigger. The trigger now leads the cap
+by 0.6 s (runs 13-26: the stone sat 1-4 mm behind the cap centre).
+g4_ui.py / g4_ui.sh: a Tk window that runs the script and shows its progress.
+Robot runs: run-27 (two stones, 22.9 s per stone at 51 mm/s instead of 42.5 s),
+and the window's move-all with a stop request after 38 s (two stones, parked).
+
+Co-Authored-By: Claude Fable 5.2 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_017S6YdmFKKoiWXK3fg85cfX
+---
+ tools/robot/g4_simple.py      | 301 ++++++++++++++++++++++------------
+ tools/robot/g4_ui.py          | 299 +++++++++++++++++++++++++++++++++
+ tools/robot/g4_ui.sh          |  18 ++
+ tools/robot/test_g4_simple.py |  21 ++-
+ tools/robot/test_g4_ui.py     |  39 +++++
+ 5 files changed, 568 insertions(+), 110 deletions(-)
+ create mode 100755 tools/robot/g4_ui.py
+ create mode 100755 tools/robot/g4_ui.sh
+ create mode 100644 tools/robot/test_g4_ui.py
+
+diff --git a/tools/robot/g4_simple.py b/tools/robot/g4_simple.py
+index 04c2fa4..272ea12 100644
+--- a/tools/robot/g4_simple.py
++++ b/tools/robot/g4_simple.py
+@@ -12,6 +12,10 @@ tracker·planner는 쓰지 않는다: 벨트가 약 52 mm/s일 때(2026-11-14 
+   PYTHONPATH=. python3 tools/robot/g4_simple.py --config records/calib/2026-11-09-planes/site.yaml
+   # 실행(영상·검출 녹화 포함)
+   PYTHONPATH=. python3 tools/robot/g4_simple.py --config ... --execute --record records/trials/<폴더>/run-11
++  # 매트의 돌을 모두 옮기기(돌 사이에 park로 가지 않는다), park로만 돌아가기
++  PYTHONPATH=. python3 tools/robot/g4_simple.py --config ... --execute --count 0
++  PYTHONPATH=. python3 tools/robot/g4_simple.py --config ... --execute --park-only
++버튼으로 쓰려면 tools/robot/g4_ui.sh.
+ 
+ 순서(--execute): 상주 루프 확인·기동 → 공깃돌 위 → 하강 → 닫기(150 mA) → 들기 → 벨트 옆 대기(해제 지점 옆 --wait-y)
+ → 지난 통과로 벨트 선·속도를 잡음 → 새 통과가 보이면 개방 예약 → 검출로 도착 시각을 계속 고쳐 잡다가 늦지 않게 출발
+@@ -95,6 +99,25 @@ def arrival_estimate(points, rel_x: float, rel_y: float, now: float, window_s: f
+             'prior': True}
+ 
+ 
++def judge(flags, t_fire: float, x_min: float, min_frames: int = 5, window_s: float = 6.0) -> dict:
++    """트리거 뒤 뚜껑이 그리퍼 아래를 벗어난 구간(x > x_min)의 stone_inside 표시로 판정한다.
++
++    flags: (stamp, x, stone_inside, stone_inside_valid). g4_analyze.py와 같은 기준:
++    SUCCESS = 참 5개 이상이고 판정 가능한 프레임의 60% 이상, MISS = 거짓 5개 이상이고 참 2개 미만, 그 밖 UNKNOWN.
++    트리거 뒤 window_s까지만 센다: 다음 바퀴에는 같은 뚜껑이 빈 채로 다시 지나간다(한 바퀴는 11 s 이상).
++    """
++    seen = [(si, sv) for t, x, si, sv in flags if t_fire < t <= t_fire + window_s and x > x_min]
++    si_true = sum(1 for si, sv in seen if sv and si)
++    si_false = sum(1 for si, sv in seen if sv and not si)
++    if si_true >= min_frames and si_true >= 0.6 * (si_true + si_false):
++        result = 'SUCCESS'
++    elif si_false >= min_frames and si_true < 2:
++        result = 'MISS'
++    else:
++        result = 'UNKNOWN'
++    return {'result': result, 'si_true': si_true, 'si_false': si_false}
++
++
+ def last_pass_model(points, x_lo: float = 0.56, x_hi: float = 0.76, min_points: int = 20, min_span_m: float = 0.06):
+     """가장 최근에 x_lo~x_hi를 지나간 통과의 속도 v, 벨트 선 y, 테두리 높이 z. points: (stamp, x, y, z). 없으면 None."""
+     pts = [q for q in points if x_lo <= q[1] <= x_hi]
+@@ -130,7 +153,7 @@ def main(argv=None) -> int:
+     ap.add_argument('--wait-plan-s', type=float, default=45.0, help='잡을 수 있는 통과를 기다리는 최대 시간(통과마다 다시 센다)')
+     ap.add_argument('--rehearse', action='store_true', help='공깃돌·그리퍼 없이 같은 동작과 트리거 시각 기록만 한다')
+     ap.add_argument('--passes', type=int, default=4, help='놓지 못하고 보낸 통과를 포함해 시도할 통과 수')
+-    ap.add_argument('--drop-delay-s', type=float, default=0.5,
++    ap.add_argument('--drop-delay-s', type=float, default=0.6,
+                     help='트리거 → 공깃돌이 뚜껑 높이에 닿기까지. 도착 예상 시각보다 이만큼 먼저 트리거한다. 손가락은 명령 '
+                          '직후 약 150 pulse/s(틈 14 mm/s)로 열린다(2026-11-14 빈 그리퍼 661→450: 0.7 s에 579). 600 pulse '
+                          '목표에서는 감속 구간 끝에서야 돌이 빠져 약 1.3 s가 걸렸다(run-11 영상)')
+@@ -141,9 +164,6 @@ def main(argv=None) -> int:
+                     help='트리거보다 이만큼 먼저 해제 지점에 도착한다(도착 = 뚜껑 도착 예상 − drop_delay − 이 값)')
+     ap.add_argument('--block-dist-m', type=float, default=0.05,
+                     help='팔이 해제 지점에서 이 거리 안으로 들어온 뒤의 검출은 쓰지 않는다(그리퍼가 뚜껑을 가린다)')
+-    ap.add_argument('--hover', action='store_true',
+-                    help='해제 지점 위에 미리 서서 기다린다. 이 카메라 배치에서는 쓸 수 없다: 팔이 상류 벨트를 가려 뚜껑이 '
+-                         'x 0.689부터만 보인다(2026-11-14 run-12, 세 통과 모두 놓지 못함)')
+     ap.add_argument('--view-margin-m', type=float, default=0.045,
+                     help='해제 지점 위에서 기다릴 때 rel-x에서 이 거리 안의 검출은 쓰지 않는다(그리퍼에 가려 중심이 밀린다)')
+     ap.add_argument('--y-offset-m', type=float, default=0.0,
+@@ -153,10 +173,21 @@ def main(argv=None) -> int:
+     ap.add_argument('--holding', action='store_true',
+                     help='이미 공깃돌을 쥐고 있다(지난 실행이 놓지 못하고 park로 돌아옴). 검출·파지를 건너뛴다')
+     ap.add_argument('--release-raise-m', type=float, default=0.015, help='해제 높이에 더하는 여유(손가락·테두리 간격)')
++    ap.add_argument('--count', type=int, default=1,
++                    help='옮길 공깃돌 수. 0이면 매트에 남은 돌이 없을 때까지. 여러 개일 때는 돌 사이에 park로 가지 않고 '
++                         '놓은 자리에서 다음 돌로 곧장 간다')
++    ap.add_argument('--stop-file', help='이 파일이 생기면 지금 돌까지만 놓고 park로 돌아간다(UI의 중지 버튼)')
++    ap.add_argument('--park-only', action='store_true', help='이동 높이로 올린 뒤 park로 돌아가기만 한다')
++    ap.add_argument('--speed-scale', type=float, default=1.0,
++                    help='집기·이동 구간의 속도·가속도 배율(0.5~2.0). 해제 지점으로 들어가는 이동은 바꾸지 않는다')
++    ap.add_argument('--hold-after-s', type=float, default=0.6, help='돌이 떨어진 뒤 높이를 유지하는 시간')
+     ap.add_argument('--record', help='이 접두로 상단 카메라 영상·검출을 녹화한다(tools/robot/run_recorder.py)')
+     ap.add_argument('--side-watch-s', type=float, default=2.5, help='놓은 뒤 벨트 옆에서 뚜껑이 지나가는 것을 찍는 시간')
+     args = ap.parse_args(argv)
++    if not 0.5 <= args.speed_scale <= 2.0:
++        ap.error('--speed-scale은 0.5~2.0')
+ 
++    import os
+     import threading
+     from collections import deque
+ 
+@@ -176,7 +207,6 @@ def main(argv=None) -> int:
+     p = make_params(cfg)
+     recorder = None
+     if args.record:
+-        import os
+         import subprocess
+         recorder = subprocess.Popen([sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                                                   'run_recorder.py'), '--out', args.record],
+@@ -191,6 +221,7 @@ def main(argv=None) -> int:
+ 
+     # 뚜껑 검출을 별도 노드·executor 스레드로 모은다(주 스레드는 서비스 호출로 막혀 있을 때가 많다)
+     caps = deque(maxlen=1500)                  # (stamp, x, y, z) robot_base, z = 테두리 윗면
++    cap_flags = deque(maxlen=3000)             # (stamp, x, stone_inside, stone_inside_valid) 판정용
+     caps_lock = threading.Lock()
+     watch_node = rclpy.create_node('g4_simple_watch')
+ 
+@@ -200,6 +231,7 @@ def main(argv=None) -> int:
+             for d in msg.detections:
+                 if d.object_class == CLASS_CAP and d.region == REGION_BELT and d.position_valid:
+                     caps.append((stamp, d.position.x, d.position.y, d.position.z))
++                    cap_flags.append((stamp, d.position.x, bool(d.stone_inside), bool(d.stone_inside_valid)))
+ 
+     watch_node.create_subscription(ObjectDetectionArray, 'objects/detections', on_dets, 20)
+     watch_exec = SingleThreadedExecutor()
+@@ -220,7 +252,9 @@ def main(argv=None) -> int:
+     def now_s():
+         return node.get_clock().now().nanoseconds * 1e-9
+ 
+-    hover = args.hover
++    hover = False        # 해제 지점 위 대기는 이 카메라 배치에서 쓸 수 없다(팔이 상류 벨트를 가린다, 2026-11-14 run-12)
++    tv, ta = p.travel_v_mps * args.speed_scale, p.travel_a_mps2 * args.speed_scale
++    vv, va = p.vertical_v_mps * args.speed_scale, p.vertical_a_mps2 * args.speed_scale
+     arrive_before_s = 0.0 if hover else args.drop_delay_s + args.arrive_before_fire_s
+ 
+     def est_points():
+@@ -233,7 +267,7 @@ def main(argv=None) -> int:
+     def move(name, pos, v=None, a=None, tolerate=False):
+         """tolerate: 몇 mm 못 미쳐도(MOVE_NOT_REACHED) 다음 동작으로 넘어간다."""
+         try:
+-            reached = robot.move_line(pos, DOWN_QUAT_XYZW, v or p.travel_v_mps, a or p.travel_a_mps2)
++            reached = robot.move_line(pos, DOWN_QUAT_XYZW, v or tv, a or ta)
+         except RobotError as exc:
+             if not (tolerate and exc.reason == 'MOVE_NOT_REACHED'):
+                 raise
+@@ -263,13 +297,17 @@ def main(argv=None) -> int:
+             log('gripper_retry', pulse=pulse, attempt=attempt + 1, cmd_result=242)
+         return pos, done
+ 
+-    def gripper_once(pulse, current_ma, timeout_s):
+-        """루프로 그리퍼를 옮기고 도착하거나 1 s 멈출 때까지 기다린다. 실행 중에는 상태가 갱신되지 않는다."""
++    def gripper_begin(pulse, current_ma):
++        """루프에 그리퍼 지령을 보내고 바로 돌아온다. 반환 = 보낸 시각(monotonic)."""
+         t0 = time.monotonic()
+         if not (loop.write_register(MODBUS.goal_current, current_ma) and loop.write_goal_position(pulse)
+                 and loop.trigger()):
+             raise RuntimeError('GRIPPER_WRITE_FAILED')
+-        samples = []
++        return t0
++
++    def gripper_finish(pulse, t0, timeout_s):
++        """보낸 지령이 도착하거나 1 s 멈출 때까지 기다린다. 실행 중에는 상태가 갱신되지 않는다."""
++        samples, done = [], None
+         while time.monotonic() - t0 < timeout_s:
+             done = loop.last_command()
+             pos = loop._word(regs.st_pos_hi)
+@@ -280,6 +318,9 @@ def main(argv=None) -> int:
+             time.sleep(0.25)
+         return loop._word(regs.st_pos_hi), done
+ 
++    def gripper_once(pulse, current_ma, timeout_s):
++        return gripper_finish(pulse, gripper_begin(pulse, current_ma), timeout_s)
++
+     def release_point(model):
+         return np.array([args.rel_x, model['y'] + args.y_offset_m,
+                          model['z'] + p.release_above_rim_m + args.release_raise_m])
+@@ -369,7 +410,7 @@ def main(argv=None) -> int:
+         그리퍼는 천천히 열려 트리거 뒤 약 1.4 s까지 돌을 쥐고 있으므로 트리거가 출발·도착보다 먼저 나갈 수 있다.
+         도착 예상은 트리거 때까지만 고친다(그 뒤에는 바꿀 수 없다). 이동은 sync_type 1(비동기)로 보낸다: 블로킹
+         move_line 서비스는 드라이버의 레지스터 쓰기를 이동이 끝날 때까지 막는다(2026-11-14 run-10 트리거 0.405 s 늦음).
+-        반환 ('fired'|'skipped', 팔 위치).
++        반환 ('fired'|'skipped', 팔 위치, 트리거 시각).
+         """
+         if not args.rehearse:        # 쥔 전류 그대로 예약한다(전류를 바꾸면 루프가 Modbus 쓰기를 한 번 더 한다)
+             loop.write_register(MODBUS.goal_current, p.grip_current_ma)
+@@ -378,7 +419,7 @@ def main(argv=None) -> int:
+         now = now_s()
+         if t_rel - now < max(args.drop_delay_s, t_move + arrive_before_s) - 0.15 or now > t_release_plan + 6.0:
+             log('skip', reason='TOO_LATE', arrive_in_s=round(t_rel - now, 2))
+-            return 'skipped', start_pos
++            return 'skipped', start_pos, None
+         target = np.asarray(rel, float)
+         vel = dc.speed_si_to_doosan([p.travel_v_mps, 0.0, 0.0], [0.35, 0.0, 0.0])
+         acc = dc.speed_si_to_doosan([p.travel_a_mps2, 0.0, 0.0], [0.7, 0.0, 0.0])
+@@ -446,7 +487,7 @@ def main(argv=None) -> int:
+             t_block=None if t_block is None else round(t_block, 3), rehearse=args.rehearse)
+         # 높이를 유지한 채 돌이 떨어질 때까지 기다린 뒤 올린다(열리는 중에 올리면 돌을 끌고 올라간다)
+         samples = []
+-        while time.monotonic() - fired['mono'] < max(args.drop_delay_s + 0.7, 2.0):
++        while time.monotonic() - fired['mono'] < args.drop_delay_s + args.hold_after_s:
+             if args.rehearse:
+                 time.sleep(0.05)
+                 continue
+@@ -459,8 +500,59 @@ def main(argv=None) -> int:
+             if result and result[0] and result[1] == 242:      # 해제 쓰기 실패: 늦더라도 다시 연다
+                 pos, _ = gripper_to(args.release_open_pulse, p.grip_current_ma)
+                 log('gripper', step='open_retry', pulse=pos)
+-        return 'fired', reached
++        return 'fired', reached, fired['ros']
++
++    results = []
+ 
++    def stop_requested() -> bool:
++        return bool(args.stop_file) and os.path.exists(args.stop_file)
++
++    def judge_and_log(index, t_fire, rel_x):
++        with caps_lock:
++            flags = list(cap_flags)
++        verdict = judge(flags, t_fire, rel_x + 0.02)
++        results.append(verdict['result'])
++        log('verdict', index=index, **verdict)
++
++    def find_stone(geom):
++        """매트에서 다음 공깃돌을 고른다(지령 없음). 반환 위치 또는 None."""
++        dets = detect(grab_frame(node, cfg['image_topic']), cfg, geom)
++        excluded = [[round(v, 4) for v in d.position] for d in dets if d.position[1] > MAT_Y_MAX_M]
++        stone = choose_stone([d for d in dets if d.position[1] <= MAT_Y_MAX_M], p)
++        if excluded:
++            log('excluded', reason='Y_ABOVE_MAT', pos_m=excluded)
++        if stone is None:
++            return None
++        pos = np.asarray(stone.position, float)
++        log('stone', pos_m=[round(float(v), 4) for v in pos])
++        return pos
++
++    def pick(stone, preopen_t0):
++        """공깃돌 위 → 하강 → 닫기 → 들기. 반환 'held' | 'empty'. preopen_t0: 이동 전에 이미 보낸 열기 지령의 시각."""
++        over = np.array([stone[0], stone[1], p.travel_z_m])
++        grasp = np.array([stone[0], stone[1], stone[2] + p.grasp_above_stone_top_m])
++        if not all(ik_ok(n, q) for n, q in (('over_stone', over), ('grasp', grasp))):
++            raise RuntimeError('IK_OR_WORKSPACE')
++        if preopen_t0 is None:
++            pos, _ = gripper_to(p.open_pulse, 100)
++            log('gripper', step='open_before_pick', pulse=pos)
++            move('over_stone', over, tolerate=True)          # 먼 공깃돌은 이동 높이에서 몇 mm 덜 간다. 하강이 맞춘다
++        else:                                                # 열기는 이동하는 동안 끝난다
++            move('over_stone', over, tolerate=True)
++            pos, done = gripper_finish(p.open_pulse, preopen_t0, 6.0)
++            if (done and done[0] and done[1] == 242) or abs(pos - p.open_pulse) > 15:
++                pos, _ = gripper_to(p.open_pulse, 100)
++            log('gripper', step='open_before_pick', pulse=pos, during_move=True)
++        move('descend_grasp', grasp, vv, va)
++        pos, done = gripper_to(p.close_pulse, p.grip_current_ma)
++        log('gripper', step='close_grasp', pulse=pos, done=done)
++        if pos >= p.close_pulse - 10:
++            move('lift_empty', over, vv, va, tolerate=True)
++            return 'empty'
++        move('lift_stone', over, vv, va, tolerate=True)
++        return 'held'
++
++    moved = 0
+     try:
+         # ---------------- 상태·검출(지령 없음)
+         for attempt in range(4):            # 새 노드가 드라이버 서비스를 찾기 전 첫 호출이 실패할 수 있다(2026-11-14)
+@@ -475,119 +567,110 @@ def main(argv=None) -> int:
+             log('abort', reason='NOT_STANDBY_AUTONOMOUS')
+             return 2
+         start, _ = robot.tcp_pose()
+-        geom = load_geometry(cfg)
+         wait = np.array([args.rel_x, args.wait_y, p.travel_z_m])
+         park = [p.park_x_m, p.park_y_m, p.park_z_m]
++        if args.park_only:
++            if args.execute:
++                if start[2] < p.travel_z_m - 0.003:
++                    move('retreat', [float(start[0]), float(start[1]), p.travel_z_m], vv, va, tolerate=True)
++                move('park', park, tolerate=True)
++            log('summary', moved=0, results=[], parked=bool(args.execute))
++            return 0
++        geom = load_geometry(cfg)
++        target = None if args.count <= 0 else args.count
++        holding, stone, preopen_t0, last_fire, grip_fail = False, None, None, None, 0
++        if not ik_ok('wait', wait):
++            log('abort', reason='IK_OR_WORKSPACE')
++            return 2
+         if args.rehearse:
+-            if not ik_ok('wait', wait):
+-                return 2
+-            start = move('wait', wait) if args.execute else wait
++            pass
+         elif args.holding:
+             pos = loop._word(regs.st_pos_hi)
+             if io.get(regs.init) != 1 or pos >= p.close_pulse - 10 or pos <= p.open_pulse + 10:
+                 log('abort', reason='NOT_HOLDING', pulse=pos)
+                 return 2
+             log('holding', pulse=pos)
+-            if not ik_ok('wait', wait):
+-                return 2
+-            if args.execute:
+-                start = move('wait', wait)
+-            else:
+-                start = wait
++            holding = True
+         else:
+-            dets = detect(grab_frame(node, cfg['image_topic']), cfg, geom)
+-            excluded = [[round(v, 4) for v in d.position] for d in dets if d.position[1] > MAT_Y_MAX_M]
+-            stone = choose_stone([d for d in dets if d.position[1] <= MAT_Y_MAX_M], p)
+-            if excluded:
+-                log('excluded', reason='Y_ABOVE_MAT', pos_m=excluded)
++            stone = find_stone(geom)
+             if stone is None:
+                 log('abort', reason='NO_MAT_STONE')
+                 return 2
+-            s = np.asarray(stone.position, float)
+-            over = np.array([s[0], s[1], p.travel_z_m])
+-            grasp = np.array([s[0], s[1], s[2] + p.grasp_above_stone_top_m])
+-            log('stone', pos_m=[round(float(v), 4) for v in s])
+-            if not all(ik_ok(n, q) for n, q in (('over_stone', over), ('grasp', grasp), ('wait', wait))):
+-                log('abort', reason='IK_OR_WORKSPACE')
+-                return 2
++            if args.execute and (io.get(regs.init) != 1 or robot.status()['drl_state'] != 0):
++                t0 = time.monotonic()
++                loop.start_resident_loop()
++                log('loop_started', ready_s=round(time.monotonic() - t0, 2))
+ 
++        while True:
+             # ---------------- 파지(--execute)
+-            if args.execute:
+-                if io.get(regs.init) != 1 or robot.status()['drl_state'] != 0:
+-                    t0 = time.monotonic()
+-                    loop.start_resident_loop()
+-                    log('loop_started', ready_s=round(time.monotonic() - t0, 2))
+-                pos, _ = gripper_to(p.open_pulse, 100)
+-                log('gripper', step='open_before_pick', pulse=pos)
+-                move('over_stone', over, tolerate=True)          # 먼 공깃돌은 이동 높이에서 몇 mm 덜 간다. 하강이 맞춘다
+-                move('descend_grasp', grasp, p.vertical_v_mps, p.vertical_a_mps2)
+-                pos, done = gripper_to(p.close_pulse, p.grip_current_ma)
+-                log('gripper', step='close_grasp', pulse=pos, done=done)
+-                if pos >= p.close_pulse - 10:
+-                    log('abort', reason='NO_STONE_IN_GRIP', pulse=pos)
+-                    move('lift_empty', over, p.vertical_v_mps, p.vertical_a_mps2, tolerate=True)
+-                    move('park', park, tolerate=True)
+-                    return 2
+-                move('lift_stone', over, p.vertical_v_mps, p.vertical_a_mps2, tolerate=True)
+-                start = move('wait', wait)
+-            else:
+-                start = wait
+-
+-        # ---------------- 통과 잡기 → 해제(통과마다)
+-        outcome, hover_rel = None, None
+-        if hover:
+-            t_end = time.monotonic() + args.wait_plan_s
+-            model = last_pass_model(cap_points())
+-            while model is None and time.monotonic() < t_end:
+-                time.sleep(0.1)
+-                model = last_pass_model(cap_points())
+-            if model is None:
+-                log('no_plan', waited={'NO_PASS_SEEN': 1})
+-            else:
+-                hover_rel = release_point(model)
+-                if not (hover_rel[2] < p.travel_z_m and hover_rel[0] <= RELEASE_X_MAX_M and ik_ok('release', hover_rel)):
+-                    log('abort', reason='RELEASE_POSE', release_m=[round(float(v), 4) for v in hover_rel])
+-                    hover_rel = None
+-                elif args.execute:
+-                    start = move('hover', hover_rel, tolerate=True)
+-                    if float(np.linalg.norm(np.asarray(start, float) - hover_rel)) > 0.003:
+-                        log('abort', reason='HOVER_NOT_REACHED')
+-                        hover_rel = None
+-                else:
+-                    start = hover_rel
+-        for k in range(max(1, args.passes)):
+-            if hover and hover_rel is None:
+-                break
+-            chosen = get_pass(np.asarray(start, float), time.monotonic() + args.wait_plan_s, fixed_rel=hover_rel)
+-            if chosen is None:
+-                break
+-            rel, t_release_plan, t_move, model = chosen
+-            if not args.execute:
+-                timing_check(rel, t_release_plan, t_move, model['v'], model['y'])
+-                log('dry_run_done')
+-                return 0
+-            outcome, at = release(rel, t_release_plan, t_move, start, model['v'], model['y'])
+-            if outcome == 'fired':
+-                break
+-            if not hover:
++            if args.execute and stone is not None and not holding:
++                if pick(stone, preopen_t0) == 'empty':
++                    preopen_t0 = None
++                    grip_fail += 1
++                    log('grip_empty', count=grip_fail)
++                    start = move('wait', wait, tolerate=True)       # 벨트 옆에서는 팔이 매트를 가리지 않는다
++                    stone = None if grip_fail >= 3 else find_stone(geom)
++                    if stone is None:
++                        break
++                    continue
++                preopen_t0 = None
++            holding = False
++            start = move('wait', wait) if args.execute else wait
++            if last_fire is not None:                               # 앞 돌의 뚜껑은 이미 벨트 끝을 지났다
++                judge_and_log(*last_fire)
++                last_fire = None
++            want_more = (target is None or moved + 1 < target) and not args.rehearse and not stop_requested()
++            next_stone = find_stone(geom) if (want_more and args.execute) else None
++
++            # ---------------- 통과 잡기 → 해제(통과마다)
++            outcome, t_fire = None, None
++            for k in range(max(1, args.passes)):
++                chosen = get_pass(np.asarray(start, float), time.monotonic() + args.wait_plan_s)
++                if chosen is None:
++                    break
++                rel, t_release_plan, t_move, model = chosen
++                if not args.execute:
++                    timing_check(rel, t_release_plan, t_move, model['v'], model['y'])
++                    log('dry_run_done')
++                    return 0
++                outcome, at, t_fire = release(rel, t_release_plan, t_move, start, model['v'], model['y'])
++                if outcome == 'fired':
++                    break
+                 start = move('side_again', wait, tolerate=True)   # 놓지 않았다. 벨트 옆에서 다음 바퀴를 기다린다
+-        if outcome != 'fired':
+-            log('abort', reason='NOT_RELEASED', outcome=outcome)
+-            if args.execute:
+-                if hover:                       # 벨트 위에서 곧장 park로 가지 않고 먼저 올린 뒤 옆으로 뺀다
+-                    at, _ = robot.tcp_pose()
+-                    move('retreat', [float(at[0]), float(at[1]), p.travel_z_m], p.vertical_v_mps, p.vertical_a_mps2,
+-                         tolerate=True)
+-                    move('side', wait, tolerate=True)
+-                move('park_holding', park, tolerate=True)
+-            return 2
+-        move('retreat', [rel[0], rel[1], p.travel_z_m], p.vertical_v_mps, p.vertical_a_mps2, tolerate=True)
+-        move('side', wait, tolerate=True)
+-        time.sleep(args.side_watch_s)                       # 뚜껑이 벨트 끝으로 가는 동안 가리지 않고 찍는다
+-        move('park', park, tolerate=True)
+-        return 0
++            if outcome != 'fired':
++                log('abort', reason='NOT_RELEASED', outcome=outcome)
++                if args.execute:
++                    move('park_holding', park, tolerate=True)
++                log('summary', moved=moved, results=results, reason='NOT_RELEASED')
++                return 2
++            moved += 1
++            if not args.rehearse:
++                last_fire = (moved, t_fire, float(rel[0]))
++            log('released', index=moved)
++            if next_stone is None or stop_requested():
++                break
++            preopen_t0 = gripper_begin(p.open_pulse, 100)           # 다음 돌로 가는 동안 손가락을 집는 폭으로 맞춘다
++            stone = next_stone
++
++        # ---------------- 마무리: 올리고 벨트 옆으로 뺀 뒤 판정하고 park
++        if args.execute:
++            at, _ = robot.tcp_pose()
++            if at[2] < p.travel_z_m - 0.003:
++                move('retreat', [float(at[0]), float(at[1]), p.travel_z_m], vv, va, tolerate=True)
++            if moved:
++                move('side', wait, tolerate=True)
++        if last_fire is not None:                                   # 뚜껑이 벨트 끝으로 가는 동안 가리지 않고 본다
++            while now_s() < last_fire[1] + max(4.5, args.side_watch_s):
++                time.sleep(0.05)
++            judge_and_log(*last_fire)
++        if args.execute:
++            move('park', park, tolerate=True)
++        reason = 'STOP_REQUESTED' if stop_requested() else ('NO_STONE_IN_GRIP' if grip_fail >= 3 else None)
++        log('summary', moved=moved, results=results, reason=reason)
++        return 0 if moved else 2
+     except (RobotError, RuntimeError) as exc:
+         log('abort', reason=getattr(exc, 'reason', type(exc).__name__), detail=str(exc))
++        log('summary', moved=moved, results=results, reason=getattr(exc, 'reason', type(exc).__name__))
+         return 2
+     finally:
+         try:
+diff --git a/tools/robot/g4_ui.py b/tools/robot/g4_ui.py
+new file mode 100755
+index 0000000..0149f48
+--- /dev/null
++++ b/tools/robot/g4_ui.py
+@@ -0,0 +1,299 @@
++#!/usr/bin/env python3
++"""간이 투입(g4_simple.py)을 버튼으로 실행하는 창([OFF] 입회 필수, 시연용).
++
++  tools/robot/g4_ui.sh            # 환경 설정까지 해서 띄운다
++  python3 tools/robot/g4_ui.py --config records/calib/2026-11-09-planes/site.yaml
++
++버튼: 한 개 옮기기 / 전부 옮기기 / 원위치로 복귀 / 중지(지금 돌까지만).
++창은 g4_simple.py를 하위 프로세스로 띄우고 그 JSON 줄 기록을 읽어 진행 상황을 보여 준다. 로봇 지령은 모두
++g4_simple.py가 낸다. 중지 버튼은 움직이는 팔을 세우지 않는다: 지금 쥔 돌까지 놓고 park로 돌아가게 할 뿐이다.
++즉시 정지는 비상정지·펜던트로 한다.
++"""
++from __future__ import annotations
++
++import argparse
++import json
++import os
++import queue
++import subprocess
++import sys
++import threading
++import time
++
++HERE = os.path.dirname(os.path.abspath(__file__))
++REPO = os.path.dirname(os.path.dirname(HERE))
++
++ABORT_TEXT = {
++    'NO_MAT_STONE': '매트에 공깃돌이 없습니다(손이 매트 위에 있으면 검출되지 않습니다)',
++    'NOT_RELEASED': '뚜껑을 잡지 못해 놓지 않았습니다. 벨트가 도는지 확인하세요. 돌은 쥔 채 원위치에 있습니다',
++    'NOT_STANDBY_AUTONOMOUS': '로봇이 대기(자동 모드) 상태가 아닙니다',
++    'SERVICE_UNAVAILABLE': '로봇 드라이버 응답이 없습니다. 드라이버가 떠 있는지 확인하세요',
++    'NO_STONE_IN_GRIP': '공깃돌을 집지 못했습니다(3회)',
++    'NOT_HOLDING': '쥐고 있는 공깃돌이 없습니다. 다시 누르면 매트에서 집습니다',
++    'MOVE_NOT_REACHED': '팔이 목표 위치에 닿지 못했습니다. 원위치로 복귀를 누르세요',
++    'IK_OR_WORKSPACE': '닿을 수 없는 위치입니다(공깃돌 또는 대기 위치)',
++    'RELEASE_POSE': '해제 위치가 작업 범위를 벗어났습니다',
++    'GRIPPER_WRITE_FAILED': '그리퍼 지령을 보내지 못했습니다',
++    'STOP_REQUESTED': '중지 요청으로 끝냈습니다',
++}
++STEP_TEXT = {
++    'over_stone': '공깃돌 위로 이동', 'descend_grasp': '내려가서 집는 중', 'lift_stone': '공깃돌을 들어 올림',
++    'lift_empty': '빈손으로 올라옴', 'wait': '벨트 옆에서 뚜껑을 기다리는 중', 'to_release': '해제 위치 도착',
++    'retreat': '위로 올라옴', 'side': '벨트 옆으로 비킴', 'side_again': '다음 바퀴를 기다림',
++    'park': '원위치 도착', 'park_holding': '돌을 쥔 채 원위치 도착',
++}
++RESULT_TEXT = {'SUCCESS': '성공', 'MISS': '실패', 'UNKNOWN': '미확인'}
++
++
++def describe(event: dict) -> str | None:
++    """g4_simple.py의 기록 한 줄을 화면에 보일 한국어 한 줄로 바꾼다. 보일 것이 없으면 None."""
++    kind = event.get('event')
++    if kind == 'ready':
++        return '로봇 상태 확인'
++    if kind == 'stone':
++        x, y = event['pos_m'][0], event['pos_m'][1]
++        return f'공깃돌 찾음 (x {x * 1000:.0f}, y {y * 1000:.0f} mm)'
++    if kind == 'loop_started':
++        return '그리퍼 루프 시작'
++    if kind == 'done':
++        return STEP_TEXT.get(event.get('step'))
++    if kind == 'gripper' and event.get('step') == 'close_grasp':
++        return f"집음 ({event.get('pulse')} pulse)"
++    if kind == 'grip_empty':
++        return f"집지 못함 ({event.get('count')}회째). 다시 찾습니다"
++    if kind == 'plan':
++        return f"뚜껑 보임: {event['cap_v_mps'][0] * 1000:.0f} mm/s, {event['release_in_s']:.1f}초 뒤 도착"
++    if kind == 'go':
++        return '해제 위치로 들어감'
++    if kind == 'fired':
++        return '놓음'
++    if kind == 'skip':
++        return '이번 통과는 늦어서 보냄'
++    if kind == 'released':
++        return f"{event.get('index')}번째 돌을 놓았습니다"
++    if kind == 'verdict':
++        return f"{event.get('index')}번째 판정: {RESULT_TEXT.get(event.get('result'), event.get('result'))}"
++    if kind == 'no_plan':
++        return '뚜껑이 보이지 않습니다'
++    if kind == 'not_reached':
++        return f"{STEP_TEXT.get(event.get('step'), event.get('step'))}: 몇 mm 못 미침"
++    if kind == 'abort':
++        return '중단: ' + ABORT_TEXT.get(event.get('reason'), str(event.get('reason')))
++    if kind == 'summary':
++        if event.get('parked'):
++            return '원위치로 돌아왔습니다'
++        return f"끝: {event.get('moved', 0)}개 놓음"
++    return None
++
++
++def build_command(mode: str, config: str, speed: float = 1.0, record: str | None = None,
++                  stop_file: str | None = None, holding: bool = False, script: str | None = None,
++                  drop_delay_s: float | None = None) -> list[str]:
++    """mode: 'one' | 'all' | 'park'. g4_simple.py 실행 명령을 만든다."""
++    if mode not in ('one', 'all', 'park'):
++        raise ValueError(mode)
++    cmd = [sys.executable, script or os.path.join(HERE, 'g4_simple.py'), '--config', config, '--execute']
++    if mode == 'park':
++        return cmd + ['--park-only']
++    cmd += ['--count', '1' if mode == 'one' else '0', '--speed-scale', f'{speed:g}']
++    if drop_delay_s is not None:
++        cmd += ['--drop-delay-s', f'{drop_delay_s:g}']
++    if holding:
++        cmd.append('--holding')
++    if stop_file:
++        cmd += ['--stop-file', stop_file]
++    if record:
++        cmd += ['--record', record]
++    return cmd
++
++
++class Tally:
++    """기록 줄에서 놓은 수와 판정 수를 센다."""
++
++    def __init__(self):
++        self.moved = self.success = self.miss = self.unknown = 0
++        self.last_reason = None
++
++    def feed(self, event: dict) -> None:
++        kind = event.get('event')
++        if kind == 'released':
++            self.moved += 1
++        elif kind == 'verdict':
++            result = event.get('result')
++            self.success += result == 'SUCCESS'
++            self.miss += result == 'MISS'
++            self.unknown += result not in ('SUCCESS', 'MISS')
++        elif kind in ('abort', 'summary') and event.get('reason'):
++            self.last_reason = event['reason']
++
++    def text(self) -> str:
++        return f'놓음 {self.moved} · 성공 {self.success} · 실패 {self.miss} · 미확인 {self.unknown}'
++
++
++def main(argv=None) -> int:
++    ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
++    ap.add_argument('--config', default=os.path.join(REPO, 'records/calib/2026-11-09-planes/site.yaml'))
++    ap.add_argument('--record-dir', default=os.path.join(REPO, 'records/trials', time.strftime('%Y-%m-%d') + '-g4-ui'))
++    ap.add_argument('--script', help='g4_simple.py 대신 실행할 스크립트(시험용)')
++    ap.add_argument('--self-test', action='store_true', help='창을 만들었다가 바로 닫는다(시험용)')
++    ap.add_argument('--auto', choices=['one', 'all', 'park'], help='그 버튼을 한 번 누르고 끝나면 창을 닫는다(시험용)')
++    args = ap.parse_args(argv)
++
++    import tkinter as tk
++    from tkinter import messagebox, scrolledtext
++
++    root = tk.Tk()
++    root.title('공깃돌 옮기기 (간이 투입)')
++    root.geometry('760x560')
++    state = {'proc': None, 'tally': Tally(), 'holding': False, 'mode': None, 'log_file': None}
++    lines: queue.Queue = queue.Queue()
++    stop_file = os.path.join(args.record_dir, 'STOP')
++
++    status = tk.StringVar(value='대기 중')
++    counts = tk.StringVar(value=state['tally'].text())
++    speed = tk.DoubleVar(value=1.0)
++    record = tk.BooleanVar(value=True)
++
++    tk.Label(root, textvariable=status, font=('', 20, 'bold'), anchor='w', wraplength=720, justify='left').pack(
++        fill='x', padx=16, pady=(14, 2))
++    tk.Label(root, textvariable=counts, font=('', 13), anchor='w').pack(fill='x', padx=16, pady=(0, 10))
++
++    row = tk.Frame(root)
++    row.pack(fill='x', padx=12)
++    buttons = {}
++
++    def add_button(key, text, command, **kw):
++        b = tk.Button(row, text=text, command=command, font=('', 14), height=2, **kw)
++        b.pack(side='left', expand=True, fill='x', padx=4)
++        buttons[key] = b
++
++    opts = tk.Frame(root)
++    opts.pack(fill='x', padx=16, pady=(10, 4))
++    tk.Label(opts, text='집기·이동 속도:').pack(side='left')
++    for label, value in (('보통', 1.0), ('1.5배', 1.5), ('2배', 2.0)):
++        tk.Radiobutton(opts, text=label, variable=speed, value=value).pack(side='left')
++    tk.Checkbutton(opts, text='영상·검출 녹화', variable=record).pack(side='left', padx=(24, 0))
++
++    box = scrolledtext.ScrolledText(root, height=14, font=('', 11), state='disabled')
++    box.pack(fill='both', expand=True, padx=16, pady=(6, 4))
++    tk.Label(root, text='즉시 정지는 비상정지·펜던트. 실행 중에는 매트·벨트 위로 손을 넣지 마세요(돌이 검출되지 않습니다).',
++             fg='#a03000', anchor='w').pack(fill='x', padx=16, pady=(0, 10))
++
++    def say(text):
++        box.configure(state='normal')
++        box.insert('end', time.strftime('%H:%M:%S ') + text + '\n')
++        box.see('end')
++        box.configure(state='disabled')
++
++    def set_running(running):
++        for key in ('one', 'all', 'park'):
++            buttons[key].configure(state='disabled' if running else 'normal')
++        buttons['stop'].configure(state='normal' if running and state['mode'] != 'park' else 'disabled')
++
++    def reader(proc, log_path):
++        log = open(log_path, 'w') if log_path else None
++        for line in proc.stdout:
++            if log:
++                log.write(line)
++                log.flush()
++            lines.put(line)
++        proc.wait()
++        if log:
++            log.close()
++        lines.put(None)
++
++    def start(mode):
++        if state['proc'] is not None:
++            return
++        os.makedirs(args.record_dir, exist_ok=True)
++        if os.path.exists(stop_file):
++            os.remove(stop_file)
++        prefix = os.path.join(args.record_dir, 'ui-' + time.strftime('%H%M%S'))
++        cmd = build_command(mode, args.config, speed.get(), prefix if (record.get() and mode != 'park') else None,
++                            stop_file, state['holding'] and mode != 'park', args.script)
++        state.update(mode=mode, tally=Tally())
++        counts.set(state['tally'].text())
++        status.set({'one': '한 개 옮기는 중', 'all': '전부 옮기는 중', 'park': '원위치로 복귀 중'}[mode])
++        say('── ' + status.get() + (' (쥐고 있는 돌부터)' if '--holding' in cmd else ''))
++        env = dict(os.environ, PYTHONPATH=REPO + os.pathsep + os.environ.get('PYTHONPATH', ''), PYTHONUNBUFFERED='1')
++        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, cwd=REPO, env=env)
++        state['proc'] = proc
++        set_running(True)
++        threading.Thread(target=reader, args=(proc, prefix + '.jsonl' if mode != 'park' else None), daemon=True).start()
++
++    def stop():
++        if state['proc'] is None:
++            return
++        open(stop_file, 'w').close()
++        status.set('중지 요청: 지금 돌까지만 놓고 원위치로 갑니다')
++        say('중지 요청')
++        buttons['stop'].configure(state='disabled')
++
++    def finished():
++        proc, tally = state['proc'], state['tally']
++        state['proc'] = None
++        code = proc.returncode
++        if state['mode'] != 'park':
++            state['holding'] = tally.last_reason == 'NOT_RELEASED'
++        if code == 0:
++            head = '중지했습니다' if tally.last_reason == 'STOP_REQUESTED' else '끝났습니다'
++            status.set('원위치로 돌아왔습니다' if state['mode'] == 'park' else head + ' · ' + tally.text())
++        else:
++            status.set('중단: ' + ABORT_TEXT.get(tally.last_reason, str(tally.last_reason or f'종료 코드 {code}')))
++        set_running(False)
++        if args.auto:
++            print(json.dumps({'event': 'auto_done', 'status': status.get(), 'counts': counts.get(), 'code': code,
++                              'holding': state['holding']}, ensure_ascii=False))
++            root.after(200, root.destroy)
++
++    def poll():
++        try:
++            while True:
++                line = lines.get_nowait()
++                if line is None:
++                    finished()
++                    continue
++                if not line.startswith('{'):
++                    continue
++                try:
++                    event = json.loads(line)
++                except ValueError:
++                    continue
++                state['tally'].feed(event)
++                counts.set(state['tally'].text())
++                text = describe(event)
++                if text:
++                    say(text)
++                    if event.get('event') in ('done', 'plan', 'go', 'fired', 'stone') and state['proc'] is not None:
++                        status.set(text)
++        except queue.Empty:
++            pass
++        root.after(100, poll)
++
++    def on_close():
++        if state['proc'] is not None:
++            messagebox.showwarning('실행 중', '로봇이 움직이는 중입니다. 중지를 누르고 원위치로 돌아온 뒤 닫으세요.\n'
++                                              '즉시 정지는 비상정지·펜던트로 합니다.')
++            return
++        root.destroy()
++
++    add_button('one', '한 개 옮기기', lambda: start('one'))
++    add_button('all', '전부 옮기기', lambda: start('all'))
++    add_button('park', '원위치로 복귀', lambda: start('park'))
++    add_button('stop', '중지\n(지금 돌까지만)', stop, fg='#a03000')
++    set_running(False)
++    root.protocol('WM_DELETE_WINDOW', on_close)
++    root.after(100, poll)
++    if args.self_test:
++        root.update()
++        print(json.dumps({'event': 'self_test', 'buttons': sorted(buttons), 'size': [root.winfo_width(), root.winfo_height()]}))
++        root.destroy()
++        return 0
++    if args.auto:
++        root.after(300, lambda: start(args.auto))
++    root.mainloop()
++    return 0
++
++
++if __name__ == '__main__':
++    sys.exit(main())
+diff --git a/tools/robot/g4_ui.sh b/tools/robot/g4_ui.sh
+new file mode 100755
+index 0000000..36e9209
+--- /dev/null
++++ b/tools/robot/g4_ui.sh
+@@ -0,0 +1,18 @@
++#!/usr/bin/env bash
++# 간이 투입 버튼 창을 띄운다([OFF] 입회 필수). 먼저 떠 있어야 하는 것: 로봇 드라이버(dsr_bringup2, mode:=real),
++# 카메라, vision_node. 같은 ROS_DOMAIN_ID를 쓴다.
++#   tools/robot/g4_ui.sh
++# 바꿀 수 있는 환경 변수: DSR_WS(dsr_msgs2가 있는 워크스페이스, 기본 ~/ros2_ws), ROS_DOMAIN_ID(기본 40)
++set -e
++REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
++set +u
++source /opt/ros/jazzy/setup.bash
++source "${DSR_WS:-$HOME/ros2_ws}/install/setup.bash"
++source "$REPO/install/setup.bash"
++set -e
++export ROS_DOMAIN_ID="${ROS_DOMAIN_ID:-40}"
++export ROS_AUTOMATIC_DISCOVERY_RANGE="${ROS_AUTOMATIC_DISCOVERY_RANGE:-LOCALHOST}"
++export FASTRTPS_DEFAULT_PROFILES_FILE="$REPO/src/drop_bringup/config/fastdds_large_shm.xml"
++export PYTHONPATH="$REPO:$PYTHONPATH"
++cd "$REPO"
++exec python3 tools/robot/g4_ui.py "$@"
+diff --git a/tools/robot/test_g4_simple.py b/tools/robot/test_g4_simple.py
+index 8222eb7..1aad644 100644
+--- a/tools/robot/test_g4_simple.py
++++ b/tools/robot/test_g4_simple.py
+@@ -2,7 +2,7 @@
+ import numpy as np
+ import pytest
+ 
+-from tools.robot.g4_simple import arrival_estimate, last_pass_model
++from tools.robot.g4_simple import arrival_estimate, judge, last_pass_model
+ 
+ 
+ def track(v=0.034, x0=0.57, t0=100.0, n=30, hz=25.0, y=0.085, noise=0.0, seed=0):
+@@ -95,3 +95,22 @@ def test_last_pass_model_takes_the_newest_complete_pass():
+     assert m['v'] == pytest.approx(0.052, abs=1e-6) and m['y'] == pytest.approx(0.091) and m['z'] == pytest.approx(0.0835)
+     assert last_pass_model(old + new[:12])['v'] == pytest.approx(0.030, abs=1e-6)      # 새 통과가 아직 짧으면 지난 통과
+     assert last_pass_model([]) is None
++
++
++def cap_flags(t0, n, inside, x0=0.70, v=0.04, hz=25.0, valid=True):
++    return [(t0 + k / hz, x0 + v * k / hz, inside, valid) for k in range(n)]
++
++
++def test_judge_counts_only_frames_after_the_trigger_and_past_the_gripper():
++    flags = cap_flags(99.0, 20, False) + cap_flags(100.5, 60, True) + cap_flags(100.5, 5, False, x0=0.60)
++    out = judge(flags, 100.0, 0.69)
++    assert out == {'result': 'SUCCESS', 'si_true': 60, 'si_false': 0}
++    assert judge(cap_flags(100.5, 60, False), 100.0, 0.69)['result'] == 'MISS'
++    assert judge(cap_flags(100.5, 3, True), 100.0, 0.69)['result'] == 'UNKNOWN'            # 프레임이 모자람
++    assert judge(cap_flags(100.5, 60, True, valid=False), 100.0, 0.69)['result'] == 'UNKNOWN'
++
++
++def test_judge_ignores_the_empty_cap_of_the_next_lap():
++    flags = cap_flags(100.5, 60, True) + cap_flags(114.0, 80, False)                       # 다음 바퀴: 빈 뚜껑
++    assert judge(flags, 100.0, 0.69) == {'result': 'SUCCESS', 'si_true': 60, 'si_false': 0}
++    assert judge(flags, 100.0, 0.69, window_s=30.0)['result'] == 'UNKNOWN'                 # 창이 없으면 섞인다
+diff --git a/tools/robot/test_g4_ui.py b/tools/robot/test_g4_ui.py
+new file mode 100644
+index 0000000..1af888d
+--- /dev/null
++++ b/tools/robot/test_g4_ui.py
+@@ -0,0 +1,39 @@
++"""g4_ui.py 순수 함수 단위 시험(창을 띄우지 않는다)."""
++import pytest
++
++from tools.robot.g4_ui import ABORT_TEXT, Tally, build_command, describe
++
++
++def test_commands_for_the_three_buttons():
++    one = build_command('one', 'site.yaml', record='rec/ui-1', stop_file='rec/STOP')
++    assert one[2:] == ['--config', 'site.yaml', '--execute', '--count', '1', '--speed-scale', '1',
++                       '--stop-file', 'rec/STOP', '--record', 'rec/ui-1']
++    every = build_command('all', 'site.yaml', speed=1.5, holding=True)
++    assert every[2:] == ['--config', 'site.yaml', '--execute', '--count', '0', '--speed-scale', '1.5', '--holding']
++    assert build_command('park', 'site.yaml', speed=2.0, record='x', holding=True)[2:] == [
++        '--config', 'site.yaml', '--execute', '--park-only']                 # 복귀는 집기·녹화 옵션을 받지 않는다
++    with pytest.raises(ValueError):
++        build_command('home', 'site.yaml')
++
++
++def test_events_are_described_in_korean_and_noise_is_dropped():
++    assert describe({'event': 'stone', 'pos_m': [0.6505, -0.1118, -0.018]}) == '공깃돌 찾음 (x 650, y -112 mm)'
++    assert describe({'event': 'done', 'step': 'wait'}) == '벨트 옆에서 뚜껑을 기다리는 중'
++    assert describe({'event': 'plan', 'cap_v_mps': [0.0407, 0.0], 'release_in_s': 2.9}) == '뚜껑 보임: 41 mm/s, 2.9초 뒤 도착'
++    assert describe({'event': 'verdict', 'index': 2, 'result': 'SUCCESS'}) == '2번째 판정: 성공'
++    assert describe({'event': 'abort', 'reason': 'NO_MAT_STONE'}) == '중단: ' + ABORT_TEXT['NO_MAT_STONE']
++    assert describe({'event': 'abort', 'reason': 'SOMETHING_NEW'}) == '중단: SOMETHING_NEW'
++    assert describe({'event': 'summary', 'moved': 0, 'parked': True}) == '원위치로 돌아왔습니다'
++    assert describe({'event': 'check', 'step': 'wait', 'ok': True}) is None
++    assert describe({'event': 'done', 'step': 'unknown_step'}) is None
++
++
++def test_tally_counts_releases_verdicts_and_keeps_the_last_reason():
++    tally = Tally()
++    for event in ({'event': 'released', 'index': 1}, {'event': 'verdict', 'index': 1, 'result': 'SUCCESS'},
++                  {'event': 'released', 'index': 2}, {'event': 'verdict', 'index': 2, 'result': 'MISS'},
++                  {'event': 'released', 'index': 3}, {'event': 'verdict', 'index': 3, 'result': 'UNKNOWN'},
++                  {'event': 'abort', 'reason': 'NOT_RELEASED'}, {'event': 'summary', 'moved': 3, 'reason': 'NOT_RELEASED'}):
++        tally.feed(event)
++    assert tally.text() == '놓음 3 · 성공 1 · 실패 1 · 미확인 1'
++    assert tally.last_reason == 'NOT_RELEASED'
 -- 
 2.43.0
 

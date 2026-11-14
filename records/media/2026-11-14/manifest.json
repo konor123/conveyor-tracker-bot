@@ -150,6 +150,43 @@
     "+faststart",
     "<video>"
    ]
+  },
+  {
+   "trial": "records/trials/2026-11-14-g4-simple/run-27",
+   "role": "rgb",
+   "video": "2026-11-14_135910_g4-simple-run-27-two-stones-success.rgb.mp4",
+   "frames_csv": "2026-11-14_135910_g4-simple-run-27-two-stones-success.rgb.frames.csv",
+   "frames": 1774,
+   "width": 820,
+   "height": 520,
+   "presentation_fps": 30,
+   "bytes": 2544811,
+   "sha256": "d456da7006d8a45d3e48e8d40321afe9d7eb901e6ec51096db609c622264243f",
+   "source_file": "run-27.mp4",
+   "source_bytes": 14627082,
+   "source_sha256": "f2daae10fb59c55df884b4a4abef19287ee7e96e79193a330f8c710349370d75",
+   "ffmpeg_command": [
+    "ffmpeg",
+    "-hide_banner",
+    "-loglevel",
+    "error",
+    "-nostdin",
+    "-y",
+    "<source>",
+    "/home/fastcampus/cy/conveyor-tracker-bot-hover/records/trials/2026-11-14-g4-simple/run-27.mp4",
+    "-an",
+    "-c:v",
+    "libx264",
+    "-preset",
+    "medium",
+    "-crf",
+    "26",
+    "-pix_fmt",
+    "yuv420p",
+    "-movflags",
+    "+faststart",
+    "<video>"
+   ]
   }
  ]
 }

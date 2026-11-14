@@ -1,0 +1,3 @@
+{"t": 1794631414.996, "event": "ready", "status": {"robot_state": 1, "robot_mode": 1, "drl_state": 0, "alarm": [1, 2, 3206, ["Change singularity region status(Inside -> Outside), Singularity handling mode(1)", "", ""]]}}
+{"t": 1794631415.521, "event": "excluded", "reason": "Y_ABOVE_MAT", "pos_m": [[0.6329, 0.0869, 0.0835]]}
+{"t": 1794631415.521, "event": "abort", "reason": "NO_MAT_STONE"}

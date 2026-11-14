@@ -1,0 +1,27 @@
+{
+ "t_fire": 1794631401.337,
+ "drop_delay_s": 0.55,
+ "release_m": [
+  0.67,
+  0.0869,
+  0.2638
+ ],
+ "v_plan_mmps": 39.2,
+ "rehearse": false,
+ "fired_late_s": 0.003,
+ "si_true": 66,
+ "si_false": 6,
+ "inside_frames": 66,
+ "loose_frames": 0,
+ "v_actual_mmps": 39.2,
+ "cap_x_at_release_minus_rel_mm": 2.2,
+ "cap_y_minus_rel_mm": -0.1,
+ "cap_arrives_minus_est_s": -0.057,
+ "cap_arrives_after_fire_s": 0.49,
+ "stone_in_cap_dx_mm": -0.0,
+ "stone_in_cap_dy_mm": 2.9,
+ "stone_in_cap_dv_px": 1.3,
+ "result": "SUCCESS",
+ "drop_delay_correction_s": 0.0,
+ "sheet": "records/trials/2026-11-14-g4-simple/run-19.sheet.jpg"
+}
