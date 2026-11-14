@@ -1,0 +1,14 @@
+{"t": 1794624290.071, "event": "ready", "status": {"robot_state": 1, "robot_mode": 1, "drl_state": 0, "alarm": [1, 2, 3206, ["Change singularity region status(Inside -> Outside), Singularity handling mode(1)", "", ""]]}}
+{"t": 1794624290.718, "event": "excluded", "reason": "Y_ABOVE_MAT", "pos_m": [[0.724, 0.1389, 0.0826]]}
+{"t": 1794624290.718, "event": "stone", "pos_m": [0.6499, -0.0821, -0.0178]}
+{"t": 1794624290.725, "event": "check", "step": "over_stone", "pos_m": [0.6499, -0.0821, 0.2844], "j3_rad": 0.6903, "ok": "True"}
+{"t": 1794624290.731, "event": "check", "step": "grasp", "pos_m": [0.6499, -0.0821, 0.1442], "j3_rad": 0.943, "ok": "True"}
+{"t": 1794624290.736, "event": "check", "step": "wait", "pos_m": [0.66, 0.2, 0.2844], "j3_rad": 0.3535, "ok": "True"}
+{"t": 1794624292.199, "event": "gripper", "step": "open_before_pick", "pulse": 600}
+{"t": 1794624295.804, "event": "done", "step": "over_stone", "reached_m": [0.6499, -0.0821, 0.2843]}
+{"t": 1794624299.084, "event": "done", "step": "descend_grasp", "reached_m": [0.6499, -0.0821, 0.1442]}
+{"t": 1794624302.837, "event": "gripper", "step": "close_grasp", "pulse": 658, "done": [true, 0]}
+{"t": 1794624306.113, "event": "done", "step": "lift_stone", "reached_m": [0.6499, -0.0821, 0.2846]}
+{"t": 1794624309.407, "event": "done", "step": "wait", "reached_m": [0.6599, 0.2, 0.2844]}
+{"t": 1794624339.466, "event": "abort", "reason": "NO_USABLE_PLAN", "fails": {"NO_TARGET": 298}}
+{"t": 1794624343.642, "event": "done", "step": "park_holding", "reached_m": [0.373, -0.0, 0.405]}

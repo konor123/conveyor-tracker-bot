@@ -1,0 +1,11 @@
+{"t": 1794621958.726, "event": "ready", "status": {"robot_state": 1, "robot_mode": 1, "drl_state": 1, "alarm": [1, 1, 2007, ["", "", ""]]}}
+{"t": 1794621958.73, "event": "tcp", "pos_m": [0.373, -0.0, 0.405]}
+{"t": 1794621958.739, "event": "wait_pose", "wait_m": [0.66, 0.2, 0.2844], "j3_rad": 0.3535, "move_s": 4.03}
+{"t": 1794621962.915, "event": "done", "step": "wait", "reached_m": [0.6599, 0.2, 0.2843]}
+{"t": 1794621966.361, "event": "plan_rejected", "track_id": 6, "reason": "TIME_MARGIN"}
+{"t": 1794621966.564, "event": "plan_rejected", "track_id": 6, "reason": "UNCERTAIN"}
+{"t": 1794621966.776, "event": "plan", "plan_id": 6, "track_id": 6, "hover_m": [0.6742, 0.0831, 0.2844], "release_xyz_m": [0.6742, 0.0831, 0.2502], "cap_v_mps": [0.0362, -0.0012], "position_std_m": 0.00305, "release_in_s": 2.79, "move_s": 1.51, "margin_s": 1.29, "j3_rad": 0.4791, "v_mps": 0.1, "a_mps2": 0.3}
+{"t": 1794621968.426, "event": "arrived", "reached_m": [0.6742, 0.0831, 0.2844], "before_release_s": 1.14}
+{"t": 1794621969.733, "event": "image", "path": "records/trials/2026-11-14-hover-predicted/run-02.png"}
+{"t": 1794621972.569, "event": "result", "crossed": true, "cross_minus_release_s": 0.854, "y_at_cross_minus_hover_mm": -9.0, "cap_samples": 77}
+{"t": 1794621976.394, "event": "done", "step": "park", "reached_m": [0.373, -0.0, 0.405]}

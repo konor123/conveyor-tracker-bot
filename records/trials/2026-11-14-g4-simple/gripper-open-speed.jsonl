@@ -1,0 +1,5 @@
+{"event": "start", "init": 1, "pos": 600}
+{"event": "gripper_move", "to": 661, "current_ma": 150, "ok": true, "call_s": 0.005, "cmd": [true, 0], "trace": [[0.01, 600], [2.2, 660], [3.79, 661]]}
+{"event": "gripper_move", "to": 450, "current_ma": 150, "ok": true, "call_s": 0.005, "cmd": [true, 0], "trace": [[0.01, 661], [1.56, 579], [1.65, 67], [1.7, 579], [2.41, 455], [3.2, 450]]}
+{"event": "gripper_move", "to": 661, "current_ma": 150, "ok": true, "call_s": 0.005, "cmd": [true, 0], "trace": [[0.02, 450], [1.17, 256], [1.22, 450], [1.62, 538], [2.42, 659], [3.23, 661], [4.03, 660], [4.83, 661], [6.22, 660], [7.06, 661]]}
+{"event": "gripper_move", "to": 600, "current_ma": 150, "ok": true, "call_s": 0.008, "cmd": [true, 0], "trace": [[0.02, 661], [1.51, 601], [2.31, 600]]}

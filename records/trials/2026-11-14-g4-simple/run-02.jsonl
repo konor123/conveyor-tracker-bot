@@ -1,0 +1,18 @@
+{"t": 1794623161.837, "event": "ready", "status": {"robot_state": 1, "robot_mode": 1, "drl_state": 0, "alarm": [1, 2, 3206, ["Change singularity region status(Inside -> Outside), Singularity handling mode(1)", "", ""]]}}
+{"t": 1794623162.413, "event": "excluded", "reason": "Y_ABOVE_MAT", "pos_m": [[0.7662, 0.0859, 0.0817]]}
+{"t": 1794623162.413, "event": "stone", "pos_m": [0.6361, -0.0522, -0.0174]}
+{"t": 1794623162.422, "event": "check", "step": "over_stone", "pos_m": [0.6361, -0.0522, 0.2844], "j3_rad": 0.8056, "ok": "True"}
+{"t": 1794623162.426, "event": "check", "step": "grasp", "pos_m": [0.6361, -0.0522, 0.1446], "j3_rad": 1.0364, "ok": "True"}
+{"t": 1794623162.431, "event": "check", "step": "wait", "pos_m": [0.66, 0.2, 0.2844], "j3_rad": 0.3535, "ok": "True"}
+{"t": 1794623164.215, "event": "gripper", "step": "open_before_pick", "pulse": 600}
+{"t": 1794623167.633, "event": "done", "step": "over_stone", "reached_m": [0.6361, -0.0522, 0.2843]}
+{"t": 1794623170.902, "event": "done", "step": "descend_grasp", "reached_m": [0.6361, -0.0522, 0.1446]}
+{"t": 1794623174.129, "event": "gripper", "step": "close_grasp", "pulse": 653, "done": [true, 0]}
+{"t": 1794623177.4, "event": "done", "step": "lift_stone", "reached_m": [0.6361, -0.0522, 0.2845]}
+{"t": 1794623180.407, "event": "done", "step": "wait", "reached_m": [0.6599, 0.2001, 0.2844]}
+{"t": 1794623181.124, "event": "check", "step": "release", "pos_m": [0.6904, 0.0865, 0.2652], "j3_rad": 0.3615, "ok": "True"}
+{"t": 1794623181.124, "event": "plan", "track_id": 51, "release_m": [0.6904, 0.0865, 0.2652], "cap_v_mps": [0.0419, -0.0006], "position_std_m": 0.00308, "release_in_s": 2.79, "move_s": 1.52, "margin_s": 1.07, "lead_s": 0.2, "fails": {"BELT_STOPPED": 2, "UNCERTAIN": 3, "UNREACHABLE": 2}}
+{"t": 1794623182.787, "event": "done", "step": "to_release", "reached_m": [0.6904, 0.0865, 0.2652]}
+{"t": 1794623182.797, "event": "armed", "fire_in_s": 0.921}
+{"t": 1794623183.727, "event": "fired", "late_s": 0.009}
+{"t": 1794623185.084, "event": "abort", "reason": "MOVE_NOT_REACHED", "detail": "MOVE_NOT_REACHED: 목표 [0.6904 0.0865 0.2844] 실제 [0.6887 0.0863 0.2839]"}

@@ -1,0 +1,4 @@
+{"t": 1794621305.723, "event": "services_found", "after_s": 0.28}
+{"t": 1794621305.914, "event": "before", "robot_state": 1, "drl_state": 1, "posx": [373.0, -0.0, 405.0, 18.96, -180.0, 18.96]}
+{"t": 1794621309.882, "event": "loop_started", "ok": true, "ready_s": 3.96, "robot_state": 1, "drl_state": 0, "posx": [373.0, -0.0, 405.0, 164.85, -180.0, 164.85]}
+{"t": 1794621313.479, "event": "alive", "samples": [[3.97, 26], [4.47, 26], [4.98, 1], [5.48, 1], [5.99, 2], [6.49, 3], [7.0, 3]], "regs": {"alive": 4, "error": 0, "init": 1, "mode": 5, "firmware": 12, "done_seq": 1, "cmd_result": 0, "pos": 600, "cur": 4}, "drl_state": 0}

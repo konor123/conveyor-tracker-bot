@@ -1,0 +1,21 @@
+{"t": 1794624871.115, "event": "ready", "status": {"robot_state": 1, "robot_mode": 1, "drl_state": 0, "alarm": [1, 2, 3206, ["Change singularity region status(Inside -> Outside), Singularity handling mode(1)", "", ""]]}}
+{"t": 1794624871.663, "event": "stone", "pos_m": [0.6352, -0.0776, -0.0175]}
+{"t": 1794624871.67, "event": "check", "step": "over_stone", "pos_m": [0.6352, -0.0776, 0.2844], "j3_rad": 0.7946, "ok": "True"}
+{"t": 1794624871.675, "event": "check", "step": "grasp", "pos_m": [0.6352, -0.0776, 0.1445], "j3_rad": 1.0274, "ok": "True"}
+{"t": 1794624871.679, "event": "check", "step": "wait", "pos_m": [0.66, 0.2, 0.2844], "j3_rad": 0.3535, "ok": "True"}
+{"t": 1794624873.395, "event": "gripper", "step": "open_before_pick", "pulse": 600}
+{"t": 1794624876.859, "event": "done", "step": "over_stone", "reached_m": [0.6352, -0.0777, 0.2844]}
+{"t": 1794624880.126, "event": "done", "step": "descend_grasp", "reached_m": [0.6352, -0.0776, 0.1444]}
+{"t": 1794624883.372, "event": "gripper", "step": "close_grasp", "pulse": 653, "done": [true, 0]}
+{"t": 1794624886.648, "event": "done", "step": "lift_stone", "reached_m": [0.6352, -0.0776, 0.2844]}
+{"t": 1794624889.907, "event": "done", "step": "wait", "reached_m": [0.6599, 0.2, 0.2844]}
+{"t": 1794624897.474, "event": "check", "step": "release", "pos_m": [0.6698, 0.0875, 0.2652], "j3_rad": 0.5822, "ok": "True"}
+{"t": 1794624897.475, "event": "plan", "track_id": 158, "release_m": [0.6698, 0.0875, 0.2652], "cap_v_mps": [0.0342, -0.0008], "position_std_m": 0.00282, "release_in_s": 2.79, "move_s": 1.48, "margin_s": 1.12, "lead_s": 0.2, "fails": {"NO_TARGET": 75}}
+{"t": 1794624899.093, "event": "done", "step": "to_release", "reached_m": [0.6698, 0.0874, 0.2653]}
+{"t": 1794624899.104, "event": "armed", "fire_in_s": 0.964}
+{"t": 1794624900.076, "event": "fired", "late_s": 0.009}
+{"t": 1794624902.317, "event": "opened", "after_trigger_s": null, "pulse": 620}
+{"t": 1794624903.171, "event": "done", "step": "retreat", "reached_m": [0.6698, 0.0875, 0.2844]}
+{"t": 1794624904.773, "event": "done", "step": "side", "reached_m": [0.6599, 0.2001, 0.2844]}
+{"t": 1794624909.236, "event": "done", "step": "park", "reached_m": [0.373, -0.0, 0.405]}
+{"t": 1794624909.236, "event": "verify", "caps": [], "result": "NOT_VERIFIED"}

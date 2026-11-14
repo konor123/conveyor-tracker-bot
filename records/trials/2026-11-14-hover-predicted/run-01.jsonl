@@ -1,0 +1,9 @@
+{"t": 1794621795.196, "event": "ready", "status": {"robot_state": 1, "robot_mode": 1, "drl_state": 1, "alarm": [1, 1, 2007, ["", "", ""]]}}
+{"t": 1794621795.206, "event": "tcp", "pos_m": [0.373, -0.0, 0.405]}
+{"t": 1794621795.213, "event": "wait_pose", "wait_m": [0.66, 0.2, 0.2844], "j3_rad": 0.3535, "move_s": 4.03}
+{"t": 1794621799.389, "event": "done", "step": "wait", "reached_m": [0.6599, 0.2, 0.2843]}
+{"t": 1794621799.398, "event": "plan", "plan_id": 3, "track_id": 4, "hover_m": [0.602, 0.0878, 0.2844], "release_xyz_m": [0.602, 0.0878, 0.2503], "cap_v_mps": [0.0168, 0.0002], "position_std_m": 0.0032, "release_in_s": 2.79, "move_s": 1.6, "margin_s": 1.2, "j3_rad": 0.9774, "v_mps": 0.1, "a_mps2": 0.3}
+{"t": 1794621801.134, "event": "arrived", "reached_m": [0.602, 0.0877, 0.2844], "before_release_s": 1.06}
+{"t": 1794621802.351, "event": "image", "path": "records/trials/2026-11-14-hover-predicted/run-01.png"}
+{"t": 1794621805.196, "event": "result", "crossed": true, "cross_minus_release_s": -1.424, "y_at_cross_minus_hover_mm": -4.1, "cap_samples": 177}
+{"t": 1794621808.405, "event": "done", "step": "park", "reached_m": [0.373, -0.0, 0.405]}

@@ -1,0 +1,4 @@
+{"t": 1794618533.88, "event": "cycle", "index": 1, "of": 1}
+{"t": 1794618535.78, "event": "detections", "calibration_id": "cal-2026-11-07-handeye-01", "items": []}
+{"t": 1794618535.78, "event": "abort", "reason": "NO_TARGET", "stone": false, "cap": false}
+[ros2run]: Process exited with failure 2

@@ -1,0 +1,26 @@
+{
+ "t_fire": 1794628151.42,
+ "drop_delay_s": 0.3,
+ "release_m": [
+  0.67,
+  0.0847,
+  0.264
+ ],
+ "v_plan_mmps": 46.6,
+ "rehearse": true,
+ "fired_late_s": -0.003,
+ "si_true": 4,
+ "si_false": 60,
+ "inside_frames": 4,
+ "loose_frames": 0,
+ "v_actual_mmps": 45.8,
+ "cap_x_at_release_minus_rel_mm": 0.4,
+ "cap_y_minus_rel_mm": -2.4,
+ "cap_arrives_minus_est_s": -0.009,
+ "cap_arrives_after_fire_s": 0.294,
+ "stone_in_cap_dx_mm": -10.1,
+ "stone_in_cap_dy_mm": 3.0,
+ "stone_in_cap_dv_px": -10.7,
+ "result": "UNKNOWN",
+ "sheet": "records/trials/2026-11-14-g4-simple/reh-01.sheet.jpg"
+}

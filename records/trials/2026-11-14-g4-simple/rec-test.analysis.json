@@ -1,0 +1,17 @@
+{
+ "t_fire": 1794626509.341,
+ "lead_s": 1.5,
+ "release_m": [
+  0.63,
+  0.09,
+  0.265
+ ],
+ "v_plan_mmps": 30.0,
+ "fired_late_s": 0.0,
+ "si_true": 0,
+ "si_false": 0,
+ "inside_frames": 0,
+ "loose_frames": 0,
+ "result": "UNKNOWN",
+ "sheet": "records/trials/2026-11-14-g4-simple/rec-test.sheet.jpg"
+}

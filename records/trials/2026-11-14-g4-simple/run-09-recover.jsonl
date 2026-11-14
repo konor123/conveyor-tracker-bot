@@ -1,0 +1,3 @@
+{"t": 1794625871.235, "event": "before", "status": {"robot_state": 1, "robot_mode": 1, "drl_state": 3, "alarm": [0, 0, 0, ["", "", ""]]}, "pos_m": [0.6951, 0.095, 0.2642]}
+{"t": 1794625872.12, "event": "not_reached", "step": "lift", "target_m": [0.6951, 0.095, 0.2844], "reached_m": [0.6903, 0.0944, 0.2828]}
+{"t": 1794625876.2, "event": "done", "step": "park", "reached_m": [0.373, -0.0, 0.405]}

@@ -1,0 +1,2 @@
+{"t": 1794622729.837, "event": "ready", "status": {"robot_state": 1, "robot_mode": 1, "drl_state": 1, "alarm": [1, 1, 2007, ["", "", ""]]}}
+{"t": 1794622730.426, "event": "abort", "reason": "NO_MAT_STONE", "stone": [0.6029, 0.0453, -0.0163]}

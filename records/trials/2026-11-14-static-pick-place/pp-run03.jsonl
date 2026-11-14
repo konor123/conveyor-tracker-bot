@@ -1,0 +1,26 @@
+{"t": 1794619205.472, "event": "cycle", "index": 1, "of": 1}
+{"t": 1794619205.862, "event": "detections", "calibration_id": "cal-2026-11-07-handeye-01", "items": [{"class": 1, "region": 1, "uv_px": [506.1, 159.7], "position_m": [0.6247, -0.0621, -0.0173], "stone_inside": false, "stone_inside_valid": false}, {"class": 1, "region": 1, "uv_px": [566.9, 170.5], "position_m": [0.636, -0.0048, -0.0171], "stone_inside": false, "stone_inside_valid": false}, {"class": 1, "region": 1, "uv_px": [465.1, 187.1], "position_m": [0.6496, -0.1013, -0.0179], "stone_inside": false, "stone_inside_valid": false}, {"class": 1, "region": 1, "uv_px": [557.6, 231.4], "position_m": [0.6931, -0.0146, -0.018], "stone_inside": false, "stone_inside_valid": false}, {"class": 1, "region": 1, "uv_px": [505.3, 241.0], "position_m": [0.7011, -0.0641, -0.0184], "stone_inside": false, "stone_inside_valid": false}, {"class": 2, "region": 2, "uv_px": [672.3, 164.0], "position_m": [0.6666, 0.0882, 0.083], "stone_inside": false, "stone_inside_valid": true}]}
+{"t": 1794619205.862, "event": "targets", "stone": {"class": 1, "region": 1, "uv_px": [506.1, 159.7], "position_m": [0.6247, -0.0621, -0.0173], "stone_inside": false, "stone_inside_valid": false}, "cap": {"class": 2, "region": 2, "uv_px": [672.3, 164.0], "position_m": [0.6666, 0.0882, 0.083], "stone_inside": false, "stone_inside_valid": true}}
+{"t": 1794619205.862, "event": "plan", "step": "open_before_pick", "pulse": 600, "current_ma": 150, "grasp": false}
+{"t": 1794619207.658, "event": "plan", "step": "over_stone", "pos_m": [0.6247, -0.0621, 0.2844], "v_mps": 0.1, "j3_rad": 0.8694}
+{"t": 1794619207.662, "event": "plan", "step": "descend_grasp", "pos_m": [0.6247, -0.0621, 0.1447], "v_mps": 0.05, "j3_rad": 1.0906}
+{"t": 1794619207.662, "event": "plan", "step": "close_grasp", "pulse": 750, "current_ma": 150, "grasp": true}
+{"t": 1794619207.668, "event": "plan", "step": "lift_stone", "pos_m": [0.6247, -0.0621, 0.2844], "v_mps": 0.05, "j3_rad": 0.8694}
+{"t": 1794619207.672, "event": "plan", "step": "over_cap", "pos_m": [0.6666, 0.0882, 0.2844], "v_mps": 0.1, "j3_rad": 0.5474}
+{"t": 1794619207.678, "event": "plan", "step": "descend_release", "pos_m": [0.6666, 0.0882, 0.2486], "v_mps": 0.05, "j3_rad": 0.6541}
+{"t": 1794619207.678, "event": "plan", "step": "open_release", "pulse": 600, "current_ma": 150, "grasp": false}
+{"t": 1794619207.682, "event": "plan", "step": "retreat", "pos_m": [0.6666, 0.0882, 0.2844], "v_mps": 0.05, "j3_rad": 0.5474}
+{"t": 1794619207.688, "event": "plan", "step": "park", "pos_m": [0.373, 0.0, 0.405], "v_mps": 0.1, "j3_rad": 1.5708}
+{"t": 1794619208.022, "event": "ready", "status": {"robot_state": 1, "robot_mode": 1, "drl_state": 1, "alarm": [1, 1, 2007, ["", "", ""]]}}
+{"t": 1794619214.114, "event": "done", "step": "open_before_pick", "position_pulse": 600, "current_ma": 27, "status": 1}
+{"t": 1794619217.448, "event": "done", "step": "over_stone", "reached_m": [0.6248, -0.0621, 0.2843]}
+{"t": 1794619220.715, "event": "done", "step": "descend_grasp", "reached_m": [0.6247, -0.0621, 0.1446]}
+{"t": 1794619227.582, "event": "done", "step": "close_grasp", "position_pulse": 660, "current_ma": 150, "status": 2}
+{"t": 1794619230.854, "event": "done", "step": "lift_stone", "reached_m": [0.6247, -0.0621, 0.2845]}
+{"t": 1794619232.885, "event": "done", "step": "over_cap", "reached_m": [0.6666, 0.0883, 0.2843]}
+{"t": 1794619234.075, "event": "done", "step": "descend_release", "reached_m": [0.6666, 0.0882, 0.2488]}
+{"t": 1794619240.964, "event": "done", "step": "open_release", "position_pulse": 600, "current_ma": 4, "status": 1}
+{"t": 1794619242.153, "event": "done", "step": "retreat", "reached_m": [0.6666, 0.0882, 0.2844]}
+{"t": 1794619245.928, "event": "done", "step": "park", "reached_m": [0.3729, -0.0, 0.405]}
+{"t": 1794619246.192, "event": "verify", "cap": [{"class": 2, "region": 2, "uv_px": [671.3, 164.9], "position_m": [0.6674, 0.0874, 0.083], "stone_inside": true, "stone_inside_valid": true}]}
+{"t": 1794619246.192, "event": "cycle_done", "elapsed_s": 38.5, "result": "SUCCESS"}

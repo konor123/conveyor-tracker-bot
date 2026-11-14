@@ -1,0 +1,8 @@
+{"t": 1794627707.449, "event": "ready", "status": {"robot_state": 1, "robot_mode": 1, "drl_state": 0, "alarm": [1, 2, 3206, ["Change singularity region status(Inside -> Outside), Singularity handling mode(1)", "", ""]]}}
+{"t": 1794627708.026, "event": "stone", "pos_m": [0.5891, -0.0204, -0.0166]}
+{"t": 1794627708.035, "event": "check", "step": "over_stone", "pos_m": [0.5891, -0.0204, 0.2844], "j3_rad": 1.0727, "ok": "True"}
+{"t": 1794627708.039, "event": "check", "step": "grasp", "pos_m": [0.5891, -0.0204, 0.1454], "j3_rad": 1.2713, "ok": "True"}
+{"t": 1794627708.048, "event": "check", "step": "wait", "pos_m": [0.67, 0.16, 0.2844], "j3_rad": 0.3648, "ok": "True"}
+{"t": 1794627719.839, "event": "check", "step": "release", "pos_m": [0.67, 0.0879, 0.2647], "j3_rad": 0.5816, "ok": "True"}
+{"t": 1794627778.051, "event": "no_plan", "waited": {"NO_PASS_SEEN": 235, "TOO_LATE": 135, "NO_CAP_UPSTREAM": 5490}}
+{"t": 1794627778.051, "event": "abort", "reason": "NOT_RELEASED", "outcome": null}

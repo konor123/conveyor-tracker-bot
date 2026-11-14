@@ -1,0 +1,9 @@
+{"t": 1794627230.425, "event": "ready", "status": {"robot_state": 1, "robot_mode": 1, "drl_state": 0, "alarm": [1, 2, 3206, ["Change singularity region status(Inside -> Outside), Singularity handling mode(1)", "", ""]]}}
+{"t": 1794627233.034, "event": "stone", "pos_m": [0.5892, -0.0204, -0.0166]}
+{"t": 1794627233.043, "event": "check", "step": "over_stone", "pos_m": [0.5892, -0.0204, 0.2844], "j3_rad": 1.0725, "ok": "True"}
+{"t": 1794627233.047, "event": "check", "step": "grasp", "pos_m": [0.5892, -0.0204, 0.1454], "j3_rad": 1.2711, "ok": "True"}
+{"t": 1794627233.051, "event": "check", "step": "wait", "pos_m": [0.67, 0.16, 0.2844], "j3_rad": 0.3648, "ok": "True"}
+{"t": 1794627236.72, "event": "check", "step": "release", "pos_m": [0.67, 0.0893, 0.2647], "j3_rad": 0.5799, "ok": "True"}
+{"t": 1794627253.46, "event": "plan", "release_m": [0.67, 0.0872, 0.2637], "cap_v_mps": [0.0504, 0.0], "v_prior_mmps": 50.4, "prior": true, "n": 3, "x_last_m": 0.5461, "release_in_s": 2.35, "move_s": 1.09, "t_release": 1794627255.806, "drop_delay_s": 0.3, "waited": {"NO_PASS_SEEN": 73, "TOO_LATE": 115, "NO_CAP_UPSTREAM": 1504}}
+{"t": 1794627258.556, "event": "timing_check", "go_before_plan_release_s": 1.37, "v_go_mmps": 48.2, "v_frozen_mmps": 47.8, "plan_minus_actual_s": -0.174, "go_est_minus_actual_s": 0.045, "frozen_est_minus_actual_s": 0.064, "horizon_go_s": 1.54, "horizon_frozen_s": 1.19, "y_at_cross_minus_rel_mm": 1.4}
+{"t": 1794627258.556, "event": "dry_run_done"}

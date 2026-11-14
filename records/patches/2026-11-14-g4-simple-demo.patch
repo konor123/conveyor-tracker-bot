@@ -1,0 +1,2565 @@
+From c2c278b4d2570403bef0e88d84dcae8e17673744 Mon Sep 17 00:00:00 2001
+From: chhowm <chhowm@gmail.com>
+Date: Fri, 13 Nov 2026 22:02:12 +0900
+Subject: [PATCH 01/14] Add a non-contact hover test at the predicted release
+ point (G4 pre-check, no stone)
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ tools/robot/hover_predicted.py      | 211 ++++++++++++++++++++++++++++
+ tools/robot/test_hover_predicted.py |  26 ++++
+ 2 files changed, 237 insertions(+)
+ create mode 100644 tools/robot/hover_predicted.py
+ create mode 100644 tools/robot/test_hover_predicted.py
+
+diff --git a/tools/robot/hover_predicted.py b/tools/robot/hover_predicted.py
+new file mode 100644
+index 0000000..4e9e2e0
+--- /dev/null
++++ b/tools/robot/hover_predicted.py
+@@ -0,0 +1,211 @@
++#!/usr/bin/env python3
++"""예측 해제 지점 위 비접촉 정지 시험(G4 사전 확인, 공깃돌 없음, [OFF] 입회 필수).
++
++실제 tracker·planner가 낸 MODE_PREDICTED 계획(해제 지점 XY·해제 시각)을 받아, 로봇을 그 XY 위 이동 높이
++(`travel_z_m`, 정지 투입과 같은 높이)로 직선 이동해 멈춰 두고, 뚜껑이 실제로 언제·어디로 지나가는지 기록한다.
++벨트를 따라 움직이지 않고, 그리퍼·DRL을 쓰지 않는다. 끝나면 대기 자세(park)로 돌아간다.
++
++  # 계획만(로봇 지령 없음): 고른 계획·정지 지점·IK만 출력
++  python3 tools/robot/hover_predicted.py --config records/calib/2026-11-09-planes/site.yaml
++  # 실행([OFF], 비상정지 담당 입회)
++  python3 tools/robot/hover_predicted.py --config records/calib/2026-11-09-planes/site.yaml --execute
++
++전제: 드라이버(`dsr01`), 카메라, vision·tracker·planner가 같은 ROS 도메인에서 떠 있다(`replay.launch.py`를
++bag 없이 `use_sim_time:=false`). 로봇 지령은 `motion/move_line` 두 번(정지 지점, park)뿐이다.
++멈추는 법: move_line 실행 중에는 Ctrl+C로 팔이 서지 않는다. 비상정지·펜던트로 멈춘다.
++"""
++from __future__ import annotations
++
++import argparse
++import json
++import sys
++import time
++
++import numpy as np
++
++
++def log(event: str, **fields) -> None:
++    print(json.dumps({'t': round(time.time(), 3), 'event': event, **fields}, ensure_ascii=False, default=str),
++          flush=True)
++
++
++def crossing(samples, x_line: float):
++    """(t, x, y) 표본에서 x가 x_line을 처음 넘는 시각과 그때 y를 선형 보간한다. 넘지 않으면 None."""
++    s = sorted(samples)
++    for (t0, x0, y0), (t1, x1, y1) in zip(s, s[1:]):
++        if (x0 - x_line) * (x1 - x_line) <= 0 and x0 != x1:
++            a = (x_line - x0) / (x1 - x0)
++            return t0 + a * (t1 - t0), y0 + a * (y1 - y0)
++    return None
++
++
++def move_time_s(dist_m: float, v_mps: float, a_mps2: float) -> float:
++    """사다리꼴 속도 직선 이동 시간(가감속 포함)."""
++    if dist_m <= v_mps * v_mps / a_mps2:
++        return 2.0 * np.sqrt(dist_m / a_mps2)
++    return dist_m / v_mps + v_mps / a_mps2
++
++
++def main(argv=None) -> int:
++    ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
++    ap.add_argument('--config', action='append', default=[], help='static_pick_place 덮어쓰기 YAML')
++    ap.add_argument('--execute', action='store_true', help='실제 로봇을 움직인다([OFF], 입회 필수)')
++    ap.add_argument('--wait-plan-s', type=float, default=60.0, help='쓸 수 있는 계획을 기다리는 최대 시간')
++    ap.add_argument('--slack-s', type=float, default=1.0, help='도착 예상 뒤 해제 시각까지 최소 여유')
++    ap.add_argument('--after-s', type=float, default=3.0, help='해제 시각 뒤 더 지켜보는 시간')
++    ap.add_argument('--min-obs', type=int, default=10, help='SelectTarget 최소 관측 수')
++    ap.add_argument('--image', help='해제 시각에 카메라 프레임을 저장할 경로(.png)')
++    ap.add_argument('--wait-xy', type=float, nargs=2, metavar=('X', 'Y'),
++                    help='계획을 기다릴 벨트 위 대기 지점 XY [m](z = travel_z_m). --execute면 먼저 이리로 옮긴다')
++    args = ap.parse_args(argv)
++
++    import rclpy
++    from rclpy.duration import Duration
++    from drop_interfaces.action import DropTask
++    from drop_interfaces.msg import ObjectDetection, ObjectDetectionArray
++    from drop_interfaces.srv import ComputeIntercept, SelectTarget
++    from static_pick_place.doosan_client import DoosanClient, RobotError
++    from static_pick_place.pick_place import load_config, make_params
++    from static_pick_place.plan import DOWN_QUAT_XYZW
++
++    p = make_params(load_config(args.config))
++    rclpy.init()
++    node = rclpy.create_node('hover_predicted')
++    caps = []          # (t_stamp, x, y) robot_base, 뚜껑 검출
++    latest = {}
++
++    def on_dets(msg):
++        t = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
++        for d in msg.detections:
++            if d.object_class == ObjectDetection.CLASS_CAP and d.position_valid:
++                caps.append((t, d.position.x, d.position.y))
++
++    node.create_subscription(ObjectDetectionArray, 'objects/detections', on_dets, 10)
++    if args.image:
++        from sensor_msgs.msg import Image
++        node.create_subscription(Image, '/camera/camera/color/image_raw', lambda m: latest.__setitem__('img', m), 1)
++    sel = node.create_client(SelectTarget, 'tracking/select_target')
++    plan_cli = node.create_client(ComputeIntercept, 'planner/compute_intercept')
++    robot = DoosanClient(node, 'dsr01')
++
++    def now_s():
++        return node.get_clock().now().nanoseconds * 1e-9
++
++    def call(cli, req):
++        fut = cli.call_async(req)
++        rclpy.spin_until_future_complete(node, fut, timeout_sec=2.0)
++        return fut.result()
++
++    def spin_until(t_end):
++        while now_s() < t_end:
++            rclpy.spin_once(node, timeout_sec=0.01)
++
++    try:
++        if not (sel.wait_for_service(5.0) and plan_cli.wait_for_service(5.0)):
++            log('abort', reason='SERVICE_UNAVAILABLE', detail='tracking/select_target·planner/compute_intercept')
++            return 2
++        log('ready', status=robot.check_ready())
++        start, _ = robot.tcp_pose()
++        log('tcp', pos_m=[round(float(v), 4) for v in start])
++        if args.wait_xy is not None:
++            # 대기 자세에서 정지 지점까지 3.7~3.9 s라 계획의 해제 시각(약 3 s 앞)에 늦는다. 벨트 위 이동 높이에서 기다린다
++            wait = np.array([args.wait_xy[0], args.wait_xy[1], p.travel_z_m])
++            if not (p.x_min_m <= wait[0] <= p.x_max_m and p.y_min_m <= wait[1] <= p.y_max_m):
++                log('abort', reason='WAIT_OUT_OF_WORKSPACE', wait_m=wait.round(4).tolist())
++                return 2
++            j = robot.ik_joints(wait, DOWN_QUAT_XYZW)
++            if abs(j[2]) < p.j3_min_rad:
++                log('abort', reason='NEAR_REACH_LIMIT', step='wait', j3_rad=round(float(j[2]), 4))
++                return 2
++            log('wait_pose', wait_m=wait.round(4).tolist(), j3_rad=round(float(j[2]), 4),
++                move_s=round(move_time_s(float(np.linalg.norm(wait - start)), p.travel_v_mps, p.travel_a_mps2), 2))
++            if args.execute:
++                start = robot.move_line(wait, DOWN_QUAT_XYZW, p.travel_v_mps, p.travel_a_mps2)
++                log('done', step='wait', reached_m=[round(float(v), 4) for v in start])
++            else:
++                start = wait
++
++        chosen = None
++        t_give_up = time.monotonic() + args.wait_plan_s
++        step = 0
++        while chosen is None and time.monotonic() < t_give_up:
++            step += 1
++            stamp_now = node.get_clock().now()
++            deadline = (stamp_now + Duration(seconds=1.0)).to_msg()
++            r = call(sel, SelectTarget.Request(cycle_id='hover', step_id=step, deadline=deadline,
++                                               object_class=ObjectDetection.CLASS_CAP, min_observation_count=args.min_obs))
++            if r is None or r.result != 0:
++                time.sleep(0.2)
++                continue
++            c = call(plan_cli, ComputeIntercept.Request(cycle_id='hover', step_id=step, deadline=deadline,
++                                                        target_track_id=r.track_id, target_epoch=r.epoch,
++                                                        mode=DropTask.Goal.MODE_PREDICTED,
++                                                        earliest_release=stamp_now.to_msg()))
++            if c is None or c.result != 0 or c.plan.status != 0:
++                log('plan_rejected', track_id=r.track_id, reason=None if c is None else c.reason_code)
++                time.sleep(0.2)
++                continue
++            pl = c.plan
++            hover = np.array([pl.target_tcp_pose.position.x, pl.target_tcp_pose.position.y, p.travel_z_m])
++            t_release = pl.release_time.sec + pl.release_time.nanosec * 1e-9
++            t_move = move_time_s(float(np.linalg.norm(hover - start)), p.travel_v_mps, p.travel_a_mps2)
++            margin = t_release - now_s() - t_move
++            if not (p.x_min_m <= hover[0] <= p.x_max_m and p.y_min_m <= hover[1] <= p.y_max_m):
++                log('plan_skipped', reason='OUT_OF_WORKSPACE', hover_m=hover.round(4).tolist())
++                continue
++            if margin < args.slack_s:
++                log('plan_skipped', reason='TOO_LATE', margin_s=round(margin, 2), move_s=round(t_move, 2))
++                time.sleep(0.2)
++                continue
++            j = robot.ik_joints(hover, DOWN_QUAT_XYZW)
++            if abs(j[2]) < p.j3_min_rad:
++                log('plan_skipped', reason='NEAR_REACH_LIMIT', j3_rad=round(float(j[2]), 4))
++                continue
++            chosen = (pl, hover, t_release, t_move, margin, float(j[2]))
++        if chosen is None:
++            log('abort', reason='NO_USABLE_PLAN', waited_s=args.wait_plan_s)
++            return 2
++        pl, hover, t_release, t_move, margin, j3 = chosen
++        log('plan', plan_id=pl.plan_id, track_id=pl.target_track_id, hover_m=hover.round(4).tolist(),
++            release_xyz_m=[round(pl.target_tcp_pose.position.x, 4), round(pl.target_tcp_pose.position.y, 4),
++                           round(pl.target_tcp_pose.position.z, 4)],
++            cap_v_mps=[round(pl.target_velocity.x, 4), round(pl.target_velocity.y, 4)],
++            position_std_m=round(pl.position_std, 5), release_in_s=round(t_release - now_s(), 2),
++            move_s=round(t_move, 2), margin_s=round(margin, 2), j3_rad=round(j3, 4),
++            v_mps=p.travel_v_mps, a_mps2=p.travel_a_mps2)
++        if not args.execute:
++            log('dry_run_done')
++            return 0
++
++        reached = robot.move_line(hover, DOWN_QUAT_XYZW, p.travel_v_mps, p.travel_a_mps2)
++        t_arrive = now_s()
++        log('arrived', reached_m=[round(float(v), 4) for v in reached], before_release_s=round(t_release - t_arrive, 2))
++        spin_until(t_release)
++        if args.image and 'img' in latest:
++            import cv2
++            m = latest['img']
++            img = np.frombuffer(m.data, np.uint8).reshape(m.height, m.step)[:, :m.width * 3].reshape(m.height, m.width, 3)
++            cv2.imwrite(args.image, img[:, :, ::-1] if m.encoding == 'rgb8' else img)
++            log('image', path=args.image)
++        spin_until(t_release + args.after_s)
++        seen = [c for c in caps if c[0] >= t_release - 5.0]
++        cross = crossing(seen, hover[0])
++        if cross is None:
++            log('result', crossed=False, cap_samples=len(seen))
++        else:
++            t_cross, y_cross = cross
++            log('result', crossed=True, cross_minus_release_s=round(t_cross - t_release, 3),
++                y_at_cross_minus_hover_mm=round((y_cross - hover[1]) * 1000, 1), cap_samples=len(seen))
++        back = robot.move_line([p.park_x_m, p.park_y_m, p.park_z_m], DOWN_QUAT_XYZW, p.travel_v_mps, p.travel_a_mps2)
++        log('done', step='park', reached_m=[round(float(v), 4) for v in back])
++        return 0
++    except RobotError as exc:
++        log('abort', reason=exc.reason if hasattr(exc, 'reason') else 'ROBOT_ERROR', detail=str(exc))
++        return 2
++    finally:
++        node.destroy_node()
++        rclpy.shutdown()
++
++
++if __name__ == '__main__':
++    sys.exit(main())
+diff --git a/tools/robot/test_hover_predicted.py b/tools/robot/test_hover_predicted.py
+new file mode 100644
+index 0000000..9de5657
+--- /dev/null
++++ b/tools/robot/test_hover_predicted.py
+@@ -0,0 +1,26 @@
++"""hover_predicted.py 순수 함수 단위 시험."""
++import pytest
++
++from tools.robot.hover_predicted import crossing, move_time_s
++
++
++def test_crossing_interpolates_time_and_y():
++    samples = [(10.0, 0.60, 0.080), (10.1, 0.62, 0.082), (10.2, 0.64, 0.084)]
++    t, y = crossing(samples, 0.63)
++    assert t == pytest.approx(10.15)
++    assert y == pytest.approx(0.083)
++
++
++def test_crossing_none_when_line_not_reached():
++    assert crossing([(0.0, 0.5, 0.0), (1.0, 0.55, 0.0)], 0.6) is None
++
++
++def test_crossing_unsorted_input():
++    t, _ = crossing([(1.0, 0.7, 0.0), (0.0, 0.5, 0.0)], 0.6)
++    assert t == pytest.approx(0.5)
++
++
++def test_move_time_trapezoid_and_triangle():
++    assert move_time_s(0.35, 0.1, 0.3) == pytest.approx(0.35 / 0.1 + 0.1 / 0.3)
++    short = 0.01            # 0.1²/0.3 = 0.033 m보다 짧으면 최고 속도에 닿지 않는다
++    assert move_time_s(short, 0.1, 0.3) == pytest.approx(2 * (short / 0.3) ** 0.5)
+-- 
+2.43.0
+
+
+From 9f994ed7ab67486c648a61c0861e7aa850f63f33 Mon Sep 17 00:00:00 2001
+From: chhowm <chhowm@gmail.com>
+Date: Fri, 13 Nov 2026 22:05:57 +0900
+Subject: [PATCH 02/14] Return to park when the hover test gives up waiting for
+ a plan, and log why target selection failed
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ tools/robot/hover_predicted.py | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/tools/robot/hover_predicted.py b/tools/robot/hover_predicted.py
+index 4e9e2e0..8233907 100644
+--- a/tools/robot/hover_predicted.py
++++ b/tools/robot/hover_predicted.py
+@@ -126,6 +126,7 @@ def main(argv=None) -> int:
+                 start = wait
+ 
+         chosen = None
++        select_fail = {}
+         t_give_up = time.monotonic() + args.wait_plan_s
+         step = 0
+         while chosen is None and time.monotonic() < t_give_up:
+@@ -135,6 +136,8 @@ def main(argv=None) -> int:
+             r = call(sel, SelectTarget.Request(cycle_id='hover', step_id=step, deadline=deadline,
+                                                object_class=ObjectDetection.CLASS_CAP, min_observation_count=args.min_obs))
+             if r is None or r.result != 0:
++                why = 'NO_REPLY' if r is None else r.reason_code
++                select_fail[why] = select_fail.get(why, 0) + 1
+                 time.sleep(0.2)
+                 continue
+             c = call(plan_cli, ComputeIntercept.Request(cycle_id='hover', step_id=step, deadline=deadline,
+@@ -163,7 +166,12 @@ def main(argv=None) -> int:
+                 continue
+             chosen = (pl, hover, t_release, t_move, margin, float(j[2]))
+         if chosen is None:
+-            log('abort', reason='NO_USABLE_PLAN', waited_s=args.wait_plan_s)
++            log('abort', reason='NO_USABLE_PLAN', waited_s=args.wait_plan_s, select_fail=select_fail)
++            if args.execute and args.wait_xy is not None:
++                # 대기 지점(벨트 위)에 두고 끝내지 않는다(2026-11-13 run-01)
++                back = robot.move_line([p.park_x_m, p.park_y_m, p.park_z_m], DOWN_QUAT_XYZW,
++                                       p.travel_v_mps, p.travel_a_mps2)
++                log('done', step='park', reached_m=[round(float(v), 4) for v in back])
+             return 2
+         pl, hover, t_release, t_move, margin, j3 = chosen
+         log('plan', plan_id=pl.plan_id, track_id=pl.target_track_id, hover_m=hover.round(4).tolist(),
+-- 
+2.43.0
+
+
+From e66332c6865f3dc0950e5a2c0b533edd19c74748 Mon Sep 17 00:00:00 2001
+From: chhowm <chhowm@gmail.com>
+Date: Sat, 14 Nov 2026 11:19:35 +0900
+Subject: [PATCH 03/14] Add a simple G4 demo script: grip with the resident
+ loop, wait at the predicted release point, fire the armed open
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ tools/robot/g4_simple.py | 246 +++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 246 insertions(+)
+ create mode 100644 tools/robot/g4_simple.py
+
+diff --git a/tools/robot/g4_simple.py b/tools/robot/g4_simple.py
+new file mode 100644
+index 0000000..de3a5e4
+--- /dev/null
++++ b/tools/robot/g4_simple.py
+@@ -0,0 +1,246 @@
++#!/usr/bin/env python3
++"""간이 G4: 공깃돌을 쥐고 예측 해제 지점에서 기다렸다가 예측 시각에 놓는다([OFF] 입회 필수, 시연용).
++
++정식 G4(orchestrator → robot_controller_node DynamicPlace)가 아니다. 놓는 순간 벨트를 따라 움직이지 않는다.
++쓰는 것: 정지 투입의 검출·직선 이동(`static_pick_place`), G4용 그리퍼 상주 루프의 예약 → 트리거
++(`robot_control.resident_transport`, 2026-11-14 현장에서 레지스터 0~23·쓰기 << 24 수정 뒤 동작 확인),
++hover 도구의 예측 계획 고르기(`tools/robot/hover_predicted.py`).
++
++  # 계획만(로봇·그리퍼 지령 없음): 고른 공깃돌·파지 높이·IK, 예측 계획과 해제 지점
++  python3 tools/robot/g4_simple.py --config records/calib/2026-11-09-planes/site.yaml
++  # 실행
++  python3 tools/robot/g4_simple.py --config records/calib/2026-11-09-planes/site.yaml --execute
++
++순서(--execute): 상주 루프 확인·기동 → 공깃돌 위 → 하강 → 닫기(150 mA) → 들기 → 벨트 옆 대기 →
++예측 계획 → 해제 지점(테두리 위 release_above_rim_m + --release-raise-m)으로 직선 이동 → 개방 예약 →
++해제 시각 − --lead-s에 트리거 → 0.5 s 뒤 들기 → park → 카메라로 투입 확인.
++멈추는 법: move_line 중에는 비상정지·펜던트. 실패하면 공깃돌이 벨트에 떨어질 수 있다.
++"""
++from __future__ import annotations
++
++import argparse
++import json
++import sys
++import time
++
++import numpy as np
++
++from tools.robot.hover_predicted import move_time_s
++
++MAT_Y_MAX_M = 0.02        # 매트 공깃돌 y 상한. 매트와 벨트 사이 빨간 LED 오검출(y ≈ +0.047 m, 2026-11-14)을 막는다
++
++
++def log(event: str, **fields) -> None:
++    print(json.dumps({'t': round(time.time(), 3), 'event': event, **fields}, ensure_ascii=False, default=str),
++          flush=True)
++
++
++class SteadyClock:
++    def steady_now(self) -> float:
++        return time.monotonic()
++
++
++def main(argv=None) -> int:
++    ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
++    ap.add_argument('--config', action='append', default=[])
++    ap.add_argument('--execute', action='store_true')
++    ap.add_argument('--wait-xy', type=float, nargs=2, default=[0.66, 0.20])
++    ap.add_argument('--wait-plan-s', type=float, default=30.0)
++    ap.add_argument('--min-obs', type=int, default=30)
++    ap.add_argument('--slack-s', type=float, default=0.8, help='해제 지점 도착 예상 뒤 트리거까지 최소 여유')
++    ap.add_argument('--lead-s', type=float, default=0.2, help='해제 시각보다 이만큼 먼저 트리거(개방·낙하 시간)')
++    ap.add_argument('--release-raise-m', type=float, default=0.015, help='해제 높이에 더하는 여유(손가락·테두리 간격)')
++    args = ap.parse_args(argv)
++
++    import rclpy
++    from rclpy.duration import Duration
++    from drop_interfaces.action import DropTask
++    from drop_interfaces.msg import ObjectDetection
++    from drop_interfaces.srv import ComputeIntercept, SelectTarget
++    from robot_control.dsr_register_io import DsrRegisterIO, RosServiceCaller
++    from robot_control.gripper_adapter import MODBUS
++    from robot_control.resident_transport import ResidentLoopTransport, ResidentRegs
++    from static_pick_place.doosan_client import DoosanClient, RobotError
++    from static_pick_place.pick_place import detect, grab_frame, load_config, load_geometry, make_params
++    from static_pick_place.plan import DOWN_QUAT_XYZW, choose_stone
++
++    cfg = load_config(args.config)
++    p = make_params(cfg)
++    rclpy.init()
++    node = rclpy.create_node('g4_simple')
++    caller = RosServiceCaller('g4_simple_dsr_io')
++    io = DsrRegisterIO(caller, 'dsr01')
++    regs = ResidentRegs()
++    loop = ResidentLoopTransport(io, SteadyClock(), time.sleep, regs)
++    robot = DoosanClient(node, 'dsr01')
++    sel = node.create_client(SelectTarget, 'tracking/select_target')
++    plan_cli = node.create_client(ComputeIntercept, 'planner/compute_intercept')
++
++    def now_s():
++        return node.get_clock().now().nanoseconds * 1e-9
++
++    def call(cli, req):
++        fut = cli.call_async(req)
++        rclpy.spin_until_future_complete(node, fut, timeout_sec=2.0)
++        return fut.result()
++
++    def move(name, pos, v=None, a=None):
++        reached = robot.move_line(pos, DOWN_QUAT_XYZW, v or p.travel_v_mps, a or p.travel_a_mps2)
++        log('done', step=name, reached_m=[round(float(x), 4) for x in reached])
++        return reached
++
++    def ik_ok(name, pos) -> bool:
++        j = robot.ik_joints(pos, DOWN_QUAT_XYZW)
++        ok = abs(j[2]) >= p.j3_min_rad and p.x_min_m <= pos[0] <= p.x_max_m and p.y_min_m <= pos[1] <= p.y_max_m
++        log('check', step=name, pos_m=[round(float(x), 4) for x in pos], j3_rad=round(float(j[2]), 4), ok=ok)
++        return ok
++
++    def gripper_to(pulse, current_ma, timeout_s=8.0):
++        """루프로 그리퍼를 옮기고 도착하거나 1 s 멈출 때까지 기다린다. 실행 중에는 상태가 갱신되지 않는다."""
++        t0 = time.monotonic()
++        if not (loop.write_register(MODBUS.goal_current, current_ma) and loop.write_goal_position(pulse)
++                and loop.trigger()):
++            raise RuntimeError('GRIPPER_WRITE_FAILED')
++        samples = []
++        while time.monotonic() - t0 < timeout_s:
++            done = loop.last_command()
++            pos = loop._word(regs.st_pos_hi)
++            samples.append(pos)
++            if done and done[0] and (abs(pos - pulse) <= 5 or (time.monotonic() - t0 > 3.0
++                                                                 and len(set(samples[-4:])) == 1)):
++                break
++            time.sleep(0.25)
++        return loop._word(regs.st_pos_hi), done
++
++    try:
++        # ---------------- 상태·검출(지령 없음)
++        st = robot.status()
++        log('ready', status=st)
++        if st['robot_state'] != 1 or st['robot_mode'] != 1:
++            log('abort', reason='NOT_STANDBY_AUTONOMOUS')
++            return 2
++        start, _ = robot.tcp_pose()
++        geom = load_geometry(cfg)
++        dets = detect(grab_frame(node, cfg['image_topic']), cfg, geom)
++        excluded = [[round(v, 4) for v in d.position] for d in dets if d.position[1] > MAT_Y_MAX_M]
++        stone = choose_stone([d for d in dets if d.position[1] <= MAT_Y_MAX_M], p)
++        if excluded:
++            log('excluded', reason='Y_ABOVE_MAT', pos_m=excluded)
++        if stone is None:
++            log('abort', reason='NO_MAT_STONE')
++            return 2
++        s = np.asarray(stone.position, float)
++        over = np.array([s[0], s[1], p.travel_z_m])
++        grasp = np.array([s[0], s[1], s[2] + p.grasp_above_stone_top_m])
++        wait = np.array([args.wait_xy[0], args.wait_xy[1], p.travel_z_m])
++        log('stone', pos_m=[round(float(v), 4) for v in s])
++        if not all(ik_ok(n, q) for n, q in (('over_stone', over), ('grasp', grasp), ('wait', wait))):
++            log('abort', reason='IK_OR_WORKSPACE')
++            return 2
++
++        # ---------------- 파지(--execute)
++        if args.execute:
++            if io.get(regs.init) != 1 or robot.status()['drl_state'] != 0:
++                t0 = time.monotonic()
++                loop.start_resident_loop()
++                log('loop_started', ready_s=round(time.monotonic() - t0, 2))
++            pos, _ = gripper_to(p.open_pulse, 100)
++            log('gripper', step='open_before_pick', pulse=pos)
++            move('over_stone', over)
++            move('descend_grasp', grasp, p.vertical_v_mps, p.vertical_a_mps2)
++            pos, done = gripper_to(p.close_pulse, p.grip_current_ma)
++            log('gripper', step='close_grasp', pulse=pos, done=done)
++            if pos >= p.close_pulse - 10:
++                log('abort', reason='NO_STONE_IN_GRIP', pulse=pos)
++                move('lift_empty', over, p.vertical_v_mps, p.vertical_a_mps2)
++                move('park', [p.park_x_m, p.park_y_m, p.park_z_m])
++                return 2
++            move('lift_stone', over, p.vertical_v_mps, p.vertical_a_mps2)
++            start = move('wait', wait)
++        else:
++            start = wait
++
++        # ---------------- 예측 계획
++        if not (sel.wait_for_service(5.0) and plan_cli.wait_for_service(5.0)):
++            log('abort', reason='PLANNER_UNAVAILABLE')
++            return 2
++        chosen, fails, step = None, {}, 0
++        t_give_up = time.monotonic() + args.wait_plan_s
++        while chosen is None and time.monotonic() < t_give_up:
++            step += 1
++            stamp_now = node.get_clock().now()
++            deadline = (stamp_now + Duration(seconds=1.0)).to_msg()
++            r = call(sel, SelectTarget.Request(cycle_id='g4s', step_id=step, deadline=deadline,
++                                               object_class=ObjectDetection.CLASS_CAP, min_observation_count=args.min_obs))
++            if r is None or r.result != 0:
++                why = 'NO_REPLY' if r is None else r.reason_code
++                fails[why] = fails.get(why, 0) + 1
++                time.sleep(0.1)
++                continue
++            c = call(plan_cli, ComputeIntercept.Request(cycle_id='g4s', step_id=step, deadline=deadline,
++                                                        target_track_id=r.track_id, target_epoch=r.epoch,
++                                                        mode=DropTask.Goal.MODE_PREDICTED,
++                                                        earliest_release=stamp_now.to_msg()))
++            if c is None or c.result != 0 or c.plan.status != 0:
++                why = 'NO_REPLY' if c is None else c.reason_code
++                fails[why] = fails.get(why, 0) + 1
++                time.sleep(0.1)
++                continue
++            pl = c.plan
++            rel = np.array([pl.target_tcp_pose.position.x, pl.target_tcp_pose.position.y,
++                            pl.target_tcp_pose.position.z + args.release_raise_m])
++            t_release = pl.release_time.sec + pl.release_time.nanosec * 1e-9
++            t_move = move_time_s(float(np.linalg.norm(rel - start)), p.travel_v_mps, p.travel_a_mps2)
++            margin = t_release - args.lead_s - now_s() - t_move
++            if margin < args.slack_s:
++                fails['TOO_LATE'] = fails.get('TOO_LATE', 0) + 1
++                continue
++            if not (rel[2] < p.travel_z_m and ik_ok('release', rel)):
++                fails['RELEASE_POSE'] = fails.get('RELEASE_POSE', 0) + 1
++                continue
++            chosen = (pl, rel, t_release, t_move, margin)
++        if chosen is None:
++            log('abort', reason='NO_USABLE_PLAN', fails=fails)
++            if args.execute:
++                move('park_holding', [p.park_x_m, p.park_y_m, p.park_z_m])
++            return 2
++        pl, rel, t_release, t_move, margin = chosen
++        log('plan', track_id=pl.target_track_id, release_m=[round(float(v), 4) for v in rel],
++            cap_v_mps=[round(pl.target_velocity.x, 4), round(pl.target_velocity.y, 4)],
++            position_std_m=round(pl.position_std, 5), release_in_s=round(t_release - now_s(), 2),
++            move_s=round(t_move, 2), margin_s=round(margin, 2), lead_s=args.lead_s, fails=fails)
++        if not args.execute:
++            log('dry_run_done')
++            return 0
++
++        # ---------------- 해제
++        move('to_release', rel)
++        loop.write_register(MODBUS.goal_current, 100)
++        loop.write_goal_position(p.open_pulse)                 # 예약: 루프는 읽기를 멈추고 트리거만 기다린다
++        t_fire = t_release - args.lead_s
++        log('armed', fire_in_s=round(t_fire - now_s(), 3))
++        while now_s() < t_fire:
++            time.sleep(0.002)
++        loop.trigger()
++        log('fired', late_s=round(now_s() - t_fire, 3))
++        time.sleep(0.5)
++        move('retreat', [rel[0], rel[1], p.travel_z_m], p.vertical_v_mps, p.vertical_a_mps2)
++        move('park', [p.park_x_m, p.park_y_m, p.park_z_m])
++        time.sleep(0.5)
++        after = detect(grab_frame(node, cfg['image_topic']), cfg, geom)
++        caps = [{'pos_m': [round(v, 4) for v in d.position], 'stone_inside': d.stone_inside,
++                 'valid': d.stone_inside_valid} for d in after if d.blob.object_class == ObjectDetection.CLASS_CAP]
++        log('verify', caps=caps, result='SUCCESS' if any(c['stone_inside'] and c['valid'] for c in caps)
++            else 'NOT_VERIFIED')
++        return 0
++    except (RobotError, RuntimeError) as exc:
++        log('abort', reason=getattr(exc, 'reason', type(exc).__name__), detail=str(exc))
++        return 2
++    finally:
++        caller.close()
++        node.destroy_node()
++        rclpy.shutdown()
++
++
++if __name__ == '__main__':
++    sys.exit(main())
+-- 
+2.43.0
+
+
+From f63dc3ae2fd342c277bde8470d5833b56378d48e Mon Sep 17 00:00:00 2001
+From: chhowm <chhowm@gmail.com>
+Date: Sat, 14 Nov 2026 11:23:45 +0900
+Subject: [PATCH 04/14] Check the drop from beside the belt before parking
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ tools/robot/g4_simple.py | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/tools/robot/g4_simple.py b/tools/robot/g4_simple.py
+index de3a5e4..b570954 100644
+--- a/tools/robot/g4_simple.py
++++ b/tools/robot/g4_simple.py
+@@ -225,9 +225,10 @@ def main(argv=None) -> int:
+         log('fired', late_s=round(now_s() - t_fire, 3))
+         time.sleep(0.5)
+         move('retreat', [rel[0], rel[1], p.travel_z_m], p.vertical_v_mps, p.vertical_a_mps2)
+-        move('park', [p.park_x_m, p.park_y_m, p.park_z_m])
+-        time.sleep(0.5)
++        # park까지 가면 뚜껑이 벨트 끝 롤러를 넘어 확인을 놓친다(2026-11-14 run-01). 벨트 옆에서 먼저 본다
++        move('side', wait)
+         after = detect(grab_frame(node, cfg['image_topic']), cfg, geom)
++        move('park', [p.park_x_m, p.park_y_m, p.park_z_m])
+         caps = [{'pos_m': [round(v, 4) for v in d.position], 'stone_inside': d.stone_inside,
+                  'valid': d.stone_inside_valid} for d in after if d.blob.object_class == ObjectDetection.CLASS_CAP]
+         log('verify', caps=caps, result='SUCCESS' if any(c['stone_inside'] and c['valid'] for c in caps)
+-- 
+2.43.0
+
+
+From bcb1132afeac08a34705f167df3e9149b75ac686 Mon Sep 17 00:00:00 2001
+From: chhowm <chhowm@gmail.com>
+Date: Sat, 14 Nov 2026 11:29:12 +0900
+Subject: [PATCH 05/14] Hold height until the gripper opens, keep going home
+ after a short retreat, skip release points beyond x 0.68
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ tools/robot/g4_simple.py | 37 +++++++++++++++++++++++++++++++------
+ 1 file changed, 31 insertions(+), 6 deletions(-)
+
+diff --git a/tools/robot/g4_simple.py b/tools/robot/g4_simple.py
+index b570954..fdc320a 100644
+--- a/tools/robot/g4_simple.py
++++ b/tools/robot/g4_simple.py
+@@ -27,6 +27,7 @@ import numpy as np
+ 
+ from tools.robot.hover_predicted import move_time_s
+ 
++RELEASE_X_MAX_M = 0.68    # 더 멀면 특이점 근처(2026-11-14 run-02: x 0.690에서 알람 3205·상승 1.7 mm 모자람)
+ MAT_Y_MAX_M = 0.02        # 매트 공깃돌 y 상한. 매트와 벨트 사이 빨간 LED 오검출(y ≈ +0.047 m, 2026-11-14)을 막는다
+ 
+ 
+@@ -84,8 +85,17 @@ def main(argv=None) -> int:
+         rclpy.spin_until_future_complete(node, fut, timeout_sec=2.0)
+         return fut.result()
+ 
+-    def move(name, pos, v=None, a=None):
+-        reached = robot.move_line(pos, DOWN_QUAT_XYZW, v or p.travel_v_mps, a or p.travel_a_mps2)
++    def move(name, pos, v=None, a=None, tolerate=False):
++        """tolerate: 몇 mm 못 미쳐도(MOVE_NOT_REACHED) 다음 동작으로 넘어간다(해제 뒤 상승·복귀 전용)."""
++        try:
++            reached = robot.move_line(pos, DOWN_QUAT_XYZW, v or p.travel_v_mps, a or p.travel_a_mps2)
++        except RobotError as exc:
++            if not (tolerate and exc.reason == 'MOVE_NOT_REACHED'):
++                raise
++            reached, _ = robot.tcp_pose()
++            log('not_reached', step=name, target_m=[round(float(x), 4) for x in pos],
++                reached_m=[round(float(x), 4) for x in reached])
++            return reached
+         log('done', step=name, reached_m=[round(float(x), 4) for x in reached])
+         return reached
+ 
+@@ -195,6 +205,9 @@ def main(argv=None) -> int:
+             if margin < args.slack_s:
+                 fails['TOO_LATE'] = fails.get('TOO_LATE', 0) + 1
+                 continue
++            if rel[0] > RELEASE_X_MAX_M:
++                fails['TOO_FAR'] = fails.get('TOO_FAR', 0) + 1
++                continue
+             if not (rel[2] < p.travel_z_m and ik_ok('release', rel)):
+                 fails['RELEASE_POSE'] = fails.get('RELEASE_POSE', 0) + 1
+                 continue
+@@ -222,13 +235,25 @@ def main(argv=None) -> int:
+         while now_s() < t_fire:
+             time.sleep(0.002)
+         loop.trigger()
++        t_trig = time.monotonic()
+         log('fired', late_s=round(now_s() - t_fire, 3))
+-        time.sleep(0.5)
+-        move('retreat', [rel[0], rel[1], p.travel_z_m], p.vertical_v_mps, p.vertical_a_mps2)
++        # 높이를 유지한 채 손가락이 열릴 때까지 기다린 뒤 올린다(0.5 s 고정이면 열리는 중에 팔이 올라갔다, run-01·02).
++        # 루프가 지령을 실행한 것을 보고, 위치가 열림 근처로 올라온 뒤 0.2 s 더 머문다(최대 2 s)
++        opened = None
++        while time.monotonic() - t_trig < 2.0:
++            done = loop.last_command()
++            pos = loop._word(regs.st_pos_hi)
++            if done and done[0] and pos <= p.open_pulse + 10:
++                opened = round(time.monotonic() - t_trig, 3)
++                break
++            time.sleep(0.02)
++        time.sleep(0.2)
++        log('opened', after_trigger_s=opened, pulse=loop._word(regs.st_pos_hi))
++        move('retreat', [rel[0], rel[1], p.travel_z_m], p.vertical_v_mps, p.vertical_a_mps2, tolerate=True)
+         # park까지 가면 뚜껑이 벨트 끝 롤러를 넘어 확인을 놓친다(2026-11-14 run-01). 벨트 옆에서 먼저 본다
+-        move('side', wait)
++        move('side', wait, tolerate=True)
+         after = detect(grab_frame(node, cfg['image_topic']), cfg, geom)
+-        move('park', [p.park_x_m, p.park_y_m, p.park_z_m])
++        move('park', [p.park_x_m, p.park_y_m, p.park_z_m], tolerate=True)
+         caps = [{'pos_m': [round(v, 4) for v in d.position], 'stone_inside': d.stone_inside,
+                  'valid': d.stone_inside_valid} for d in after if d.blob.object_class == ObjectDetection.CLASS_CAP]
+         log('verify', caps=caps, result='SUCCESS' if any(c['stone_inside'] and c['valid'] for c in caps)
+-- 
+2.43.0
+
+
+From 67d1a548e91a674551908997a14965d8aceb0b03 Mon Sep 17 00:00:00 2001
+From: chhowm <chhowm@gmail.com>
+Date: Sat, 14 Nov 2026 11:44:19 +0900
+Subject: [PATCH 06/14] Ask IK again when it answers with all-zero joints
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ tools/robot/g4_simple.py | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/tools/robot/g4_simple.py b/tools/robot/g4_simple.py
+index fdc320a..eef1b63 100644
+--- a/tools/robot/g4_simple.py
++++ b/tools/robot/g4_simple.py
+@@ -101,6 +101,10 @@ def main(argv=None) -> int:
+ 
+     def ik_ok(name, pos) -> bool:
+         j = robot.ik_joints(pos, DOWN_QUAT_XYZW)
++        for _ in range(2):                  # 관절이 모두 0이면 IK 응답 실패로 보고 다시 묻는다(2026-11-14 run-04)
++            if np.any(np.abs(np.asarray(j)) > 1e-9):
++                break
++            j = robot.ik_joints(pos, DOWN_QUAT_XYZW)
+         ok = abs(j[2]) >= p.j3_min_rad and p.x_min_m <= pos[0] <= p.x_max_m and p.y_min_m <= pos[1] <= p.y_max_m
+         log('check', step=name, pos_m=[round(float(x), 4) for x in pos], j3_rad=round(float(j[2]), 4), ok=ok)
+         return ok
+-- 
+2.43.0
+
+
+From b7b6a2e5aeb042cd9392c87c3d470c54fe1d2513 Mon Sep 17 00:00:00 2001
+From: chhowm <chhowm@gmail.com>
+Date: Sat, 14 Nov 2026 11:44:48 +0900
+Subject: [PATCH 07/14] Retry the first status call while driver services are
+ being discovered
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ tools/robot/g4_simple.py | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/tools/robot/g4_simple.py b/tools/robot/g4_simple.py
+index eef1b63..9fc33e7 100644
+--- a/tools/robot/g4_simple.py
++++ b/tools/robot/g4_simple.py
+@@ -128,7 +128,13 @@ def main(argv=None) -> int:
+ 
+     try:
+         # ---------------- 상태·검출(지령 없음)
+-        st = robot.status()
++        for attempt in range(4):            # 새 노드가 드라이버 서비스를 찾기 전 첫 호출이 실패할 수 있다(2026-11-14)
++            try:
++                st = robot.status()
++                break
++            except RobotError as exc:
++                if exc.reason != 'SERVICE_UNAVAILABLE' or attempt == 3:
++                    raise
+         log('ready', status=st)
+         if st['robot_state'] != 1 or st['robot_mode'] != 1:
+             log('abort', reason='NOT_STANDBY_AUTONOMOUS')
+-- 
+2.43.0
+
+
+From 2e8c35eced5f9cf059820aca5bfe6d5ac00d28c8 Mon Sep 17 00:00:00 2001
+From: chhowm <chhowm@gmail.com>
+Date: Sat, 14 Nov 2026 11:46:14 +0900
+Subject: [PATCH 08/14] Add --holding to skip the pick when the last run parked
+ with the stone still in the gripper
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ tools/robot/g4_simple.py | 83 +++++++++++++++++++++++-----------------
+ 1 file changed, 48 insertions(+), 35 deletions(-)
+
+diff --git a/tools/robot/g4_simple.py b/tools/robot/g4_simple.py
+index 9fc33e7..e2fa4b1 100644
+--- a/tools/robot/g4_simple.py
++++ b/tools/robot/g4_simple.py
+@@ -50,6 +50,8 @@ def main(argv=None) -> int:
+     ap.add_argument('--min-obs', type=int, default=30)
+     ap.add_argument('--slack-s', type=float, default=0.8, help='해제 지점 도착 예상 뒤 트리거까지 최소 여유')
+     ap.add_argument('--lead-s', type=float, default=0.2, help='해제 시각보다 이만큼 먼저 트리거(개방·낙하 시간)')
++    ap.add_argument('--holding', action='store_true',
++                    help='이미 공깃돌을 쥐고 있다(지난 실행이 계획 없이 park로 돌아옴). 검출·파지를 건너뛰고 벨트 옆으로 간다')
+     ap.add_argument('--release-raise-m', type=float, default=0.015, help='해제 높이에 더하는 여유(손가락·테두리 간격)')
+     args = ap.parse_args(argv)
+ 
+@@ -141,44 +143,55 @@ def main(argv=None) -> int:
+             return 2
+         start, _ = robot.tcp_pose()
+         geom = load_geometry(cfg)
+-        dets = detect(grab_frame(node, cfg['image_topic']), cfg, geom)
+-        excluded = [[round(v, 4) for v in d.position] for d in dets if d.position[1] > MAT_Y_MAX_M]
+-        stone = choose_stone([d for d in dets if d.position[1] <= MAT_Y_MAX_M], p)
+-        if excluded:
+-            log('excluded', reason='Y_ABOVE_MAT', pos_m=excluded)
+-        if stone is None:
+-            log('abort', reason='NO_MAT_STONE')
+-            return 2
+-        s = np.asarray(stone.position, float)
+-        over = np.array([s[0], s[1], p.travel_z_m])
+-        grasp = np.array([s[0], s[1], s[2] + p.grasp_above_stone_top_m])
+         wait = np.array([args.wait_xy[0], args.wait_xy[1], p.travel_z_m])
+-        log('stone', pos_m=[round(float(v), 4) for v in s])
+-        if not all(ik_ok(n, q) for n, q in (('over_stone', over), ('grasp', grasp), ('wait', wait))):
+-            log('abort', reason='IK_OR_WORKSPACE')
+-            return 2
+-
+-        # ---------------- 파지(--execute)
+-        if args.execute:
+-            if io.get(regs.init) != 1 or robot.status()['drl_state'] != 0:
+-                t0 = time.monotonic()
+-                loop.start_resident_loop()
+-                log('loop_started', ready_s=round(time.monotonic() - t0, 2))
+-            pos, _ = gripper_to(p.open_pulse, 100)
+-            log('gripper', step='open_before_pick', pulse=pos)
+-            move('over_stone', over)
+-            move('descend_grasp', grasp, p.vertical_v_mps, p.vertical_a_mps2)
+-            pos, done = gripper_to(p.close_pulse, p.grip_current_ma)
+-            log('gripper', step='close_grasp', pulse=pos, done=done)
+-            if pos >= p.close_pulse - 10:
+-                log('abort', reason='NO_STONE_IN_GRIP', pulse=pos)
+-                move('lift_empty', over, p.vertical_v_mps, p.vertical_a_mps2)
+-                move('park', [p.park_x_m, p.park_y_m, p.park_z_m])
++        if args.holding:
++            pos = loop._word(regs.st_pos_hi)
++            if io.get(regs.init) != 1 or pos >= p.close_pulse - 10 or pos <= p.open_pulse + 10:
++                log('abort', reason='NOT_HOLDING', pulse=pos)
++                return 2
++            log('holding', pulse=pos)
++            if not ik_ok('wait', wait):
+                 return 2
+-            move('lift_stone', over, p.vertical_v_mps, p.vertical_a_mps2)
+-            start = move('wait', wait)
++            if args.execute:
++                start = move('wait', wait)
+         else:
+-            start = wait
++            dets = detect(grab_frame(node, cfg['image_topic']), cfg, geom)
++            excluded = [[round(v, 4) for v in d.position] for d in dets if d.position[1] > MAT_Y_MAX_M]
++            stone = choose_stone([d for d in dets if d.position[1] <= MAT_Y_MAX_M], p)
++            if excluded:
++                log('excluded', reason='Y_ABOVE_MAT', pos_m=excluded)
++            if stone is None:
++                log('abort', reason='NO_MAT_STONE')
++                return 2
++            s = np.asarray(stone.position, float)
++            over = np.array([s[0], s[1], p.travel_z_m])
++            grasp = np.array([s[0], s[1], s[2] + p.grasp_above_stone_top_m])
++            log('stone', pos_m=[round(float(v), 4) for v in s])
++            if not all(ik_ok(n, q) for n, q in (('over_stone', over), ('grasp', grasp), ('wait', wait))):
++                log('abort', reason='IK_OR_WORKSPACE')
++                return 2
++
++            # ---------------- 파지(--execute)
++            if args.execute:
++                if io.get(regs.init) != 1 or robot.status()['drl_state'] != 0:
++                    t0 = time.monotonic()
++                    loop.start_resident_loop()
++                    log('loop_started', ready_s=round(time.monotonic() - t0, 2))
++                pos, _ = gripper_to(p.open_pulse, 100)
++                log('gripper', step='open_before_pick', pulse=pos)
++                move('over_stone', over)
++                move('descend_grasp', grasp, p.vertical_v_mps, p.vertical_a_mps2)
++                pos, done = gripper_to(p.close_pulse, p.grip_current_ma)
++                log('gripper', step='close_grasp', pulse=pos, done=done)
++                if pos >= p.close_pulse - 10:
++                    log('abort', reason='NO_STONE_IN_GRIP', pulse=pos)
++                    move('lift_empty', over, p.vertical_v_mps, p.vertical_a_mps2)
++                    move('park', [p.park_x_m, p.park_y_m, p.park_z_m])
++                    return 2
++                move('lift_stone', over, p.vertical_v_mps, p.vertical_a_mps2)
++                start = move('wait', wait)
++            else:
++                start = wait
+ 
+         # ---------------- 예측 계획
+         if not (sel.wait_for_service(5.0) and plan_cli.wait_for_service(5.0)):
+-- 
+2.43.0
+
+
+From d4add27aee208de9c6a14df712f514422a70df54 Mon Sep 17 00:00:00 2001
+From: chhowm <chhowm@gmail.com>
+Date: Sat, 14 Nov 2026 11:56:51 +0900
+Subject: [PATCH 09/14] Fire the gripper 1.5 s before release, during the
+ approach move if needed: it takes about 1.5 s to let the stone go
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ tools/robot/g4_simple.py | 42 ++++++++++++++++++++++++++++------------
+ 1 file changed, 30 insertions(+), 12 deletions(-)
+
+diff --git a/tools/robot/g4_simple.py b/tools/robot/g4_simple.py
+index e2fa4b1..f7dc87d 100644
+--- a/tools/robot/g4_simple.py
++++ b/tools/robot/g4_simple.py
+@@ -49,7 +49,11 @@ def main(argv=None) -> int:
+     ap.add_argument('--wait-plan-s', type=float, default=30.0)
+     ap.add_argument('--min-obs', type=int, default=30)
+     ap.add_argument('--slack-s', type=float, default=0.8, help='해제 지점 도착 예상 뒤 트리거까지 최소 여유')
+-    ap.add_argument('--lead-s', type=float, default=0.2, help='해제 시각보다 이만큼 먼저 트리거(개방·낙하 시간)')
++    ap.add_argument('--lead-s', type=float, default=1.5,
++                    help='해제 시각보다 이만큼 먼저 트리거. 그리퍼가 653→600 pulse에 약 3.4 s(100 mA)라 공깃돌이 트리거 '
++                         '약 1.5 s 뒤 떨어진다(2026-11-14 영상: 0.2 s 앞당김에서 1.3 s 늦음). 이동 중에 트리거할 수 있다')
++    ap.add_argument('--arrive-before-s', type=float, default=0.5,
++                    help='해제 지점에 공깃돌이 떨어지기(해제 시각) 이만큼 전에 도착해야 한다')
+     ap.add_argument('--holding', action='store_true',
+                     help='이미 공깃돌을 쥐고 있다(지난 실행이 계획 없이 park로 돌아옴). 검출·파지를 건너뛰고 벨트 옆으로 간다')
+     ap.add_argument('--release-raise-m', type=float, default=0.015, help='해제 높이에 더하는 여유(손가락·테두리 간격)')
+@@ -224,8 +228,10 @@ def main(argv=None) -> int:
+                             pl.target_tcp_pose.position.z + args.release_raise_m])
+             t_release = pl.release_time.sec + pl.release_time.nanosec * 1e-9
+             t_move = move_time_s(float(np.linalg.norm(rel - start)), p.travel_v_mps, p.travel_a_mps2)
+-            margin = t_release - args.lead_s - now_s() - t_move
+-            if margin < args.slack_s:
++            # 팔은 해제 시각 전에 도착하면 되고, 트리거는 이동 중이어도 된다(손가락이 벌어지기까지 약 1.5 s)
++            margin = t_release - now_s() - t_move
++            t_fire_in = t_release - args.lead_s - now_s()
++            if margin < args.arrive_before_s or t_fire_in < 0.15:
+                 fails['TOO_LATE'] = fails.get('TOO_LATE', 0) + 1
+                 continue
+             if rel[0] > RELEASE_X_MAX_M:
+@@ -244,26 +250,38 @@ def main(argv=None) -> int:
+         log('plan', track_id=pl.target_track_id, release_m=[round(float(v), 4) for v in rel],
+             cap_v_mps=[round(pl.target_velocity.x, 4), round(pl.target_velocity.y, 4)],
+             position_std_m=round(pl.position_std, 5), release_in_s=round(t_release - now_s(), 2),
+-            move_s=round(t_move, 2), margin_s=round(margin, 2), lead_s=args.lead_s, fails=fails)
++            move_s=round(t_move, 2), arrive_before_s=round(margin, 2), lead_s=args.lead_s, fails=fails)
+         if not args.execute:
+             log('dry_run_done')
+             return 0
+ 
+         # ---------------- 해제
+-        move('to_release', rel)
++        # 예약을 먼저 쓰고(손가락은 움직이지 않음), 트리거는 별도 스레드가 시각에 맞춰 보낸다. 해제 지점으로 가는
++        # move_line(블로킹) 중에 트리거가 나가도 손가락이 공깃돌 폭보다 벌어지는 것은 약 1.5 s 뒤다
++        import threading
+         loop.write_register(MODBUS.goal_current, 100)
+         loop.write_goal_position(p.open_pulse)                 # 예약: 루프는 읽기를 멈추고 트리거만 기다린다
+         t_fire = t_release - args.lead_s
+-        log('armed', fire_in_s=round(t_fire - now_s(), 3))
+-        while now_s() < t_fire:
+-            time.sleep(0.002)
+-        loop.trigger()
+-        t_trig = time.monotonic()
+-        log('fired', late_s=round(now_s() - t_fire, 3))
++        fired = {}
++
++        def fire():
++            while now_s() < t_fire:
++                time.sleep(0.002)
++            loop.trigger()
++            fired['t_mono'] = time.monotonic()
++            fired['late_s'] = round(now_s() - t_fire, 3)
++        log('armed', fire_in_s=round(t_fire - now_s(), 3), release_in_s=round(t_release - now_s(), 3))
++        trigger_thread = threading.Thread(target=fire, daemon=True)
++        trigger_thread.start()
++        move('to_release', rel)
++        log('arrived', before_release_s=round(t_release - now_s(), 3))
++        trigger_thread.join(timeout=max(0.0, t_fire - now_s()) + 2.0)
++        t_trig = fired.get('t_mono', time.monotonic())
++        log('fired', late_s=fired.get('late_s'))
+         # 높이를 유지한 채 손가락이 열릴 때까지 기다린 뒤 올린다(0.5 s 고정이면 열리는 중에 팔이 올라갔다, run-01·02).
+         # 루프가 지령을 실행한 것을 보고, 위치가 열림 근처로 올라온 뒤 0.2 s 더 머문다(최대 2 s)
+         opened = None
+-        while time.monotonic() - t_trig < 2.0:
++        while time.monotonic() - t_trig < 3.5:
+             done = loop.last_command()
+             pos = loop._word(regs.st_pos_hi)
+             if done and done[0] and pos <= p.open_pulse + 10:
+-- 
+2.43.0
+
+
+From 9be23995ae02b46d97c640a1fa8eebfdaac70ee9 Mon Sep 17 00:00:00 2001
+From: chhowm <chhowm@gmail.com>
+Date: Sat, 14 Nov 2026 11:59:06 +0900
+Subject: [PATCH 10/14] Allow release points up to x 0.70: at 0.68 run-08
+ dropped 125 plans in 30 s
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ tools/robot/g4_simple.py | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/tools/robot/g4_simple.py b/tools/robot/g4_simple.py
+index f7dc87d..239699c 100644
+--- a/tools/robot/g4_simple.py
++++ b/tools/robot/g4_simple.py
+@@ -27,7 +27,8 @@ import numpy as np
+ 
+ from tools.robot.hover_predicted import move_time_s
+ 
+-RELEASE_X_MAX_M = 0.68    # 더 멀면 특이점 근처(2026-11-14 run-02: x 0.690에서 알람 3205·상승 1.7 mm 모자람)
++RELEASE_X_MAX_M = 0.70    # 특이점 근처(2026-11-14 run-02: x 0.690에서 알람 3205·상승 1.7 mm 모자람, 이제 계속 진행).
++                          # 0.68로 막으니 run-08에서 30 s 동안 계획 125건이 이 조건으로 버려졌다
+ MAT_Y_MAX_M = 0.02        # 매트 공깃돌 y 상한. 매트와 벨트 사이 빨간 LED 오검출(y ≈ +0.047 m, 2026-11-14)을 막는다
+ 
+ 
+-- 
+2.43.0
+
+
+From f7c904d70035a4b401444850bd2ed3c680cf5de0 Mon Sep 17 00:00:00 2001
+From: chhowm <chhowm@gmail.com>
+Date: Sat, 14 Nov 2026 12:01:49 +0900
+Subject: [PATCH 11/14] Resend gripper commands when the resident loop reports
+ a Modbus write failure (242)
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ tools/robot/g4_simple.py | 19 ++++++++++++++++---
+ 1 file changed, 16 insertions(+), 3 deletions(-)
+
+diff --git a/tools/robot/g4_simple.py b/tools/robot/g4_simple.py
+index 239699c..ac5bb11 100644
+--- a/tools/robot/g4_simple.py
++++ b/tools/robot/g4_simple.py
+@@ -116,7 +116,16 @@ def main(argv=None) -> int:
+         log('check', step=name, pos_m=[round(float(x), 4) for x in pos], j3_rad=round(float(j[2]), 4), ok=ok)
+         return ok
+ 
+-    def gripper_to(pulse, current_ma, timeout_s=8.0):
++    def gripper_to(pulse, current_ma, timeout_s=8.0, tries=3):
++        """gripper_once를 Modbus 쓰기 실패(결과 242, 2026-11-14 반납 때 1회)면 다시 보낸다."""
++        for attempt in range(tries):
++            pos, done = gripper_once(pulse, current_ma, timeout_s)
++            if not (done and done[0] and done[1] == 242):
++                return pos, done
++            log('gripper_retry', pulse=pulse, attempt=attempt + 1, cmd_result=242)
++        return pos, done
++
++    def gripper_once(pulse, current_ma, timeout_s):
+         """루프로 그리퍼를 옮기고 도착하거나 1 s 멈출 때까지 기다린다. 실행 중에는 상태가 갱신되지 않는다."""
+         t0 = time.monotonic()
+         if not (loop.write_register(MODBUS.goal_current, current_ma) and loop.write_goal_position(pulse)
+@@ -127,7 +136,7 @@ def main(argv=None) -> int:
+             done = loop.last_command()
+             pos = loop._word(regs.st_pos_hi)
+             samples.append(pos)
+-            if done and done[0] and (abs(pos - pulse) <= 5 or (time.monotonic() - t0 > 3.0
++            if done and done[0] and (done[1] != 0 or abs(pos - pulse) <= 5 or (time.monotonic() - t0 > 3.0
+                                                                  and len(set(samples[-4:])) == 1)):
+                 break
+             time.sleep(0.25)
+@@ -290,7 +299,11 @@ def main(argv=None) -> int:
+                 break
+             time.sleep(0.02)
+         time.sleep(0.2)
+-        log('opened', after_trigger_s=opened, pulse=loop._word(regs.st_pos_hi))
++        result = loop.last_command()
++        log('opened', after_trigger_s=opened, pulse=loop._word(regs.st_pos_hi), cmd=result)
++        if result and result[0] and result[1] == 242:      # 해제 쓰기 실패: 늦더라도 다시 연다
++            pos, _ = gripper_to(p.open_pulse, 100)
++            log('gripper', step='open_retry', pulse=pos)
+         move('retreat', [rel[0], rel[1], p.travel_z_m], p.vertical_v_mps, p.vertical_a_mps2, tolerate=True)
+         # park까지 가면 뚜껑이 벨트 끝 롤러를 넘어 확인을 놓친다(2026-11-14 run-01). 벨트 옆에서 먼저 본다
+         move('side', wait, tolerate=True)
+-- 
+2.43.0
+
+
+From f6c0fd7688c4a07fc5aeec65bea46a4450c046b3 Mon Sep 17 00:00:00 2001
+From: chhowm <chhowm@gmail.com>
+Date: Sat, 14 Nov 2026 12:12:26 +0900
+Subject: [PATCH 12/14] Keep release points within x 0.685, accept caps after
+ 15 observations, and go on if the approach stops a few mm short
+
+Beyond x 0.69 the controller's singularity handling bends or cuts the
+move (run-02, run-09 and the recovery lift). With 30 observations a cap
+moving at 40 mm/s passed the reach start before it became selectable.
+
+Co-Authored-By: Claude Fable 5.2 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_017S6YdmFKKoiWXK3fg85cfX
+---
+ tools/robot/g4_simple.py | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/tools/robot/g4_simple.py b/tools/robot/g4_simple.py
+index ac5bb11..8eaf6f6 100644
+--- a/tools/robot/g4_simple.py
++++ b/tools/robot/g4_simple.py
+@@ -27,8 +27,8 @@ import numpy as np
+ 
+ from tools.robot.hover_predicted import move_time_s
+ 
+-RELEASE_X_MAX_M = 0.70    # 특이점 근처(2026-11-14 run-02: x 0.690에서 알람 3205·상승 1.7 mm 모자람, 이제 계속 진행).
+-                          # 0.68로 막으니 run-08에서 30 s 동안 계획 125건이 이 조건으로 버려졌다
++RELEASE_X_MAX_M = 0.685   # 이보다 멀면 제어기 특이점 처리로 경로가 틀어진다(2026-11-14: x 0.690 상승 1.7 mm 모자람,
++                          # x 0.6975 해제 지점 2.4 mm 모자람, x 0.695 수직 상승이 x로 5 mm 밀림). x ≤ 0.676은 4회 모두 정상
+ MAT_Y_MAX_M = 0.02        # 매트 공깃돌 y 상한. 매트와 벨트 사이 빨간 LED 오검출(y ≈ +0.047 m, 2026-11-14)을 막는다
+ 
+ 
+@@ -48,7 +48,9 @@ def main(argv=None) -> int:
+     ap.add_argument('--execute', action='store_true')
+     ap.add_argument('--wait-xy', type=float, nargs=2, default=[0.66, 0.20])
+     ap.add_argument('--wait-plan-s', type=float, default=30.0)
+-    ap.add_argument('--min-obs', type=int, default=30)
++    ap.add_argument('--min-obs', type=int, default=15,
++                    help='SelectTarget 최소 관측 수. 뚜껑이 보이기 시작해(x≈0.547) 도달 구간(x 0.60)까지 53 mm뿐이라 '
++                         '30이면(20 Hz에서 1.5 s) 벨트 40 mm/s에서 대상이 되지 못했다(run-04·06·08 NO_TARGET)')
+     ap.add_argument('--slack-s', type=float, default=0.8, help='해제 지점 도착 예상 뒤 트리거까지 최소 여유')
+     ap.add_argument('--lead-s', type=float, default=1.5,
+                     help='해제 시각보다 이만큼 먼저 트리거. 그리퍼가 653→600 pulse에 약 3.4 s(100 mA)라 공깃돌이 트리거 '
+@@ -283,7 +285,7 @@ def main(argv=None) -> int:
+         log('armed', fire_in_s=round(t_fire - now_s(), 3), release_in_s=round(t_release - now_s(), 3))
+         trigger_thread = threading.Thread(target=fire, daemon=True)
+         trigger_thread.start()
+-        move('to_release', rel)
++        move('to_release', rel, tolerate=True)
+         log('arrived', before_release_s=round(t_release - now_s(), 3))
+         trigger_thread.join(timeout=max(0.0, t_fire - now_s()) + 2.0)
+         t_trig = fired.get('t_mono', time.monotonic())
+-- 
+2.43.0
+
+
+From e989daabc6f7f0ae477e12a97a0f402d185058a4 Mon Sep 17 00:00:00 2001
+From: chhowm <chhowm@gmail.com>
+Date: Sat, 14 Nov 2026 12:44:23 +0900
+Subject: [PATCH 13/14] Time the release from live cap detections at a fixed
+ release point, record each attempt, and judge it from the detection log
+
+With the new battery the belt runs near 50 mm/s and the planner's 2.8 s
+plan always landed beyond x 0.70, where the arm's moves are bent by the
+controller's singularity handling. The script now waits beside a fixed
+release point, estimates the cap's arrival from its current position and
+the previous pass's mean speed (max error 0.045 s over nine passes, against
+0.092 s for a 1 s line fit), starts a non-blocking approach just in time and
+triggers the armed gripper at arrival minus the drop delay. A blocking
+move_line call had held the trigger back 0.4 s in run-10. Each attempt
+records top-camera video and detections, and g4_analyze.py reports whether
+the stone ended inside the cap and how far off it was.
+
+Co-Authored-By: Claude Fable 5.2 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_017S6YdmFKKoiWXK3fg85cfX
+---
+ tools/robot/g4_analyze.py     | 162 +++++++++++
+ tools/robot/g4_simple.py      | 525 ++++++++++++++++++++++++----------
+ tools/robot/run_recorder.py   |  84 ++++++
+ tools/robot/test_g4_simple.py |  97 +++++++
+ 4 files changed, 721 insertions(+), 147 deletions(-)
+ create mode 100644 tools/robot/g4_analyze.py
+ create mode 100644 tools/robot/run_recorder.py
+ create mode 100644 tools/robot/test_g4_simple.py
+
+diff --git a/tools/robot/g4_analyze.py b/tools/robot/g4_analyze.py
+new file mode 100644
+index 0000000..219c62e
+--- /dev/null
++++ b/tools/robot/g4_analyze.py
+@@ -0,0 +1,162 @@
++#!/usr/bin/env python3
++"""간이 G4 시도 하나의 기록(run-NN.jsonl + run-NN.dets.jsonl + run-NN.mp4)을 판정한다. 로봇 지령 없음.
++
++  python3 tools/robot/g4_analyze.py records/trials/<폴더>/run-11
++
++판정(검출 기록 기준, 트리거 뒤 뚜껑이 그리퍼 아래를 벗어나 보이는 구간):
++  SUCCESS  뚜껑 검출의 stone_inside가 참인 프레임이 5개 이상이고 판정 가능한 프레임의 60% 이상
++  MISS     stone_inside 거짓 프레임이 5개 이상이고 참이 2개 미만
++  UNKNOWN  그 밖(뚜껑이 보이지 않음 등)
++같이 낸다: 뚜껑 안 공깃돌의 중심 차(진행 방향, 양수 = 돌이 뚜껑보다 하류 = 일찍 떨어짐), 벨트 위에 떨어진 돌과
++뚜껑의 거리, 그 거리를 벨트 속도로 나눈 시간(다음 시도의 lead 보정값), 트리거 전후 장면을 이어 붙인 사진.
++"""
++from __future__ import annotations
++
++import argparse
++import csv
++import json
++import sys
++
++import numpy as np
++
++CAP, STONE, BELT = 2, 1, 2
++INSIDE_R_M = 0.017          # 뚜껑 중심에서 이 안의 돌은 뚜껑 안(바깥 지름 32 mm)
++NEAR_CAP_M = 0.06           # 벨트 위 돌이 뚜껑에서 이보다 가까우면 이번 시도에서 떨어진 돌로 본다
++
++
++def load_events(path):
++    out = {}
++    with open(path) as fh:
++        for line in fh:
++            if line.startswith('{'):
++                e = json.loads(line)
++                out.setdefault(e['event'], []).append(e)
++    return out
++
++
++def analyze(prefix: str) -> dict:
++    ev = load_events(prefix + '.jsonl')
++    if 'fired' not in ev or 'plan' not in ev:
++        reason = ev['abort'][-1].get('reason') if 'abort' in ev else 'NO_TRIGGER'
++        return {'result': 'NOT_ATTEMPTED', 'reason': reason, 'holding': 'park_holding' in
++                [d.get('step') for d in ev.get('done', [])]}
++    plan, fired = ev['plan'][-1], ev['fired'][-1]
++    t_fire = fired.get('t_ros') or fired['t']
++    rel = plan['release_m']
++    v_plan = plan['cap_v_mps'][0]
++    t_release = fired.get('t_release_est') or plan.get('t_release') or (plan['t'] + plan['release_in_s'])
++    frames = [json.loads(line) for line in open(prefix + '.dets.jsonl')]
++    caps_t, si_true, si_false, inside, loose = [], 0, 0, [], []
++    for f in frames:
++        if not t_fire - 3.0 <= f['t'] <= t_fire + 14.0:
++            continue
++        caps = [d for d in f['items'] if d['c'] == CAP and d['r'] == BELT and d['pv']]
++        stones = [d for d in f['items'] if d['c'] == STONE and d['r'] == BELT and d['pv']]
++        for c in caps:
++            caps_t.append((f['t'], c['x'], c['y']))
++        if f['t'] < t_fire:
++            continue
++        for c in caps:
++            if c['x'] < rel[0] + 0.02:           # 그리퍼 아래·상류의 다른 검출은 뺀다
++                continue
++            if c['sv']:
++                si_true += bool(c['si'])
++                si_false += not c['si']
++            for s in stones:
++                dx, dy = s['x'] - c['x'], s['y'] - c['y']
++                dist = float(np.hypot(dx, dy))
++                if dist <= INSIDE_R_M:
++                    inside.append((f['t'], dx, dy, s['v'] - c['v'], s['u'] - c['u']))
++                elif dist <= NEAR_CAP_M:
++                    loose.append((f['t'], dx, dy))
++    # 실제 뚜껑 속도와 해제 시각의 실제 위치(트리거 전후 검출의 직선 맞춤)
++    out = {'t_fire': round(t_fire, 3), 'drop_delay_s': plan.get('drop_delay_s', plan.get('lead_s')), 'release_m': rel,
++           'v_plan_mmps': round(v_plan * 1000, 1), 'rehearse': bool(fired.get('rehearse')),
++           'fired_late_s': fired.get('late_s'), 'si_true': si_true, 'si_false': si_false,
++           'inside_frames': len(inside), 'loose_frames': len(loose)}
++    pts = np.array([c for c in caps_t if abs(c[0] - t_release) < 4.0])
++    if len(pts) >= 8:
++        # 한 뚜껑만 있다고 보고 x(t) 직선 맞춤. 가려진 구간은 비어 있다
++        a, b = np.polyfit(pts[:, 0] - t_release, pts[:, 1], 1)
++        out['v_actual_mmps'] = round(float(a) * 1000, 1)
++        out['cap_x_at_release_minus_rel_mm'] = round((float(b) - rel[0]) * 1000, 1)   # 양수 = 뚜껑이 이미 지나감
++        out['cap_y_minus_rel_mm'] = round((float(np.median(pts[:, 2])) - rel[1]) * 1000, 1)
++        if abs(a) > 1e-4:
++            out['cap_arrives_minus_est_s'] = round(-(float(b) - rel[0]) / float(a), 3)      # 음수 = 예상보다 일찍 옴
++            out['cap_arrives_after_fire_s'] = round(t_release - (float(b) - rel[0]) / float(a) - t_fire, 3)
++    if inside:
++        arr = np.array(inside)
++        out['stone_in_cap_dx_mm'] = round(float(np.median(arr[:, 1])) * 1000, 1)     # 양수 = 돌이 하류 쪽(일찍 떨어짐)
++        out['stone_in_cap_dy_mm'] = round(float(np.median(arr[:, 2])) * 1000, 1)
++        out['stone_in_cap_dv_px'] = round(float(np.median(arr[:, 3])), 1)
++    if loose:
++        arr = np.array(loose)
++        out['loose_dx_mm'] = round(float(np.median(arr[:, 1])) * 1000, 1)            # 음수 = 돌이 뚜껑 뒤(늦게 떨어짐)
++        out['loose_dy_mm'] = round(float(np.median(arr[:, 2])) * 1000, 1)
++    valid = si_true + si_false
++    if si_true >= 5 and si_true >= 0.6 * valid:
++        out['result'] = 'SUCCESS'
++    elif si_false >= 5 and si_true < 2:
++        out['result'] = 'MISS'
++    else:
++        out['result'] = 'UNKNOWN'
++    v = out.get('v_actual_mmps', v_plan * 1000) / 1000.0
++    dx = out.get('loose_dx_mm') if out['result'] != 'SUCCESS' else out.get('stone_in_cap_dx_mm')
++    if dx is not None and abs(v) > 1e-3:
++        out['drop_delay_correction_s'] = round(-dx / 1000.0 / v, 3)  # drop_delay에 더할 값(돌이 뒤처졌으면 양수)
++    return out
++
++
++def contact_sheet(prefix: str, t_fire: float, offsets, tile=(330, 20, 560, 430), scale=1.4) -> str | None:
++    """트리거 기준 offsets[s] 시각의 프레임을 벨트 구역만 잘라 한 장으로 붙인다(tile = 녹화 영상 좌표 x0 y0 x1 y1)."""
++    import cv2
++    rows = list(csv.DictReader(open(prefix + '.frames.csv')))
++    if not rows:
++        return None
++    stamps = np.array([float(r['stamp_s']) for r in rows])
++    wanted = {int(np.argmin(np.abs(stamps - (t_fire + o)))): o for o in offsets}
++    cap = cv2.VideoCapture(prefix + '.mp4')
++    tiles, idx = {}, 0
++    x0, y0, x1, y1 = tile
++    while True:
++        ok, frame = cap.read()
++        if not ok:
++            break
++        if idx in wanted:
++            t = frame[y0:y1, x0:x1].copy()
++            t = cv2.resize(t, None, fx=scale, fy=scale, interpolation=cv2.INTER_LINEAR)
++            label = f'{stamps[idx] - t_fire:+.2f}s'
++            cv2.putText(t, label, (6, 24), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 4)
++            cv2.putText(t, label, (6, 24), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
++            tiles[idx] = t
++        idx += 1
++    cap.release()
++    if not tiles:
++        return None
++    ordered = [tiles[k] for k in sorted(tiles)]
++    half = (len(ordered) + 1) // 2
++    blank = np.zeros_like(ordered[0])
++    top = np.hstack(ordered[:half])
++    bottom = np.hstack(ordered[half:] + [blank] * (half - len(ordered[half:])))
++    path = prefix + '.sheet.jpg'
++    cv2.imwrite(path, np.vstack([top, bottom]), [cv2.IMWRITE_JPEG_QUALITY, 85])
++    return path
++
++
++def main(argv=None) -> int:
++    ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
++    ap.add_argument('prefix')
++    ap.add_argument('--no-sheet', action='store_true')
++    args = ap.parse_args(argv)
++    out = analyze(args.prefix)
++    if not args.no_sheet and 't_fire' in out:
++        out['sheet'] = contact_sheet(args.prefix, out['t_fire'],
++                                     [-1.0, -0.5, 0.0, 0.3, 0.6, 0.9, 1.2, 1.5, 1.8, 2.1, 2.5, 3.0, 4.0, 5.5])
++    print(json.dumps(out, ensure_ascii=False))
++    with open(args.prefix + '.analysis.json', 'w') as fh:
++        json.dump(out, fh, ensure_ascii=False, indent=1)
++    return 0
++
++
++if __name__ == '__main__':
++    sys.exit(main())
+diff --git a/tools/robot/g4_simple.py b/tools/robot/g4_simple.py
+index 8eaf6f6..5a893b4 100644
+--- a/tools/robot/g4_simple.py
++++ b/tools/robot/g4_simple.py
+@@ -1,20 +1,25 @@
+ #!/usr/bin/env python3
+-"""간이 G4: 공깃돌을 쥐고 예측 해제 지점에서 기다렸다가 예측 시각에 놓는다([OFF] 입회 필수, 시연용).
++"""간이 G4: 공깃돌을 쥐고 벨트 옆에서 뚜껑을 지켜보다가, 예측 해제 지점으로 들어가 뚜껑이 올 때 놓는다
++([OFF] 입회 필수, 시연용).
+ 
+ 정식 G4(orchestrator → robot_controller_node DynamicPlace)가 아니다. 놓는 순간 벨트를 따라 움직이지 않는다.
+ 쓰는 것: 정지 투입의 검출·직선 이동(`static_pick_place`), G4용 그리퍼 상주 루프의 예약 → 트리거
+-(`robot_control.resident_transport`, 2026-11-14 현장에서 레지스터 0~23·쓰기 << 24 수정 뒤 동작 확인),
+-hover 도구의 예측 계획 고르기(`tools/robot/hover_predicted.py`).
+-
+-  # 계획만(로봇·그리퍼 지령 없음): 고른 공깃돌·파지 높이·IK, 예측 계획과 해제 지점
+-  python3 tools/robot/g4_simple.py --config records/calib/2026-11-09-planes/site.yaml
+-  # 실행
+-  python3 tools/robot/g4_simple.py --config records/calib/2026-11-09-planes/site.yaml --execute
+-
+-순서(--execute): 상주 루프 확인·기동 → 공깃돌 위 → 하강 → 닫기(150 mA) → 들기 → 벨트 옆 대기 →
+-예측 계획 → 해제 지점(테두리 위 release_above_rim_m + --release-raise-m)으로 직선 이동 → 개방 예약 →
+-해제 시각 − --lead-s에 트리거 → 0.5 s 뒤 들기 → park → 카메라로 투입 확인.
+-멈추는 법: move_line 중에는 비상정지·펜던트. 실패하면 공깃돌이 벨트에 떨어질 수 있다.
++(`robot_control.resident_transport`), vision_node의 실시간 뚜껑 검출(`objects/detections`).
++tracker·planner는 쓰지 않는다: 벨트가 약 52 mm/s일 때(2026-11-14 건전지 교체 뒤) planner의 2.8 s 앞 해제 지점은
++항상 x > 0.70 m(팔이 틀어지는 구간)였다. 해제 지점 x를 고정하고(--rel-x) 검출로 도착 시각만 맞춘다.
++
++  # 계획만(로봇·그리퍼 지령 없음): 고른 공깃돌·IK, 계획, 그리고 도착 시각 예측이 실제 통과와 얼마나 맞는지
++  PYTHONPATH=. python3 tools/robot/g4_simple.py --config records/calib/2026-11-09-planes/site.yaml
++  # 실행(영상·검출 녹화 포함)
++  PYTHONPATH=. python3 tools/robot/g4_simple.py --config ... --execute --record records/trials/<폴더>/run-11
++
++순서(--execute): 상주 루프 확인·기동 → 공깃돌 위 → 하강 → 닫기(150 mA) → 들기 → 벨트 옆 대기(해제 지점 옆 --wait-y)
++→ 지난 통과로 벨트 선·속도를 잡음 → 새 통과가 보이면 개방 예약 → 검출로 도착 시각을 계속 고쳐 잡다가 늦지 않게 출발
++→ 해제 지점 도착 → (도착 시각 − drop_delay)에 트리거 → 손가락이 열릴 때까지 높이 유지 → 들기 → 벨트 옆 → park.
++2.8 s 앞 예측은 벨트 속도가 바뀌면 1 s 넘게 틀렸다(2026-11-13·14 비접촉 시험 −1.42~+0.85 s). 그래서 팔이 벨트를
++가리기 직전까지의 검출로 도착 시각을 다시 잰다(남는 예측 구간 약 1.2 s). 팔이 제때 못 가면 놓지 않고 다음 바퀴를 기다린다.
++--rehearse: 공깃돌·그리퍼 없이 같은 동작을 하고 트리거 시각만 기록한다(시각 검증용).
++멈추는 법: 이동 중에는 비상정지·펜던트. 실패하면 공깃돌이 벨트에 떨어질 수 있다.
+ """
+ from __future__ import annotations
+ 
+@@ -25,11 +30,12 @@ import time
+ 
+ import numpy as np
+ 
+-from tools.robot.hover_predicted import move_time_s
++from tools.robot.hover_predicted import crossing, move_time_s
+ 
+ RELEASE_X_MAX_M = 0.685   # 이보다 멀면 제어기 특이점 처리로 경로가 틀어진다(2026-11-14: x 0.690 상승 1.7 mm 모자람,
+                           # x 0.6975 해제 지점 2.4 mm 모자람, x 0.695 수직 상승이 x로 5 mm 밀림). x ≤ 0.676은 4회 모두 정상
+ MAT_Y_MAX_M = 0.02        # 매트 공깃돌 y 상한. 매트와 벨트 사이 빨간 LED 오검출(y ≈ +0.047 m, 2026-11-14)을 막는다
++CLASS_CAP, REGION_BELT = 2, 2
+ 
+ 
+ def log(event: str, **fields) -> None:
+@@ -42,40 +48,126 @@ class SteadyClock:
+         return time.monotonic()
+ 
+ 
++ROLLER_END_X_M = 0.56     # 이보다 상류에서는 뚜껑이 롤러를 돌아 올라오는 중이라 x 속도가 약 30 mm/s로 보인다
++ROLLER_V_MPS = 0.030      # (2026-11-14 통과 9회: 0.545~0.56 구간 24~32 mm/s, 그 뒤 50 mm/s)
++
++
++def arrival_estimate(points, rel_x: float, rel_y: float, now: float, window_s: float = 1.0, min_points: int = 8,
++                     max_age_s: float = 0.35, t_stop: float | None = None, min_span_s: float = 0.3,
++                     v_prior: float | None = None):
++    """뚜껑 검출 (stamp, x, y, ...)로 x = rel_x 도착 시각을 낸다.
++
++    해제 지점 상류(x < rel_x − 3 mm)이고 벨트 선(|y − rel_y| < 20 mm)에 있는 최근 window_s의 검출만 쓴다. t_stop이
++    있으면 그보다 이른 검출만 쓴다(팔이 벨트를 가리기 시작한 뒤의 검출은 중심이 밀린다). 낡았으면(max_age_s) None.
++
++    v_prior(지난 통과 전체의 평균 속도)가 있으면 지금 위치(마지막 다섯 검출의 중앙값)에서 그 속도로 계산한다.
++    2026-11-14 통과 9회, 도착 1.15 s 전 기준: 이 방법 오차 최대 0.045 s, 최근 1 s 직선 맞춤은 최대 0.092 s였다
++    (벨트 속도가 40 mm 구간마다 ±4 mm/s 맥동해서 짧은 구간의 기울기가 흔들린다). 다만 최근 검출의 기울기가
++    v_prior와 12 mm/s 넘게 다르면 벨트 속도가 바뀐 것으로 보고 직선 맞춤을 쓴다. v_prior가 없으면 직선 맞춤만 쓴다
++    (검출 min_points개·min_span_s 이상, 잔차 3 mm 이하, 속도 8~150 mm/s).
++    """
++    end = now if t_stop is None else min(now, t_stop)
++    pts = [(q[0], q[1]) for q in points
++           if end - window_s <= q[0] <= end and q[1] < rel_x - 0.003 and abs(q[2] - rel_y) < 0.02]
++    if not pts or end - pts[-1][0] > max_age_s:
++        return None
++    t = np.array([q[0] for q in pts])
++    x = np.array([q[1] for q in pts])
++    fit = None
++    past = x >= ROLLER_END_X_M + 0.005
++    if int(past.sum()) >= min_points and t[past][-1] - t[past][0] >= min_span_s:
++        tp, xp = t[past], x[past]
++        a, b = np.polyfit(tp - tp[-1], xp, 1)
++        if 0.008 <= a <= 0.15 and float(np.sqrt(np.mean((xp - (a * (tp - tp[-1]) + b)) ** 2))) <= 0.003:
++            fit = {'t_arrive': float(tp[-1] + (rel_x - b) / a), 'v': float(a), 'n': int(past.sum()),
++                   't_last': float(t[-1]), 'x_last': float(b), 'prior': False}
++    if v_prior is None:
++        return fit
++    if fit is not None and abs(fit['v'] - v_prior) > 0.012:
++        return fit
++    if len(pts) < 3:
++        return None
++    k = min(5, len(pts))
++    t_ref, x_ref = float(np.median(t[-k:])), float(np.median(x[-k:]))
++    roller = max(0.0, ROLLER_END_X_M - x_ref)
++    t_arrive = t_ref + roller / ROLLER_V_MPS + (rel_x - x_ref - roller) / v_prior
++    return {'t_arrive': t_arrive, 'v': float(v_prior), 'n': len(pts), 't_last': float(t[-1]), 'x_last': x_ref,
++            'prior': True}
++
++
++def last_pass_model(points, x_lo: float = 0.56, x_hi: float = 0.76, min_points: int = 20, min_span_m: float = 0.06):
++    """가장 최근에 x_lo~x_hi를 지나간 통과의 속도 v, 벨트 선 y, 테두리 높이 z. points: (stamp, x, y, z). 없으면 None."""
++    pts = [q for q in points if x_lo <= q[1] <= x_hi]
++    if not pts:
++        return None
++    clusters, cur = [], [pts[-1]]
++    for q in reversed(pts[:-1]):
++        if cur[-1][0] - q[0] > 1.0:
++            clusters.append(cur)
++            cur = [q]
++        else:
++            cur.append(q)
++    clusters.append(cur)
++    for c in clusters:                               # 최근 통과부터
++        c = c[::-1]
++        if len(c) < min_points or c[-1][1] - c[0][1] < min_span_m:
++            continue
++        t = np.array([q[0] for q in c])
++        v = float(np.polyfit(t - t[0], np.array([q[1] for q in c]), 1)[0])
++        if 0.008 <= v <= 0.15:
++            return {'v': v, 'y': float(np.median([q[2] for q in c])), 'z': float(np.median([q[3] for q in c])),
++                    'n': len(c), 't': float(c[-1][0])}
++    return None
++
++
+ def main(argv=None) -> int:
+     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
+     ap.add_argument('--config', action='append', default=[])
+     ap.add_argument('--execute', action='store_true')
+-    ap.add_argument('--wait-xy', type=float, nargs=2, default=[0.66, 0.20])
+-    ap.add_argument('--wait-plan-s', type=float, default=30.0)
+-    ap.add_argument('--min-obs', type=int, default=15,
+-                    help='SelectTarget 최소 관측 수. 뚜껑이 보이기 시작해(x≈0.547) 도달 구간(x 0.60)까지 53 mm뿐이라 '
+-                         '30이면(20 Hz에서 1.5 s) 벨트 40 mm/s에서 대상이 되지 못했다(run-04·06·08 NO_TARGET)')
+-    ap.add_argument('--slack-s', type=float, default=0.8, help='해제 지점 도착 예상 뒤 트리거까지 최소 여유')
+-    ap.add_argument('--lead-s', type=float, default=1.5,
+-                    help='해제 시각보다 이만큼 먼저 트리거. 그리퍼가 653→600 pulse에 약 3.4 s(100 mA)라 공깃돌이 트리거 '
+-                         '약 1.5 s 뒤 떨어진다(2026-11-14 영상: 0.2 s 앞당김에서 1.3 s 늦음). 이동 중에 트리거할 수 있다')
+-    ap.add_argument('--arrive-before-s', type=float, default=0.5,
+-                    help='해제 지점에 공깃돌이 떨어지기(해제 시각) 이만큼 전에 도착해야 한다')
++    ap.add_argument('--rel-x', type=float, default=0.67, help='해제 지점 x [m](고정). 0.676 이하는 팔이 정상 도달했다')
++    ap.add_argument('--wait-y', type=float, default=0.16,
++                    help='벨트 옆 대기 y [m](x = rel-x). 벨트 선(y≈0.09)에서 약 70 mm: 해제 지점까지 약 1.0 s')
++    ap.add_argument('--wait-plan-s', type=float, default=45.0, help='잡을 수 있는 통과를 기다리는 최대 시간(통과마다 다시 센다)')
++    ap.add_argument('--rehearse', action='store_true', help='공깃돌·그리퍼 없이 같은 동작과 트리거 시각 기록만 한다')
++    ap.add_argument('--passes', type=int, default=4, help='놓지 못하고 보낸 통과를 포함해 시도할 통과 수')
++    ap.add_argument('--drop-delay-s', type=float, default=0.3,
++                    help='트리거 → 공깃돌이 손가락을 벗어나 뚜껑에 닿기까지. 도착 예상 시각보다 이만큼 먼저 트리거한다 '
++                         '(0.2 s 앞당김으로 3회 투입 성공, 2026-11-14 run-01~03)')
++    ap.add_argument('--start-margin-s', type=float, default=0.2, help='해제 지점에 도착한 뒤 트리거까지 남길 여유')
++    ap.add_argument('--late-max-s', type=float, default=0.12, help='팔이 이만큼 넘게 늦으면 놓지 않고 통과를 보낸다')
++    ap.add_argument('--block-dist-m', type=float, default=0.05,
++                    help='팔이 해제 지점에서 이 거리 안으로 들어온 뒤의 검출은 쓰지 않는다(그리퍼가 뚜껑을 가린다)')
+     ap.add_argument('--holding', action='store_true',
+-                    help='이미 공깃돌을 쥐고 있다(지난 실행이 계획 없이 park로 돌아옴). 검출·파지를 건너뛰고 벨트 옆으로 간다')
++                    help='이미 공깃돌을 쥐고 있다(지난 실행이 놓지 못하고 park로 돌아옴). 검출·파지를 건너뛴다')
+     ap.add_argument('--release-raise-m', type=float, default=0.015, help='해제 높이에 더하는 여유(손가락·테두리 간격)')
++    ap.add_argument('--record', help='이 접두로 상단 카메라 영상·검출을 녹화한다(tools/robot/run_recorder.py)')
++    ap.add_argument('--side-watch-s', type=float, default=2.5, help='놓은 뒤 벨트 옆에서 뚜껑이 지나가는 것을 찍는 시간')
+     args = ap.parse_args(argv)
+ 
++    import threading
++    from collections import deque
++
+     import rclpy
+-    from rclpy.duration import Duration
+-    from drop_interfaces.action import DropTask
+-    from drop_interfaces.msg import ObjectDetection
+-    from drop_interfaces.srv import ComputeIntercept, SelectTarget
++    from drop_interfaces.msg import ObjectDetectionArray
++    from dsr_msgs2.srv import MoveLine
++    from rclpy.executors import SingleThreadedExecutor
+     from robot_control.dsr_register_io import DsrRegisterIO, RosServiceCaller
+     from robot_control.gripper_adapter import MODBUS
+     from robot_control.resident_transport import ResidentLoopTransport, ResidentRegs
++    from static_pick_place import doosan_client as dc
+     from static_pick_place.doosan_client import DoosanClient, RobotError
+     from static_pick_place.pick_place import detect, grab_frame, load_config, load_geometry, make_params
+     from static_pick_place.plan import DOWN_QUAT_XYZW, choose_stone
+ 
+     cfg = load_config(args.config)
+     p = make_params(cfg)
++    recorder = None
++    if args.record:
++        import os
++        import subprocess
++        recorder = subprocess.Popen([sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)),
++                                                                  'run_recorder.py'), '--out', args.record],
++                                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+     rclpy.init()
+     node = rclpy.create_node('g4_simple')
+     caller = RosServiceCaller('g4_simple_dsr_io')
+@@ -83,19 +175,40 @@ def main(argv=None) -> int:
+     regs = ResidentRegs()
+     loop = ResidentLoopTransport(io, SteadyClock(), time.sleep, regs)
+     robot = DoosanClient(node, 'dsr01')
+-    sel = node.create_client(SelectTarget, 'tracking/select_target')
+-    plan_cli = node.create_client(ComputeIntercept, 'planner/compute_intercept')
++
++    # 뚜껑 검출을 별도 노드·executor 스레드로 모은다(주 스레드는 서비스 호출로 막혀 있을 때가 많다)
++    caps = deque(maxlen=1500)                  # (stamp, x, y, z) robot_base, z = 테두리 윗면
++    caps_lock = threading.Lock()
++    watch_node = rclpy.create_node('g4_simple_watch')
++
++    def on_dets(msg):
++        stamp = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
++        with caps_lock:
++            for d in msg.detections:
++                if d.object_class == CLASS_CAP and d.region == REGION_BELT and d.position_valid:
++                    caps.append((stamp, d.position.x, d.position.y, d.position.z))
++
++    watch_node.create_subscription(ObjectDetectionArray, 'objects/detections', on_dets, 20)
++    watch_exec = SingleThreadedExecutor()
++    watch_exec.add_node(watch_node)
++
++    def _watch_spin():
++        try:
++            watch_exec.spin()
++        except Exception:          # noqa: BLE001 - 종료 때 스레드만 끝낸다
++            pass
++
++    threading.Thread(target=_watch_spin, daemon=True).start()
++
++    def cap_points():
++        with caps_lock:
++            return list(caps)
+ 
+     def now_s():
+         return node.get_clock().now().nanoseconds * 1e-9
+ 
+-    def call(cli, req):
+-        fut = cli.call_async(req)
+-        rclpy.spin_until_future_complete(node, fut, timeout_sec=2.0)
+-        return fut.result()
+-
+     def move(name, pos, v=None, a=None, tolerate=False):
+-        """tolerate: 몇 mm 못 미쳐도(MOVE_NOT_REACHED) 다음 동작으로 넘어간다(해제 뒤 상승·복귀 전용)."""
++        """tolerate: 몇 mm 못 미쳐도(MOVE_NOT_REACHED) 다음 동작으로 넘어간다."""
+         try:
+             reached = robot.move_line(pos, DOWN_QUAT_XYZW, v or p.travel_v_mps, a or p.travel_a_mps2)
+         except RobotError as exc:
+@@ -139,11 +252,191 @@ def main(argv=None) -> int:
+             pos = loop._word(regs.st_pos_hi)
+             samples.append(pos)
+             if done and done[0] and (done[1] != 0 or abs(pos - pulse) <= 5 or (time.monotonic() - t0 > 3.0
+-                                                                 and len(set(samples[-4:])) == 1)):
++                                                                              and len(set(samples[-4:])) == 1)):
+                 break
+             time.sleep(0.25)
+         return loop._word(regs.st_pos_hi), done
+ 
++    def get_pass(start_pos, deadline_mono):
++        """벨트 옆에서 잡을 수 있는 통과를 기다린다. 반환 (해제 지점, 도착 예상 시각, 이동 시간, 지난 통과 모델) 또는 None.
++
++        해제 지점 = (rel-x, 지난 통과의 벨트 선 y, 테두리 z + release_above_rim + 여유). 새 통과의 검출이 보이고
++        도착까지 (이동 + drop_delay)보다 시간이 남아 있으면 돌려준다. 너무 가까이 온 통과는 보내고 다음을 기다린다.
++        """
++        waited, checked = {}, None
++        while time.monotonic() < deadline_mono:
++            pts, now = cap_points(), now_s()
++            model = last_pass_model(pts)
++            if model is None:
++                waited['NO_PASS_SEEN'] = waited.get('NO_PASS_SEEN', 0) + 1
++                time.sleep(0.05)
++                continue
++            rel = np.array([args.rel_x, model['y'], model['z'] + p.release_above_rim_m + args.release_raise_m])
++            if checked is None or float(np.linalg.norm(checked - rel)) > 0.003:
++                if not (rel[2] < p.travel_z_m and rel[0] <= RELEASE_X_MAX_M and ik_ok('release', rel)):
++                    log('abort', reason='RELEASE_POSE', release_m=[round(float(v), 4) for v in rel])
++                    return None
++                checked = rel
++            t_move = move_time_s(float(np.linalg.norm(rel - start_pos)), p.travel_v_mps, p.travel_a_mps2)
++            e = arrival_estimate(pts, rel[0], rel[1], now, v_prior=model['v'])
++            if e is None:
++                waited['NO_CAP_UPSTREAM'] = waited.get('NO_CAP_UPSTREAM', 0) + 1
++                time.sleep(0.01)
++                continue
++            if e['t_arrive'] - now < t_move + args.drop_delay_s + 0.05:
++                waited['TOO_LATE'] = waited.get('TOO_LATE', 0) + 1
++                time.sleep(0.01)
++                continue
++            log('plan', release_m=[round(float(v), 4) for v in rel], cap_v_mps=[round(e['v'], 4), 0.0],
++                v_prior_mmps=round(model['v'] * 1000, 1), prior=e['prior'], n=e['n'],
++                x_last_m=round(e['x_last'], 4), release_in_s=round(e['t_arrive'] - now, 2), move_s=round(t_move, 2),
++                t_release=round(e['t_arrive'], 3), drop_delay_s=args.drop_delay_s, waited=waited)
++            return rel, e['t_arrive'], t_move, model
++        log('no_plan', waited=waited)
++        return None
++
++    def wait_to_go(rel, t_release_plan, t_move, v_prior):
++        """벨트 옆에서 검출로 도착 시각을 고쳐 잡으며 출발 시각을 기다린다. 반환 (도착 예상 시각, 마지막 추정)."""
++        est, t_rel = None, t_release_plan
++        while True:
++            now = now_s()
++            e = arrival_estimate(cap_points(), rel[0], rel[1], now, v_prior=v_prior)
++            if e is not None:
++                est, t_rel = e, e['t_arrive']
++            if now >= t_rel - args.drop_delay_s - t_move - args.start_margin_s or now > t_release_plan + 6.0:
++                return t_rel, est
++            time.sleep(0.005)
++
++    def timing_check(rel, t_release_plan, t_move, v_prior):
++        """로봇 없이: 출발 시각·가림 시각(가정 0.9 s 뒤)의 도착 예상을 실제 통과 시각과 견준다."""
++        t_plan_now = now_s()
++        t_rel_go, est_go = wait_to_go(rel, t_release_plan, t_move, v_prior)
++        t_go = now_s()
++        t_stop = t_go + 0.35                      # 팔이 해제 지점 50 mm 안으로 들어오는 때(가속 구간 뒤)
++        est_frozen, t_rel_frozen = est_go, t_rel_go
++        while now_s() < t_stop:
++            e = arrival_estimate(cap_points(), rel[0], rel[1], now_s(), v_prior=v_prior)
++            if e is not None:
++                est_frozen, t_rel_frozen = e, e['t_arrive']
++            time.sleep(0.01)
++        while now_s() < max(t_release_plan, t_rel_frozen) + 2.5:
++            time.sleep(0.05)
++        seen = [(c[0], c[1], c[2]) for c in cap_points() if c[0] >= t_plan_now - 1.0 and abs(c[2] - rel[1]) < 0.02]
++        cross = crossing(seen, rel[0])
++        out = {'go_before_plan_release_s': round(t_release_plan - t_go, 2),
++               'v_go_mmps': None if est_go is None else round(est_go['v'] * 1000, 1),
++               'v_frozen_mmps': None if est_frozen is None else round(est_frozen['v'] * 1000, 1)}
++        if cross is not None:
++            t_cross = cross[0]
++            out.update(plan_minus_actual_s=round(t_release_plan - t_cross, 3),
++                       go_est_minus_actual_s=round(t_rel_go - t_cross, 3),
++                       frozen_est_minus_actual_s=round(t_rel_frozen - t_cross, 3),
++                       horizon_go_s=round(t_cross - t_go, 2), horizon_frozen_s=round(t_cross - t_stop, 2),
++                       y_at_cross_minus_rel_mm=round((cross[1] - rel[1]) * 1000, 1))
++        log('timing_check', **out)
++
++    def release(rel, t_release_plan, t_move, start_pos, v_prior):
++        """개방 예약 → 출발 시각까지 벨트 옆에서 관측 → 해제 지점으로 비동기 이동 → 도착 예상 − drop_delay에 트리거.
++
++        블로킹 move_line 서비스는 드라이버의 다른 서비스(레지스터 쓰기)를 이동이 끝날 때까지 막아서(2026-11-14 run-10:
++        트리거 0.405 s 늦음) sync_type 1로 보낸다. 반환 ('fired'|'skipped', 팔 위치).
++        """
++        # 쥔 전류 그대로 예약한다(전류를 바꾸면 루프가 Modbus 쓰기 1회를 더 하고, 옮기는 동안 쥐는 힘이 준다)
++        if not args.rehearse:
++            loop.write_register(MODBUS.goal_current, p.grip_current_ma)
++            loop.write_goal_position(p.open_pulse)
++        t_rel, est = wait_to_go(rel, t_release_plan, t_move, v_prior)
++        now = now_s()
++        if t_rel - now < t_move + args.drop_delay_s + 0.05 or now > t_release_plan + 6.0:
++            log('skip', reason='TOO_LATE_TO_GO', arrive_in_s=round(t_rel - now, 2), need_s=round(t_move, 2))
++            return 'skipped', start_pos
++        log('go', arrive_in_s=round(t_rel - now, 3), plan_release_in_s=round(t_release_plan - now, 3),
++            v_est_mmps=None if est is None else round(est['v'] * 1000, 1), n=None if est is None else est['n'])
++        target = np.asarray(rel, float)
++        vel = dc.speed_si_to_doosan([p.travel_v_mps, 0.0, 0.0], [0.35, 0.0, 0.0])
++        acc = dc.speed_si_to_doosan([p.travel_a_mps2, 0.0, 0.0], [0.7, 0.0, 0.0])
++        t_start = time.monotonic()
++        robot._call(MoveLine, 'motion/move_line', pos=dc.pose_si_to_doosan(target, DOWN_QUAT_XYZW),
++                    vel=[vel[0], vel[3]], acc=[acc[0], acc[3]], time=0.0, radius=0.0, ref=0, mode=0, blend_type=0,
++                    sync_type=1)
++        limit = t_start + t_move + 1.5
++        reached, dist = np.asarray(start_pos, float), float(np.linalg.norm(target - np.asarray(start_pos, float)))
++        arrived, last, still_since, t_block = False, None, None, None
++        fired, skipped = None, None
++        while True:
++            now = now_s()
++            if t_block is None:
++                e = arrival_estimate(cap_points(), rel[0], rel[1], now, v_prior=v_prior)
++                if e is not None:
++                    est, t_rel = e, e['t_arrive']
++            t_fire = t_rel - args.drop_delay_s
++            if fired is None and skipped is None and now >= t_fire - 0.003:
++                if dist <= 0.005:
++                    t0 = time.monotonic()
++                    if not args.rehearse:
++                        loop.trigger()
++                    fired = {'mono': time.monotonic(), 'ros': now_s(), 'call_s': round(time.monotonic() - t0, 3),
++                             't_fire': t_fire}
++                    continue
++                if now - t_fire > args.late_max_s:
++                    skipped = 'ARM_LATE'
++                    log('skip', reason=skipped, dist_mm=round(dist * 1000, 1), late_s=round(now - t_fire, 3))
++            if fired is None and skipped is None and 0.0 < t_fire - now < 0.06 and dist <= 0.005:
++                time.sleep(0.002)                   # 트리거 직전에는 다른 서비스를 부르지 않는다
++                continue
++            if not arrived:
++                reached, _ = robot.tcp_pose()
++                dist = float(np.linalg.norm(reached - target))
++                if t_block is None and dist <= args.block_dist_m:
++                    t_block = now_s()
++                if dist <= 0.0015 and time.monotonic() - t_start > 0.3:
++                    arrived = True
++                    log('done', step='to_release', reached_m=[round(float(x), 4) for x in reached],
++                        move_s=round(time.monotonic() - t_start, 2), before_fire_s=round(t_fire - now_s(), 3))
++                else:
++                    moved = last is None or float(np.linalg.norm(reached - last)) > 0.0002
++                    last = reached
++                    still_since = None if moved else (still_since or time.monotonic())
++                    stuck = (still_since is not None and time.monotonic() - still_since > 0.4
++                             and time.monotonic() - t_start > 0.8)
++                    if stuck or time.monotonic() > limit:
++                        arrived = True
++                        log('not_reached', step='to_release', target_m=[round(float(x), 4) for x in target],
++                            reached_m=[round(float(x), 4) for x in reached])
++            if arrived and (fired is not None or skipped is not None):
++                break
++            time.sleep(0.02 if not arrived else 0.002)
++        if fired is None:
++            return 'skipped', reached
++        log('fired', t_ros=round(fired['ros'], 3), late_s=round(fired['ros'] - fired['t_fire'], 3),
++            call_s=fired['call_s'], t_release_est=round(t_rel, 3), t_release_plan=round(t_release_plan, 3),
++            est_minus_plan_s=round(t_rel - t_release_plan, 3),
++            v_est_mmps=None if est is None else round(est['v'] * 1000, 1),
++            est_n=None if est is None else est['n'], est_prior=None if est is None else est['prior'],
++            est_age_s=None if est is None else round(fired['ros'] - est['t_last'], 2),
++            t_block=None if t_block is None else round(t_block, 3), rehearse=args.rehearse)
++        if args.rehearse:
++            time.sleep(1.0)
++            return 'fired', reached
++        # 높이를 유지한 채 손가락이 열릴 때까지 기다린 뒤 올린다(열리는 중에 올리면 돌을 끌고 올라간다)
++        opened, samples = None, []
++        while time.monotonic() - fired['mono'] < 3.5:
++            done = loop.last_command()
++            pos = loop._word(regs.st_pos_hi)
++            samples.append((round(time.monotonic() - fired['mono'], 2), pos))
++            if done and done[0] and pos <= p.open_pulse + 10:
++                opened = round(time.monotonic() - fired['mono'], 3)
++                break
++            time.sleep(0.05)
++        time.sleep(0.2)
++        result = loop.last_command()
++        log('opened', after_trigger_s=opened, pulse=loop._word(regs.st_pos_hi), cmd=result,
++            pulse_trace=[sm for k, sm in enumerate(samples) if k == 0 or sm[1] != samples[k - 1][1]])
++        if result and result[0] and result[1] == 242:      # 해제 쓰기 실패: 늦더라도 다시 연다
++            pos, _ = gripper_to(p.open_pulse, p.grip_current_ma)
++            log('gripper', step='open_retry', pulse=pos)
++        return 'fired', reached
++
+     try:
+         # ---------------- 상태·검출(지령 없음)
+         for attempt in range(4):            # 새 노드가 드라이버 서비스를 찾기 전 첫 호출이 실패할 수 있다(2026-11-14)
+@@ -159,8 +452,13 @@ def main(argv=None) -> int:
+             return 2
+         start, _ = robot.tcp_pose()
+         geom = load_geometry(cfg)
+-        wait = np.array([args.wait_xy[0], args.wait_xy[1], p.travel_z_m])
+-        if args.holding:
++        wait = np.array([args.rel_x, args.wait_y, p.travel_z_m])
++        park = [p.park_x_m, p.park_y_m, p.park_z_m]
++        if args.rehearse:
++            if not ik_ok('wait', wait):
++                return 2
++            start = move('wait', wait) if args.execute else wait
++        elif args.holding:
+             pos = loop._word(regs.st_pos_hi)
+             if io.get(regs.init) != 1 or pos >= p.close_pulse - 10 or pos <= p.open_pulse + 10:
+                 log('abort', reason='NOT_HOLDING', pulse=pos)
+@@ -170,6 +468,8 @@ def main(argv=None) -> int:
+                 return 2
+             if args.execute:
+                 start = move('wait', wait)
++            else:
++                start = wait
+         else:
+             dets = detect(grab_frame(node, cfg['image_topic']), cfg, geom)
+             excluded = [[round(v, 4) for v in d.position] for d in dets if d.position[1] > MAT_Y_MAX_M]
+@@ -195,134 +495,65 @@ def main(argv=None) -> int:
+                     log('loop_started', ready_s=round(time.monotonic() - t0, 2))
+                 pos, _ = gripper_to(p.open_pulse, 100)
+                 log('gripper', step='open_before_pick', pulse=pos)
+-                move('over_stone', over)
++                move('over_stone', over, tolerate=True)          # 먼 공깃돌은 이동 높이에서 몇 mm 덜 간다. 하강이 맞춘다
+                 move('descend_grasp', grasp, p.vertical_v_mps, p.vertical_a_mps2)
+                 pos, done = gripper_to(p.close_pulse, p.grip_current_ma)
+                 log('gripper', step='close_grasp', pulse=pos, done=done)
+                 if pos >= p.close_pulse - 10:
+                     log('abort', reason='NO_STONE_IN_GRIP', pulse=pos)
+-                    move('lift_empty', over, p.vertical_v_mps, p.vertical_a_mps2)
+-                    move('park', [p.park_x_m, p.park_y_m, p.park_z_m])
++                    move('lift_empty', over, p.vertical_v_mps, p.vertical_a_mps2, tolerate=True)
++                    move('park', park, tolerate=True)
+                     return 2
+-                move('lift_stone', over, p.vertical_v_mps, p.vertical_a_mps2)
++                move('lift_stone', over, p.vertical_v_mps, p.vertical_a_mps2, tolerate=True)
+                 start = move('wait', wait)
+             else:
+                 start = wait
+ 
+-        # ---------------- 예측 계획
+-        if not (sel.wait_for_service(5.0) and plan_cli.wait_for_service(5.0)):
+-            log('abort', reason='PLANNER_UNAVAILABLE')
+-            return 2
+-        chosen, fails, step = None, {}, 0
+-        t_give_up = time.monotonic() + args.wait_plan_s
+-        while chosen is None and time.monotonic() < t_give_up:
+-            step += 1
+-            stamp_now = node.get_clock().now()
+-            deadline = (stamp_now + Duration(seconds=1.0)).to_msg()
+-            r = call(sel, SelectTarget.Request(cycle_id='g4s', step_id=step, deadline=deadline,
+-                                               object_class=ObjectDetection.CLASS_CAP, min_observation_count=args.min_obs))
+-            if r is None or r.result != 0:
+-                why = 'NO_REPLY' if r is None else r.reason_code
+-                fails[why] = fails.get(why, 0) + 1
+-                time.sleep(0.1)
+-                continue
+-            c = call(plan_cli, ComputeIntercept.Request(cycle_id='g4s', step_id=step, deadline=deadline,
+-                                                        target_track_id=r.track_id, target_epoch=r.epoch,
+-                                                        mode=DropTask.Goal.MODE_PREDICTED,
+-                                                        earliest_release=stamp_now.to_msg()))
+-            if c is None or c.result != 0 or c.plan.status != 0:
+-                why = 'NO_REPLY' if c is None else c.reason_code
+-                fails[why] = fails.get(why, 0) + 1
+-                time.sleep(0.1)
+-                continue
+-            pl = c.plan
+-            rel = np.array([pl.target_tcp_pose.position.x, pl.target_tcp_pose.position.y,
+-                            pl.target_tcp_pose.position.z + args.release_raise_m])
+-            t_release = pl.release_time.sec + pl.release_time.nanosec * 1e-9
+-            t_move = move_time_s(float(np.linalg.norm(rel - start)), p.travel_v_mps, p.travel_a_mps2)
+-            # 팔은 해제 시각 전에 도착하면 되고, 트리거는 이동 중이어도 된다(손가락이 벌어지기까지 약 1.5 s)
+-            margin = t_release - now_s() - t_move
+-            t_fire_in = t_release - args.lead_s - now_s()
+-            if margin < args.arrive_before_s or t_fire_in < 0.15:
+-                fails['TOO_LATE'] = fails.get('TOO_LATE', 0) + 1
+-                continue
+-            if rel[0] > RELEASE_X_MAX_M:
+-                fails['TOO_FAR'] = fails.get('TOO_FAR', 0) + 1
+-                continue
+-            if not (rel[2] < p.travel_z_m and ik_ok('release', rel)):
+-                fails['RELEASE_POSE'] = fails.get('RELEASE_POSE', 0) + 1
+-                continue
+-            chosen = (pl, rel, t_release, t_move, margin)
+-        if chosen is None:
+-            log('abort', reason='NO_USABLE_PLAN', fails=fails)
++        # ---------------- 통과 잡기 → 해제(통과마다)
++        outcome = None
++        for k in range(max(1, args.passes)):
++            chosen = get_pass(np.asarray(start, float), time.monotonic() + args.wait_plan_s)
++            if chosen is None:
++                break
++            rel, t_release_plan, t_move, model = chosen
++            if not args.execute:
++                timing_check(rel, t_release_plan, t_move, model['v'])
++                log('dry_run_done')
++                return 0
++            outcome, at = release(rel, t_release_plan, t_move, start, model['v'])
++            if outcome == 'fired':
++                break
++            start = move('side_again', wait, tolerate=True)       # 놓지 않았다. 벨트 옆에서 다음 바퀴를 기다린다
++        if outcome != 'fired':
++            log('abort', reason='NOT_RELEASED', outcome=outcome)
+             if args.execute:
+-                move('park_holding', [p.park_x_m, p.park_y_m, p.park_z_m])
++                move('park_holding', park, tolerate=True)
+             return 2
+-        pl, rel, t_release, t_move, margin = chosen
+-        log('plan', track_id=pl.target_track_id, release_m=[round(float(v), 4) for v in rel],
+-            cap_v_mps=[round(pl.target_velocity.x, 4), round(pl.target_velocity.y, 4)],
+-            position_std_m=round(pl.position_std, 5), release_in_s=round(t_release - now_s(), 2),
+-            move_s=round(t_move, 2), arrive_before_s=round(margin, 2), lead_s=args.lead_s, fails=fails)
+-        if not args.execute:
+-            log('dry_run_done')
+-            return 0
+-
+-        # ---------------- 해제
+-        # 예약을 먼저 쓰고(손가락은 움직이지 않음), 트리거는 별도 스레드가 시각에 맞춰 보낸다. 해제 지점으로 가는
+-        # move_line(블로킹) 중에 트리거가 나가도 손가락이 공깃돌 폭보다 벌어지는 것은 약 1.5 s 뒤다
+-        import threading
+-        loop.write_register(MODBUS.goal_current, 100)
+-        loop.write_goal_position(p.open_pulse)                 # 예약: 루프는 읽기를 멈추고 트리거만 기다린다
+-        t_fire = t_release - args.lead_s
+-        fired = {}
+-
+-        def fire():
+-            while now_s() < t_fire:
+-                time.sleep(0.002)
+-            loop.trigger()
+-            fired['t_mono'] = time.monotonic()
+-            fired['late_s'] = round(now_s() - t_fire, 3)
+-        log('armed', fire_in_s=round(t_fire - now_s(), 3), release_in_s=round(t_release - now_s(), 3))
+-        trigger_thread = threading.Thread(target=fire, daemon=True)
+-        trigger_thread.start()
+-        move('to_release', rel, tolerate=True)
+-        log('arrived', before_release_s=round(t_release - now_s(), 3))
+-        trigger_thread.join(timeout=max(0.0, t_fire - now_s()) + 2.0)
+-        t_trig = fired.get('t_mono', time.monotonic())
+-        log('fired', late_s=fired.get('late_s'))
+-        # 높이를 유지한 채 손가락이 열릴 때까지 기다린 뒤 올린다(0.5 s 고정이면 열리는 중에 팔이 올라갔다, run-01·02).
+-        # 루프가 지령을 실행한 것을 보고, 위치가 열림 근처로 올라온 뒤 0.2 s 더 머문다(최대 2 s)
+-        opened = None
+-        while time.monotonic() - t_trig < 3.5:
+-            done = loop.last_command()
+-            pos = loop._word(regs.st_pos_hi)
+-            if done and done[0] and pos <= p.open_pulse + 10:
+-                opened = round(time.monotonic() - t_trig, 3)
+-                break
+-            time.sleep(0.02)
+-        time.sleep(0.2)
+-        result = loop.last_command()
+-        log('opened', after_trigger_s=opened, pulse=loop._word(regs.st_pos_hi), cmd=result)
+-        if result and result[0] and result[1] == 242:      # 해제 쓰기 실패: 늦더라도 다시 연다
+-            pos, _ = gripper_to(p.open_pulse, 100)
+-            log('gripper', step='open_retry', pulse=pos)
+         move('retreat', [rel[0], rel[1], p.travel_z_m], p.vertical_v_mps, p.vertical_a_mps2, tolerate=True)
+-        # park까지 가면 뚜껑이 벨트 끝 롤러를 넘어 확인을 놓친다(2026-11-14 run-01). 벨트 옆에서 먼저 본다
+         move('side', wait, tolerate=True)
+-        after = detect(grab_frame(node, cfg['image_topic']), cfg, geom)
+-        move('park', [p.park_x_m, p.park_y_m, p.park_z_m], tolerate=True)
+-        caps = [{'pos_m': [round(v, 4) for v in d.position], 'stone_inside': d.stone_inside,
+-                 'valid': d.stone_inside_valid} for d in after if d.blob.object_class == ObjectDetection.CLASS_CAP]
+-        log('verify', caps=caps, result='SUCCESS' if any(c['stone_inside'] and c['valid'] for c in caps)
+-            else 'NOT_VERIFIED')
++        time.sleep(args.side_watch_s)                       # 뚜껑이 벨트 끝으로 가는 동안 가리지 않고 찍는다
++        move('park', park, tolerate=True)
+         return 0
+     except (RobotError, RuntimeError) as exc:
+         log('abort', reason=getattr(exc, 'reason', type(exc).__name__), detail=str(exc))
+         return 2
+     finally:
++        try:
++            watch_exec.shutdown(timeout_sec=1.0)
++            watch_node.destroy_node()
++        except Exception:               # noqa: BLE001
++            pass
+         caller.close()
+         node.destroy_node()
+         rclpy.shutdown()
++        if recorder is not None:
++            import signal
++            time.sleep(1.0)
++            recorder.send_signal(signal.SIGINT)
++            try:
++                recorder.wait(timeout=10)
++            except Exception:           # noqa: BLE001 - 녹화가 안 끝나면 강제로 닫는다
++                recorder.kill()
+ 
+ 
+ if __name__ == '__main__':
+diff --git a/tools/robot/run_recorder.py b/tools/robot/run_recorder.py
+new file mode 100644
+index 0000000..48cf23f
+--- /dev/null
++++ b/tools/robot/run_recorder.py
+@@ -0,0 +1,84 @@
++#!/usr/bin/env python3
++"""시도 한 번의 상단 카메라 영상(mp4)·프레임 시각(csv)·검출(jsonl)을 남긴다. 로봇 지령 없음.
++
++  python3 tools/robot/run_recorder.py --out records/trials/<폴더>/run-11
++
++SIGINT·SIGTERM 또는 --max-s가 지나면 파일을 닫고 끝난다. 영상은 작업 구역만 잘라(--crop) 30 fps mp4v로 쓰고,
++왼쪽 위에 프레임 stamp(초의 아래 세 자리.밀리초)를 찍는다. 카메라와 같은 큰 SHM FastDDS 프로파일이 필요하다.
++"""
++from __future__ import annotations
++
++import argparse
++import csv
++import json
++import signal
++import sys
++import time
++
++import numpy as np
++
++
++def main(argv=None) -> int:
++    ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
++    ap.add_argument('--out', required=True, help='출력 접두(.mp4, .frames.csv, .dets.jsonl이 붙는다)')
++    ap.add_argument('--max-s', type=float, default=240.0)
++    ap.add_argument('--crop', type=int, nargs=4, default=[240, 0, 1060, 520], metavar=('X0', 'Y0', 'X1', 'Y1'))
++    ap.add_argument('--image-topic', default='/camera/camera/color/image_raw')
++    args = ap.parse_args(argv)
++
++    import cv2
++    import rclpy
++    from drop_interfaces.msg import ObjectDetectionArray
++    from rclpy.node import Node
++    from sensor_msgs.msg import Image
++
++    x0, y0, x1, y1 = args.crop
++    rclpy.init()
++    node = Node('run_recorder')
++    writer = cv2.VideoWriter(args.out + '.mp4', cv2.VideoWriter_fourcc(*'mp4v'), 30.0, (x1 - x0, y1 - y0))
++    frames = open(args.out + '.frames.csv', 'w', newline='')
++    fw = csv.writer(frames)
++    fw.writerow(['index', 'stamp_s', 'recv_s'])
++    dets = open(args.out + '.dets.jsonl', 'w')
++    count = [0]
++
++    def on_image(m):
++        img = np.frombuffer(m.data, np.uint8).reshape(m.height, m.step)[:, :m.width * 3].reshape(m.height, m.width, 3)
++        if m.encoding == 'rgb8':
++            img = img[:, :, ::-1]
++        crop = np.ascontiguousarray(img[y0:y1, x0:x1])
++        stamp = m.header.stamp.sec + m.header.stamp.nanosec * 1e-9
++        cv2.putText(crop, f'{stamp % 1000:7.3f}', (8, 22), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
++        writer.write(crop)
++        fw.writerow([count[0], f'{stamp:.6f}', f'{time.time():.6f}'])
++        count[0] += 1
++
++    def on_dets(m):
++        stamp = m.header.stamp.sec + m.header.stamp.nanosec * 1e-9
++        items = [{'c': d.object_class, 'r': d.region, 'x': round(d.position.x, 5), 'y': round(d.position.y, 5),
++                  'u': round(d.u, 1), 'v': round(d.v, 1), 'd': round(d.diameter_px, 1), 'pv': d.position_valid,
++                  'si': d.stone_inside, 'sv': d.stone_inside_valid, 'occ': d.occluded_partial}
++                 for d in m.detections]
++        dets.write(json.dumps({'t': round(stamp, 6), 'recv': round(time.time(), 6), 'items': items}) + '\n')
++
++    node.create_subscription(Image, args.image_topic, on_image, 5)
++    node.create_subscription(ObjectDetectionArray, 'objects/detections', on_dets, 20)
++    stop = [False]
++    for sig in (signal.SIGINT, signal.SIGTERM):
++        signal.signal(sig, lambda *_: stop.__setitem__(0, True))
++    t0 = time.monotonic()
++    try:
++        while not stop[0] and time.monotonic() - t0 < args.max_s:
++            rclpy.spin_once(node, timeout_sec=0.05)
++    finally:
++        writer.release()
++        frames.close()
++        dets.close()
++        node.destroy_node()
++        rclpy.shutdown()
++    print(json.dumps({'event': 'recorded', 'frames': count[0], 'out': args.out}), flush=True)
++    return 0
++
++
++if __name__ == '__main__':
++    sys.exit(main())
+diff --git a/tools/robot/test_g4_simple.py b/tools/robot/test_g4_simple.py
+new file mode 100644
+index 0000000..8222eb7
+--- /dev/null
++++ b/tools/robot/test_g4_simple.py
+@@ -0,0 +1,97 @@
++"""g4_simple.py 순수 함수 단위 시험."""
++import numpy as np
++import pytest
++
++from tools.robot.g4_simple import arrival_estimate, last_pass_model
++
++
++def track(v=0.034, x0=0.57, t0=100.0, n=30, hz=25.0, y=0.085, noise=0.0, seed=0):
++    rng = np.random.default_rng(seed)
++    return [(t0 + k / hz, x0 + v * k / hz + noise * rng.standard_normal(), y) for k in range(n)]
++
++
++def test_constant_speed_gives_the_arrival_time_and_speed():
++    pts = track()
++    now = pts[-1][0] + 0.05
++    e = arrival_estimate(pts, 0.66, 0.085, now)
++    x_last = pts[-1][1]
++    assert e['v'] == pytest.approx(0.034, abs=1e-6)
++    assert e['t_arrive'] == pytest.approx(pts[-1][0] + (0.66 - x_last) / 0.034, abs=1e-4)
++
++
++def test_noise_of_point_three_mm_keeps_the_arrival_within_fifty_ms():
++    errs = []
++    for seed in range(20):
++        pts = track(noise=0.0003, seed=seed)
++        e = arrival_estimate(pts, 0.66, 0.085, pts[-1][0] + 0.05)
++        errs.append(e['t_arrive'] - (pts[0][0] + (0.66 - 0.57) / 0.034))
++    assert max(abs(v) for v in errs) < 0.05
++
++
++def test_too_few_stale_or_short_tracks_give_nothing():
++    pts = track()
++    assert arrival_estimate(pts[:5], 0.66, 0.085, pts[4][0] + 0.05) is None            # 검출 5개, 지난 속도 없음
++    assert arrival_estimate(pts, 0.66, 0.085, pts[-1][0] + 0.5) is None                # 0.5 s 묵음
++    assert arrival_estimate(track(n=8, x0=0.57), 0.66, 0.085, 100.0 + 8 / 25.0) is None    # 0.28 s 구간
++
++
++def test_points_past_the_release_point_or_off_the_belt_line_are_ignored():
++    pts = track()
++    other = [(t, 0.75, 0.085) for t, _, _ in pts]              # 이미 지나간 뚜껑
++    off = [(t, x, 0.14) for t, x, _ in pts]                    # 벨트 선 밖
++    now = pts[-1][0] + 0.05
++    assert arrival_estimate(pts + other, 0.66, 0.085, now)['v'] == pytest.approx(0.034, abs=1e-6)
++    assert arrival_estimate(off, 0.66, 0.085, now) is None
++
++
++def test_stop_time_freezes_the_fit_before_the_arm_blocks_the_view():
++    pts = track()
++    shifted = pts[:20] + [(t, x + 0.004, y) for t, x, y in pts[20:]]     # 가려지며 중심이 4 mm 밀림
++    now = pts[-1][0] + 0.05
++    clean = arrival_estimate(shifted, 0.66, 0.085, now, t_stop=pts[20][0] - 1e-6)
++    assert clean['v'] == pytest.approx(0.034, abs=1e-6)
++    assert clean['t_last'] == pytest.approx(pts[19][0])
++
++
++def test_scattered_points_or_out_of_range_speed_give_nothing():
++    assert arrival_estimate(track(noise=0.006), 0.66, 0.085, 101.2) is None
++    assert arrival_estimate(track(v=0.004), 0.66, 0.085, 101.2) is None
++    assert arrival_estimate(track(v=-0.03, x0=0.6), 0.66, 0.085, 101.2) is None
++
++
++def test_first_detections_of_a_pass_use_the_previous_pass_speed():
++    pts = track(n=4)
++    e = arrival_estimate(pts, 0.66, 0.085, pts[-1][0] + 0.05, v_prior=0.034)
++    assert e['prior'] is True and e['n'] == 4
++    t_true = pts[0][0] + (0.66 - 0.57) / 0.034
++    assert e['t_arrive'] == pytest.approx(t_true, abs=0.02)
++    assert arrival_estimate(pts[:2], 0.66, 0.085, pts[1][0] + 0.05, v_prior=0.034) is None      # 검출 2개
++
++
++def test_prior_speed_is_used_with_the_current_position_unless_the_belt_changed():
++    pts = track(v=0.036, noise=0.0002, seed=3)                     # 이번 통과의 국소 속도는 36, 지난 통과 평균은 34
++    now = pts[-1][0] + 0.05
++    e = arrival_estimate(pts, 0.66, 0.085, now, v_prior=0.034)
++    assert e['prior'] is True and e['v'] == pytest.approx(0.034)
++    x_now = 0.57 + 0.036 * (len(pts) - 3) / 25.0                   # 마지막 다섯의 중앙
++    assert e['t_arrive'] == pytest.approx(pts[-3][0] + (0.66 - x_now) / 0.034, abs=0.02)
++    fast = track(v=0.052)                                          # 지난 통과보다 18 mm/s 빠르다: 맞춤을 쓴다
++    e = arrival_estimate(fast, 0.66, 0.085, fast[-1][0] + 0.05, v_prior=0.034)
++    assert e['prior'] is False and e['v'] == pytest.approx(0.052, abs=1e-6)
++
++
++def test_time_on_the_roller_is_added_for_a_cap_that_just_appeared():
++    pts = [(100.0 + k / 25.0, 0.546 + 0.030 * k / 25.0, 0.09) for k in range(4)]     # 롤러 위, 30 mm/s
++    e = arrival_estimate(pts, 0.67, 0.09, pts[-1][0] + 0.05, v_prior=0.050)
++    x_ref, t_ref = np.median([q[1] for q in pts]), np.median([q[0] for q in pts])
++    expect = t_ref + (0.56 - x_ref) / 0.030 + (0.67 - 0.56) / 0.050
++    assert e['t_arrive'] == pytest.approx(expect, abs=1e-6)
++
++
++def test_last_pass_model_takes_the_newest_complete_pass():
++    old = [(t, x, y, 0.084) for t, x, y in track(v=0.030, x0=0.55, t0=100.0, n=160)]
++    new = [(t, x, y, 0.0835) for t, x, y in track(v=0.052, x0=0.55, t0=120.0, n=100, y=0.091)]
++    m = last_pass_model(old + new)
++    assert m['v'] == pytest.approx(0.052, abs=1e-6) and m['y'] == pytest.approx(0.091) and m['z'] == pytest.approx(0.0835)
++    assert last_pass_model(old + new[:12])['v'] == pytest.approx(0.030, abs=1e-6)      # 새 통과가 아직 짧으면 지난 통과
++    assert last_pass_model([]) is None
+-- 
+2.43.0
+
+
+From f3f93e8f87049223de19fb738a425fba0b0f498f Mon Sep 17 00:00:00 2001
+From: chhowm <chhowm@gmail.com>
+Date: Sat, 14 Nov 2026 13:13:34 +0900
+Subject: [PATCH 14/14] Trigger the gripper 0.5 s before the cap arrives and
+ open to 450 pulse, so the stone leaves the fingers at full opening speed
+
+Run-11 video: with a 600 pulse target the stone only came free at the end of the
+opening move, about 1.3 s after the trigger, and landed 43 mm behind the cap.
+Opening to 450 pulse releases it about 0.5 s after the trigger. The arm now
+arrives 0.2 s before the trigger and the arrival estimate is frozen once the
+gripper is within 50 mm of the release point. Waiting above the release point
+(--hover) hides the upstream belt from the camera (run-12), so it stays off.
+Runs 13 and 14: stone in the moving cap, judged from the detection log and the
+recorded frames.
+
+Co-Authored-By: Claude Fable 5.2 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_017S6YdmFKKoiWXK3fg85cfX
+---
+ tools/robot/g4_simple.py | 258 +++++++++++++++++++++++----------------
+ 1 file changed, 155 insertions(+), 103 deletions(-)
+
+diff --git a/tools/robot/g4_simple.py b/tools/robot/g4_simple.py
+index 5a893b4..04c2fa4 100644
+--- a/tools/robot/g4_simple.py
++++ b/tools/robot/g4_simple.py
+@@ -130,13 +130,26 @@ def main(argv=None) -> int:
+     ap.add_argument('--wait-plan-s', type=float, default=45.0, help='잡을 수 있는 통과를 기다리는 최대 시간(통과마다 다시 센다)')
+     ap.add_argument('--rehearse', action='store_true', help='공깃돌·그리퍼 없이 같은 동작과 트리거 시각 기록만 한다')
+     ap.add_argument('--passes', type=int, default=4, help='놓지 못하고 보낸 통과를 포함해 시도할 통과 수')
+-    ap.add_argument('--drop-delay-s', type=float, default=0.3,
+-                    help='트리거 → 공깃돌이 손가락을 벗어나 뚜껑에 닿기까지. 도착 예상 시각보다 이만큼 먼저 트리거한다 '
+-                         '(0.2 s 앞당김으로 3회 투입 성공, 2026-11-14 run-01~03)')
+-    ap.add_argument('--start-margin-s', type=float, default=0.2, help='해제 지점에 도착한 뒤 트리거까지 남길 여유')
+-    ap.add_argument('--late-max-s', type=float, default=0.12, help='팔이 이만큼 넘게 늦으면 놓지 않고 통과를 보낸다')
++    ap.add_argument('--drop-delay-s', type=float, default=0.5,
++                    help='트리거 → 공깃돌이 뚜껑 높이에 닿기까지. 도착 예상 시각보다 이만큼 먼저 트리거한다. 손가락은 명령 '
++                         '직후 약 150 pulse/s(틈 14 mm/s)로 열린다(2026-11-14 빈 그리퍼 661→450: 0.7 s에 579). 600 pulse '
++                         '목표에서는 감속 구간 끝에서야 돌이 빠져 약 1.3 s가 걸렸다(run-11 영상)')
++    ap.add_argument('--release-open-pulse', type=int, default=450,
++                    help='놓을 때 여는 목표 pulse. 600은 돌 폭보다 겨우 넓어 감속 구간에서 떨어졌다. 더 넓게 열어 '
++                         '떨어지는 틈을 제 속도로 지나가게 한다')
++    ap.add_argument('--arrive-before-fire-s', type=float, default=0.2,
++                    help='트리거보다 이만큼 먼저 해제 지점에 도착한다(도착 = 뚜껑 도착 예상 − drop_delay − 이 값)')
+     ap.add_argument('--block-dist-m', type=float, default=0.05,
+                     help='팔이 해제 지점에서 이 거리 안으로 들어온 뒤의 검출은 쓰지 않는다(그리퍼가 뚜껑을 가린다)')
++    ap.add_argument('--hover', action='store_true',
++                    help='해제 지점 위에 미리 서서 기다린다. 이 카메라 배치에서는 쓸 수 없다: 팔이 상류 벨트를 가려 뚜껑이 '
++                         'x 0.689부터만 보인다(2026-11-14 run-12, 세 통과 모두 놓지 못함)')
++    ap.add_argument('--view-margin-m', type=float, default=0.045,
++                    help='해제 지점 위에서 기다릴 때 rel-x에서 이 거리 안의 검출은 쓰지 않는다(그리퍼에 가려 중심이 밀린다)')
++    ap.add_argument('--y-offset-m', type=float, default=0.0,
++                    help='해제 지점 y 보정. 돌이 +y 손가락에 붙어 떨어지면 음수로 준다(run-11: 돌이 +10 mm에 떨어짐)')
++    ap.add_argument('--arm-late-max-s', type=float, default=0.25,
++                    help='트리거 뒤 팔이 계획보다 이만큼 넘게 늦게 도착하면 기록에 남긴다(돌은 이미 풀리는 중이라 되돌릴 수 없다)')
+     ap.add_argument('--holding', action='store_true',
+                     help='이미 공깃돌을 쥐고 있다(지난 실행이 놓지 못하고 park로 돌아옴). 검출·파지를 건너뛴다')
+     ap.add_argument('--release-raise-m', type=float, default=0.015, help='해제 높이에 더하는 여유(손가락·테두리 간격)')
+@@ -207,6 +220,16 @@ def main(argv=None) -> int:
+     def now_s():
+         return node.get_clock().now().nanoseconds * 1e-9
+ 
++    hover = args.hover
++    arrive_before_s = 0.0 if hover else args.drop_delay_s + args.arrive_before_fire_s
++
++    def est_points():
++        """도착 추정에 쓰는 검출. 해제 지점 위에서 기다릴 때는 그리퍼에 가려지기 시작하는 구간을 뺀다."""
++        pts = cap_points()
++        if hover:
++            pts = [q for q in pts if q[1] <= args.rel_x - args.view_margin_m or q[1] >= args.rel_x + 0.02]
++        return pts
++
+     def move(name, pos, v=None, a=None, tolerate=False):
+         """tolerate: 몇 mm 못 미쳐도(MOVE_NOT_REACHED) 다음 동작으로 넘어간다."""
+         try:
+@@ -257,11 +280,15 @@ def main(argv=None) -> int:
+             time.sleep(0.25)
+         return loop._word(regs.st_pos_hi), done
+ 
+-    def get_pass(start_pos, deadline_mono):
++    def release_point(model):
++        return np.array([args.rel_x, model['y'] + args.y_offset_m,
++                         model['z'] + p.release_above_rim_m + args.release_raise_m])
++
++    def get_pass(start_pos, deadline_mono, fixed_rel=None):
+         """벨트 옆에서 잡을 수 있는 통과를 기다린다. 반환 (해제 지점, 도착 예상 시각, 이동 시간, 지난 통과 모델) 또는 None.
+ 
+         해제 지점 = (rel-x, 지난 통과의 벨트 선 y, 테두리 z + release_above_rim + 여유). 새 통과의 검출이 보이고
+-        도착까지 (이동 + drop_delay)보다 시간이 남아 있으면 돌려준다. 너무 가까이 온 통과는 보내고 다음을 기다린다.
++        도착까지 max(drop_delay, 이동 + arrive_before)보다 시간이 남아 있으면 돌려준다. 너무 가까이 온 통과는 보낸다.
+         """
+         waited, checked = {}, None
+         while time.monotonic() < deadline_mono:
+@@ -271,170 +298,167 @@ def main(argv=None) -> int:
+                 waited['NO_PASS_SEEN'] = waited.get('NO_PASS_SEEN', 0) + 1
+                 time.sleep(0.05)
+                 continue
+-            rel = np.array([args.rel_x, model['y'], model['z'] + p.release_above_rim_m + args.release_raise_m])
++            rel = fixed_rel if fixed_rel is not None else release_point(model)
+             if checked is None or float(np.linalg.norm(checked - rel)) > 0.003:
+                 if not (rel[2] < p.travel_z_m and rel[0] <= RELEASE_X_MAX_M and ik_ok('release', rel)):
+                     log('abort', reason='RELEASE_POSE', release_m=[round(float(v), 4) for v in rel])
+                     return None
+                 checked = rel
+             t_move = move_time_s(float(np.linalg.norm(rel - start_pos)), p.travel_v_mps, p.travel_a_mps2)
+-            e = arrival_estimate(pts, rel[0], rel[1], now, v_prior=model['v'])
++            e = arrival_estimate(est_points(), rel[0], model['y'], now, v_prior=model['v'])
+             if e is None:
+                 waited['NO_CAP_UPSTREAM'] = waited.get('NO_CAP_UPSTREAM', 0) + 1
+                 time.sleep(0.01)
+                 continue
+-            if e['t_arrive'] - now < t_move + args.drop_delay_s + 0.05:
++            if e['t_arrive'] - now < max(args.drop_delay_s, t_move + arrive_before_s) + 0.1:
+                 waited['TOO_LATE'] = waited.get('TOO_LATE', 0) + 1
+                 time.sleep(0.01)
+                 continue
+             log('plan', release_m=[round(float(v), 4) for v in rel], cap_v_mps=[round(e['v'], 4), 0.0],
+                 v_prior_mmps=round(model['v'] * 1000, 1), prior=e['prior'], n=e['n'],
+                 x_last_m=round(e['x_last'], 4), release_in_s=round(e['t_arrive'] - now, 2), move_s=round(t_move, 2),
+-                t_release=round(e['t_arrive'], 3), drop_delay_s=args.drop_delay_s, waited=waited)
++                t_release=round(e['t_arrive'], 3), drop_delay_s=args.drop_delay_s, hover=hover,
++                cap_y_m=round(model['y'], 4), waited=waited)
+             return rel, e['t_arrive'], t_move, model
+         log('no_plan', waited=waited)
+         return None
+ 
+-    def wait_to_go(rel, t_release_plan, t_move, v_prior):
+-        """벨트 옆에서 검출로 도착 시각을 고쳐 잡으며 출발 시각을 기다린다. 반환 (도착 예상 시각, 마지막 추정)."""
++    def wait_to_go(rel, t_release_plan, t_move, v_prior, y_line):
++        """벨트 옆에서 검출로 도착 시각을 고쳐 잡으며, 트리거와 출발 가운데 이른 쪽의 시각을 기다린다.
++
++        반환 (도착 예상 시각, 마지막 추정). 트리거 = 도착 − drop_delay, 출발 = 도착 − arrive_before − 이동 시간.
++        """
+         est, t_rel = None, t_release_plan
++        lead = max(args.drop_delay_s, t_move + arrive_before_s)
+         while True:
+             now = now_s()
+-            e = arrival_estimate(cap_points(), rel[0], rel[1], now, v_prior=v_prior)
++            e = arrival_estimate(est_points(), rel[0], y_line, now, v_prior=v_prior)
+             if e is not None:
+                 est, t_rel = e, e['t_arrive']
+-            if now >= t_rel - args.drop_delay_s - t_move - args.start_margin_s or now > t_release_plan + 6.0:
++            if now >= t_rel - lead or now > t_release_plan + 6.0:
+                 return t_rel, est
+             time.sleep(0.005)
+ 
+-    def timing_check(rel, t_release_plan, t_move, v_prior):
+-        """로봇 없이: 출발 시각·가림 시각(가정 0.9 s 뒤)의 도착 예상을 실제 통과 시각과 견준다."""
++    def timing_check(rel, t_release_plan, t_move, v_prior, y_line):
++        """로봇 없이: 트리거 시각에 쓴 도착 예상을 실제 통과 시각과 견준다."""
+         t_plan_now = now_s()
+-        t_rel_go, est_go = wait_to_go(rel, t_release_plan, t_move, v_prior)
+-        t_go = now_s()
+-        t_stop = t_go + 0.35                      # 팔이 해제 지점 50 mm 안으로 들어오는 때(가속 구간 뒤)
+-        est_frozen, t_rel_frozen = est_go, t_rel_go
+-        while now_s() < t_stop:
+-            e = arrival_estimate(cap_points(), rel[0], rel[1], now_s(), v_prior=v_prior)
++        t_rel, est = wait_to_go(rel, t_release_plan, t_move, v_prior, y_line)
++        while now_s() < t_rel - args.drop_delay_s:
++            e = arrival_estimate(est_points(), rel[0], y_line, now_s(), v_prior=v_prior)
+             if e is not None:
+-                est_frozen, t_rel_frozen = e, e['t_arrive']
+-            time.sleep(0.01)
+-        while now_s() < max(t_release_plan, t_rel_frozen) + 2.5:
++                est, t_rel = e, e['t_arrive']
++            time.sleep(0.005)
++        t_fire = now_s()
++        while now_s() < max(t_release_plan, t_rel) + 2.5:
+             time.sleep(0.05)
+-        seen = [(c[0], c[1], c[2]) for c in cap_points() if c[0] >= t_plan_now - 1.0 and abs(c[2] - rel[1]) < 0.02]
++        seen = [(c[0], c[1], c[2]) for c in cap_points()
++                if c[0] >= t_plan_now - 1.0 and abs(c[2] - y_line) < 0.02]
+         cross = crossing(seen, rel[0])
+-        out = {'go_before_plan_release_s': round(t_release_plan - t_go, 2),
+-               'v_go_mmps': None if est_go is None else round(est_go['v'] * 1000, 1),
+-               'v_frozen_mmps': None if est_frozen is None else round(est_frozen['v'] * 1000, 1)}
++        out = {'fire_before_est_arrival_s': round(t_rel - t_fire, 3),
++               'v_mmps': None if est is None else round(est['v'] * 1000, 1),
++               'x_at_fire_m': None if est is None else round(est['x_last'], 4)}
+         if cross is not None:
+-            t_cross = cross[0]
+-            out.update(plan_minus_actual_s=round(t_release_plan - t_cross, 3),
+-                       go_est_minus_actual_s=round(t_rel_go - t_cross, 3),
+-                       frozen_est_minus_actual_s=round(t_rel_frozen - t_cross, 3),
+-                       horizon_go_s=round(t_cross - t_go, 2), horizon_frozen_s=round(t_cross - t_stop, 2),
++            out.update(plan_minus_actual_s=round(t_release_plan - cross[0], 3),
++                       fire_est_minus_actual_s=round(t_rel - cross[0], 3),
+                        y_at_cross_minus_rel_mm=round((cross[1] - rel[1]) * 1000, 1))
+         log('timing_check', **out)
+ 
+-    def release(rel, t_release_plan, t_move, start_pos, v_prior):
+-        """개방 예약 → 출발 시각까지 벨트 옆에서 관측 → 해제 지점으로 비동기 이동 → 도착 예상 − drop_delay에 트리거.
++    def release(rel, t_release_plan, t_move, start_pos, v_prior, y_line):
++        """개방 예약 → 벨트 옆에서 관측 → (도착 − drop_delay)에 트리거, (도착 − arrive_before − 이동)에 출발.
+ 
+-        블로킹 move_line 서비스는 드라이버의 다른 서비스(레지스터 쓰기)를 이동이 끝날 때까지 막아서(2026-11-14 run-10:
+-        트리거 0.405 s 늦음) sync_type 1로 보낸다. 반환 ('fired'|'skipped', 팔 위치).
++        그리퍼는 천천히 열려 트리거 뒤 약 1.4 s까지 돌을 쥐고 있으므로 트리거가 출발·도착보다 먼저 나갈 수 있다.
++        도착 예상은 트리거 때까지만 고친다(그 뒤에는 바꿀 수 없다). 이동은 sync_type 1(비동기)로 보낸다: 블로킹
++        move_line 서비스는 드라이버의 레지스터 쓰기를 이동이 끝날 때까지 막는다(2026-11-14 run-10 트리거 0.405 s 늦음).
++        반환 ('fired'|'skipped', 팔 위치).
+         """
+-        # 쥔 전류 그대로 예약한다(전류를 바꾸면 루프가 Modbus 쓰기 1회를 더 하고, 옮기는 동안 쥐는 힘이 준다)
+-        if not args.rehearse:
++        if not args.rehearse:        # 쥔 전류 그대로 예약한다(전류를 바꾸면 루프가 Modbus 쓰기를 한 번 더 한다)
+             loop.write_register(MODBUS.goal_current, p.grip_current_ma)
+-            loop.write_goal_position(p.open_pulse)
+-        t_rel, est = wait_to_go(rel, t_release_plan, t_move, v_prior)
++            loop.write_goal_position(args.release_open_pulse)
++        t_rel, est = wait_to_go(rel, t_release_plan, t_move, v_prior, y_line)
+         now = now_s()
+-        if t_rel - now < t_move + args.drop_delay_s + 0.05 or now > t_release_plan + 6.0:
+-            log('skip', reason='TOO_LATE_TO_GO', arrive_in_s=round(t_rel - now, 2), need_s=round(t_move, 2))
++        if t_rel - now < max(args.drop_delay_s, t_move + arrive_before_s) - 0.15 or now > t_release_plan + 6.0:
++            log('skip', reason='TOO_LATE', arrive_in_s=round(t_rel - now, 2))
+             return 'skipped', start_pos
+-        log('go', arrive_in_s=round(t_rel - now, 3), plan_release_in_s=round(t_release_plan - now, 3),
+-            v_est_mmps=None if est is None else round(est['v'] * 1000, 1), n=None if est is None else est['n'])
+         target = np.asarray(rel, float)
+         vel = dc.speed_si_to_doosan([p.travel_v_mps, 0.0, 0.0], [0.35, 0.0, 0.0])
+         acc = dc.speed_si_to_doosan([p.travel_a_mps2, 0.0, 0.0], [0.7, 0.0, 0.0])
+-        t_start = time.monotonic()
+-        robot._call(MoveLine, 'motion/move_line', pos=dc.pose_si_to_doosan(target, DOWN_QUAT_XYZW),
+-                    vel=[vel[0], vel[3]], acc=[acc[0], acc[3]], time=0.0, radius=0.0, ref=0, mode=0, blend_type=0,
+-                    sync_type=1)
+-        limit = t_start + t_move + 1.5
+-        reached, dist = np.asarray(start_pos, float), float(np.linalg.norm(target - np.asarray(start_pos, float)))
+-        arrived, last, still_since, t_block = False, None, None, None
+-        fired, skipped = None, None
++        reached = np.asarray(start_pos, float)
++        dist = float(np.linalg.norm(target - reached))
++        fired, t_start, arrived, last, still_since, t_block = None, None, False, None, None, None
++        if dist <= 0.003:                           # 이미 해제 지점 위에 서 있다
++            t_start, arrived = time.monotonic(), True
+         while True:
+             now = now_s()
+-            if t_block is None:
+-                e = arrival_estimate(cap_points(), rel[0], rel[1], now, v_prior=v_prior)
++            if fired is None and t_block is None:
++                e = arrival_estimate(est_points(), rel[0], y_line, now, v_prior=v_prior)
+                 if e is not None:
+                     est, t_rel = e, e['t_arrive']
+             t_fire = t_rel - args.drop_delay_s
+-            if fired is None and skipped is None and now >= t_fire - 0.003:
+-                if dist <= 0.005:
+-                    t0 = time.monotonic()
+-                    if not args.rehearse:
+-                        loop.trigger()
+-                    fired = {'mono': time.monotonic(), 'ros': now_s(), 'call_s': round(time.monotonic() - t0, 3),
+-                             't_fire': t_fire}
+-                    continue
+-                if now - t_fire > args.late_max_s:
+-                    skipped = 'ARM_LATE'
+-                    log('skip', reason=skipped, dist_mm=round(dist * 1000, 1), late_s=round(now - t_fire, 3))
+-            if fired is None and skipped is None and 0.0 < t_fire - now < 0.06 and dist <= 0.005:
++            t_go = t_rel - arrive_before_s - t_move
++            if fired is None and now >= t_fire - 0.003:
++                t0 = time.monotonic()
++                if not args.rehearse:
++                    loop.trigger()
++                fired = {'mono': time.monotonic(), 'ros': now_s(), 'call_s': round(time.monotonic() - t0, 3),
++                         't_fire': t_fire, 'dist_mm': round(dist * 1000, 1)}
++                continue
++            if t_start is None and now >= t_go - 0.003:
++                robot._call(MoveLine, 'motion/move_line', pos=dc.pose_si_to_doosan(target, DOWN_QUAT_XYZW),
++                            vel=[vel[0], vel[3]], acc=[acc[0], acc[3]], time=0.0, radius=0.0, ref=0, mode=0,
++                            blend_type=0, sync_type=1)
++                t_start = time.monotonic()
++                log('go', arrive_in_s=round(t_rel - now_s(), 3), fired=fired is not None,
++                    v_est_mmps=None if est is None else round(est['v'] * 1000, 1))
++                continue
++            if fired is None and 0.0 < t_fire - now < 0.05:
+                 time.sleep(0.002)                   # 트리거 직전에는 다른 서비스를 부르지 않는다
+                 continue
+-            if not arrived:
++            if t_start is not None and not arrived:
+                 reached, _ = robot.tcp_pose()
+                 dist = float(np.linalg.norm(reached - target))
+                 if t_block is None and dist <= args.block_dist_m:
+-                    t_block = now_s()
++                    t_block = now_s()               # 이 뒤의 검출은 그리퍼에 가려 중심이 밀린다
+                 if dist <= 0.0015 and time.monotonic() - t_start > 0.3:
+                     arrived = True
+                     log('done', step='to_release', reached_m=[round(float(x), 4) for x in reached],
+-                        move_s=round(time.monotonic() - t_start, 2), before_fire_s=round(t_fire - now_s(), 3))
++                        move_s=round(time.monotonic() - t_start, 2), before_cap_s=round(t_rel - now_s(), 3))
+                 else:
+                     moved = last is None or float(np.linalg.norm(reached - last)) > 0.0002
+                     last = reached
+                     still_since = None if moved else (still_since or time.monotonic())
+                     stuck = (still_since is not None and time.monotonic() - still_since > 0.4
+                              and time.monotonic() - t_start > 0.8)
+-                    if stuck or time.monotonic() > limit:
++                    if stuck or time.monotonic() > t_start + t_move + 1.5:
+                         arrived = True
+                         log('not_reached', step='to_release', target_m=[round(float(x), 4) for x in target],
+                             reached_m=[round(float(x), 4) for x in reached])
+-            if arrived and (fired is not None or skipped is not None):
++            if arrived and fired is not None:
+                 break
+-            time.sleep(0.02 if not arrived else 0.002)
+-        if fired is None:
+-            return 'skipped', reached
++            time.sleep(0.01)
+         log('fired', t_ros=round(fired['ros'], 3), late_s=round(fired['ros'] - fired['t_fire'], 3),
+-            call_s=fired['call_s'], t_release_est=round(t_rel, 3), t_release_plan=round(t_release_plan, 3),
+-            est_minus_plan_s=round(t_rel - t_release_plan, 3),
++            call_s=fired['call_s'], arm_dist_at_fire_mm=fired['dist_mm'], t_release_est=round(t_rel, 3),
++            t_release_plan=round(t_release_plan, 3), est_minus_plan_s=round(t_rel - t_release_plan, 3),
+             v_est_mmps=None if est is None else round(est['v'] * 1000, 1),
+             est_n=None if est is None else est['n'], est_prior=None if est is None else est['prior'],
+             est_age_s=None if est is None else round(fired['ros'] - est['t_last'], 2),
++            x_at_fire_m=None if est is None else round(est['x_last'], 4), drop_delay_s=args.drop_delay_s,
++            open_pulse=args.release_open_pulse, y_offset_m=args.y_offset_m, hover=hover,
+             t_block=None if t_block is None else round(t_block, 3), rehearse=args.rehearse)
+-        if args.rehearse:
+-            time.sleep(1.0)
+-            return 'fired', reached
+-        # 높이를 유지한 채 손가락이 열릴 때까지 기다린 뒤 올린다(열리는 중에 올리면 돌을 끌고 올라간다)
+-        opened, samples = None, []
+-        while time.monotonic() - fired['mono'] < 3.5:
+-            done = loop.last_command()
+-            pos = loop._word(regs.st_pos_hi)
+-            samples.append((round(time.monotonic() - fired['mono'], 2), pos))
+-            if done and done[0] and pos <= p.open_pulse + 10:
+-                opened = round(time.monotonic() - fired['mono'], 3)
+-                break
++        # 높이를 유지한 채 돌이 떨어질 때까지 기다린 뒤 올린다(열리는 중에 올리면 돌을 끌고 올라간다)
++        samples = []
++        while time.monotonic() - fired['mono'] < max(args.drop_delay_s + 0.7, 2.0):
++            if args.rehearse:
++                time.sleep(0.05)
++                continue
++            samples.append((round(time.monotonic() - fired['mono'], 2), loop._word(regs.st_pos_hi)))
+             time.sleep(0.05)
+-        time.sleep(0.2)
+-        result = loop.last_command()
+-        log('opened', after_trigger_s=opened, pulse=loop._word(regs.st_pos_hi), cmd=result,
+-            pulse_trace=[sm for k, sm in enumerate(samples) if k == 0 or sm[1] != samples[k - 1][1]])
+-        if result and result[0] and result[1] == 242:      # 해제 쓰기 실패: 늦더라도 다시 연다
+-            pos, _ = gripper_to(p.open_pulse, p.grip_current_ma)
+-            log('gripper', step='open_retry', pulse=pos)
++        if not args.rehearse:
++            result = loop.last_command()
++            log('opened', pulse=loop._word(regs.st_pos_hi), cmd=result,
++                pulse_trace=[sm for k, sm in enumerate(samples) if k == 0 or sm[1] != samples[k - 1][1]])
++            if result and result[0] and result[1] == 242:      # 해제 쓰기 실패: 늦더라도 다시 연다
++                pos, _ = gripper_to(args.release_open_pulse, p.grip_current_ma)
++                log('gripper', step='open_retry', pulse=pos)
+         return 'fired', reached
+ 
+     try:
+@@ -510,23 +534,51 @@ def main(argv=None) -> int:
+                 start = wait
+ 
+         # ---------------- 통과 잡기 → 해제(통과마다)
+-        outcome = None
++        outcome, hover_rel = None, None
++        if hover:
++            t_end = time.monotonic() + args.wait_plan_s
++            model = last_pass_model(cap_points())
++            while model is None and time.monotonic() < t_end:
++                time.sleep(0.1)
++                model = last_pass_model(cap_points())
++            if model is None:
++                log('no_plan', waited={'NO_PASS_SEEN': 1})
++            else:
++                hover_rel = release_point(model)
++                if not (hover_rel[2] < p.travel_z_m and hover_rel[0] <= RELEASE_X_MAX_M and ik_ok('release', hover_rel)):
++                    log('abort', reason='RELEASE_POSE', release_m=[round(float(v), 4) for v in hover_rel])
++                    hover_rel = None
++                elif args.execute:
++                    start = move('hover', hover_rel, tolerate=True)
++                    if float(np.linalg.norm(np.asarray(start, float) - hover_rel)) > 0.003:
++                        log('abort', reason='HOVER_NOT_REACHED')
++                        hover_rel = None
++                else:
++                    start = hover_rel
+         for k in range(max(1, args.passes)):
+-            chosen = get_pass(np.asarray(start, float), time.monotonic() + args.wait_plan_s)
++            if hover and hover_rel is None:
++                break
++            chosen = get_pass(np.asarray(start, float), time.monotonic() + args.wait_plan_s, fixed_rel=hover_rel)
+             if chosen is None:
+                 break
+             rel, t_release_plan, t_move, model = chosen
+             if not args.execute:
+-                timing_check(rel, t_release_plan, t_move, model['v'])
++                timing_check(rel, t_release_plan, t_move, model['v'], model['y'])
+                 log('dry_run_done')
+                 return 0
+-            outcome, at = release(rel, t_release_plan, t_move, start, model['v'])
++            outcome, at = release(rel, t_release_plan, t_move, start, model['v'], model['y'])
+             if outcome == 'fired':
+                 break
+-            start = move('side_again', wait, tolerate=True)       # 놓지 않았다. 벨트 옆에서 다음 바퀴를 기다린다
++            if not hover:
++                start = move('side_again', wait, tolerate=True)   # 놓지 않았다. 벨트 옆에서 다음 바퀴를 기다린다
+         if outcome != 'fired':
+             log('abort', reason='NOT_RELEASED', outcome=outcome)
+             if args.execute:
++                if hover:                       # 벨트 위에서 곧장 park로 가지 않고 먼저 올린 뒤 옆으로 뺀다
++                    at, _ = robot.tcp_pose()
++                    move('retreat', [float(at[0]), float(at[1]), p.travel_z_m], p.vertical_v_mps, p.vertical_a_mps2,
++                         tolerate=True)
++                    move('side', wait, tolerate=True)
+                 move('park_holding', park, tolerate=True)
+             return 2
+         move('retreat', [rel[0], rel[1], p.travel_z_m], p.vertical_v_mps, p.vertical_a_mps2, tolerate=True)
+-- 
+2.43.0
+

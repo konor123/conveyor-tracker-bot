@@ -1,0 +1,14 @@
+{"t": 1794618570.662, "event": "cycle", "index": 1, "of": 1}
+{"t": 1794618572.032, "event": "detections", "calibration_id": "cal-2026-11-07-handeye-01", "items": [{"class": 1, "region": 1, "uv_px": [511.8, 144.8], "position_m": [0.6108, -0.0564, -0.0171], "stone_inside": false, "stone_inside_valid": false}, {"class": 1, "region": 1, "uv_px": [567.0, 170.7], "position_m": [0.6362, -0.0048, -0.0171], "stone_inside": false, "stone_inside_valid": false}, {"class": 1, "region": 1, "uv_px": [465.2, 187.2], "position_m": [0.6497, -0.1012, -0.0179], "stone_inside": false, "stone_inside_valid": false}, {"class": 1, "region": 1, "uv_px": [557.6, 231.6], "position_m": [0.6933, -0.0146, -0.018], "stone_inside": false, "stone_inside_valid": false}, {"class": 1, "region": 1, "uv_px": [505.5, 241.0], "position_m": [0.7011, -0.064, -0.0184], "stone_inside": false, "stone_inside_valid": false}, {"class": 2, "region": 2, "uv_px": [671.7, 10.8], "position_m": [0.5465, 0.0895, 0.0847], "stone_inside": false, "stone_inside_valid": true}]}
+{"t": 1794618572.032, "event": "targets", "stone": {"class": 1, "region": 1, "uv_px": [511.8, 144.8], "position_m": [0.6108, -0.0564, -0.0171], "stone_inside": false, "stone_inside_valid": false}, "cap": {"class": 2, "region": 2, "uv_px": [671.7, 10.8], "position_m": [0.5465, 0.0895, 0.0847], "stone_inside": false, "stone_inside_valid": true}}
+{"t": 1794618572.032, "event": "plan", "step": "open_before_pick", "pulse": 600, "current_ma": 150, "grasp": false}
+{"t": 1794618572.078, "event": "plan", "step": "over_stone", "pos_m": [0.6108, -0.0564, 0.2844], "v_mps": 0.1, "j3_rad": 0.9507}
+{"t": 1794618572.084, "event": "plan", "step": "descend_grasp", "pos_m": [0.6108, -0.0564, 0.1449], "v_mps": 0.05, "j3_rad": 1.1615}
+{"t": 1794618572.084, "event": "plan", "step": "close_grasp", "pulse": 750, "current_ma": 150, "grasp": true}
+{"t": 1794618572.09, "event": "plan", "step": "lift_stone", "pos_m": [0.6108, -0.0564, 0.2844], "v_mps": 0.05, "j3_rad": 0.9507}
+{"t": 1794618572.096, "event": "plan", "step": "over_cap", "pos_m": [0.5465, 0.0895, 0.2844], "v_mps": 0.1, "j3_rad": 1.2332}
+{"t": 1794618572.101, "event": "plan", "step": "descend_release", "pos_m": [0.5465, 0.0895, 0.2503], "v_mps": 0.05, "j3_rad": 1.2937}
+{"t": 1794618572.101, "event": "plan", "step": "open_release", "pulse": 600, "current_ma": 150, "grasp": false}
+{"t": 1794618572.106, "event": "plan", "step": "retreat", "pos_m": [0.5465, 0.0895, 0.2844], "v_mps": 0.05, "j3_rad": 1.2332}
+{"t": 1794618572.112, "event": "plan", "step": "park", "pos_m": [0.373, 0.0, 0.405], "v_mps": 0.1, "j3_rad": 1.5708}
+{"t": 1794618572.112, "event": "dry_run_done"}

@@ -1,0 +1,23 @@
+{
+ "t_fire": 1794628241.606,
+ "drop_delay_s": 0.3,
+ "release_m": [
+  0.67,
+  0.0838,
+  0.2637
+ ],
+ "v_plan_mmps": 44.1,
+ "rehearse": false,
+ "fired_late_s": 0.006,
+ "si_true": 0,
+ "si_false": 64,
+ "inside_frames": 0,
+ "loose_frames": 0,
+ "v_actual_mmps": 43.0,
+ "cap_x_at_release_minus_rel_mm": 0.3,
+ "cap_y_minus_rel_mm": -1.0,
+ "cap_arrives_minus_est_s": -0.006,
+ "cap_arrives_after_fire_s": 0.288,
+ "result": "MISS",
+ "sheet": "records/trials/2026-11-14-g4-simple/run-11.sheet.jpg"
+}

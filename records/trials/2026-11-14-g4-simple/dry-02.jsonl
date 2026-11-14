@@ -1,0 +1,7 @@
+{"t": 1794622752.6, "event": "ready", "status": {"robot_state": 1, "robot_mode": 1, "drl_state": 1, "alarm": [1, 1, 2007, ["", "", ""]]}}
+{"t": 1794622753.938, "event": "excluded", "reason": "Y_ABOVE_MAT", "pos_m": [[0.6029, 0.0452, -0.0163], [0.8009, 0.0742, 0.0811]]}
+{"t": 1794622753.938, "event": "stone", "pos_m": [0.6359, -0.0048, -0.0171]}
+{"t": 1794622753.945, "event": "check", "step": "over_stone", "pos_m": [0.6359, -0.0048, 0.2844], "j3_rad": 0.82, "ok": "True"}
+{"t": 1794622753.951, "event": "check", "step": "grasp", "pos_m": [0.6359, -0.0048, 0.1449], "j3_rad": 1.0483, "ok": "True"}
+{"t": 1794622753.956, "event": "check", "step": "wait", "pos_m": [0.66, 0.2, 0.2844], "j3_rad": 0.3535, "ok": "True"}
+{"t": 1794622768.99, "event": "abort", "reason": "NO_USABLE_PLAN", "fails": {"BELT_STOPPED": 149}}

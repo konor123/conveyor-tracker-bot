@@ -1,0 +1,2 @@
+{"t": 1794623331.133, "event": "before", "status": {"robot_state": 1, "robot_mode": 1, "drl_state": 0, "alarm": [1, 2, 3205, ["Change singularity region status(Outside -> Inside), Singularity handling mode(1)", "", ""]]}, "pos_m": [0.6887, 0.0863, 0.2838]}
+{"t": 1794623335.129, "event": "done", "step": "park", "reached_m": [0.373, -0.0, 0.405]}

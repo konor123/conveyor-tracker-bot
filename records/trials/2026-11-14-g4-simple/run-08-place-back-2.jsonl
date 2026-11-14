@@ -1,0 +1,6 @@
+{"t": 1794625267.04, "event": "before", "status": {"robot_state": 1, "robot_mode": 1, "drl_state": 0, "alarm": [1, 2, 3206, ["Change singularity region status(Inside -> Outside), Singularity handling mode(1)", "", ""]]}, "pulse": 661}
+{"t": 1794625270.289, "event": "done", "step": "over_mat", "reached_m": [0.6054, -0.0452, 0.2844]}
+{"t": 1794625273.548, "event": "done", "step": "descend", "reached_m": [0.6054, -0.0452, 0.145]}
+{"t": 1794625277.505, "event": "open_try", "attempt": 1, "cmd_result": 0, "s": 3.96, "pulse": 600}
+{"t": 1794625280.763, "event": "done", "step": "lift", "reached_m": [0.6054, -0.0452, 0.2845]}
+{"t": 1794625283.896, "event": "done", "step": "park", "reached_m": [0.373, 0.0, 0.405]}

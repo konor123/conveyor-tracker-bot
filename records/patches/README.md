@@ -11,7 +11,9 @@ git am records/patches/<파일>              # 커밋 전부(작성자·메시�
 | 파일 | 기준 커밋 | 내용 | 검증(적용 전 사본) | 근거 기록 | 반영 상태 |
 |---|---|---|---|---|---|
 | `2026-11-13-vision-crop-tracker-late-hover.patch` | `285c1e9` | (1) vision `process_frame`이 ROI 사각형 + 64 px만 `detect`에 넘김(REQ-VIS-011, TC-VIS-011-01·02, SPEC-200 v0.4) (2) tracker가 `t_state`보다 이른 검출도 수신으로 셈(REQ-TRK-015, TC-TRK-015-01, SPEC-300 v0.8) (3) 예측 해제 지점 위 비접촉 정지 시험 `tools/robot/hover_predicted.py`([OFF], 실기 `move_line` 사용)와 단위 시험 | 현장 노트북: 새 시험이 수정 전 실패·수정 뒤 통과, vision 144·tracking 139·static_pick_place 42 passed, `trace.py` TC 없는 REQ 0. CI 미실행 | `records/sessions/OFF-4-2026-11-13.md`, `records/trials/2026-11-13-hover-predicted/` | (1)·(2) 보강해 반영(커밋은 `records/worklog/2026-11-14.md`), (3) 반영 안 함(`records/reviews/patch-review-2026-11-14.md`) |
+| `2026-11-14-g4-simple-demo.patch` | `4ef0eb9` | 간이 이동 뚜껑 투입 도구(`tools/robot/` 6개 파일, 커밋 14개): `g4_simple.py`(상주 루프로 파지 → 벨트 옆 대기 → 검출로 도착 시각 추정 → 비동기 `move_line`으로 해제 지점 → 도착 0.5 s 전 예약 개방 트리거, [OFF] 실기 지령), `run_recorder.py`(시도 영상·검출 녹화), `g4_analyze.py`(검출 기록으로 판정, 장면 모음), `hover_predicted.py`(11-13 패치의 0002·0003과 같은 내용)와 단위 시험 | 현장 노트북: `test_g4_simple.py` 10 passed, pyflakes 통과. 실기 run-13·14·15 연속 성공. REQ·TC 없음, CI 미실행 | `records/sessions/OFF-2-2026-11-14.md`, `records/trials/2026-11-14-g4-simple/`, `records/media/2026-11-14/` | 반영 안 함(검토 대기) |
 
 - (3)은 실기 로봇을 움직이는 스크립트다. 현장에서 처음 쓴 코드이며 사용자 승인 아래 2회 실행했다(세션 기록). 반영 전 검토가 필요하다.
 - 기준 커밋 뒤 `main`이 바뀌면 `git apply --check`로 먼저 확인한다.
 - `2026-11-13-vision-crop-tracker-late-hover.patch`의 첫 커밋은 `main`에 들어갔다(`2e50a6d`, 보강 `43e19b7`). 파일 전체에 `git am`을 쓰면 첫 커밋에서 실패하므로 남은 hover 커밋(0002·0003)만 나눠 적용한다.
+- `2026-11-14-g4-simple-demo.patch`는 현장에서 쓴 실기 스크립트다(REQ → TC → 시험 순서를 따르지 않았다). 사용자 입회 아래 실행했다(세션 기록). 팔·그리퍼를 직접 움직이며 orchestrator·`robot_controller_node`·planner를 거치지 않는다. `main`의 `tools/robot/`에 같은 이름의 파일이 없을 때 `git am`으로 전체를 적용한다(11-13 패치의 hover 커밋을 이미 적용했다면 첫 두 커밋은 건너뛴다).

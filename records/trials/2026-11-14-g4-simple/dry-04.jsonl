@@ -1,0 +1,8 @@
+{"t": 1794625961.467, "event": "ready", "status": {"robot_state": 1, "robot_mode": 1, "drl_state": 3, "alarm": [1, 2, 3206, ["Change singularity region status(Inside -> Outside), Singularity handling mode(1)", "", ""]]}}
+{"t": 1794625964.55, "event": "stone", "pos_m": [0.6464, -0.0897, -0.0178]}
+{"t": 1794625964.558, "event": "check", "step": "over_stone", "pos_m": [0.6464, -0.0897, 0.2844], "j3_rad": 0.7086, "ok": "True"}
+{"t": 1794625964.563, "event": "check", "step": "grasp", "pos_m": [0.6464, -0.0897, 0.1442], "j3_rad": 0.9575, "ok": "True"}
+{"t": 1794625964.568, "event": "check", "step": "wait", "pos_m": [0.66, 0.2, 0.2844], "j3_rad": 0.3535, "ok": "True"}
+{"t": 1794625968.811, "event": "check", "step": "release", "pos_m": [0.6297, 0.094, 0.2653], "j3_rad": 0.8604, "ok": "True"}
+{"t": 1794625968.811, "event": "plan", "track_id": 214, "release_m": [0.6297, 0.094, 0.2653], "cap_v_mps": [0.0251, -0.0012], "position_std_m": 0.00295, "release_in_s": 2.79, "move_s": 1.45, "arrive_before_s": 1.35, "lead_s": 1.5, "fails": {"NO_TARGET": 42}}
+{"t": 1794625968.811, "event": "dry_run_done"}

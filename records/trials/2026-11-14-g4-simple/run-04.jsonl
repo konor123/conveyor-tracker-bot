@@ -1,0 +1,5 @@
+{"t": 1794624216.928, "event": "ready", "status": {"robot_state": 1, "robot_mode": 1, "drl_state": 0, "alarm": [1, 2, 3206, ["Change singularity region status(Inside -> Outside), Singularity handling mode(1)", "", ""]]}}
+{"t": 1794624217.488, "event": "excluded", "reason": "Y_ABOVE_MAT", "pos_m": [[0.7871, 0.1436, 0.0817]]}
+{"t": 1794624217.488, "event": "stone", "pos_m": [0.6501, -0.0819, -0.0178]}
+{"t": 1794624217.496, "event": "check", "step": "over_stone", "pos_m": [0.6501, -0.0819, 0.2844], "j3_rad": 0.0, "ok": "False"}
+{"t": 1794624217.496, "event": "abort", "reason": "IK_OR_WORKSPACE"}
