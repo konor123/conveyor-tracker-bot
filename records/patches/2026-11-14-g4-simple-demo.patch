@@ -1,7 +1,7 @@
 From c2c278b4d2570403bef0e88d84dcae8e17673744 Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Fri, 13 Nov 2026 22:02:12 +0900
-Subject: [PATCH 01/16] Add a non-contact hover test at the predicted release
+Subject: [PATCH 01/17] Add a non-contact hover test at the predicted release
  point (G4 pre-check, no stone)
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
@@ -268,7 +268,7 @@ index 0000000..9de5657
 From 9f994ed7ab67486c648a61c0861e7aa850f63f33 Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Fri, 13 Nov 2026 22:05:57 +0900
-Subject: [PATCH 02/16] Return to park when the hover test gives up waiting for
+Subject: [PATCH 02/17] Return to park when the hover test gives up waiting for
  a plan, and log why target selection failed
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
@@ -318,7 +318,7 @@ index 4e9e2e0..8233907 100644
 From e66332c6865f3dc0950e5a2c0b533edd19c74748 Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Sat, 14 Nov 2026 11:19:35 +0900
-Subject: [PATCH 03/16] Add a simple G4 demo script: grip with the resident
+Subject: [PATCH 03/17] Add a simple G4 demo script: grip with the resident
  loop, wait at the predicted release point, fire the armed open
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
@@ -586,7 +586,7 @@ index 0000000..de3a5e4
 From f63dc3ae2fd342c277bde8470d5833b56378d48e Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Sat, 14 Nov 2026 11:23:45 +0900
-Subject: [PATCH 04/16] Check the drop from beside the belt before parking
+Subject: [PATCH 04/17] Check the drop from beside the belt before parking
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 ---
@@ -617,7 +617,7 @@ index de3a5e4..b570954 100644
 From bcb1132afeac08a34705f167df3e9149b75ac686 Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Sat, 14 Nov 2026 11:29:12 +0900
-Subject: [PATCH 05/16] Hold height until the gripper opens, keep going home
+Subject: [PATCH 05/17] Hold height until the gripper opens, keep going home
  after a short retreat, skip release points beyond x 0.68
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
@@ -704,7 +704,7 @@ index b570954..fdc320a 100644
 From 67d1a548e91a674551908997a14965d8aceb0b03 Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Sat, 14 Nov 2026 11:44:19 +0900
-Subject: [PATCH 06/16] Ask IK again when it answers with all-zero joints
+Subject: [PATCH 06/17] Ask IK again when it answers with all-zero joints
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 ---
@@ -733,7 +733,7 @@ index fdc320a..eef1b63 100644
 From b7b6a2e5aeb042cd9392c87c3d470c54fe1d2513 Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Sat, 14 Nov 2026 11:44:48 +0900
-Subject: [PATCH 07/16] Retry the first status call while driver services are
+Subject: [PATCH 07/17] Retry the first status call while driver services are
  being discovered
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
@@ -767,7 +767,7 @@ index eef1b63..9fc33e7 100644
 From 2e8c35eced5f9cf059820aca5bfe6d5ac00d28c8 Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Sat, 14 Nov 2026 11:46:14 +0900
-Subject: [PATCH 08/16] Add --holding to skip the pick when the last run parked
+Subject: [PATCH 08/17] Add --holding to skip the pick when the last run parked
  with the stone still in the gripper
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
@@ -886,7 +886,7 @@ index 9fc33e7..e2fa4b1 100644
 From d4add27aee208de9c6a14df712f514422a70df54 Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Sat, 14 Nov 2026 11:56:51 +0900
-Subject: [PATCH 09/16] Fire the gripper 1.5 s before release, during the
+Subject: [PATCH 09/17] Fire the gripper 1.5 s before release, during the
  approach move if needed: it takes about 1.5 s to let the stone go
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
@@ -979,7 +979,7 @@ index e2fa4b1..f7dc87d 100644
 From 9be23995ae02b46d97c640a1fa8eebfdaac70ee9 Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Sat, 14 Nov 2026 11:59:06 +0900
-Subject: [PATCH 10/16] Allow release points up to x 0.70: at 0.68 run-08
+Subject: [PATCH 10/17] Allow release points up to x 0.70: at 0.68 run-08
  dropped 125 plans in 30 s
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
@@ -1008,7 +1008,7 @@ index f7dc87d..239699c 100644
 From f7c904d70035a4b401444850bd2ed3c680cf5de0 Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Sat, 14 Nov 2026 12:01:49 +0900
-Subject: [PATCH 11/16] Resend gripper commands when the resident loop reports
+Subject: [PATCH 11/17] Resend gripper commands when the resident loop reports
  a Modbus write failure (242)
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
@@ -1067,7 +1067,7 @@ index 239699c..ac5bb11 100644
 From f6c0fd7688c4a07fc5aeec65bea46a4450c046b3 Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Sat, 14 Nov 2026 12:12:26 +0900
-Subject: [PATCH 12/16] Keep release points within x 0.685, accept caps after
+Subject: [PATCH 12/17] Keep release points within x 0.685, accept caps after
  15 observations, and go on if the approach stops a few mm short
 
 Beyond x 0.69 the controller's singularity handling bends or cuts the
@@ -1122,7 +1122,7 @@ index ac5bb11..8eaf6f6 100644
 From e989daabc6f7f0ae477e12a97a0f402d185058a4 Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Sat, 14 Nov 2026 12:44:23 +0900
-Subject: [PATCH 13/16] Time the release from live cap detections at a fixed
+Subject: [PATCH 13/17] Time the release from live cap detections at a fixed
  release point, record each attempt, and judge it from the detection log
 
 With the new battery the belt runs near 50 mm/s and the planner's 2.8 s
@@ -2155,7 +2155,7 @@ index 0000000..8222eb7
 From f3f93e8f87049223de19fb738a425fba0b0f498f Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Sat, 14 Nov 2026 13:13:34 +0900
-Subject: [PATCH 14/16] Trigger the gripper 0.5 s before the cap arrives and
+Subject: [PATCH 14/17] Trigger the gripper 0.5 s before the cap arrives and
  open to 450 pulse, so the stone leaves the fingers at full opening speed
 
 Run-11 video: with a 600 pulse target the stone only came free at the end of the
@@ -2567,7 +2567,7 @@ index 5a893b4..04c2fa4 100644
 From 6abe532d8dfc9c742f19a4760019ebfdfb5c4c00 Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Sat, 14 Nov 2026 14:02:25 +0900
-Subject: [PATCH 15/16] Move every stone without parking in between, and add a
+Subject: [PATCH 15/17] Move every stone without parking in between, and add a
  button window for one / all / return / stop
 
 g4_simple.py: --count N (0 = until the mat is empty) goes from the release point
@@ -3462,7 +3462,7 @@ index 0000000..1af888d
 From e45cd6892cc0ff8854836703ac3ad7d99854d923 Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Sat, 14 Nov 2026 14:17:54 +0900
-Subject: [PATCH 16/16] Skip stones the arm cannot reach, and stop a misread
+Subject: [PATCH 16/17] Skip stones the arm cannot reach, and stop a misread
  start flag from locking out the gripper loop
 
 find_stone now takes the nearest stone whose over-stone and grasp poses pass IK
@@ -3699,6 +3699,154 @@ index 1af888d..ebe4e84 100644
      assert describe({'event': 'check', 'step': 'wait', 'ok': True}) is None
      assert describe({'event': 'done', 'step': 'unknown_step'}) is None
  
+-- 
+2.43.0
+
+
+From 4783ced3a64aa680fa7c42c9c75e0db73bdf4eac Mon Sep 17 00:00:00 2001
+From: chhowm <chhowm@gmail.com>
+Date: Sat, 14 Nov 2026 14:32:44 +0900
+Subject: [PATCH 17/17] Release 5 mm further along the belt than the point the
+ cap timing is aimed at
+
+--x-offset-m (default 0.005) moves the release point to x 0.675 while the
+arrival time is still computed for the cap centre reaching x 0.670, so the
+stone falls 5 mm downstream of the cap centre. In the 13 successful runs the
+stone settled 1.7 mm upstream of the centre on average and the cap came 0.041 s
+early. The analyzer reads the aimed x from the plan. Run-28: in the cap.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_017S6YdmFKKoiWXK3fg85cfX
+---
+ tools/robot/g4_analyze.py |  8 +++++---
+ tools/robot/g4_simple.py  | 22 +++++++++++++++-------
+ 2 files changed, 20 insertions(+), 10 deletions(-)
+
+diff --git a/tools/robot/g4_analyze.py b/tools/robot/g4_analyze.py
+index 219c62e..1193249 100644
+--- a/tools/robot/g4_analyze.py
++++ b/tools/robot/g4_analyze.py
+@@ -43,6 +43,7 @@ def analyze(prefix: str) -> dict:
+     plan, fired = ev['plan'][-1], ev['fired'][-1]
+     t_fire = fired.get('t_ros') or fired['t']
+     rel = plan['release_m']
++    aim_x = plan.get('aim_x_m', rel[0])     # 도착 시각을 맞춘 x(해제 지점을 x로 옮겼으면 다르다)
+     v_plan = plan['cap_v_mps'][0]
+     t_release = fired.get('t_release_est') or plan.get('t_release') or (plan['t'] + plan['release_in_s'])
+     frames = [json.loads(line) for line in open(prefix + '.dets.jsonl')]
+@@ -71,6 +72,7 @@ def analyze(prefix: str) -> dict:
+                     loose.append((f['t'], dx, dy))
+     # 실제 뚜껑 속도와 해제 시각의 실제 위치(트리거 전후 검출의 직선 맞춤)
+     out = {'t_fire': round(t_fire, 3), 'drop_delay_s': plan.get('drop_delay_s', plan.get('lead_s')), 'release_m': rel,
++           'aim_x_m': aim_x, 'x_offset_m': plan.get('x_offset_m', 0.0),
+            'v_plan_mmps': round(v_plan * 1000, 1), 'rehearse': bool(fired.get('rehearse')),
+            'fired_late_s': fired.get('late_s'), 'si_true': si_true, 'si_false': si_false,
+            'inside_frames': len(inside), 'loose_frames': len(loose)}
+@@ -79,11 +81,11 @@ def analyze(prefix: str) -> dict:
+         # 한 뚜껑만 있다고 보고 x(t) 직선 맞춤. 가려진 구간은 비어 있다
+         a, b = np.polyfit(pts[:, 0] - t_release, pts[:, 1], 1)
+         out['v_actual_mmps'] = round(float(a) * 1000, 1)
+-        out['cap_x_at_release_minus_rel_mm'] = round((float(b) - rel[0]) * 1000, 1)   # 양수 = 뚜껑이 이미 지나감
++        out['cap_x_at_release_minus_rel_mm'] = round((float(b) - aim_x) * 1000, 1)    # 양수 = 뚜껑이 이미 지나감
+         out['cap_y_minus_rel_mm'] = round((float(np.median(pts[:, 2])) - rel[1]) * 1000, 1)
+         if abs(a) > 1e-4:
+-            out['cap_arrives_minus_est_s'] = round(-(float(b) - rel[0]) / float(a), 3)      # 음수 = 예상보다 일찍 옴
+-            out['cap_arrives_after_fire_s'] = round(t_release - (float(b) - rel[0]) / float(a) - t_fire, 3)
++            out['cap_arrives_minus_est_s'] = round(-(float(b) - aim_x) / float(a), 3)       # 음수 = 예상보다 일찍 옴
++            out['cap_arrives_after_fire_s'] = round(t_release - (float(b) - aim_x) / float(a) - t_fire, 3)
+     if inside:
+         arr = np.array(inside)
+         out['stone_in_cap_dx_mm'] = round(float(np.median(arr[:, 1])) * 1000, 1)     # 양수 = 돌이 하류 쪽(일찍 떨어짐)
+diff --git a/tools/robot/g4_simple.py b/tools/robot/g4_simple.py
+index b06568e..c1fff0f 100644
+--- a/tools/robot/g4_simple.py
++++ b/tools/robot/g4_simple.py
+@@ -166,6 +166,10 @@ def main(argv=None) -> int:
+                     help='팔이 해제 지점에서 이 거리 안으로 들어온 뒤의 검출은 쓰지 않는다(그리퍼가 뚜껑을 가린다)')
+     ap.add_argument('--view-margin-m', type=float, default=0.045,
+                     help='해제 지점 위에서 기다릴 때 rel-x에서 이 거리 안의 검출은 쓰지 않는다(그리퍼에 가려 중심이 밀린다)')
++    ap.add_argument('--x-offset-m', type=float, default=0.005,
++                    help='해제 지점을 겨냥점(rel-x)보다 벨트 진행 방향(+x)으로 이만큼 옮긴다. 도착 시각은 겨냥점 기준이라 '
++                         '돌은 뚜껑 중심보다 이만큼 하류에 떨어진다(2026-11-14 성공 13회: 돌이 중심보다 평균 1.7 mm, '
++                         '최대 3.9 mm 상류에 놓였고 뚜껑은 추정보다 평균 0.041 s 일찍 왔다)')
+     ap.add_argument('--y-offset-m', type=float, default=0.0,
+                     help='해제 지점 y 보정. 돌이 +y 손가락에 붙어 떨어지면 음수로 준다(run-11: 돌이 +10 mm에 떨어짐)')
+     ap.add_argument('--arm-late-max-s', type=float, default=0.25,
+@@ -321,8 +325,10 @@ def main(argv=None) -> int:
+     def gripper_once(pulse, current_ma, timeout_s):
+         return gripper_finish(pulse, gripper_begin(pulse, current_ma), timeout_s)
+ 
++    aim_x = args.rel_x          # 뚜껑 중심이 이 x에 올 때 돌이 해제 지점 높이에서 떨어지도록 시각을 맞춘다
++
+     def release_point(model):
+-        return np.array([args.rel_x, model['y'] + args.y_offset_m,
++        return np.array([aim_x + args.x_offset_m, model['y'] + args.y_offset_m,
+                          model['z'] + p.release_above_rim_m + args.release_raise_m])
+ 
+     def get_pass(start_pos, deadline_mono, fixed_rel=None):
+@@ -346,7 +352,7 @@ def main(argv=None) -> int:
+                     return None
+                 checked = rel
+             t_move = move_time_s(float(np.linalg.norm(rel - start_pos)), p.travel_v_mps, p.travel_a_mps2)
+-            e = arrival_estimate(est_points(), rel[0], model['y'], now, v_prior=model['v'])
++            e = arrival_estimate(est_points(), aim_x, model['y'], now, v_prior=model['v'])
+             if e is None:
+                 waited['NO_CAP_UPSTREAM'] = waited.get('NO_CAP_UPSTREAM', 0) + 1
+                 time.sleep(0.01)
+@@ -359,6 +365,7 @@ def main(argv=None) -> int:
+                 v_prior_mmps=round(model['v'] * 1000, 1), prior=e['prior'], n=e['n'],
+                 x_last_m=round(e['x_last'], 4), release_in_s=round(e['t_arrive'] - now, 2), move_s=round(t_move, 2),
+                 t_release=round(e['t_arrive'], 3), drop_delay_s=args.drop_delay_s, hover=hover,
++                aim_x_m=round(aim_x, 4), x_offset_m=args.x_offset_m,
+                 cap_y_m=round(model['y'], 4), waited=waited)
+             return rel, e['t_arrive'], t_move, model
+         log('no_plan', waited=waited)
+@@ -373,7 +380,7 @@ def main(argv=None) -> int:
+         lead = max(args.drop_delay_s, t_move + arrive_before_s)
+         while True:
+             now = now_s()
+-            e = arrival_estimate(est_points(), rel[0], y_line, now, v_prior=v_prior)
++            e = arrival_estimate(est_points(), aim_x, y_line, now, v_prior=v_prior)
+             if e is not None:
+                 est, t_rel = e, e['t_arrive']
+             if now >= t_rel - lead or now > t_release_plan + 6.0:
+@@ -385,7 +392,7 @@ def main(argv=None) -> int:
+         t_plan_now = now_s()
+         t_rel, est = wait_to_go(rel, t_release_plan, t_move, v_prior, y_line)
+         while now_s() < t_rel - args.drop_delay_s:
+-            e = arrival_estimate(est_points(), rel[0], y_line, now_s(), v_prior=v_prior)
++            e = arrival_estimate(est_points(), aim_x, y_line, now_s(), v_prior=v_prior)
+             if e is not None:
+                 est, t_rel = e, e['t_arrive']
+             time.sleep(0.005)
+@@ -394,7 +401,7 @@ def main(argv=None) -> int:
+             time.sleep(0.05)
+         seen = [(c[0], c[1], c[2]) for c in cap_points()
+                 if c[0] >= t_plan_now - 1.0 and abs(c[2] - y_line) < 0.02]
+-        cross = crossing(seen, rel[0])
++        cross = crossing(seen, aim_x)
+         out = {'fire_before_est_arrival_s': round(t_rel - t_fire, 3),
+                'v_mmps': None if est is None else round(est['v'] * 1000, 1),
+                'x_at_fire_m': None if est is None else round(est['x_last'], 4)}
+@@ -431,7 +438,7 @@ def main(argv=None) -> int:
+         while True:
+             now = now_s()
+             if fired is None and t_block is None:
+-                e = arrival_estimate(est_points(), rel[0], y_line, now, v_prior=v_prior)
++                e = arrival_estimate(est_points(), aim_x, y_line, now, v_prior=v_prior)
+                 if e is not None:
+                     est, t_rel = e, e['t_arrive']
+             t_fire = t_rel - args.drop_delay_s
+@@ -483,7 +490,8 @@ def main(argv=None) -> int:
+             est_n=None if est is None else est['n'], est_prior=None if est is None else est['prior'],
+             est_age_s=None if est is None else round(fired['ros'] - est['t_last'], 2),
+             x_at_fire_m=None if est is None else round(est['x_last'], 4), drop_delay_s=args.drop_delay_s,
+-            open_pulse=args.release_open_pulse, y_offset_m=args.y_offset_m, hover=hover,
++            open_pulse=args.release_open_pulse, y_offset_m=args.y_offset_m, x_offset_m=args.x_offset_m,
++            aim_x_m=round(aim_x, 4), hover=hover,
+             t_block=None if t_block is None else round(t_block, 3), rehearse=args.rehearse)
+         # 높이를 유지한 채 돌이 떨어질 때까지 기다린 뒤 올린다(열리는 중에 올리면 돌을 끌고 올라간다)
+         samples = []
 -- 
 2.43.0
 
