@@ -1,0 +1,24 @@
+{"t": 1794632959.993, "event": "ready", "status": {"robot_state": 1, "robot_mode": 1, "drl_state": 0, "alarm": [1, 2, 3206, ["Change singularity region status(Inside -> Outside), Singularity handling mode(1)", "", ""]]}}
+{"t": 1794632960.147, "event": "check", "step": "wait", "pos_m": [0.67, 0.16, 0.2844], "j3_rad": 0.3648, "ok": "True"}
+{"t": 1794632960.614, "event": "excluded", "reason": "Y_ABOVE_MAT", "pos_m": [[0.6299, 0.0487, -0.0167], [0.6759, 0.087, 0.0829]]}
+{"t": 1794632960.621, "event": "check", "step": "over_stone", "pos_m": [0.5903, -0.0487, 0.2844], "j3_rad": 1.059, "ok": "True"}
+{"t": 1794632960.625, "event": "check", "step": "grasp", "pos_m": [0.5903, -0.0487, 0.1452], "j3_rad": 1.2589, "ok": "True"}
+{"t": 1794632960.625, "event": "stone", "pos_m": [0.5903, -0.0487, -0.0168], "candidates": 7}
+{"t": 1794632963.799, "event": "gripper", "step": "open_before_pick", "pulse": 599}
+{"t": 1794632966.807, "event": "done", "step": "over_stone", "reached_m": [0.5903, -0.0488, 0.2843]}
+{"t": 1794632970.063, "event": "done", "step": "descend_grasp", "reached_m": [0.5903, -0.0487, 0.1452]}
+{"t": 1794632973.829, "event": "gripper", "step": "close_grasp", "pulse": 660, "done": [true, 0]}
+{"t": 1794632977.085, "event": "done", "step": "lift_stone", "reached_m": [0.5903, -0.0487, 0.2844]}
+{"t": 1794632979.79, "event": "done", "step": "wait", "reached_m": [0.6699, 0.16, 0.2844]}
+{"t": 1794632979.798, "event": "check", "step": "release", "pos_m": [0.67, 0.0867, 0.2637], "j3_rad": 0.5859, "ok": "True"}
+{"t": 1794632986.993, "event": "plan", "release_m": [0.67, 0.0867, 0.2637], "cap_v_mps": [0.0449, 0.0], "v_prior_mmps": 44.9, "prior": true, "n": 3, "x_last_m": 0.5502, "release_in_s": 2.65, "move_s": 1.1, "t_release": 1794632989.647, "drop_delay_s": 0.6, "hover": false, "cap_y_m": 0.0867, "waited": {"NO_CAP_UPSTREAM": 695}}
+{"t": 1794632988.205, "event": "go", "arrive_in_s": 1.862, "fired": false, "v_est_mmps": 44.9}
+{"t": 1794632989.177, "event": "done", "step": "to_release", "reached_m": [0.67, 0.0882, 0.2641], "move_s": 0.97, "before_cap_s": 0.872}
+{"t": 1794632989.454, "event": "fired", "t_ros": 1794632989.454, "late_s": 0.005, "call_s": 0.007, "arm_dist_at_fire_mm": 1.5, "t_release_est": 1794632990.049, "t_release_plan": 1794632989.647, "est_minus_plan_s": 0.402, "v_est_mmps": 44.9, "est_n": 24, "est_prior": true, "est_age_s": 0.91, "x_at_fire_m": 0.5992, "drop_delay_s": 0.6, "open_pulse": 450, "y_offset_m": 0.0, "hover": false, "t_block": 1794632988.657, "rehearse": false}
+{"t": 1794632990.681, "event": "opened", "pulse": 660, "cmd": [true, 0], "pulse_trace": [[0.0, 660]]}
+{"t": 1794632990.681, "event": "released", "index": 1}
+{"t": 1794632991.572, "event": "done", "step": "retreat", "reached_m": [0.67, 0.0867, 0.2843]}
+{"t": 1794632992.776, "event": "done", "step": "side", "reached_m": [0.67, 0.16, 0.2844]}
+{"t": 1794632993.979, "event": "verdict", "index": 1, "result": "SUCCESS", "si_true": 63, "si_false": 8}
+{"t": 1794632998.038, "event": "done", "step": "park", "reached_m": [0.373, -0.0, 0.405]}
+{"t": 1794632998.038, "event": "summary", "moved": 1, "results": ["SUCCESS"], "reason": null, "unreachable": 0}

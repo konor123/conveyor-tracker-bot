@@ -1,0 +1,7 @@
+{"t": 1794633430.199, "event": "ready", "status": {"robot_state": 1, "robot_mode": 1, "drl_state": 0, "alarm": [1, 2, 3206, ["Change singularity region status(Inside -> Outside), Singularity handling mode(1)", "", ""]]}}
+{"t": 1794633430.365, "event": "check", "step": "wait", "pos_m": [0.67, 0.16, 0.2844], "j3_rad": 0.3648, "ok": "True"}
+{"t": 1794633430.851, "event": "excluded", "reason": "Y_ABOVE_MAT", "pos_m": [[0.6018, 0.0863, 0.0839]]}
+{"t": 1794633430.858, "event": "check", "step": "over_stone", "pos_m": [0.7059, -0.0934, 0.2844], "j3_rad": 0.0, "ok": "False"}
+{"t": 1794633430.864, "event": "check", "step": "over_stone", "pos_m": [0.7408, -0.0552, 0.2844], "j3_rad": 0.0, "ok": "False"}
+{"t": 1794633430.864, "event": "unreachable", "pos_m": [[0.7059, -0.0934, -0.0186], [0.7408, -0.0552, -0.0189]]}
+{"t": 1794633430.864, "event": "abort", "reason": "STONE_OUT_OF_REACH", "unreachable": 2}

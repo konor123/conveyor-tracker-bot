@@ -1,0 +1,7 @@
+{"t": 1794632713.169, "event": "ready", "status": {"robot_state": 1, "robot_mode": 1, "drl_state": 0, "alarm": [1, 2, 3206, ["Change singularity region status(Inside -> Outside), Singularity handling mode(1)", "", ""]]}}
+{"t": 1794632713.345, "event": "check", "step": "wait", "pos_m": [0.67, 0.16, 0.2844], "j3_rad": 0.3648, "ok": "True"}
+{"t": 1794632713.788, "event": "excluded", "reason": "Y_ABOVE_MAT", "pos_m": [[0.7884, 0.0872, 0.0814]]}
+{"t": 1794632713.788, "event": "stone", "pos_m": [0.7059, -0.0933, -0.0186]}
+{"t": 1794632713.804, "event": "check", "step": "over_stone", "pos_m": [0.7059, -0.0933, 0.2844], "j3_rad": 0.0, "ok": "False"}
+{"t": 1794632713.804, "event": "abort", "reason": "RuntimeError", "detail": "IK_OR_WORKSPACE"}
+{"t": 1794632713.804, "event": "summary", "moved": 0, "results": [], "reason": "RuntimeError"}

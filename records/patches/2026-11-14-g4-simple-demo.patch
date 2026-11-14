@@ -1,7 +1,7 @@
 From c2c278b4d2570403bef0e88d84dcae8e17673744 Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Fri, 13 Nov 2026 22:02:12 +0900
-Subject: [PATCH 01/15] Add a non-contact hover test at the predicted release
+Subject: [PATCH 01/16] Add a non-contact hover test at the predicted release
  point (G4 pre-check, no stone)
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
@@ -268,7 +268,7 @@ index 0000000..9de5657
 From 9f994ed7ab67486c648a61c0861e7aa850f63f33 Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Fri, 13 Nov 2026 22:05:57 +0900
-Subject: [PATCH 02/15] Return to park when the hover test gives up waiting for
+Subject: [PATCH 02/16] Return to park when the hover test gives up waiting for
  a plan, and log why target selection failed
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
@@ -318,7 +318,7 @@ index 4e9e2e0..8233907 100644
 From e66332c6865f3dc0950e5a2c0b533edd19c74748 Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Sat, 14 Nov 2026 11:19:35 +0900
-Subject: [PATCH 03/15] Add a simple G4 demo script: grip with the resident
+Subject: [PATCH 03/16] Add a simple G4 demo script: grip with the resident
  loop, wait at the predicted release point, fire the armed open
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
@@ -586,7 +586,7 @@ index 0000000..de3a5e4
 From f63dc3ae2fd342c277bde8470d5833b56378d48e Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Sat, 14 Nov 2026 11:23:45 +0900
-Subject: [PATCH 04/15] Check the drop from beside the belt before parking
+Subject: [PATCH 04/16] Check the drop from beside the belt before parking
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 ---
@@ -617,7 +617,7 @@ index de3a5e4..b570954 100644
 From bcb1132afeac08a34705f167df3e9149b75ac686 Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Sat, 14 Nov 2026 11:29:12 +0900
-Subject: [PATCH 05/15] Hold height until the gripper opens, keep going home
+Subject: [PATCH 05/16] Hold height until the gripper opens, keep going home
  after a short retreat, skip release points beyond x 0.68
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
@@ -704,7 +704,7 @@ index b570954..fdc320a 100644
 From 67d1a548e91a674551908997a14965d8aceb0b03 Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Sat, 14 Nov 2026 11:44:19 +0900
-Subject: [PATCH 06/15] Ask IK again when it answers with all-zero joints
+Subject: [PATCH 06/16] Ask IK again when it answers with all-zero joints
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 ---
@@ -733,7 +733,7 @@ index fdc320a..eef1b63 100644
 From b7b6a2e5aeb042cd9392c87c3d470c54fe1d2513 Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Sat, 14 Nov 2026 11:44:48 +0900
-Subject: [PATCH 07/15] Retry the first status call while driver services are
+Subject: [PATCH 07/16] Retry the first status call while driver services are
  being discovered
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
@@ -767,7 +767,7 @@ index eef1b63..9fc33e7 100644
 From 2e8c35eced5f9cf059820aca5bfe6d5ac00d28c8 Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Sat, 14 Nov 2026 11:46:14 +0900
-Subject: [PATCH 08/15] Add --holding to skip the pick when the last run parked
+Subject: [PATCH 08/16] Add --holding to skip the pick when the last run parked
  with the stone still in the gripper
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
@@ -886,7 +886,7 @@ index 9fc33e7..e2fa4b1 100644
 From d4add27aee208de9c6a14df712f514422a70df54 Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Sat, 14 Nov 2026 11:56:51 +0900
-Subject: [PATCH 09/15] Fire the gripper 1.5 s before release, during the
+Subject: [PATCH 09/16] Fire the gripper 1.5 s before release, during the
  approach move if needed: it takes about 1.5 s to let the stone go
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
@@ -979,7 +979,7 @@ index e2fa4b1..f7dc87d 100644
 From 9be23995ae02b46d97c640a1fa8eebfdaac70ee9 Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Sat, 14 Nov 2026 11:59:06 +0900
-Subject: [PATCH 10/15] Allow release points up to x 0.70: at 0.68 run-08
+Subject: [PATCH 10/16] Allow release points up to x 0.70: at 0.68 run-08
  dropped 125 plans in 30 s
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
@@ -1008,7 +1008,7 @@ index f7dc87d..239699c 100644
 From f7c904d70035a4b401444850bd2ed3c680cf5de0 Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Sat, 14 Nov 2026 12:01:49 +0900
-Subject: [PATCH 11/15] Resend gripper commands when the resident loop reports
+Subject: [PATCH 11/16] Resend gripper commands when the resident loop reports
  a Modbus write failure (242)
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
@@ -1067,7 +1067,7 @@ index 239699c..ac5bb11 100644
 From f6c0fd7688c4a07fc5aeec65bea46a4450c046b3 Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Sat, 14 Nov 2026 12:12:26 +0900
-Subject: [PATCH 12/15] Keep release points within x 0.685, accept caps after
+Subject: [PATCH 12/16] Keep release points within x 0.685, accept caps after
  15 observations, and go on if the approach stops a few mm short
 
 Beyond x 0.69 the controller's singularity handling bends or cuts the
@@ -1122,7 +1122,7 @@ index ac5bb11..8eaf6f6 100644
 From e989daabc6f7f0ae477e12a97a0f402d185058a4 Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Sat, 14 Nov 2026 12:44:23 +0900
-Subject: [PATCH 13/15] Time the release from live cap detections at a fixed
+Subject: [PATCH 13/16] Time the release from live cap detections at a fixed
  release point, record each attempt, and judge it from the detection log
 
 With the new battery the belt runs near 50 mm/s and the planner's 2.8 s
@@ -2155,7 +2155,7 @@ index 0000000..8222eb7
 From f3f93e8f87049223de19fb738a425fba0b0f498f Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Sat, 14 Nov 2026 13:13:34 +0900
-Subject: [PATCH 14/15] Trigger the gripper 0.5 s before the cap arrives and
+Subject: [PATCH 14/16] Trigger the gripper 0.5 s before the cap arrives and
  open to 450 pulse, so the stone leaves the fingers at full opening speed
 
 Run-11 video: with a 600 pulse target the stone only came free at the end of the
@@ -2567,7 +2567,7 @@ index 5a893b4..04c2fa4 100644
 From 6abe532d8dfc9c742f19a4760019ebfdfb5c4c00 Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Sat, 14 Nov 2026 14:02:25 +0900
-Subject: [PATCH 15/15] Move every stone without parking in between, and add a
+Subject: [PATCH 15/16] Move every stone without parking in between, and add a
  button window for one / all / return / stop
 
 g4_simple.py: --count N (0 = until the mat is empty) goes from the release point
@@ -3455,6 +3455,250 @@ index 0000000..1af888d
 +        tally.feed(event)
 +    assert tally.text() == '놓음 3 · 성공 1 · 실패 1 · 미확인 1'
 +    assert tally.last_reason == 'NOT_RELEASED'
+-- 
+2.43.0
+
+
+From e45cd6892cc0ff8854836703ac3ad7d99854d923 Mon Sep 17 00:00:00 2001
+From: chhowm <chhowm@gmail.com>
+Date: Sat, 14 Nov 2026 14:17:54 +0900
+Subject: [PATCH 16/16] Skip stones the arm cannot reach, and stop a misread
+ start flag from locking out the gripper loop
+
+find_stone now takes the nearest stone whose over-stone and grasp poses pass IK
+and reports the rest (the window's runs at 14:04-14:05 aborted four times on a
+stone at x 0.706). ensure_loop re-reads the start flag, and when the DRL is
+playing and the alive counter advances it restores the flag instead of calling
+start_resident_loop, which clears the flag before it finds the DRL busy (14:12:
+every run after one bad read ended in DRL_BUSY). RuntimeError codes are reported
+as abort reasons. The window gets start-up options for speed, recording and a
+timed stop, used to exercise every control on the robot.
+
+Co-Authored-By: Claude Fable 5.2 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_017S6YdmFKKoiWXK3fg85cfX
+---
+ tools/robot/g4_simple.py  | 81 ++++++++++++++++++++++++++++++---------
+ tools/robot/g4_ui.py      | 18 +++++++--
+ tools/robot/test_g4_ui.py |  3 ++
+ 3 files changed, 80 insertions(+), 22 deletions(-)
+
+diff --git a/tools/robot/g4_simple.py b/tools/robot/g4_simple.py
+index 272ea12..b06568e 100644
+--- a/tools/robot/g4_simple.py
++++ b/tools/robot/g4_simple.py
+@@ -201,7 +201,7 @@ def main(argv=None) -> int:
+     from static_pick_place import doosan_client as dc
+     from static_pick_place.doosan_client import DoosanClient, RobotError
+     from static_pick_place.pick_place import detect, grab_frame, load_config, load_geometry, make_params
+-    from static_pick_place.plan import DOWN_QUAT_XYZW, choose_stone
++    from static_pick_place.plan import CLASS_STONE, DOWN_QUAT_XYZW, REGION_MAT, _in_workspace, _usable
+ 
+     cfg = load_config(args.config)
+     p = make_params(cfg)
+@@ -514,25 +514,41 @@ def main(argv=None) -> int:
+         results.append(verdict['result'])
+         log('verdict', index=index, **verdict)
+ 
++    unreachable = {'n': 0}
++
+     def find_stone(geom):
+-        """매트에서 다음 공깃돌을 고른다(지령 없음). 반환 위치 또는 None."""
++        """매트에서 팔이 닿는 공깃돌 가운데 로봇에 가장 가까운 것을 고른다(지령 없음). 반환 위치 또는 None.
++
++        공깃돌 위·파지 자세의 IK가 실패하는 돌(2026-11-14: x 0.706, y −0.093에서 관절 0 응답)은 건너뛴다.
++        """
+         dets = detect(grab_frame(node, cfg['image_topic']), cfg, geom)
+         excluded = [[round(v, 4) for v in d.position] for d in dets if d.position[1] > MAT_Y_MAX_M]
+-        stone = choose_stone([d for d in dets if d.position[1] <= MAT_Y_MAX_M], p)
+         if excluded:
+             log('excluded', reason='Y_ABOVE_MAT', pos_m=excluded)
+-        if stone is None:
+-            return None
+-        pos = np.asarray(stone.position, float)
+-        log('stone', pos_m=[round(float(v), 4) for v in pos])
+-        return pos
++        cands = sorted((d for d in dets if d.position[1] <= MAT_Y_MAX_M and d.region == REGION_MAT
++                        and d.object_class == CLASS_STONE and _usable(d) and _in_workspace(d.position, p)),
++                       key=lambda d: float(np.hypot(d.position[0], d.position[1])))
++        far = []
++        for d in cands:
++            pos = np.asarray(d.position, float)
++            over = np.array([pos[0], pos[1], p.travel_z_m])
++            grasp = np.array([pos[0], pos[1], pos[2] + p.grasp_above_stone_top_m])
++            if ik_ok('over_stone', over) and ik_ok('grasp', grasp):
++                unreachable['n'] = len(far)
++                if far:
++                    log('unreachable', pos_m=far)
++                log('stone', pos_m=[round(float(v), 4) for v in pos], candidates=len(cands))
++                return pos
++            far.append([round(float(v), 4) for v in pos])
++        unreachable['n'] = len(far)
++        if far:
++            log('unreachable', pos_m=far)
++        return None
+ 
+     def pick(stone, preopen_t0):
+         """공깃돌 위 → 하강 → 닫기 → 들기. 반환 'held' | 'empty'. preopen_t0: 이동 전에 이미 보낸 열기 지령의 시각."""
+-        over = np.array([stone[0], stone[1], p.travel_z_m])
++        over = np.array([stone[0], stone[1], p.travel_z_m])                 # IK는 find_stone이 확인했다
+         grasp = np.array([stone[0], stone[1], stone[2] + p.grasp_above_stone_top_m])
+-        if not all(ik_ok(n, q) for n, q in (('over_stone', over), ('grasp', grasp))):
+-            raise RuntimeError('IK_OR_WORKSPACE')
+         if preopen_t0 is None:
+             pos, _ = gripper_to(p.open_pulse, 100)
+             log('gripper', step='open_before_pick', pulse=pos)
+@@ -552,6 +568,33 @@ def main(argv=None) -> int:
+         move('lift_stone', over, vv, va, tolerate=True)
+         return 'held'
+ 
++    def ensure_loop():
++        """그리퍼 상주 루프가 돌고 있는지 확인하고, 멈춰 있을 때만 띄운다.
++
++        시작 표시(init) 하나만 보고 다시 띄우면 안 된다: start_resident_loop는 표시를 0으로 지운 뒤 DRL 상태를 보므로,
++        루프가 도는 중에 표시가 한 번 다르게 읽히면 표시만 지워지고 그 뒤 실행이 모두 DRL_BUSY로 막힌다
++        (2026-11-14 14:12, DRL PLAY·생존 카운터 증가·Mode 5인데 init 0). 루프가 살아 있으면 표시를 다시 세운다.
++        """
++        init = drl = None
++        for _ in range(3):
++            init, drl = io.get(regs.init), robot.status()['drl_state']
++            if init == 1 and drl == 0:
++                return
++            time.sleep(0.3)
++        log('loop_check', init=init, drl_state=drl)
++        if drl == 0:                                     # DRL이 돌고 있다: 우리 루프인지 생존 카운터로 본다
++            a0 = io.get(regs.alive)
++            time.sleep(1.8)                              # 상태 갱신 주기 약 0.8 s
++            a1 = io.get(regs.alive)
++            if a1 != a0 and io.get(regs.mode) == 5 and io.get(regs.error) == 0:
++                io.set(regs.init, 1)
++                log('loop_flag_restored', alive=[a0, a1])
++                return
++            raise RuntimeError('DRL_BUSY')
++        t0 = time.monotonic()
++        loop.start_resident_loop()
++        log('loop_started', ready_s=round(time.monotonic() - t0, 2))
++
+     moved = 0
+     try:
+         # ---------------- 상태·검출(지령 없음)
+@@ -594,12 +637,11 @@ def main(argv=None) -> int:
+         else:
+             stone = find_stone(geom)
+             if stone is None:
+-                log('abort', reason='NO_MAT_STONE')
++                log('abort', reason='STONE_OUT_OF_REACH' if unreachable['n'] else 'NO_MAT_STONE',
++                    unreachable=unreachable['n'])
+                 return 2
+-            if args.execute and (io.get(regs.init) != 1 or robot.status()['drl_state'] != 0):
+-                t0 = time.monotonic()
+-                loop.start_resident_loop()
+-                log('loop_started', ready_s=round(time.monotonic() - t0, 2))
++            if args.execute:
++                ensure_loop()
+ 
+         while True:
+             # ---------------- 파지(--execute)
+@@ -666,11 +708,12 @@ def main(argv=None) -> int:
+         if args.execute:
+             move('park', park, tolerate=True)
+         reason = 'STOP_REQUESTED' if stop_requested() else ('NO_STONE_IN_GRIP' if grip_fail >= 3 else None)
+-        log('summary', moved=moved, results=results, reason=reason)
++        log('summary', moved=moved, results=results, reason=reason, unreachable=unreachable['n'])
+         return 0 if moved else 2
+     except (RobotError, RuntimeError) as exc:
+-        log('abort', reason=getattr(exc, 'reason', type(exc).__name__), detail=str(exc))
+-        log('summary', moved=moved, results=results, reason=getattr(exc, 'reason', type(exc).__name__))
++        reason = getattr(exc, 'reason', None) or (str(exc) if str(exc).isupper() else type(exc).__name__)
++        log('abort', reason=reason, detail=str(exc))
++        log('summary', moved=moved, results=results, reason=reason)
+         return 2
+     finally:
+         try:
+diff --git a/tools/robot/g4_ui.py b/tools/robot/g4_ui.py
+index 0149f48..bc09652 100755
+--- a/tools/robot/g4_ui.py
++++ b/tools/robot/g4_ui.py
+@@ -25,6 +25,7 @@ REPO = os.path.dirname(os.path.dirname(HERE))
+ 
+ ABORT_TEXT = {
+     'NO_MAT_STONE': '매트에 공깃돌이 없습니다(손이 매트 위에 있으면 검출되지 않습니다)',
++    'STONE_OUT_OF_REACH': '남은 공깃돌이 팔이 닿지 않는 곳에 있습니다. 로봇 쪽(x 0.69 m 안쪽)으로 옮겨 주세요',
+     'NOT_RELEASED': '뚜껑을 잡지 못해 놓지 않았습니다. 벨트가 도는지 확인하세요. 돌은 쥔 채 원위치에 있습니다',
+     'NOT_STANDBY_AUTONOMOUS': '로봇이 대기(자동 모드) 상태가 아닙니다',
+     'SERVICE_UNAVAILABLE': '로봇 드라이버 응답이 없습니다. 드라이버가 떠 있는지 확인하세요',
+@@ -34,6 +35,9 @@ ABORT_TEXT = {
+     'IK_OR_WORKSPACE': '닿을 수 없는 위치입니다(공깃돌 또는 대기 위치)',
+     'RELEASE_POSE': '해제 위치가 작업 범위를 벗어났습니다',
+     'GRIPPER_WRITE_FAILED': '그리퍼 지령을 보내지 못했습니다',
++    'DRL_BUSY': '제어기에서 다른 프로그램이 돌고 있어 그리퍼 루프를 띄울 수 없습니다',
++    'RESIDENT_INIT': '그리퍼 루프가 시작되지 않았습니다(그리퍼 응답 확인)',
++    'RESIDENT_INIT_TIMEOUT': '그리퍼 루프 시작 시간 초과',
+     'STOP_REQUESTED': '중지 요청으로 끝냈습니다',
+ }
+ STEP_TEXT = {
+@@ -53,6 +57,8 @@ def describe(event: dict) -> str | None:
+     if kind == 'stone':
+         x, y = event['pos_m'][0], event['pos_m'][1]
+         return f'공깃돌 찾음 (x {x * 1000:.0f}, y {y * 1000:.0f} mm)'
++    if kind == 'unreachable':
++        return f"팔이 닿지 않는 공깃돌 {len(event.get('pos_m', []))}개는 건너뜁니다"
+     if kind == 'loop_started':
+         return '그리퍼 루프 시작'
+     if kind == 'done':
+@@ -82,7 +88,8 @@ def describe(event: dict) -> str | None:
+     if kind == 'summary':
+         if event.get('parked'):
+             return '원위치로 돌아왔습니다'
+-        return f"끝: {event.get('moved', 0)}개 놓음"
++        left = event.get('unreachable') or 0
++        return f"끝: {event.get('moved', 0)}개 놓음" + (f' (닿지 않는 돌 {left}개 남음)' if left else '')
+     return None
+ 
+ 
+@@ -137,6 +144,9 @@ def main(argv=None) -> int:
+     ap.add_argument('--script', help='g4_simple.py 대신 실행할 스크립트(시험용)')
+     ap.add_argument('--self-test', action='store_true', help='창을 만들었다가 바로 닫는다(시험용)')
+     ap.add_argument('--auto', choices=['one', 'all', 'park'], help='그 버튼을 한 번 누르고 끝나면 창을 닫는다(시험용)')
++    ap.add_argument('--speed', type=float, choices=[1.0, 1.5, 2.0], default=1.0, help='속도 선택의 처음 값')
++    ap.add_argument('--no-record', action='store_true', help='녹화 선택을 끈 채로 시작한다')
++    ap.add_argument('--stop-after-s', type=float, help='--auto 실행 중 이 시간 뒤 중지 버튼을 누른다(시험용)')
+     args = ap.parse_args(argv)
+ 
+     import tkinter as tk
+@@ -151,8 +161,8 @@ def main(argv=None) -> int:
+ 
+     status = tk.StringVar(value='대기 중')
+     counts = tk.StringVar(value=state['tally'].text())
+-    speed = tk.DoubleVar(value=1.0)
+-    record = tk.BooleanVar(value=True)
++    speed = tk.DoubleVar(value=args.speed)
++    record = tk.BooleanVar(value=not args.no_record)
+ 
+     tk.Label(root, textvariable=status, font=('', 20, 'bold'), anchor='w', wraplength=720, justify='left').pack(
+         fill='x', padx=16, pady=(14, 2))
+@@ -291,6 +301,8 @@ def main(argv=None) -> int:
+         return 0
+     if args.auto:
+         root.after(300, lambda: start(args.auto))
++        if args.stop_after_s:
++            root.after(300 + int(args.stop_after_s * 1000), stop)
+     root.mainloop()
+     return 0
+ 
+diff --git a/tools/robot/test_g4_ui.py b/tools/robot/test_g4_ui.py
+index 1af888d..ebe4e84 100644
+--- a/tools/robot/test_g4_ui.py
++++ b/tools/robot/test_g4_ui.py
+@@ -24,6 +24,9 @@ def test_events_are_described_in_korean_and_noise_is_dropped():
+     assert describe({'event': 'abort', 'reason': 'NO_MAT_STONE'}) == '중단: ' + ABORT_TEXT['NO_MAT_STONE']
+     assert describe({'event': 'abort', 'reason': 'SOMETHING_NEW'}) == '중단: SOMETHING_NEW'
+     assert describe({'event': 'summary', 'moved': 0, 'parked': True}) == '원위치로 돌아왔습니다'
++    assert describe({'event': 'summary', 'moved': 3, 'unreachable': 2}) == '끝: 3개 놓음 (닿지 않는 돌 2개 남음)'
++    assert describe({'event': 'unreachable', 'pos_m': [[0.706, -0.093, -0.019]]}) == '팔이 닿지 않는 공깃돌 1개는 건너뜁니다'
++    assert describe({'event': 'abort', 'reason': 'STONE_OUT_OF_REACH'}).startswith('중단: 남은 공깃돌이 팔이 닿지 않는')
+     assert describe({'event': 'check', 'step': 'wait', 'ok': True}) is None
+     assert describe({'event': 'done', 'step': 'unknown_step'}) is None
+ 
 -- 
 2.43.0
 

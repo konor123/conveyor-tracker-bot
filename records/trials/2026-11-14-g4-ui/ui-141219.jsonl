@@ -1,0 +1,8 @@
+{"t": 1794633140.923, "event": "ready", "status": {"robot_state": 1, "robot_mode": 1, "drl_state": 0, "alarm": [1, 2, 3206, ["Change singularity region status(Inside -> Outside), Singularity handling mode(1)", "", ""]]}}
+{"t": 1794633141.078, "event": "check", "step": "wait", "pos_m": [0.67, 0.16, 0.2844], "j3_rad": 0.3648, "ok": "True"}
+{"t": 1794633143.24, "event": "excluded", "reason": "Y_ABOVE_MAT", "pos_m": [[0.63, 0.0487, -0.0167], [0.5597, 0.0862, 0.0845]]}
+{"t": 1794633143.248, "event": "check", "step": "over_stone", "pos_m": [0.6395, -0.0796, 0.2844], "j3_rad": 0.7652, "ok": "True"}
+{"t": 1794633143.252, "event": "check", "step": "grasp", "pos_m": [0.6395, -0.0796, 0.1444], "j3_rad": 1.0031, "ok": "True"}
+{"t": 1794633143.252, "event": "stone", "pos_m": [0.6395, -0.0796, -0.0176], "candidates": 4}
+{"t": 1794633143.429, "event": "abort", "reason": "DRL_BUSY", "detail": "DRL_BUSY: drl_state=0"}
+{"t": 1794633143.429, "event": "summary", "moved": 0, "results": [], "reason": "DRL_BUSY"}
