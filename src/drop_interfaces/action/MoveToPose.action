@@ -1,0 +1,19 @@
+# 공통 요청 필드
+string cycle_id
+uint32 step_id
+builtin_interfaces/Time deadline   # ROS 시각. 지나면 서버가 스스로 중단하고 TIMEOUT
+string named_pose                 # 비어 있지 않으면 이 이름(standby 등)을 쓰고 target_pose는 무시
+geometry_msgs/Pose target_pose    # robot_base [m]
+---
+# 공통 결과 코드
+uint8 OK=0
+uint8 FAILED=1          # 시도했으나 판정 실패
+uint8 TIMEOUT=2         # deadline 경과
+uint8 PRECONDITION=3    # 선행조건 불충족, 시도하지 않음
+uint8 CANCELED=4
+uint8 FAULT=5           # 하드웨어·통신 이상
+uint8 result
+string reason_code
+float64 pose_error                # [m]
+---
+string phase

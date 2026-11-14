@@ -1,0 +1,21 @@
+# robot_controller_node 시뮬레이션 파라미터(backend:=fake, I0). drop.launch.py가 use_mock_robot:=false robot_backend:=fake일 때
+# 기본으로 읽는다. 값은 모두 시뮬레이션 가정값이며 하드웨어 측정이 아니다. 수치 키는 단위 접미사를 붙인다.
+# mock 세계(vision·tracking 대역)와 함께 띄우면 launch가 시나리오 기하로 standby_pose·place_back_xyz_m·fake_tcp_*_m을
+# 채운다(drop.launch.py _robot_geometry). robot_params_file로 준 파일이 이 값 위에 덮이고, 값이 null인 키는 미설정이다.
+robot_controller_node:
+  ros__parameters:
+    pose_tolerance_m: 0.002          # orchestrator judge.standby.pose_error_max_m와 같음
+    approach_height_m: 0.05          # orchestrator node.pick_approach_height_m와 같음
+    safe_z_m: 0.21                   # mock 세계 테두리 z 0.010 + 해제 높이 0.1656 + 접근 0.03 위
+    height_tolerance_m: 0.0005       # orchestrator judge.static_place.height_tol_m와 같음
+    open_width_tolerance_m: 0.001    # orchestrator judge.release.open_tol_m와 같음
+    release_rim_clearance_m: 0.002   # orchestrator judge.descend.h_clear_m와 같음
+    grip_min_width_m: 0.016          # orchestrator judge.pick_stone d_stone_min − width_tol
+    grip_max_width_m: 0.019          # orchestrator judge.pick_stone d_stone_max + width_tol
+    grip_min_current_ma: 100.0       # orchestrator judge.pick_stone.grip_current_min_ma와 같음
+    fake_move_time_s: 0.2
+    fake_grip_width_m: 0.0175        # 공깃돌 17~18 mm 중간값(OFF-1)
+    fake_grip_current_ma: 150.0      # 파지 막힘 전류 = goal 전류 한도(orchestrator node.pick_grip_current_ma) 가정
+    dynamic:
+      fingertip_below_tcp_m: 0.16    # 가정(OFF-6 전). 계획 핑거 끝 여유 = 0.1656 − 0.16 = 5.6 mm ≥ h_clear 2 mm
+      open_width_m: 0.022            # orchestrator d_stone_max 0.018 + delta_open 0.004

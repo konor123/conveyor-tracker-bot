@@ -1,0 +1,10 @@
+uint8 SOURCE_CAP=0                # 벨트에 붙인 병뚜껑의 이동에서 추정
+uint8 SOURCE_BELT_MARKER=1        # 벨트 표식에서 추정(선택 실험)
+std_msgs/Header header            # frame_id = conveyor_frame
+geometry_msgs/Vector3 direction   # 단위 벡터
+float64 speed                     # [m/s]
+float64 speed_std                 # [m/s]
+float64 window_sec                # [s]
+uint8 source
+bool steady                       # 속도 변화 미검출
+builtin_interfaces/Time last_change_stamp

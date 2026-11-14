@@ -1,0 +1,182 @@
+"""Boundary checks supplementary to the statistical TC acceptance tests."""
+from dataclasses import replace
+import inspect
+from pathlib import Path
+import numpy as np
+import pytest
+from fixtures import TrajectoryFixture
+from tracking.association import Det, associate
+from tracking.kalman import KalmanCV, measurement_covariance
+from tracking.track_manager import TrackManager, OBSERVED, LOST
+from tracking.speed_change import SpeedChangeDetector
+from tracking.belt_motion import estimate_belt_motion
+
+
+def test_filter_algebra_and_backwards_prediction():
+    x = np.array([1., 2., 3., 4.])
+    p = np.diag([1., 2., 3., 4.])
+    k = KalmanCV(.02, x, p)
+    k.predict(5.)
+    k.predict(5.5)
+    f = np.eye(4)
+    f[:2, 2:] = .5*np.eye(2)
+    g = np.vstack((.125*np.eye(2), .5*np.eye(2)))
+    assert k.x == pytest.approx(f @ x)
+    expected = f @ p @ f.T + .02**2*g @ g.T
+    assert k.P == pytest.approx(expected)
+    k.predict(4.)
+    assert k.P == pytest.approx(expected)
+    z = k.x[:2]+[.001, -.002]
+    r = np.eye(2)*.0003**2
+    innovation = z-k.x[:2]
+    nis = innovation @ np.linalg.solve(expected[:2, :2]+r, innovation)
+    assert k.update(5.5, z, r) == pytest.approx(nis)
+    assert k.P == pytest.approx(k.P.T)
+    assert np.all(np.linalg.eigvalsh(k.P) > 0)
+
+
+@pytest.mark.parametrize('cov', [None, [], [[1., 2.], [2., 1.]],
+                                      [[1., 0.], [0., 0.]], [[np.nan, 0.], [0., 1.]]])
+def test_bad_covariance_falls_back(cov):
+    assert measurement_covariance(cov) == pytest.approx(np.eye(2)*.0003**2)
+
+
+def test_association_greedy_one_to_one_and_gate_boundary():
+    m = TrackManager()
+    track = m.process_frame(0., [Det([0., 0.])])[0]
+    track = replace(track, state_cov=np.eye(4))
+    # S = 2 I and dx = 2 -> d²=2 exactly (inclusive boundary).
+    result = associate([track], [Det([2., 0.], np.eye(2))], 2.)
+    assert result.matches == [(0, 0)]
+    assert associate([track], [Det([2.001, 0.], np.eye(2))], 2.).matches == []
+    other = replace(track, position=np.array([.1, 0., 0.]))
+    result = associate([track, other], [Det([.09, 0.]), Det([0., 0.])], 2.)
+    assert set(result.matches) == {(0, 1), (1, 0)}
+    assert result.unmatched_tracks == result.unmatched_dets == []
+
+
+def test_ignore_invalid_and_average_height():
+    m = TrackManager()
+    assert m.process_frame(0., [Det([0., 0.], object_class=1),
+                                Det([0., 0.], position_valid=False)]) == []
+    a = m.process_frame(.1, [Det([0., 0., .01])])[0]
+    b = m.process_frame(.2, [Det([0., 0., .03])])[0]
+    assert a.position[2] == pytest.approx(.01)
+    assert b.position[2] == pytest.approx(.02)
+    assert b.velocity[2] == pytest.approx(0.)
+
+
+def test_cusum_two_sided_threshold_and_recovery():
+    for sign in (-1, 1):
+        d = SpeedChangeDetector(cusum_k=.5, cusum_h=8., recover_s=2.)
+        assert not d.update(0., sign*8.5)  # equals h, no alarm
+        assert d.update(.1, sign*1.)
+        assert d.g_plus == d.g_minus == 0 and not d.steady
+        assert d.last_change_stamp == pytest.approx(.1)
+        d.advance(2.099)
+        assert not d.steady
+        d.advance(2.1)
+        assert d.steady
+
+
+def test_clock_tolerance_and_reset_detector():
+    m = TrackManager(backstep_tol_s=.5)
+    m.on_clock(5.)
+    assert not m.on_clock(4.5)
+    m.detector.update(4.5, 100.)
+    assert m.on_clock(3.9)
+    assert m.detector.steady and m.detector.last_change_stamp is None
+
+
+def test_belt_covariance_and_stale_estimate():
+    m = TrackManager()
+    t = m.process_frame(0., [Det([0., 0.])])[0]
+    t = replace(t, velocity=np.array([.03, .04, 0.]), state_cov=np.diag([1., 1., .01, .04]))
+    b = estimate_belt_motion([t])
+    assert b.direction == pytest.approx([.6, .8])
+    assert b.speed == pytest.approx(.05)
+    assert b.speed_std == pytest.approx(np.sqrt(.6**2*.01+.8**2*.04))
+    assert estimate_belt_motion([replace(t, status=LOST)], b) is b
+    stopped = estimate_belt_motion([replace(t, velocity=np.array([0., -.002, 0.]))])
+    assert stopped.direction == pytest.approx([1., 0.])
+
+
+def test_fixture_reverse_and_occlusion():
+    m = TrackManager()
+    for f in TrajectoryFixture(duration=1., reverse=True, occlusion=(.5, .7)):
+        m.process_frame(f.t, f.dets)
+    assert m.dropped_frames == 1
+
+
+def test_config_matches_runtime_defaults():
+    # Minimal scalar reader keeps this pure U suite independent of PyYAML.
+    values = {}
+    section = None
+    for line in (Path(__file__).parents[1]/'config/tracking.yaml').read_text().splitlines():
+        if not line.strip() or line.startswith(('#', 'unitless:', 'T_base_conveyor:', 'input_timeout_s:')):
+            continue
+        key, value = line.strip().split(':', 1)
+        if not value.strip():
+            section = key
+        else:
+            values[f'{section}.{key}'] = float(value)
+    mapped = {'coast.max_s': 'coast_max_s'}
+    signature = inspect.signature(TrackManager)
+    for key, value in values.items():
+        name = mapped.get(key, key.split('.')[-1])
+        if name in signature.parameters:
+            assert signature.parameters[name].default == pytest.approx(value)
+
+
+def test_predicted_exit_cannot_be_reacquired_in_same_frame():
+    m = TrackManager(x_obs_max_m=.01, exit_margin_m=0.)
+    first = m.process_frame(0., [Det([0., 0.])])[0]
+    m.process_frame(1., [Det([.005, 0.])])
+    tracks = m.process_frame(3., [Det([.009, 0.])])
+    assert next(t for t in tracks if t.track_id == first.track_id).status == LOST
+    assert next(t for t in tracks if t.status == OBSERVED).track_id > first.track_id
+
+
+def test_track_past_coast_limit_is_lost_even_without_intermediate_frames():
+    """프레임 공백(카메라 정지·재개) 뒤 첫 검출이 coast 한도를 넘긴 track에 붙지 않는다."""
+    from types import SimpleNamespace
+    from tracking.track_manager import LOST, OBSERVED, TrackManager
+    tm = TrackManager(x_obs_min_m=-10., x_obs_max_m=10.)
+    det = lambda x: SimpleNamespace(object_class=2, position_valid=True,
+                                    position=np.array([x, 0.]), position_cov=np.eye(2) * 9e-8)
+    for k in range(40):
+        tm.process_frame(k / 30, [det(0.02 * k / 30)])
+    first = tm.tracks[0].track_id
+    out = tm.process_frame(40 / 30 + 1.5, [det(0.02 * (40 / 30 + 1.5))])
+    by_id = {s.track_id: s for s in out}
+    assert by_id[first].status == LOST
+    assert [s.status for s in out if s.track_id != first] == [OBSERVED]
+
+
+def test_no_new_track_outside_observation_region():
+    """구간 끝을 지나 계속 보이는 뚜껑이 프레임마다 새 track을 만들지 않는다."""
+    m = TrackManager(x_obs_min_m=0., x_obs_max_m=.10, exit_margin_m=.01)
+    assert m.process_frame(0., [Det([-.01, 0.])]) == []              # 상류 끝 밖
+    ids, lost = set(), 0
+    for k in range(1, 200):                                           # 20 mm/s, 30 Hz: x 0 → 0.133
+        tracks = m.process_frame(k/30, [Det([.02*k/30, 0.])])
+        ids.update(t.track_id for t in tracks)
+        lost += sum(t.status == LOST for t in tracks)
+    assert len(ids) == 1 and lost == 1                                # 통과 하나에 track 하나, LOST 한 번
+    assert m.process_frame(200/30, [Det([.02*200/30, 0.])]) == []
+
+
+@pytest.mark.parametrize('x, created', [(-.0001, False), (0., True), (.10, True), (.1001, False)])
+def test_new_track_region_boundary(x, created):
+    m = TrackManager(x_obs_min_m=0., x_obs_max_m=.10)
+    assert bool(m.process_frame(0., [Det([x, 0.])])) is created
+
+
+def test_ignored_detections_are_counted_until_first_track():
+    """구간 밖이라 버린 검출 수와 만든 track 수를 센다(보정·구간 설정 오류 진단용)."""
+    m = TrackManager(x_obs_min_m=0., x_obs_max_m=.10)
+    for k in range(5):
+        m.process_frame(k/30, [Det([.8, 0.])])
+    assert (m.created_total, m.ignored_outside, m.last_ignored_x) == (0, 5, pytest.approx(.8))
+    m.process_frame(5/30, [Det([.05, 0.])])
+    assert m.created_total == 1

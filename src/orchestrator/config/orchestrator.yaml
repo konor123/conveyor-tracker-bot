@@ -1,0 +1,103 @@
+# orchestrator 파라미터. 수치 키는 단위 접미사(_m, _s, _mps, _mps2, _rad, _hz, _ma, _pulse, _count, _ratio)를 붙인다.
+# 제안값이다. 실측으로 바꾸면 시험 기대값도 함께 고친다.
+judge:
+  precheck:
+    heartbeat_age_max_s: 0.3
+    gripper_response_max_s: 0.5        # TBD(측정 G0)
+  detect_stone:
+    confidence_min_ratio: 0.9
+    window_std_max_m: 0.0005
+    clearance_min_m: 0.02              # TBD(핑거 어댑터 치수, OFF-1)
+  pick_stone:
+    d_stone_min_m: 0.017               # 팔각기둥 면-면, OFF-1 2026-11-07
+    d_stone_max_m: 0.018               # 팔각기둥 꼭짓점-꼭짓점, OFF-1 2026-11-07
+    width_tol_m: 0.001
+    grip_current_min_ma: 100           # TBD(측정 G0)
+    detection_age_max_s: 1.0
+  standby:
+    pose_error_max_m: 0.002
+  wait_cap:
+    observation_count_min_count: 30
+    speed_std_max_mps: 0.001
+    margin_s: 1.0
+    plan_lead_s: 3.0                   # 도달 구간 진입 3 s 전부터 계획(예측 구간 축소), TBD(측정 G4)
+  plan:
+    time_margin_min_s: 1.0
+    position_std_max_m: 0.00325        # 계획 단계 기준 = sync.e_xy_max_m. 해제 게이트는 sync.release_position_std_max_m
+    t_approach_s: 1.0                  # TBD(측정 G0)
+  approach:
+    pose_error_max_m: 0.002
+  sync:
+    e_xy_max_m: 0.00325                # 0.5 × (D_in 31 mm − d_stone_max 18 mm) / 2
+    v_rel_max_mps: 0.005
+    hold_s: 0.3
+    timeout_s: 2.0
+    release_position_std_max_m: 0.0005 # 해제 게이트 위치 표준편차 기준
+  predicted:
+    entry_time_tol_s: 0.05             # TBD(측정 G4)
+    v_rel_max_mps: 0.005
+  descend:
+    height_tol_m: 0.0005
+    h_clear_m: 0.002
+  static_place:
+    target_error_max_m: 0.001
+    height_tol_m: 0.0005
+    h_clear_m: 0.002
+  release:
+    d_stone_max_m: 0.018               # OFF-1 2026-11-07
+    delta_open_m: 0.004
+    open_tol_m: 0.001
+  retreat:
+    safe_z_m: 0.10                     # TBD(현장 배치 OFF-1)
+  verify:
+    timeout_s: 3.0
+
+step_timeout:
+  precheck_s: 5.0
+  detect_stone_s: 3.0
+  pick_stone_s: 15.0
+  move_standby_s: 10.0
+  plan_intercept_s: 0.5
+  approach_s: 3.0                      # 1.5 × T_transit(p99), TBD(측정 G0)
+  synchronize_s: 2.0
+  descend_s: 1.5
+  release_s: 2.0                       # max(ceil(1.5×p99), p95+0.5), 실제 controller I0(fake transport) 0.91 s 기준 잠정, TBD(측정 G0)
+  retreat_s: 3.0
+  verify_s: 3.0
+  lap_s: 30.0                          # T_lap, WAIT_CAP 제한시간 = lap_s × (max_passes + 1), TBD(실측 OFF-1)
+
+abort:
+  abort_path_l2_s: 10.0                # TBD(측정 G0·G2)
+  abort_path_l3_s: 15.0                # TBD(측정 G0·G2)
+  cancel_response_s: 0.5
+  call_timeout_s: 1.0
+
+watchdog:
+  heartbeat_timeout_s: 0.3
+  obs_freshness_s: 0.3                 # τ_max, TBD(측정 G3·G4)
+  belt_unsteady_hold_s: 1.0            # BeltMotion.steady=false가 이 시간을 넘게 이어지면 BELT_UNSTEADY(2 × tracking recover_s), TBD(OFF-5)
+  gripper_response_max_s: 0.5          # TBD(측정 G0)
+  gripper_alive_stall_s: 0.1           # TBD(측정 G0)
+  cycle_timeout_s: 90.0
+  cycle_steady_factor_ratio: 2.0
+
+node:                                  # orchestrator_node
+  required_nodes: [vision_node, tracker_node, robot_controller_node]
+  startup_wait_s: 3.0                  # 사이클 시작 전 heartbeat·상태 캐시를 기다리는 시간
+  pick_approach_height_m: 0.05         # TBD(현장 배치 OFF-1)
+  pick_grip_current_ma: 150            # TBD(측정 G0)
+  stone_on_mat_radius_m: 0.01          # 파지 뒤 같은 자리에 공깃돌이 남았는지 보는 반경
+  verify_hold_s: 1.0
+  select_retry_s: 0.2                  # 대상 없음일 때 SelectTarget 재질의 간격
+  detect_stable_window_s: 0.5         # DetectObjects 안정 창
+  status_period_s: 0.1                 # TaskStatus 10 Hz
+
+budget:                                # WAIT_CAP 시간 예산 입력(식은 intercept_planner time_budget). 성분은 TBD(측정 G0)
+  x_reach_start_m: 0.20                # conveyor_frame 도달 구간 시작(WAIT_CAP t_to_window). launch가 ROS 파라미터로 덮는다
+  x_exit_m: 0.40                       # conveyor_frame 도달 구간 끝. 같음
+  plan_s: 0.5
+  approach_s: 1.5
+  synchronize_s: 0.5
+  descend_s: 0.8
+  release_s: 0.3
+  retreat_margin_s: 1.0                # 동적 deadline = 지금 + t_available − 이 값

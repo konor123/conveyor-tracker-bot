@@ -1,0 +1,4 @@
+# drop_bringup 파라미터. 수치 키는 단위 접미사(_m, _s, _mps, _mps2, _rad, _hz, _ma, _pulse, _count, _ratio)를 붙인다.
+layout:                      # 실제 배치의 도달 구간(conveyor_frame x). drop.launch.py가 tracker·planner·orchestrator에 같은 값으로 넣는다
+  x_reach_start_m: -0.05     # 도달 구간 시작(tracker select.x_reach_start_m, planner reach.x_reach_start_m, orchestrator budget.x_reach_start_m). TBD(배치도 OFF-1, 보정 OFF-3)
+  x_exit_m: 0.30             # 도달 구간 끝(planner budget.x_exit_m, orchestrator budget.x_exit_m). 같음

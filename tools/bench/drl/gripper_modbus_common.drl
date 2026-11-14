@@ -1,0 +1,31 @@
+def crc16(d):
+    c = 0xFFFF
+    for b in d:
+        c = c ^ b
+        for i in range(8):
+            if c & 1:
+                c = (c >> 1) ^ 0xA001
+            else:
+                c = c >> 1
+    return c
+def xfer(pdu):
+    c = crc16(pdu)
+    flange_serial_write(bytes(pdu + [c & 0xFF, (c >> 8) & 0xFF]))
+    res, rx = flange_serial_read(0.5)
+    return res, rx
+def put16(reg, v):
+    set_output_register_int(reg, (v >> 8) & 0xFF)
+    set_output_register_int(reg + 1, v & 0xFF)
+def report(ok_reg):
+    res, rx = xfer([1, 3, 0, 0, 0, 1])
+    if res >= 7:
+        put16(16, rx[3] * 256 + rx[4])
+    res, rx = xfer([1, 3, 1, 34, 0, 2])
+    if res >= 9:
+        put16(18, rx[3] * 256 + rx[4])
+        put16(20, rx[5] * 256 + rx[6])
+    res, rx = xfer([1, 3, 1, 31, 0, 1])
+    if res >= 7:
+        put16(22, rx[3] * 256 + rx[4])
+    set_output_register_int(ok_reg, 1)
+flange_serial_open(baudrate=57600, bytesize=DR_EIGHTBITS, parity=DR_PARITY_NONE, stopbits=DR_STOPBITS_ONE)

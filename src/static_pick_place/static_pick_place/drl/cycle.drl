@@ -1,0 +1,124 @@
+# 정지 pick-and-place 한 사이클을 프로그램 하나로 실행한다(팔 이동 movel + 그리퍼 Modbus). EEPROM 쓰기 없음.
+# 스스로 끝난다(exit() 없음, 무한 루프 없음). 그리퍼 확인(모델·모드·오류·토크)은 처음에 1회만 한다.
+# Modbus 함수와 주소는 gripper_move.drl(2026-11-09 실기 검증)과 같다. 플랜지 RS-485 왕복은 약 0.58 s라 횟수를 줄인다.
+# 출력 레지스터: 14 = 시작한 단계 번호(1부터), 15 = 결과(250 성공, 그 밖은 실패),
+#   16·17 파지 위치 hi·lo, 18·19 파지 전류 hi·lo, 20 파지 상태(1 끝점 도달 = 빈 손, 2 막힘 = 쥠),
+#   21·22 마지막 열기 위치 hi·lo, 23 마지막 열기 상태(1 도달, 3 이미 그 위치라 생략),
+#   26 실행 번호(PC가 정한 값. 14~23을 지운 뒤에 쓰므로, PC는 이 값을 본 뒤에만 14·15를 이번 실행의 값으로 믿는다)
+# 실패 코드: 241 무응답, 242 쓰기 실패, 244 오류 비트, 245 미정착, 246 모델, 247 모드, 248 빈 손 파지, 249 이동 실패
+# STEPS 한 줄: 이동 [0, x, y, z, a, b, c, v, acc](mm·deg·mm/s·mm/s²), 그리퍼 [1, pulse, current, grasp]
+STEPS = __STEPS__
+READ_TIMEOUT = __READ_TIMEOUT__
+ANG_V = __ANG_V__
+ANG_A = __ANG_A__
+RUN_ID = __RUN_ID__
+
+__MODBUS_RTU__
+
+def state():
+    # 287 Present Current, 288~289 Present Velocity, 290~291 Present Position(u32, 낮은 word 먼저)
+    v = read_words(287, 5)
+    if v is None:
+        return None
+    return [v[3] + 65536 * v[4], v[0]]
+
+# 그리퍼 상태를 프로그램 안에서 기억한다: G[0] 지금 쓰여 있는 Goal Current, G[1] 마지막으로 읽은 위치(-1 = 모름)
+G = [-1, -1]
+
+def init_gripper():
+    flange_serial_read(READ_TIMEOUT)                # 지난 실행의 늦은 응답을 비운다
+    ident = read_words(0, 6)                        # 0 Model Number, 5 상위 바이트 Operating Mode
+    if ident is None:
+        return 241
+    if ident[0] != 35074:
+        return 246
+    if (ident[5] >> 8) != 5:
+        return 247
+    ram = read_words(256, 20)                       # 256 Torque Enable, 259 Hardware Error, 275 Goal Current
+    if ram is None:
+        return 241
+    if ram[3] & 255:
+        return 244
+    if ram[0] != 1 and not write_checked([1, 6, 1, 0, 0, 1]):
+        return 242
+    G[0] = ram[19]
+    return 0
+
+def grip(target, current, grasp):
+    # 반환 [코드(0 정상), 위치, 전류, 상태]. 상태 1 목표 도달, 2 막힘(쥠), 3 이미 목표라 생략
+    if G[1] < 0:
+        pre = state()
+        if pre is None:
+            return [241, 0, 0, 0]
+        G[1] = pre[0]
+    start = G[1]
+    if not grasp and abs(start - target) <= 3:
+        return [0, start, 0, 3]                     # 이미 열려 있다. 쓰기 없이 넘어간다
+    if G[0] != current:
+        if not write_checked([1, 6, 1, 19, 0, current]):
+            return [242, start, 0, 0]
+        G[0] = current
+    if not write_checked([1, 16, 1, 26, 0, 2, 4, (target >> 8) & 255, target & 255, 0, 0]):
+        return [242, start, 0, 0]
+    last = -1
+    for i in range(30):
+        st = state()
+        if st is None:
+            return [241, start, 0, 0]
+        pos = st[0]
+        cur = st[1]
+        G[1] = pos
+        if abs(pos - target) <= 3:
+            return [0, pos, cur, 1]
+        # 한 표본(약 0.6 s) 동안 멈춰 있고, 명령 전 위치에서 10 pulse 넘게 움직였거나 전류가 한도의 80% 이상이면 막힌 것
+        signed = cur
+        if cur > 32767:
+            signed = cur - 65536
+        if grasp and last >= 0 and abs(pos - last) <= 2 and (abs(pos - start) > 10 or signed * 5 >= current * 4):
+            return [0, pos, cur, 2]
+        last = pos
+    return [245, G[1], 0, 0]
+
+def run():
+    code = init_gripper()
+    if code != 0:
+        return code                                 # 그리퍼가 준비되지 않으면 팔을 움직이지 않는다
+    n = 0
+    for st in STEPS:
+        n = n + 1
+        set_output_register_int(14, n)
+        if st[0] == 0:
+            if movel(posx(st[1], st[2], st[3], st[4], st[5], st[6]), vel=[st[7], ANG_V], acc=[st[8], ANG_A]) != 0:
+                return 249
+        else:
+            r = grip(st[1], st[2], st[3])
+            if st[3]:
+                set_output_register_int(16, (r[1] >> 8) & 255)
+                set_output_register_int(17, r[1] & 255)
+                set_output_register_int(18, (r[2] >> 8) & 255)
+                set_output_register_int(19, r[2] & 255)
+                set_output_register_int(20, r[3])
+            else:
+                set_output_register_int(21, (r[1] >> 8) & 255)
+                set_output_register_int(22, r[1] & 255)
+                set_output_register_int(23, r[3])
+            if r[0] != 0:
+                return r[0]
+            if st[3] and r[3] != 2:
+                return 248                          # 끝점까지 닫혔다 = 손가락 사이에 돌이 없다. 다음 이동을 하지 않는다
+    err = read_words(259, 1)
+    if err is None:
+        return 241
+    if err[0] & 255:
+        return 244
+    return 250
+
+set_output_register_int(15, 0)
+set_output_register_int(14, 0)
+for a in range(16, 24):                             # 지난 실행의 파지·열기 결과를 지운다(0 = 이번 실행에서 안 함)
+    set_output_register_int(a, 0)
+set_output_register_int(26, RUN_ID)                  # 지운 뒤에 쓴다
+flange_serial_open(baudrate=57600, bytesize=DR_EIGHTBITS, parity=DR_PARITY_NONE, stopbits=DR_STOPBITS_ONE)
+result = run()
+flange_serial_close()
+set_output_register_int(15, result)

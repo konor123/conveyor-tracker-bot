@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+env:
+  ROS_DOMAIN_ID: "142"
+  ROS_AUTOMATIC_DISCOVERY_RANGE: "LOCALHOST"
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    container:
+      image: ros:jazzy-ros-base
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Trust the checked-out workspace in the job container
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Install dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            python3-colcon-common-extensions \
+            python3-jsonschema \
+            python3-numpy \
+            python3-opencv \
+            python3-pytest \
+            python3-yaml \
+            ros-jazzy-launch-ros \
+            ros-jazzy-launch-testing-ament-cmake \
+            ros-jazzy-lifecycle-msgs \
+            ros-jazzy-tf2-ros
+
+      - name: Build workspace
+        shell: bash
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          colcon build --symlink-install
+
+      - name: Repository checks and tools
+        shell: bash
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          source install/setup.bash
+          python3 -m pytest tools -m "not realtime_pc" -v
+
+      - name: Package tests
+        shell: bash
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          source install/setup.bash
+          # 패키지마다 conftest가 달라 pytest를 패키지별로 따로 돈다
+          for pkg in orchestrator robot_control calibration tracking intercept_planner vision static_pick_place; do
+            python3 -m pytest "src/$pkg/test" -m "not realtime_pc" -v
+          done
+          python3 -m pytest src/drop_mocks/test --ignore=src/drop_mocks/test/contract -m "not realtime_pc" -v
+          python3 -m pytest src/drop_mocks/test/contract -m "not realtime_pc" -v
+
+      - name: Mock integration tests
+        shell: bash
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          source install/setup.bash
+          python3 -m pytest src/drop_bringup/test -m "not realtime_pc" -v
+
+      # 실시간 스케줄(10 Hz heartbeat, 100 Hz 동적 루프)에 의존하는 시험은 공유 러너에서 참고로만 돌린다.
+      - name: Realtime tests (informational on shared runners)
+        shell: bash
+        continue-on-error: true
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          source install/setup.bash
+          for path in src/drop_mocks/test src/robot_control/test src/vision/test src/drop_bringup/test; do
+            python3 -m pytest "$path" -m realtime_pc -v -rA
+          done

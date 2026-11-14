@@ -1,0 +1,25 @@
+{
+  "unitless": ["tool_quat_xyzw", "T_base_conveyor"],
+  "budget": {
+    "x_exit_m": 0.30,
+    "margin_s": 1.0,
+    "v_min_mps": 0.002,
+    "t_transit_s": 1.5,
+    "t_sync_s": 0.5,
+    "t_descend_s": 0.8,
+    "t_release_s": 0.3,
+    "t_clear_s": 0.9
+  },
+  "reach": {
+    "x_reach_start_m": -0.05,
+    "workspace_min_m": [0.20, -0.40, 0.00],
+    "workspace_max_m": [0.70, 0.40, 0.40]
+  },
+  "target": {
+    "release_above_rim_m": 0.1656,
+    "tool_quat_xyzw": [1, 0, 0, 0],
+    "tcp_offset_m": [0.0, 0.0]
+  },
+  "uncertainty": {"position_std_max_m": 0.00325},
+  "T_base_conveyor": [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]
+}

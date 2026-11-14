@@ -1,0 +1,30 @@
+# 외부 진입점(orchestrator 서버). 오케스트레이터가 보내는 요청이 아니므로 공통 요청 필드를 두지 않는다.
+uint8 MODE_STATIC=0               # 정지 벨트
+uint8 MODE_PREDICTED=1            # 예측 해제점 + 짧은 속도 일치 구간
+uint8 MODE_SYNCHRONIZED=2         # 지속 갱신 목표 + 속도 동기 추종
+uint8 mode
+float64 max_belt_speed            # 이 속도를 넘으면 시도하지 않음 [m/s]
+float64 timeout                   # 사이클 제한시간 [s]
+uint8 max_passes                  # 시간 예산 부족으로 보낼 수 있는 병뚜껑 통과 횟수
+---
+uint8 SUCCESS=0
+uint8 FAILURE=1
+uint8 UNKNOWN=2                   # 판정 불가(성공률 분자에서 제외, 분모에 포함)
+uint8 CANCELED=3
+uint8 SAFE_ABORT=4
+uint8 PROTECTIVE_STOP=5
+uint8 NOT_ATTEMPTED=6             # 선행조건·시간 예산 미충족으로 시도하지 않음
+uint8 result
+string reason_code
+float64 release_error             # 해제 순간 공깃돌 중심과 뚜껑 중심 추정 사이 XY [m]
+bool release_error_valid
+float64 stone_offset              # 안착 후 뚜껑 중심 대비 공깃돌 중심, 직접 관측 [m]
+bool stone_offset_valid
+float64 hold_time                 # 뚜껑 안 유지 확인 시간 [s]
+float64 cycle_time                # [s]
+uint8 passes_skipped
+---
+string state
+uint32 plan_id
+float64 time_remaining            # [s]
+float64 tracking_std              # [m]

@@ -1,0 +1,5 @@
+# robot_control 파라미터. 수치 키는 단위 접미사(_m, _s, _mps, _mps2, _rad, _hz, _ma, _pulse, _count, _ratio)를 붙인다.
+robot_controller_node:
+  ros__parameters:
+    # 기본은 실기 연결을 만들지 않는 disabled다. 시험은 backend:=fake로 명시한다.
+    backend: disabled

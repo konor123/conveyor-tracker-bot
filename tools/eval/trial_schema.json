@@ -1,0 +1,174 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "trial_schema.json",
+  "title": "trial record",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "trial_id",
+    "env",
+    "interface_version",
+    "scenario",
+    "assumed_params",
+    "gate",
+    "git_sha",
+    "mode",
+    "result",
+    "abort_level",
+    "reason_code",
+    "passes_skipped",
+    "cycle_time_s"
+  ],
+  "properties": {
+    "trial_id": {
+      "type": "string"
+    },
+    "env": {
+      "type": "string",
+      "enum": ["real", "sim", "mock", "replay"]
+    },
+    "interface_version": {
+      "type": "string"
+    },
+    "scenario": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "seed"],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "seed": {
+          "type": "integer"
+        }
+      }
+    },
+    "assumed_params": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "gate": {
+      "type": "string"
+    },
+    "git_sha": {
+      "type": "string"
+    },
+    "spec_versions": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "calibration_id": {
+      "type": "string"
+    },
+    "doosan_sha": {
+      "type": "string"
+    },
+    "controller_ver": {
+      "type": "string"
+    },
+    "gripper_fw": {
+      "type": "string"
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["MODE_STATIC", "MODE_PREDICTED", "MODE_SYNCHRONIZED"]
+    },
+    "belt_speed_ref_mps": {
+      "type": "number"
+    },
+    "belt_speed_est_mps": {
+      "type": "number"
+    },
+    "lighting": {
+      "type": "string"
+    },
+    "operator": {
+      "type": "string"
+    },
+    "result": {
+      "type": "string",
+      "enum": [
+        "SUCCESS",
+        "FAILURE",
+        "UNKNOWN",
+        "CANCELED",
+        "SAFE_ABORT",
+        "PROTECTIVE_STOP",
+        "NOT_ATTEMPTED"
+      ]
+    },
+    "abort_level": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4
+    },
+    "reason_code": {
+      "type": "string"
+    },
+    "observer_verdict": {
+      "type": "string",
+      "enum": ["SUCCESS", "FAILURE", "UNKNOWN"]
+    },
+    "auto_verdict": {
+      "type": "string",
+      "enum": ["SUCCESS", "FAILURE", "UNKNOWN"]
+    },
+    "release_gate": {
+      "type": "object",
+      "additionalProperties": {
+        "type": ["number", "string"]
+      }
+    },
+    "release_height_m": {
+      "type": "number"
+    },
+    "release_error_m": {
+      "type": "number"
+    },
+    "stone_offset_m": {
+      "type": "number"
+    },
+    "gripper": {
+      "type": "object",
+      "additionalProperties": {
+        "type": ["number", "string"]
+      }
+    },
+    "passes_skipped": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "time_margin_s": {
+      "type": "number"
+    },
+    "cycle_time_s": {
+      "type": "number"
+    },
+    "step_durations_s": {
+      "type": "object",
+      "additionalProperties": {
+        "type": ["number", "string"]
+      }
+    },
+    "rosbag": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "sha256": {
+          "type": "string"
+        }
+      }
+    },
+    "notes": {
+      "type": "string"
+    }
+  }
+}

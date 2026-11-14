@@ -1,0 +1,86 @@
+# RH-P12-RN(A) 그리퍼 1회 이동(제어기 플랜지 RS-485, Modbus-RTU ID 1, 57600 8N1). 팔 지령·EEPROM 쓰기 없음.
+# 원본: tools/bench/drl/gripper_once.drl(2026-11-07 검증). 바뀐 점: exit() 대신 결과 코드를 반환해 DRL이 끝까지 실행되어
+# 종료한다(실패 시 PLAY로 남던 문제), 파지 모드는 대상에 막혀 멈추면 성공, Torque Enable(RAM 256) 켜기.
+# 출력 레지스터: 16..23 = [목표 hi, lo, 위치 hi, lo, 전류 hi, lo, 상태, 0], 마지막에 15 = 결과(250 성공, 24x 실패).
+# Modbus 주소 = 문서 40xxx − 40001. u32는 낮은 word가 먼저.
+TARGET = __PULSE__
+CURRENT = __CURRENT__
+GRASP = __GRASP__
+READ_TIMEOUT = __READ_TIMEOUT__
+
+__MODBUS_RTU__
+
+def report(pos, cur, status):
+    vals = [(TARGET >> 8) & 255, TARGET & 255, (pos >> 8) & 255, pos & 255, (cur >> 8) & 255, cur & 255, status, 0]
+    for i in range(8):
+        set_output_register_int(16 + i, vals[i])
+
+def state():
+    # 287 Present Current, 288~289 Present Velocity, 290~291 Present Position(u32, 낮은 word 먼저)
+    v = read_words(287, 5)
+    if v is None:
+        return None
+    return v[3] + 65536 * v[4], v[0]
+
+def run():
+    # 플랜지 RS-485 왕복은 DRL에서 약 0.58 s 고정(2026-11-09 측정)이라 왕복 횟수를 줄인다.
+    # 지난 실행에서 늦게 도착한 응답이 버퍼에 남으면 요청과 응답이 어긋난다(2026-11-09 246·247). 먼저 비운다
+    flange_serial_read(READ_TIMEOUT)
+    ident = read_words(0, 6)                       # 0 Model Number, 5 상위 바이트 Operating Mode
+    if ident is None:
+        return 241
+    if ident[0] != 35074:
+        return 246
+    if (ident[5] >> 8) != 5:
+        return 247
+    ram = read_words(256, 20)                      # 256 Torque Enable, 259 Hardware Error, 275 Goal Current
+    if ram is None:
+        return 241
+    if ram[3] & 255:
+        return 244
+    if ram[0] != 1 and not write_checked([1, 6, 1, 0, 0, 1]):
+        return 242
+    if ram[19] != CURRENT and not write_checked([1, 6, 1, 19, 0, CURRENT]):
+        return 242
+    # 시작 위치는 명령 전에 읽는다. 첫 샘플(약 0.6 s 뒤)에는 이미 대상에 닿아 있을 수 있다(2026-11-09 2회차)
+    pre = state()
+    if pre is None:
+        return 241
+    start = pre[0]
+    if not write_checked([1, 16, 1, 26, 0, 2, 4, (TARGET >> 8) & 255, TARGET & 255, 0, 0]):
+        return 242
+    last = None
+    status = 0
+    pos = 0
+    cur = 0
+    for i in range(30):
+        st = state()
+        if st is None:
+            return 241
+        pos = st[0]
+        cur = st[1]
+        if abs(pos - TARGET) <= 3:
+            status = 1
+            break
+        # 한 샘플(약 0.6 s) 동안 멈춰 있고, 명령 전 위치에서 10 pulse 이상 움직였거나(닫히다 닿음)
+        # 전류가 한도의 80% 이상(이미 쥔 상태에서 다시 닫음)이면 대상에 막힌 것이다
+        signed = cur - 65536 if cur > 32767 else cur
+        if GRASP and last is not None and abs(pos - last) <= 2 and (abs(pos - start) > 10 or signed * 5 >= CURRENT * 4):
+            status = 2
+            break
+        last = pos
+    if status == 0:
+        return 245
+    err = read_words(259, 1)
+    if err is None:
+        return 241
+    if err[0] & 255:
+        return 244
+    report(pos, cur, status)
+    return 250
+
+set_output_register_int(15, 0)
+flange_serial_open(baudrate=57600, bytesize=DR_EIGHTBITS, parity=DR_PARITY_NONE, stopbits=DR_STOPBITS_ONE)
+result = run()
+flange_serial_close()
+set_output_register_int(15, result)

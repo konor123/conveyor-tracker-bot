@@ -1,0 +1,212 @@
+"""RosSkillPort 비동기 장애 계약."""
+import threading
+from types import SimpleNamespace
+
+import pytest
+
+pytest.importorskip('rclpy')
+
+from orchestrator.abort_policy import Event  # noqa: E402
+from orchestrator.orchestrator_node import RosSkillPort  # noqa: E402
+
+
+class _Log:
+    def warning(self, msg):
+        pass
+
+
+class _Clock:
+    def __init__(self):
+        self.t = 0.0
+
+    def ros_now(self):
+        return self.t
+
+
+def _port():
+    node = SimpleNamespace(cfg_dict={'watchdog': {'cycle_steady_factor_ratio': 2.0}},
+                           clock=_Clock(), get_logger=lambda: _Log(), _watch=lambda: None)
+    port = RosSkillPort(node)
+    port.reset(goal_handle=SimpleNamespace(is_cancel_requested=False))
+    return port
+
+
+def _released(port):
+    """RELEASE 응답을 받은 상태로 만든다."""
+    port._feedback = [(0.0, SimpleNamespace(phase='RELEASE', phase_done=True, metric_keys=[], metric_values=[]))]
+    assert port.place_feedback('RELEASE', deadline=1.0) is not None
+
+
+def test_soft_fault_ends_wait_before_release():
+    port = _port()
+    port.raise_fault(Event.HEARTBEAT_LOST)
+    assert port._wait(lambda: False, deadline=10.0) is False
+
+
+def test_soft_fault_does_not_end_wait_after_release():
+    port = _port()
+    _released(port)
+    port.raise_fault(Event.HEARTBEAT_LOST)
+    calls = []
+
+    def ready():
+        calls.append(1)
+        return len(calls) >= 3            # 후퇴 결과가 조금 뒤에 온다
+
+    assert port._wait(ready, deadline=10.0) is True
+    assert port.pending_fault() is Event.HEARTBEAT_LOST     # latch는 유지되어 실행기가 CONTINUE로 처리한다
+
+
+@pytest.mark.parametrize('hard', [Event.CONTROLLER_HEARTBEAT_LOST, Event.PROTECTIVE_STOP, Event.ROBOT_COMM_LOST])
+def test_hard_fault_ends_wait_after_release_and_overrides_soft(hard):
+    port = _port()
+    _released(port)
+    port.raise_fault(Event.HEARTBEAT_LOST)
+    port.raise_fault(hard)                # latch된 비하드 장애를 하드 이상이 덮는다
+    assert port._wait(lambda: False, deadline=10.0) is False
+    assert port.pending_fault() is hard
+
+
+def test_soft_fault_does_not_override_hard():
+    port = _port()
+    port.raise_fault(Event.PROTECTIVE_STOP)
+    port.raise_fault(Event.HEARTBEAT_LOST)
+    assert port.pending_fault() is Event.PROTECTIVE_STOP
+
+
+def test_reset_clears_release():
+    port = _port()
+    _released(port)
+    port.reset(goal_handle=SimpleNamespace(is_cancel_requested=False))
+    port.raise_fault(Event.HEARTBEAT_LOST)
+    assert port._wait(lambda: False, deadline=10.0) is False
+
+
+class _GatedLock:
+    """진짜 Lock을 감싼 계측 lock. 지정한 스레드가 임계구역에 들어가면 알리고, 풀어 줄 때까지 붙잡는다."""
+
+    def __init__(self, hold_thread: str):
+        self._lock = threading.Lock()
+        self._hold = hold_thread
+        self.entered = threading.Event()
+        self.release = threading.Event()
+
+    def __enter__(self):
+        self._lock.acquire()
+        if threading.current_thread().name == self._hold and not self.entered.is_set():
+            self.entered.set()
+            assert self.release.wait(2.0)
+        return self
+
+    def __exit__(self, *exc):
+        self._lock.release()
+        return False
+
+
+def _race(port, first, second, hold='first'):
+    """`first`가 lock 안에 머무는 동안 `second`를 시작해 교차를 강제한다. 예외는 주 스레드로 올린다."""
+    errors = []
+
+    def run(fn):
+        try:
+            fn()
+        except BaseException as e:  # noqa: BLE001
+            errors.append(e)
+    gate = _GatedLock(hold)
+    port._fault_lock = gate
+    t1 = threading.Thread(target=run, args=(first,), name='first')
+    t2 = threading.Thread(target=run, args=(second,), name='second')
+    t1.start()
+    assert gate.entered.wait(2.0), '첫 스레드가 lock으로 보호된 임계구역에 들어가지 않았다'
+    t2.start()
+    t2.join(0.2)                       # lock이 있으면 두 번째 스레드는 여기서 끝나지 못한다
+    gate.release.set()
+    t1.join(2.0)
+    t2.join(2.0)
+    assert not t1.is_alive() and not t2.is_alive()
+    if errors:
+        raise errors[0]
+
+
+@pytest.mark.parametrize('soft_first', [True, False])
+def test_concurrent_soft_and_hard_raise_keeps_hard(soft_first):
+    port = _port()
+    soft = lambda: port.raise_fault(Event.HEARTBEAT_LOST)              # noqa: E731
+    hard = lambda: port.raise_fault(Event.CONTROLLER_HEARTBEAT_LOST)   # noqa: E731
+    _race(port, *((soft, hard) if soft_first else (hard, soft)))
+    assert port.pending_fault() is Event.CONTROLLER_HEARTBEAT_LOST
+
+
+def test_concurrent_consume_and_hard_raise_loses_nothing():
+    port = _port()
+    port.raise_fault(Event.HEARTBEAT_LOST)
+    got = []
+    _race(port, lambda: got.append(port.pending_fault()),
+          lambda: port.raise_fault(Event.CONTROLLER_HEARTBEAT_LOST))
+    seen = [got[0], port.pending_fault()]
+    assert seen.count(Event.CONTROLLER_HEARTBEAT_LOST) == 1         # 소비 결과나 남은 latch 중 한 곳에서만 보인다
+
+
+def test_ready_response_after_original_cycle_deadline():
+    port = _port()
+    _released(port)
+    port.clock.t = 91.0
+    port.raise_fault(Event.CYCLE_TIMEOUT)
+    assert port._wait(lambda: True, deadline=90.0)
+    assert not port._wait(lambda: False, deadline=90.0)
+
+
+def _tracking_port(track_id=7, epoch=1):
+    """SelectTarget이 항상 같은 track을 돌려주는 포트. 호출마다 가짜 ROS 시각이 1 s 흐른다."""
+    from builtin_interfaces.msg import Time
+    port = _port()
+    n = port.n
+    n.node_cfg = {'select_retry_s': 0.05}
+    n.budget = {'x_reach_start_m': 0.20, 'x_exit_m': 0.30, 'retreat_margin_s': 1.0, 't_transit_s': 1.5}
+    n.cfg = SimpleNamespace(wait_cap=SimpleNamespace(margin_s=1.0))
+    n.tracked, n.tracked_seq, n.belt, n.detections = SimpleNamespace(tracks=[]), 5, None, None
+
+    def call(*args, **kwargs):
+        n.clock.t += 1.0
+        return SimpleNamespace(result=0, track_id=track_id, epoch=epoch, t_enter_window=Time(sec=50))
+    port._call = call
+    return port
+
+
+def _track(track_id=7, epoch=1, status=0):
+    return SimpleNamespace(track_id=track_id, epoch=epoch, status=status, observation_count=40,
+                           position=SimpleNamespace(x=0.0), velocity=SimpleNamespace(x=0.02))
+
+
+def test_target_lost_uses_only_lists_received_after_selection():
+    port = _tracking_port()
+    n = port.n
+    assert port.select_target(1, deadline=20.0).target_lost is False     # 고르기 전 목록(비어 있음)은 소실이 아니다
+    for tracks, lost in [([_track()], False), ([_track(status=1)], False),           # OBSERVED, COASTING
+                         ([], True), ([_track(epoch=2)], True), ([_track(status=2)], True)]:
+        n.tracked, n.tracked_seq = SimpleNamespace(tracks=tracks), n.tracked_seq + 1
+        assert port._cap_obs().target_lost is lost, tracks
+
+
+def test_reselect_within_pass_does_not_skip_the_same_track():
+    """건너뛴 통과의 track만 다음 통과에서 제외한다. 같은 통과의 재선택은 같은 track을 다시 고를 수 있다."""
+    port = _tracking_port()
+    assert port.select_target(2, deadline=20.0) is not None
+    assert port.select_target(2, deadline=20.0) is not None              # 같은 통과: 다시 고름
+    assert port.target == (7, 1)
+    assert port.select_target(3, deadline=20.0) is None                  # 다음 통과: 그 track은 제외, deadline까지 대상 없음
+
+
+def test_time_to_window_follows_current_track_not_selection():
+    """갓 생긴 track은 속도 추정이 작아 고른 순간의 진입 시각이 크게 늦다. 매 관측의 track으로 다시 계산한다."""
+    import math
+    port = _tracking_port()
+    n = port.n
+    assert port.select_target(1, deadline=20.0) is not None          # t_enter_window = 50 s(무시돼야 함)
+    for x, v, want in [(0.0, 0.005, 40.0), (0.0, 0.02, 10.0), (0.25, 0.02, 0.0), (0.0, 0.0, math.inf)]:
+        tr = _track()
+        tr.position.x, tr.velocity.x = x, v
+        n.tracked, n.tracked_seq = SimpleNamespace(tracks=[tr]), n.tracked_seq + 1
+        assert port._cap_obs().meas.t_to_window_s == pytest.approx(want), (x, v)
+    n.tracked, n.tracked_seq = SimpleNamespace(tracks=[]), n.tracked_seq + 1
+    assert port._cap_obs().meas.t_to_window_s == math.inf

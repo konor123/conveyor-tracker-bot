@@ -1,0 +1,36 @@
+# 공통 요청 필드
+string cycle_id
+uint32 step_id
+builtin_interfaces/Time deadline   # ROS 시각. 지나면 서버가 스스로 중단하고 TIMEOUT
+uint32 plan_id
+uint32 target_epoch
+uint8 mode                        # DropTask.MODE_PREDICTED / MODE_SYNCHRONIZED
+float64 e_xy_max                  # 해제 게이트 [m]
+float64 v_rel_max                 # 해제 게이트 [m/s]
+float64 tau_max                   # COASTING 허용 시간 [s]
+float64 position_std_max          # 해제 게이트 [m]
+float64 rim_clearance             # h_clear [m]
+float64 open_width                # [m]
+---
+# 공통 결과 코드
+uint8 OK=0
+uint8 FAILED=1          # 시도했으나 판정 실패
+uint8 TIMEOUT=2         # deadline 경과
+uint8 PRECONDITION=3    # 선행조건 불충족, 시도하지 않음
+uint8 CANCELED=4
+uint8 FAULT=5           # 하드웨어·통신 이상
+uint8 result
+string reason_code
+bool released
+float64 gate_e_xy                 # 해제 순간 값 [m]
+float64 gate_v_rel                # [m/s]
+float64 gate_t_since_obs          # [s]
+float64 gate_position_std         # [m]
+---
+string phase
+float64 e_xy                      # [m]
+float64 v_rel                     # [m/s]
+uint32 plan_revision
+bool phase_done                   # true = phase가 끝났고 metric이 그 phase 판정의 최종 입력
+string[] metric_keys              # 판정 측정값 이름(단위 접미사 포함)
+float64[] metric_values           # 같은 순서의 값. 불리언은 1.0/0.0

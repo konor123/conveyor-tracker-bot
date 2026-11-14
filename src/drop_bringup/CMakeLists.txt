@@ -1,0 +1,18 @@
+cmake_minimum_required(VERSION 3.8)
+project(drop_bringup)
+
+find_package(ament_cmake REQUIRED)
+
+install(DIRECTORY launch config DESTINATION share/${PROJECT_NAME})
+
+if(BUILD_TESTING)
+  find_package(ament_cmake_pytest REQUIRED)
+  ament_add_pytest_test(test_mock_bringup test/test_mock_bringup.py TIMEOUT 120)
+  ament_add_pytest_test(test_i0_integration test/test_i0_integration.py TIMEOUT 900)
+  ament_add_pytest_test(test_i0_real_controller test/test_i0_real_controller.py TIMEOUT 900)
+  ament_add_pytest_test(test_real_bringup test/test_real_bringup.py TIMEOUT 120)
+  ament_add_pytest_test(test_frames_launch test/test_frames_launch.py TIMEOUT 120)
+  ament_add_pytest_test(test_replay_launch test/test_replay_launch.py TIMEOUT 180)
+endif()
+
+ament_package()

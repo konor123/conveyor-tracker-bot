@@ -1,0 +1,6 @@
+# 2026-11-09 LEGION 현장 덮어쓰기(잠정). 파일 경로는 저장소 루트 기준 상대 경로다.
+# 외부 변환은 후보값(독립 접촉 검증 0점), 매트 평면은 ChArUco PnP, 벨트 평면은 매트 + 93 mm(사용자 실측).
+# 2026-11-09 컨베이어·매트 재배치 전 보드 자료로 구한 평면이다. 재배치 뒤 재측정 대상.
+calibration_file: config/calib/camera_extrinsics.yaml
+mat_plane_file: config/calib/mat_plane.yaml
+belt_plane_file: config/calib/belt_plane.yaml

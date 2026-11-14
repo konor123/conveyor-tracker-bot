@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>drop_bringup</name>
+  <version>0.0.1</version>
+  <description>launch·공통 설정·통합 시험 (conveyor-tracker-bot)</description>
+  <maintainer email="konor123@users.noreply.github.com">konor123</maintainer>
+  <license>Apache-2.0</license>
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>drop_interfaces</exec_depend>
+  <exec_depend>dsr_bringup2</exec_depend>
+  <exec_depend>realsense2_camera</exec_depend>
+  <exec_depend>calibration</exec_depend>
+  <exec_depend>tracking</exec_depend>
+  <exec_depend>intercept_planner</exec_depend>
+  <exec_depend>vision</exec_depend>
+  <exec_depend>ros2bag</exec_depend>
+  <exec_depend>rosbag2_storage_mcap</exec_depend>
+  <exec_depend>lifecycle_msgs</exec_depend>
+  <exec_depend>rviz2</exec_depend>
+
+  <exec_depend>drop_mocks</exec_depend>
+  <exec_depend>orchestrator</exec_depend>
+  <exec_depend>robot_control</exec_depend>
+
+  <test_depend>ament_cmake_pytest</test_depend>
+  <test_depend>python3-pytest</test_depend>
+  <test_depend>rosbag2_py</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

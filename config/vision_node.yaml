@@ -1,0 +1,11 @@
+# 2026-11-09 현장 vision_node 파라미터(잠정). 파일 경로는 저장소 루트 기준 상대 경로다.
+# 사용: ros2 launch drop_bringup drop.launch.py use_mock_vision:=false vision_params_file:=config/vision_node.yaml
+#   또는 ros2 run vision vision_node --ros-args --params-file <이 파일의 절대 경로>
+vision_node:
+  ros__parameters:
+    image_topic: /camera/camera/color/image_raw
+    calibration_file: config/calib/camera_extrinsics.yaml
+    mat_plane_file: config/calib/mat_plane.yaml
+    belt_plane_file: config/calib/belt_plane.yaml
+    h_stone_offset_m: 0.015     # 공깃돌 높이 15 mm(사용자 실측) → 위치 z = 돌 윗면
+    h_rim_m: 0.022              # 벨트면 → 테두리 윗면(매트에서 115 mm − 벨트 93 mm)

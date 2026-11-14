@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 같은 PC 안에서 D455 1280x800 RGB(약 3 MB) 영상을 공유 메모리로 보내기 위한 FastDDS 프로파일.
+     기본 SHM 세그먼트(0.5 MB)보다 큰 메시지는 UDP 조각으로 가며, best effort 구독에서 조각 하나만 잃어도
+     프레임 전체가 버려진다(2026-11-07 실측: best effort 0.2 Hz, reliable 26 Hz, 카메라 28.7 fps).
+     사용: export FASTRTPS_DEFAULT_PROFILES_FILE=<이 파일>  (드라이버·구독 노드 모두 같은 설정) -->
+<profiles xmlns="http://www.eprosima.com/XMLSchemas/fastRTPS_Profiles">
+  <transport_descriptors>
+    <transport_descriptor>
+      <transport_id>shm_large</transport_id>
+      <type>SHM</type>
+      <segment_size>67108864</segment_size>
+    </transport_descriptor>
+    <transport_descriptor>
+      <transport_id>udp</transport_id>
+      <type>UDPv4</type>
+    </transport_descriptor>
+  </transport_descriptors>
+  <participant profile_name="drop_default" is_default_profile="true">
+    <rtps>
+      <useBuiltinTransports>false</useBuiltinTransports>
+      <userTransports>
+        <transport_id>shm_large</transport_id>
+        <transport_id>udp</transport_id>
+      </userTransports>
+    </rtps>
+  </participant>
+</profiles>

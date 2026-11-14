@@ -1,0 +1,9 @@
+# ChArUco 보정 보드. 원본: aruco_charuco_print_v1.pdf 2쪽(A4, 100% 인쇄, "100 mm scale check"로 배율 확인)
+# OpenCV 정의와 일치 확인(2026-11-07): PDF 300 dpi 렌더에서 코너 24개, 배율 1.0001, 최대 편차 0.035 mm
+squares_x_count: 5
+squares_y_count: 7
+square_m: 0.030
+marker_m: 0.022
+dictionary: DICT_4X4_50
+# 보드 윗면 ↔ 놓인 면 거리(종이 + 받침판). 평면 높이에서 뺀다. 현장에서 캘리퍼로 재서 고친다
+board_thickness_m: 0.0001

@@ -1,0 +1,12 @@
+build/
+install/
+log/
+logs/
+records/
+third_party/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+*.mcap
+*.db3
