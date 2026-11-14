@@ -1,7 +1,7 @@
 From c2c278b4d2570403bef0e88d84dcae8e17673744 Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Fri, 13 Nov 2026 22:02:12 +0900
-Subject: [PATCH 01/17] Add a non-contact hover test at the predicted release
+Subject: [PATCH 01/18] Add a non-contact hover test at the predicted release
  point (G4 pre-check, no stone)
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
@@ -268,7 +268,7 @@ index 0000000..9de5657
 From 9f994ed7ab67486c648a61c0861e7aa850f63f33 Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Fri, 13 Nov 2026 22:05:57 +0900
-Subject: [PATCH 02/17] Return to park when the hover test gives up waiting for
+Subject: [PATCH 02/18] Return to park when the hover test gives up waiting for
  a plan, and log why target selection failed
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
@@ -318,7 +318,7 @@ index 4e9e2e0..8233907 100644
 From e66332c6865f3dc0950e5a2c0b533edd19c74748 Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Sat, 14 Nov 2026 11:19:35 +0900
-Subject: [PATCH 03/17] Add a simple G4 demo script: grip with the resident
+Subject: [PATCH 03/18] Add a simple G4 demo script: grip with the resident
  loop, wait at the predicted release point, fire the armed open
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
@@ -586,7 +586,7 @@ index 0000000..de3a5e4
 From f63dc3ae2fd342c277bde8470d5833b56378d48e Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Sat, 14 Nov 2026 11:23:45 +0900
-Subject: [PATCH 04/17] Check the drop from beside the belt before parking
+Subject: [PATCH 04/18] Check the drop from beside the belt before parking
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 ---
@@ -617,7 +617,7 @@ index de3a5e4..b570954 100644
 From bcb1132afeac08a34705f167df3e9149b75ac686 Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Sat, 14 Nov 2026 11:29:12 +0900
-Subject: [PATCH 05/17] Hold height until the gripper opens, keep going home
+Subject: [PATCH 05/18] Hold height until the gripper opens, keep going home
  after a short retreat, skip release points beyond x 0.68
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
@@ -704,7 +704,7 @@ index b570954..fdc320a 100644
 From 67d1a548e91a674551908997a14965d8aceb0b03 Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Sat, 14 Nov 2026 11:44:19 +0900
-Subject: [PATCH 06/17] Ask IK again when it answers with all-zero joints
+Subject: [PATCH 06/18] Ask IK again when it answers with all-zero joints
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 ---
@@ -733,7 +733,7 @@ index fdc320a..eef1b63 100644
 From b7b6a2e5aeb042cd9392c87c3d470c54fe1d2513 Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Sat, 14 Nov 2026 11:44:48 +0900
-Subject: [PATCH 07/17] Retry the first status call while driver services are
+Subject: [PATCH 07/18] Retry the first status call while driver services are
  being discovered
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
@@ -767,7 +767,7 @@ index eef1b63..9fc33e7 100644
 From 2e8c35eced5f9cf059820aca5bfe6d5ac00d28c8 Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Sat, 14 Nov 2026 11:46:14 +0900
-Subject: [PATCH 08/17] Add --holding to skip the pick when the last run parked
+Subject: [PATCH 08/18] Add --holding to skip the pick when the last run parked
  with the stone still in the gripper
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
@@ -886,7 +886,7 @@ index 9fc33e7..e2fa4b1 100644
 From d4add27aee208de9c6a14df712f514422a70df54 Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Sat, 14 Nov 2026 11:56:51 +0900
-Subject: [PATCH 09/17] Fire the gripper 1.5 s before release, during the
+Subject: [PATCH 09/18] Fire the gripper 1.5 s before release, during the
  approach move if needed: it takes about 1.5 s to let the stone go
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
@@ -979,7 +979,7 @@ index e2fa4b1..f7dc87d 100644
 From 9be23995ae02b46d97c640a1fa8eebfdaac70ee9 Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Sat, 14 Nov 2026 11:59:06 +0900
-Subject: [PATCH 10/17] Allow release points up to x 0.70: at 0.68 run-08
+Subject: [PATCH 10/18] Allow release points up to x 0.70: at 0.68 run-08
  dropped 125 plans in 30 s
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
@@ -1008,7 +1008,7 @@ index f7dc87d..239699c 100644
 From f7c904d70035a4b401444850bd2ed3c680cf5de0 Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Sat, 14 Nov 2026 12:01:49 +0900
-Subject: [PATCH 11/17] Resend gripper commands when the resident loop reports
+Subject: [PATCH 11/18] Resend gripper commands when the resident loop reports
  a Modbus write failure (242)
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
@@ -1067,7 +1067,7 @@ index 239699c..ac5bb11 100644
 From f6c0fd7688c4a07fc5aeec65bea46a4450c046b3 Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Sat, 14 Nov 2026 12:12:26 +0900
-Subject: [PATCH 12/17] Keep release points within x 0.685, accept caps after
+Subject: [PATCH 12/18] Keep release points within x 0.685, accept caps after
  15 observations, and go on if the approach stops a few mm short
 
 Beyond x 0.69 the controller's singularity handling bends or cuts the
@@ -1122,7 +1122,7 @@ index ac5bb11..8eaf6f6 100644
 From e989daabc6f7f0ae477e12a97a0f402d185058a4 Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Sat, 14 Nov 2026 12:44:23 +0900
-Subject: [PATCH 13/17] Time the release from live cap detections at a fixed
+Subject: [PATCH 13/18] Time the release from live cap detections at a fixed
  release point, record each attempt, and judge it from the detection log
 
 With the new battery the belt runs near 50 mm/s and the planner's 2.8 s
@@ -2155,7 +2155,7 @@ index 0000000..8222eb7
 From f3f93e8f87049223de19fb738a425fba0b0f498f Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Sat, 14 Nov 2026 13:13:34 +0900
-Subject: [PATCH 14/17] Trigger the gripper 0.5 s before the cap arrives and
+Subject: [PATCH 14/18] Trigger the gripper 0.5 s before the cap arrives and
  open to 450 pulse, so the stone leaves the fingers at full opening speed
 
 Run-11 video: with a 600 pulse target the stone only came free at the end of the
@@ -2567,7 +2567,7 @@ index 5a893b4..04c2fa4 100644
 From 6abe532d8dfc9c742f19a4760019ebfdfb5c4c00 Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Sat, 14 Nov 2026 14:02:25 +0900
-Subject: [PATCH 15/17] Move every stone without parking in between, and add a
+Subject: [PATCH 15/18] Move every stone without parking in between, and add a
  button window for one / all / return / stop
 
 g4_simple.py: --count N (0 = until the mat is empty) goes from the release point
@@ -3462,7 +3462,7 @@ index 0000000..1af888d
 From e45cd6892cc0ff8854836703ac3ad7d99854d923 Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Sat, 14 Nov 2026 14:17:54 +0900
-Subject: [PATCH 16/17] Skip stones the arm cannot reach, and stop a misread
+Subject: [PATCH 16/18] Skip stones the arm cannot reach, and stop a misread
  start flag from locking out the gripper loop
 
 find_stone now takes the nearest stone whose over-stone and grasp poses pass IK
@@ -3706,7 +3706,7 @@ index 1af888d..ebe4e84 100644
 From 4783ced3a64aa680fa7c42c9c75e0db73bdf4eac Mon Sep 17 00:00:00 2001
 From: chhowm <chhowm@gmail.com>
 Date: Sat, 14 Nov 2026 14:32:44 +0900
-Subject: [PATCH 17/17] Release 5 mm further along the belt than the point the
+Subject: [PATCH 17/18] Release 5 mm further along the belt than the point the
  cap timing is aimed at
 
 --x-offset-m (default 0.005) moves the release point to x 0.675 while the
@@ -3847,6 +3847,294 @@ index b06568e..c1fff0f 100644
              t_block=None if t_block is None else round(t_block, 3), rehearse=args.rehearse)
          # 높이를 유지한 채 돌이 떨어질 때까지 기다린 뒤 올린다(열리는 중에 올리면 돌을 끌고 올라간다)
          samples = []
+-- 
+2.43.0
+
+
+From 349dfa141806737195ede77196e31d3a82822bca Mon Sep 17 00:00:00 2001
+From: chhowm <chhowm@gmail.com>
+Date: Sat, 14 Nov 2026 14:45:42 +0900
+Subject: [PATCH 18/18] Make the stop button act while waiting for the cap, and
+ put a held stone back on the mat instead of parking with it
+
+The stop file was only read after a release, so a stop pressed while the arm
+waited beside the belt did nothing until the 45 s wait ran out, and the run then
+parked still holding the stone (window run at 14:40, stop pressed at 14:41).
+It is now read in the cap wait, before the approach and before each pick. A run
+that ends without releasing puts the stone back where it was picked, then parks;
+the summary says whether a stone is still held. Once the approach has started
+the stone is still released. Dry runs: stop seen 0.05 s after the file appeared.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_017S6YdmFKKoiWXK3fg85cfX
+---
+ tools/robot/g4_simple.py  | 53 +++++++++++++++++++++++++++++++--------
+ tools/robot/g4_ui.py      | 24 ++++++++++++------
+ tools/robot/test_g4_ui.py | 10 ++++++++
+ 3 files changed, 69 insertions(+), 18 deletions(-)
+
+diff --git a/tools/robot/g4_simple.py b/tools/robot/g4_simple.py
+index c1fff0f..93f0bea 100644
+--- a/tools/robot/g4_simple.py
++++ b/tools/robot/g4_simple.py
+@@ -180,7 +180,8 @@ def main(argv=None) -> int:
+     ap.add_argument('--count', type=int, default=1,
+                     help='옮길 공깃돌 수. 0이면 매트에 남은 돌이 없을 때까지. 여러 개일 때는 돌 사이에 park로 가지 않고 '
+                          '놓은 자리에서 다음 돌로 곧장 간다')
+-    ap.add_argument('--stop-file', help='이 파일이 생기면 지금 돌까지만 놓고 park로 돌아간다(UI의 중지 버튼)')
++    ap.add_argument('--stop-file', help='이 파일이 생기면 멈춘다(UI의 중지 버튼). 뚜껑으로 들어가는 중이면 그 돌까지 놓고, '
++                                        '아직 기다리는 중이면 쥔 돌을 집었던 매트 자리에 내려놓은 뒤 park로 간다')
+     ap.add_argument('--park-only', action='store_true', help='이동 높이로 올린 뒤 park로 돌아가기만 한다')
+     ap.add_argument('--speed-scale', type=float, default=1.0,
+                     help='집기·이동 구간의 속도·가속도 배율(0.5~2.0). 해제 지점으로 들어가는 이동은 바꾸지 않는다')
+@@ -332,13 +333,17 @@ def main(argv=None) -> int:
+                          model['z'] + p.release_above_rim_m + args.release_raise_m])
+ 
+     def get_pass(start_pos, deadline_mono, fixed_rel=None):
+-        """벨트 옆에서 잡을 수 있는 통과를 기다린다. 반환 (해제 지점, 도착 예상 시각, 이동 시간, 지난 통과 모델) 또는 None.
++        """벨트 옆에서 잡을 수 있는 통과를 기다린다. 반환 (해제 지점, 도착 예상 시각, 이동 시간, 지난 통과 모델),
++        중지 요청이면 'STOP', 시간이 다 되면 None.
+ 
+         해제 지점 = (rel-x, 지난 통과의 벨트 선 y, 테두리 z + release_above_rim + 여유). 새 통과의 검출이 보이고
+         도착까지 max(drop_delay, 이동 + arrive_before)보다 시간이 남아 있으면 돌려준다. 너무 가까이 온 통과는 보낸다.
+         """
+         waited, checked = {}, None
+         while time.monotonic() < deadline_mono:
++            if stop_requested():
++                log('stop_seen', where='wait_cap', waited=waited)
++                return 'STOP'
+             pts, now = cap_points(), now_s()
+             model = last_pass_model(pts)
+             if model is None:
+@@ -383,7 +388,7 @@ def main(argv=None) -> int:
+             e = arrival_estimate(est_points(), aim_x, y_line, now, v_prior=v_prior)
+             if e is not None:
+                 est, t_rel = e, e['t_arrive']
+-            if now >= t_rel - lead or now > t_release_plan + 6.0:
++            if now >= t_rel - lead or now > t_release_plan + 6.0 or stop_requested():
+                 return t_rel, est
+             time.sleep(0.005)
+ 
+@@ -417,13 +422,16 @@ def main(argv=None) -> int:
+         그리퍼는 천천히 열려 트리거 뒤 약 1.4 s까지 돌을 쥐고 있으므로 트리거가 출발·도착보다 먼저 나갈 수 있다.
+         도착 예상은 트리거 때까지만 고친다(그 뒤에는 바꿀 수 없다). 이동은 sync_type 1(비동기)로 보낸다: 블로킹
+         move_line 서비스는 드라이버의 레지스터 쓰기를 이동이 끝날 때까지 막는다(2026-11-14 run-10 트리거 0.405 s 늦음).
+-        반환 ('fired'|'skipped', 팔 위치, 트리거 시각).
++        반환 ('fired'|'skipped'|'stopped', 팔 위치, 트리거 시각). 출발한 뒤에는 중지 요청이 있어도 놓는다.
+         """
+         if not args.rehearse:        # 쥔 전류 그대로 예약한다(전류를 바꾸면 루프가 Modbus 쓰기를 한 번 더 한다)
+             loop.write_register(MODBUS.goal_current, p.grip_current_ma)
+             loop.write_goal_position(args.release_open_pulse)
+         t_rel, est = wait_to_go(rel, t_release_plan, t_move, v_prior, y_line)
+         now = now_s()
++        if stop_requested():                         # 아직 출발 전: 놓지 않는다
++            log('stop_seen', where='before_approach')
++            return 'stopped', start_pos, None
+         if t_rel - now < max(args.drop_delay_s, t_move + arrive_before_s) - 0.15 or now > t_release_plan + 6.0:
+             log('skip', reason='TOO_LATE', arrive_in_s=round(t_rel - now, 2))
+             return 'skipped', start_pos, None
+@@ -553,6 +561,16 @@ def main(argv=None) -> int:
+             log('unreachable', pos_m=far)
+         return None
+ 
++    def place_back(spot):
++        """쥔 돌을 집었던 매트 자리(집을 때 비었다)에 내려놓고 이동 높이로 올라온다."""
++        over = np.array([spot[0], spot[1], p.travel_z_m])
++        low = np.array([spot[0], spot[1], spot[2] + p.grasp_above_stone_top_m + 0.007])
++        move('place_back_over', over, tolerate=True)
++        move('place_back_lower', low, vv, va, tolerate=True)
++        pos, done = gripper_to(p.open_pulse, 100)
++        log('gripper', step='place_back_open', pulse=pos, done=done)
++        move('place_back_lift', over, vv, va, tolerate=True)
++
+     def pick(stone, preopen_t0):
+         """공깃돌 위 → 하강 → 닫기 → 들기. 반환 'held' | 'empty'. preopen_t0: 이동 전에 이미 보낸 열기 지령의 시각."""
+         over = np.array([stone[0], stone[1], p.travel_z_m])                 # IK는 find_stone이 확인했다
+@@ -629,7 +647,7 @@ def main(argv=None) -> int:
+             return 0
+         geom = load_geometry(cfg)
+         target = None if args.count <= 0 else args.count
+-        holding, stone, preopen_t0, last_fire, grip_fail = False, None, None, None, 0
++        holding, stone, preopen_t0, last_fire, grip_fail, held_from = False, None, None, None, 0, None
+         if not ik_ok('wait', wait):
+             log('abort', reason='IK_OR_WORKSPACE')
+             return 2
+@@ -652,8 +670,12 @@ def main(argv=None) -> int:
+                 ensure_loop()
+ 
+         while True:
++            if stop_requested() and not holding:            # 아무것도 쥐지 않았다: 집지 않고 끝낸다
++                log('stop_seen', where='before_pick')
++                break
+             # ---------------- 파지(--execute)
+             if args.execute and stone is not None and not holding:
++                held_from = None
+                 if pick(stone, preopen_t0) == 'empty':
+                     preopen_t0 = None
+                     grip_fail += 1
+@@ -664,6 +686,7 @@ def main(argv=None) -> int:
+                         break
+                     continue
+                 preopen_t0 = None
++                held_from = stone
+             holding = False
+             start = move('wait', wait) if args.execute else wait
+             if last_fire is not None:                               # 앞 돌의 뚜껑은 이미 벨트 끝을 지났다
+@@ -676,6 +699,9 @@ def main(argv=None) -> int:
+             outcome, t_fire = None, None
+             for k in range(max(1, args.passes)):
+                 chosen = get_pass(np.asarray(start, float), time.monotonic() + args.wait_plan_s)
++                if chosen == 'STOP':
++                    outcome = 'stopped'
++                    break
+                 if chosen is None:
+                     break
+                 rel, t_release_plan, t_move, model = chosen
+@@ -684,15 +710,22 @@ def main(argv=None) -> int:
+                     log('dry_run_done')
+                     return 0
+                 outcome, at, t_fire = release(rel, t_release_plan, t_move, start, model['v'], model['y'])
+-                if outcome == 'fired':
++                if outcome in ('fired', 'stopped'):
+                     break
+                 start = move('side_again', wait, tolerate=True)   # 놓지 않았다. 벨트 옆에서 다음 바퀴를 기다린다
+             if outcome != 'fired':
+-                log('abort', reason='NOT_RELEASED', outcome=outcome)
++                stopped = outcome == 'stopped'
++                reason = 'STOP_REQUESTED' if stopped else 'NOT_RELEASED'
++                log('abort', reason=reason, outcome=outcome)
++                still_holding = args.execute and not args.rehearse
++                if still_holding and held_from is not None:      # 쥔 채 끝내지 않는다(2026-11-14 14:42 사용자 요청)
++                    place_back(held_from)
++                    still_holding = False
+                 if args.execute:
+-                    move('park_holding', park, tolerate=True)
+-                log('summary', moved=moved, results=results, reason='NOT_RELEASED')
+-                return 2
++                    move('park_holding' if still_holding else 'park', park, tolerate=True)
++                log('summary', moved=moved, results=results, reason=reason, holding=still_holding,
++                    placed_back=held_from is not None and args.execute and not args.rehearse)
++                return 0 if stopped else 2
+             moved += 1
+             if not args.rehearse:
+                 last_fire = (moved, t_fire, float(rel[0]))
+diff --git a/tools/robot/g4_ui.py b/tools/robot/g4_ui.py
+index bc09652..d344c9f 100755
+--- a/tools/robot/g4_ui.py
++++ b/tools/robot/g4_ui.py
+@@ -4,9 +4,10 @@
+   tools/robot/g4_ui.sh            # 환경 설정까지 해서 띄운다
+   python3 tools/robot/g4_ui.py --config records/calib/2026-11-09-planes/site.yaml
+ 
+-버튼: 한 개 옮기기 / 전부 옮기기 / 원위치로 복귀 / 중지(지금 돌까지만).
++버튼: 한 개 옮기기 / 전부 옮기기 / 원위치로 복귀 / 중지.
+ 창은 g4_simple.py를 하위 프로세스로 띄우고 그 JSON 줄 기록을 읽어 진행 상황을 보여 준다. 로봇 지령은 모두
+-g4_simple.py가 낸다. 중지 버튼은 움직이는 팔을 세우지 않는다: 지금 쥔 돌까지 놓고 park로 돌아가게 할 뿐이다.
++g4_simple.py가 낸다. 중지 버튼은 움직이는 팔을 세우지 않는다: 뚜껑으로 들어가는 중이면 그 돌까지 놓고, 기다리는
++중이면 쥔 돌을 집었던 매트 자리에 내려놓은 뒤 park로 돌아가게 한다(지금 하는 이동은 끝까지 간다).
+ 즉시 정지는 비상정지·펜던트로 한다.
+ """
+ from __future__ import annotations
+@@ -26,7 +27,7 @@ REPO = os.path.dirname(os.path.dirname(HERE))
+ ABORT_TEXT = {
+     'NO_MAT_STONE': '매트에 공깃돌이 없습니다(손이 매트 위에 있으면 검출되지 않습니다)',
+     'STONE_OUT_OF_REACH': '남은 공깃돌이 팔이 닿지 않는 곳에 있습니다. 로봇 쪽(x 0.69 m 안쪽)으로 옮겨 주세요',
+-    'NOT_RELEASED': '뚜껑을 잡지 못해 놓지 않았습니다. 벨트가 도는지 확인하세요. 돌은 쥔 채 원위치에 있습니다',
++    'NOT_RELEASED': '뚜껑이 보이지 않아 놓지 못했습니다. 벨트가 도는지 확인하세요',
+     'NOT_STANDBY_AUTONOMOUS': '로봇이 대기(자동 모드) 상태가 아닙니다',
+     'SERVICE_UNAVAILABLE': '로봇 드라이버 응답이 없습니다. 드라이버가 떠 있는지 확인하세요',
+     'NO_STONE_IN_GRIP': '공깃돌을 집지 못했습니다(3회)',
+@@ -45,6 +46,7 @@ STEP_TEXT = {
+     'lift_empty': '빈손으로 올라옴', 'wait': '벨트 옆에서 뚜껑을 기다리는 중', 'to_release': '해제 위치 도착',
+     'retreat': '위로 올라옴', 'side': '벨트 옆으로 비킴', 'side_again': '다음 바퀴를 기다림',
+     'park': '원위치 도착', 'park_holding': '돌을 쥔 채 원위치 도착',
++    'place_back_lower': '쥔 돌을 매트에 내려놓는 중', 'place_back_lift': '돌을 내려놓고 올라옴',
+ }
+ RESULT_TEXT = {'SUCCESS': '성공', 'MISS': '실패', 'UNKNOWN': '미확인'}
+ 
+@@ -83,13 +85,16 @@ def describe(event: dict) -> str | None:
+         return '뚜껑이 보이지 않습니다'
+     if kind == 'not_reached':
+         return f"{STEP_TEXT.get(event.get('step'), event.get('step'))}: 몇 mm 못 미침"
++    if kind == 'stop_seen':
++        return '중지 요청 확인'
+     if kind == 'abort':
+         return '중단: ' + ABORT_TEXT.get(event.get('reason'), str(event.get('reason')))
+     if kind == 'summary':
+         if event.get('parked'):
+             return '원위치로 돌아왔습니다'
+         left = event.get('unreachable') or 0
+-        return f"끝: {event.get('moved', 0)}개 놓음" + (f' (닿지 않는 돌 {left}개 남음)' if left else '')
++        return (f"끝: {event.get('moved', 0)}개 놓음" + (f' (닿지 않는 돌 {left}개 남음)' if left else '')
++                + (' · 돌을 쥔 채 원위치' if event.get('holding') else ''))
+     return None
+ 
+ 
+@@ -120,6 +125,7 @@ class Tally:
+     def __init__(self):
+         self.moved = self.success = self.miss = self.unknown = 0
+         self.last_reason = None
++        self.holding = None             # 끝날 때 돌을 쥐고 있는지(summary가 알려 준다)
+ 
+     def feed(self, event: dict) -> None:
+         kind = event.get('event')
+@@ -130,8 +136,10 @@ class Tally:
+             self.success += result == 'SUCCESS'
+             self.miss += result == 'MISS'
+             self.unknown += result not in ('SUCCESS', 'MISS')
+-        elif kind in ('abort', 'summary') and event.get('reason'):
++        if kind in ('abort', 'summary') and event.get('reason'):
+             self.last_reason = event['reason']
++        if kind == 'summary' and 'holding' in event:
++            self.holding = bool(event['holding'])
+ 
+     def text(self) -> str:
+         return f'놓음 {self.moved} · 성공 {self.success} · 실패 {self.miss} · 미확인 {self.unknown}'
+@@ -235,7 +243,7 @@ def main(argv=None) -> int:
+         if state['proc'] is None:
+             return
+         open(stop_file, 'w').close()
+-        status.set('중지 요청: 지금 돌까지만 놓고 원위치로 갑니다')
++        status.set('중지 요청: 쥔 돌은 놓거나 매트에 내려놓고 원위치로 갑니다')
+         say('중지 요청')
+         buttons['stop'].configure(state='disabled')
+ 
+@@ -244,7 +252,7 @@ def main(argv=None) -> int:
+         state['proc'] = None
+         code = proc.returncode
+         if state['mode'] != 'park':
+-            state['holding'] = tally.last_reason == 'NOT_RELEASED'
++            state['holding'] = tally.holding if tally.holding is not None else tally.last_reason == 'NOT_RELEASED'
+         if code == 0:
+             head = '중지했습니다' if tally.last_reason == 'STOP_REQUESTED' else '끝났습니다'
+             status.set('원위치로 돌아왔습니다' if state['mode'] == 'park' else head + ' · ' + tally.text())
+@@ -290,7 +298,7 @@ def main(argv=None) -> int:
+     add_button('one', '한 개 옮기기', lambda: start('one'))
+     add_button('all', '전부 옮기기', lambda: start('all'))
+     add_button('park', '원위치로 복귀', lambda: start('park'))
+-    add_button('stop', '중지\n(지금 돌까지만)', stop, fg='#a03000')
++    add_button('stop', '중지\n(돌 내려놓고 원위치)', stop, fg='#a03000')
+     set_running(False)
+     root.protocol('WM_DELETE_WINDOW', on_close)
+     root.after(100, poll)
+diff --git a/tools/robot/test_g4_ui.py b/tools/robot/test_g4_ui.py
+index ebe4e84..edff454 100644
+--- a/tools/robot/test_g4_ui.py
++++ b/tools/robot/test_g4_ui.py
+@@ -40,3 +40,13 @@ def test_tally_counts_releases_verdicts_and_keeps_the_last_reason():
+         tally.feed(event)
+     assert tally.text() == '놓음 3 · 성공 1 · 실패 1 · 미확인 1'
+     assert tally.last_reason == 'NOT_RELEASED'
++
++
++def test_stop_and_place_back_are_described_and_holding_comes_from_the_summary():
++    assert describe({'event': 'stop_seen', 'where': 'wait_cap'}) == '중지 요청 확인'
++    assert describe({'event': 'done', 'step': 'place_back_lower'}) == '쥔 돌을 매트에 내려놓는 중'
++    assert describe({'event': 'summary', 'moved': 2, 'holding': True}) == '끝: 2개 놓음 · 돌을 쥔 채 원위치'
++    tally = Tally()
++    tally.feed({'event': 'abort', 'reason': 'STOP_REQUESTED'})
++    tally.feed({'event': 'summary', 'moved': 2, 'reason': 'STOP_REQUESTED', 'holding': False, 'placed_back': True})
++    assert tally.holding is False and tally.last_reason == 'STOP_REQUESTED'
 -- 
 2.43.0
 
