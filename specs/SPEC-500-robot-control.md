@@ -1,6 +1,6 @@
 # SPEC-500 robot-control
 
-- 버전: v0.14
+- 버전: v0.15
 - 근거: PLAN.md 1.1, 3.3, 4.2~4.4, 5.1, 11.3절
 - REQ 영역: ROB, GRP
 
@@ -8,6 +8,7 @@
 
 | 버전 | 날짜 | 내용 |
 |---|---|---|
+| v0.15 | 2026-11-14 | REQ-GRP-016 상주 루프 레지스터를 제어기가 받는 출력 정수 레지스터 0~23 안으로 옮김(현장 확인: 24 이상은 `success=false`), DRL 본문 주소를 `ResidentRegs`에서 채움, 루프 기동 전 시작 상태 레지스터를 0으로 씀 |
 | v0.14 | 2026-11-14 | 게이트 대기 상한 2.0 → 1.0 s, 정상·게이트 대기 경우 RELEASE 길이 ≤ orchestrator RELEASE 제한(REQ-ROB-019) |
 | v0.13 | 2026-11-13 | DynamicPlace 끝 진단 한 줄: 단계 진입·commit 시각, RELEASE 진입→commit, 해제 게이트 대기 이유(REQ-ROB-018) |
 | v0.12 | 2026-11-13 | REQ-ROB-011 표에 측정 스크립트가 쓰는 `system/get_last_alarm`·`servol_stream`과 입력 `joint_states`·`robot_description`, 측정 스크립트를 대역 드라이버에 붙인 끝까지 실행(TC-ROB-011-02) |
@@ -129,7 +130,7 @@ DynamicPlace 설정은 `dynamic.<키>`(`dynamic_place.DynamicPlaceCfg`, 아래 �
 - REQ-GRP-013: 상주 루프 생존 카운터가 `loop_timeout_s`(기본 0.1 s) 넘게 변하지 않으면 `FAULT`(`GRIPPER_LOOP_DEAD`)다. 상태 표본 주기를 알리는 transport에서의 하한은 REQ-GRP-016이 정한다. 로봇 STANDBY가 아니면 `drl_start`를 호출하지 않고 `PRECONDITION`이다.
 - REQ-GRP-014: 정적·동적 투입은 같은 그리퍼 순서(`gripper_session.GripperSession`)를 쓴다. 상주 루프 기동과 시작 확인은 세션당 1회이고 시작 전 호출은 `PRECONDITION`(`SESSION_NOT_STARTED`)이다. `ensure_open`은 방금 읽은 폭이 목표 ± 허용오차이면 쓰기·트리거를 보내지 않는다. `arm_open`은 목표값만 쓰고, `fire_open`은 트리거 1회만 보내며 예약이 없으면 `PRECONDITION`(`NOT_ARMED`)이다. 다른 지령이 목표 레지스터를 덮어쓰면 앞선 예약은 무효이고, 무효가 된 예약으로는 트리거하지 않는다. 지령마다 시각과 생략 여부를 기록한다.
 - REQ-GRP-015: `grasp_stall_pulse`가 설정되면 닫기는 닫힘 목표 도달 또는 막힘으로 끝난다. 막힘은 상주 루프가 새로 올린 연속 두 표본의 위치 차가 `grasp_stall_pulse` 이하이고, 명령 전 위치에서 `grasp_min_travel_pulse` 넘게 움직였거나 전류가 한도의 `grasp_current_ratio` 이상일 때다. 막힘이면 `holding = true`(`STALLED`), 닫힘 목표까지 갔으면 `holding = false`(`REACHED_END`)다. 생존 카운터가 같은 동안의 읽기는 같은 표본으로 본다.
-- REQ-GRP-016: 상주 루프 transport(`resident_transport.ResidentLoopTransport`)는 제어기 출력 레지스터로만 대화한다. PC → DRL은 0~127 값(10 seq, 11·12 목표 위치, 13·14 목표 전류의 7비트 분할, 24 예약, 25 종료), DRL → PC는 0~255 값(30 생존 카운터, 31·32 위치, 33·34 전류, 35 오류 비트, 36 시작 상태, 37 Operating Mode, 38 펌웨어, 39 실행한 seq, 40 그 seq의 결과(0 정상, 242 쓰기 실패, 39보다 먼저 씀))이다. 루프는 전류 쓰기에 실패하면 위치를 쓰지 않는다. transport는 마지막으로 트리거한 지령의 실행 여부와 결과를 알린다. adapter는 루프가 그 지령을 실행했고(39 = 트리거한 seq) 결과가 0이며 그 뒤 생존 카운터가 바뀐 새 표본으로만 도달·막힘을 판정하고, 결과가 실패면 그 지령의 `FAULT`(`RESIDENT_WRITE_FAILED`)다. 앞선 지령의 결과는 다음 지령에 영향을 주지 않으며, 루프를 다시 기동하면 앞 지령은 잊는다. transport는 상태 표본 주기 `sample_period_s`(제안값 0.58 s, 일회성 DRL 왕복 측정값)를 알리고, adapter는 응답 제한시간이 5주기 미만이거나 생존 감시 제한시간이 3주기 미만이면 생성 때 `PRECONDITION`(`TIMEOUT_BELOW_LOOP_PERIOD`)으로 거부한다. 5주기는 전류를 바꾸는 지령의 최악 경우(트리거 대기 1, 전류·위치 쓰기 2, 실행 뒤 표본 1, 막힘 판정 표본 1), 3주기는 쓰기 2회와 다음 읽기 동안 생존 카운터가 멈추는 시간이다. 루프 기동은 시작 상태 1을 본 뒤에만 성공이고 그 밖의 값은 `FAULT`(`RESIDENT_INIT`), 무응답은 `RESIDENT_INIT_TIMEOUT`이다. 루프가 올리지 않는 레지스터 읽기는 값을 지어내지 않고 예외다. 예약 상태의 루프는 Modbus 읽기를 멈추고 seq만 지켜보아 트리거 뒤 그리퍼가 목표를 받기까지 지연이 `spin + 위치 쓰기 1회` 이하다. DRL 본문(`drl/gripper_resident.drl`)의 레지스터 번호는 `ResidentRegs`와 같다.
+- REQ-GRP-016: 상주 루프 transport(`resident_transport.ResidentLoopTransport`)는 제어기 출력 레지스터로만 대화한다. 주소는 제어기가 받는 출력 정수 레지스터 0~23 안이다(2026-11-14 현장 E0509: 24 이상은 `get`·`set` 모두 `success=false`). PC → DRL은 0~127 값(0 seq, 1·2 목표 위치, 3·4 목표 전류의 7비트 분할, 5 예약, 6 종료), DRL → PC는 0~255 값(7 생존 카운터, 8·9 위치, 10·11 전류, 12 오류 비트, 13 시작 상태, 14 Operating Mode, 15 펌웨어, 16 실행한 seq, 17 그 seq의 결과(0 정상, 242 쓰기 실패, 16보다 먼저 씀))이다. DRL 본문의 주소는 `ResidentRegs`에서 채운다. 정적 투입 DRL도 같은 범위(14~21)를 쓰므로 transport는 DRL을 띄우기 전에 시작 상태 레지스터에 0을 쓴다. 루프는 전류 쓰기에 실패하면 위치를 쓰지 않는다. transport는 마지막으로 트리거한 지령의 실행 여부와 결과를 알린다. adapter는 루프가 그 지령을 실행했고(39 = 트리거한 seq) 결과가 0이며 그 뒤 생존 카운터가 바뀐 새 표본으로만 도달·막힘을 판정하고, 결과가 실패면 그 지령의 `FAULT`(`RESIDENT_WRITE_FAILED`)다. 앞선 지령의 결과는 다음 지령에 영향을 주지 않으며, 루프를 다시 기동하면 앞 지령은 잊는다. transport는 상태 표본 주기 `sample_period_s`(제안값 0.58 s, 일회성 DRL 왕복 측정값)를 알리고, adapter는 응답 제한시간이 5주기 미만이거나 생존 감시 제한시간이 3주기 미만이면 생성 때 `PRECONDITION`(`TIMEOUT_BELOW_LOOP_PERIOD`)으로 거부한다. 5주기는 전류를 바꾸는 지령의 최악 경우(트리거 대기 1, 전류·위치 쓰기 2, 실행 뒤 표본 1, 막힘 판정 표본 1), 3주기는 쓰기 2회와 다음 읽기 동안 생존 카운터가 멈추는 시간이다. 루프 기동은 시작 상태 1을 본 뒤에만 성공이고 그 밖의 값은 `FAULT`(`RESIDENT_INIT`), 무응답은 `RESIDENT_INIT_TIMEOUT`이다. 루프가 올리지 않는 레지스터 읽기는 값을 지어내지 않고 예외다. 예약 상태의 루프는 Modbus 읽기를 멈추고 seq만 지켜보아 트리거 뒤 그리퍼가 목표를 받기까지 지연이 `spin + 위치 쓰기 1회` 이하다. DRL 본문(`drl/gripper_resident.drl`)의 레지스터 번호는 `ResidentRegs`와 같다.
 
 ### 4.4 정적 skill과 추종
 
@@ -226,7 +227,7 @@ OFF-2에서 확인할 것(결과로 위 기본값·규칙을 고친다):
 
 - 현장 PC에서 `ros2 interface show`로 REQ-ROB-011 표의 srv 8종과 `dsr_msgs2/msg/SpeedlStream` 필드를 표와 비교하고, `ros2 service list -t`·`ros2 topic info -v /dsr01/speedl_stream`으로 이름·형식·구독 QoS를 확인한다(REQ-ROB-011).
 - REQ-ROB-011 표의 요청을 프로젝트 client(`DsrRegisterIO`·`DsrMotionClient`·`DoosanSpeedlTransport`)로 보내 각각 `success=true`인지(토픽은 지령대로 움직이는지), `move_line`(`sync_type` 1)이 이동 완료 전에 응답하는지.
-- 상주 루프 레지스터 주소(10~14·24·25·30~40)를 `set_output_register_int`·`get_output_register_int`가 받아들이는지.
+- 상주 루프 레지스터 주소(0~17)를 `set_output_register_int`·`get_output_register_int`가 받아들이는지. 2026-11-14 현장: 읽기는 0~23 성공, 24~63·100·127·128·255·256 실패(`records/bench/resident-2026-11-14/02-register-range.txt`).
 - 상주 루프 DRL이 PLAY인 동안 `move_line`(`sync_type` 1)이 받아들여지고 움직이는지. 움직이면 `DRL_BUSY` 규칙을 상주 루프가 아닌 DRL로 좁히고, 움직이지 않으면 상주 루프 그리퍼와 이 backend의 이동을 함께 쓰지 않는다.
 - `move_line`(`sync_type` 1) 수락 뒤 robot_state STANDBY → MOVING 전이 시간(`start_grace_s` 안인지), 도착 뒤 MOVING → STANDBY, 상태 값(1 STANDBY, 2 MOVING, 3 SAFE_OFF, 5 SAFE_STOP).
 - `move_stop`(`stop_mode`, 측정 도구는 2) 뒤 STANDBY까지 시간과 이동 거리가 cancel 0.4 s·Stop 2 s 안인지, 움직이지 않을 때 `move_stop` 응답.

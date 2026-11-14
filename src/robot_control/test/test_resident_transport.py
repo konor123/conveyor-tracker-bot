@@ -203,21 +203,25 @@ def test_resident_drl_body_reports_each_command_result_before_its_seq():
         env.run(render_resident_drl())
         return env
 
+    r = ResidentRegs()
+
     def command_sets(env, seq):
-        k = env.sets.index((39, seq))
+        k = env.sets.index((r.done_seq, seq))
         return env.sets[k - 1], env.sets[k]
 
     env = run()
-    assert env.reg[36] == 1
-    assert command_sets(env, 1) == ((40, 0), (39, 1)) and command_sets(env, 2) == ((40, 0), (39, 2))
+    assert env.reg[r.init] == 1
+    assert command_sets(env, 1) == ((r.cmd_result, 0), (r.done_seq, 1)) \
+        and command_sets(env, 2) == ((r.cmd_result, 0), (r.done_seq, 2))
     assert env.modbus_writes == [(6, 275, 120), (16, 282, 750), (16, 282, 600)]
 
     env = run(fail_current_write=True)                               # 전류를 못 바꾸면 위치도 쓰지 않는다
-    assert command_sets(env, 1) == ((40, 242), (39, 1))
+    assert command_sets(env, 1) == ((r.cmd_result, 242), (r.done_seq, 1))
     assert [w for w in env.modbus_writes if w[0] == 16] == []
 
     env = run(fail_position_write=True)
-    assert command_sets(env, 1) == ((40, 242), (39, 1)) and command_sets(env, 2) == ((40, 242), (39, 2))
+    assert command_sets(env, 1) == ((r.cmd_result, 242), (r.done_seq, 1)) \
+        and command_sets(env, 2) == ((r.cmd_result, 242), (r.done_seq, 2))
 
 
 @pytest.mark.req('REQ-GRP-016')
@@ -262,3 +266,54 @@ def test_fake_static_cycle_spends_far_less_time_on_the_gripper():
     assert out['steps']['open_before_pick'] == pytest.approx(0.0)       # 이미 열려 있어 생략
     assert out['gripper_s'] < 0.3 * MEASURED_GRIPPER_S
     assert out['cycle_s'] == pytest.approx(sum(MOVES.values()) + out['gripper_s'])
+
+
+CONTROLLER_INT_REGISTER_MAX = 23     # 2026-11-14 현장 E0509 제어기: get/set_output_register_int는 주소 0~23만 성공
+
+
+@pytest.mark.req('REQ-GRP-016')
+@pytest.mark.tc('TC-GRP-016-05')
+@pytest.mark.level('U')
+def test_resident_registers_fit_the_controller_int_register_range():
+    """루프가 쓰는 모든 주소(7비트 hi·lo 쌍의 lo 포함)가 0~23 안이고 서로 겹치지 않는다."""
+    r = ResidentRegs()
+    pairs = (r.pos_hi, r.cur_hi, r.st_pos_hi, r.st_cur_hi)
+    singles = (r.seq, r.arm, r.stop, r.alive, r.error, r.init, r.mode, r.firmware, r.done_seq, r.cmd_result)
+    used = list(singles) + [a for hi in pairs for a in (hi, hi + 1)]
+    assert len(used) == len(set(used))
+    assert all(0 <= a <= CONTROLLER_INT_REGISTER_MAX for a in used), sorted(used)
+
+
+class _RecordingIO:
+    """루프 기동 전 시작 상태 레지스터에 남은 값(다른 DRL이 쓴 1)을 흉내 낸다."""
+
+    def __init__(self, regs):
+        self.regs = regs
+        self.calls = []
+        self.reg = {regs.init: 1}          # 이전 프로그램이 남긴 값
+
+    def get(self, address):
+        return self.reg.get(address, 0)
+
+    def set(self, address, value):
+        self.calls.append(('set', address, value))
+        self.reg[address] = value
+        return True
+
+    def drl_start(self, code):
+        self.calls.append(('drl_start',))
+        self.reg[self.regs.init] = 1           # 루프가 정상 시작
+        return True
+
+
+@pytest.mark.req('REQ-GRP-016')
+@pytest.mark.tc('TC-GRP-016-05')
+@pytest.mark.level('U')
+def test_start_clears_a_leftover_init_status_before_starting_the_loop():
+    """정적 투입 DRL도 0~23 레지스터를 쓰므로, 남은 1을 루프의 시작 정상으로 읽지 않게 먼저 0으로 쓴다."""
+    clock = FakeClock()
+    regs = ResidentRegs()
+    io = _RecordingIO(regs)
+    transport = ResidentLoopTransport(io, clock, clock.advance, regs)
+    assert transport.start_resident_loop() is True
+    assert io.calls.index(('set', regs.init, 0)) < io.calls.index(('drl_start',))

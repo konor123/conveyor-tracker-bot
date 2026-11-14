@@ -20,22 +20,24 @@ CMD_OK = 0
 
 @dataclass(frozen=True)
 class ResidentRegs:
+    # 제어기 출력 정수 레지스터는 주소 0~23만 받는다(2026-11-14 현장 E0509, 24 이상은 success=false).
+    # hi 주소 다음 칸이 lo다.
     # PC → DRL (0~127)
-    seq: int = 10
-    pos_hi: int = 11
-    cur_hi: int = 13
-    arm: int = 24
-    stop: int = 25
+    seq: int = 0
+    pos_hi: int = 1
+    cur_hi: int = 3
+    arm: int = 5
+    stop: int = 6
     # DRL → PC (0~255)
-    alive: int = 30
-    st_pos_hi: int = 31
-    st_cur_hi: int = 33
-    error: int = 35
-    init: int = 36
-    mode: int = 37
-    firmware: int = 38
-    done_seq: int = 39
-    cmd_result: int = 40             # 실행한 seq의 결과: 0 정상, 242 쓰기 실패(39와 함께 갱신)
+    alive: int = 7
+    st_pos_hi: int = 8
+    st_cur_hi: int = 10
+    error: int = 12
+    init: int = 13
+    mode: int = 14
+    firmware: int = 15
+    done_seq: int = 16
+    cmd_result: int = 17             # 실행한 seq의 결과: 0 정상, 242 쓰기 실패(done_seq와 함께 갱신)
 
 
 class RegisterIO(Protocol):
@@ -46,15 +48,24 @@ class RegisterIO(Protocol):
     def drl_start(self, code: str) -> bool: ...
 
 
-def render_resident_drl(read_timeout_s: float = 0.5, spin_s: float = 0.005, arm_timeout_s: float = 10.0) -> str:
+def render_resident_drl(read_timeout_s: float = 0.5, spin_s: float = 0.005, arm_timeout_s: float = 10.0,
+                        regs: ResidentRegs = ResidentRegs()) -> str:
     if not 0.01 <= read_timeout_s <= 0.5:
         raise ValueError('read_timeout_s must be in 0.01..0.5 s')
     if not 0.001 <= spin_s <= 0.05:
         raise ValueError('spin_s must be in 0.001..0.05 s')
     if not 1.0 <= arm_timeout_s <= 60.0:
         raise ValueError('arm_timeout_s must be in 1..60 s')
-    return (expand(_DRL.read_text(encoding='utf-8')).replace('__READ_TIMEOUT__', repr(float(read_timeout_s)))
+    code = (expand(_DRL.read_text(encoding='utf-8')).replace('__READ_TIMEOUT__', repr(float(read_timeout_s)))
             .replace('__SPIN__', repr(float(spin_s))).replace('__ARM_TIMEOUT__', repr(float(arm_timeout_s))))
+    addresses = {'SEQ': regs.seq, 'POS_HI': regs.pos_hi, 'CUR_HI': regs.cur_hi, 'ARM': regs.arm, 'STOP': regs.stop,
+                 'ALIVE': regs.alive, 'ST_POS_HI': regs.st_pos_hi, 'ST_POS_LO': regs.st_pos_hi + 1,
+                 'ST_CUR_HI': regs.st_cur_hi, 'ST_CUR_LO': regs.st_cur_hi + 1, 'ERROR': regs.error,
+                 'INIT': regs.init, 'MODE': regs.mode, 'FIRMWARE': regs.firmware, 'DONE_SEQ': regs.done_seq,
+                 'CMD_RESULT': regs.cmd_result}
+    for name, address in addresses.items():
+        code = code.replace(f'__R_{name}__', str(int(address)))
+    return code
 
 
 class ResidentLoopTransport:
@@ -78,8 +89,11 @@ class ResidentLoopTransport:
     # ------------------------------------------------------------ 기동·종료
     def start_resident_loop(self) -> bool:
         """DRL을 띄우고 시작 상태가 올라올 때까지 기다린다. 정상(1)이 아니면 예외."""
-        code = self._drl_code if self._drl_code is not None else render_resident_drl()
+        code = self._drl_code if self._drl_code is not None else render_resident_drl(regs=self.regs)
         self._last_seq = None             # 새 루프는 기동 전 seq를 실행한 것으로 표시하므로 지난 지령을 잊는다
+        # 정적 투입 DRL도 같은 0~23 레지스터를 쓴다. 남은 값을 루프의 시작 정상(1)으로 읽지 않게 먼저 지운다
+        if not self.io.set(self.regs.init, 0):
+            return False
         if not self.io.drl_start(code):
             return False
         deadline = self.clock.steady_now() + self.ready_timeout_s

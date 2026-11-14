@@ -1,11 +1,12 @@
 """상주 루프 DRL 본문(`drl/gripper_resident.drl`)을 그대로 실행하는 가짜 제어기 환경. 시간 모델은 없다.
 
 DRL이 부르는 `flange_serial_*`, `get/set_output_register_int`, `wait`를 제공하고 그리퍼 Modbus 응답을 흉내 낸다.
-PC 쪽 레지스터 쓰기는 루프 조건(레지스터 25) 읽기 횟수에 맞춘 대본으로 넣는다.
+PC 쪽 레지스터 쓰기는 루프 조건(종료 레지스터) 읽기 횟수에 맞춘 대본으로 넣는다.
 """
 from __future__ import annotations
 
 from robot_control.gripper_adapter import crc16_modbus, encode7
+from robot_control.resident_transport import ResidentRegs
 
 
 class ResidentDrlEnv:
@@ -16,6 +17,7 @@ class ResidentDrlEnv:
         self.fail_current_write = fail_current_write
         self.fail_position_write = fail_position_write
         self.max_loops = max_loops
+        self.regs = ResidentRegs()
         self.reg: dict[int, int] = {}
         self.sets: list[tuple[int, int]] = []          # DRL의 set_output_register_int 순서
         self.modbus_writes: list[tuple[int, int, int]] = []   # (기능 코드, 주소, 값)
@@ -27,12 +29,20 @@ class ResidentDrlEnv:
     def command(self, at_loop: int, seq: int, pulse: int, current: int, arm: bool = False) -> None:
         hi_p, lo_p = encode7(pulse)
         hi_c, lo_c = encode7(current)
-        self.script.setdefault(at_loop, {}).update({11: hi_p, 12: lo_p, 13: hi_c, 14: lo_c, 10: seq,
-                                                    24: 1 if arm else 0})
+        r = self.regs
+        self.script.setdefault(at_loop, {}).update({r.pos_hi: hi_p, r.pos_hi + 1: lo_p, r.cur_hi: hi_c,
+                                                    r.cur_hi + 1: lo_c, r.seq: seq, r.arm: 1 if arm else 0})
 
     # ------------------------------------------------------------ DRL 전역
+    REGISTER_MAX = 23                 # 실제 E0509 제어기: 출력 정수 레지스터 0~23만 성공(2026-11-14 현장)
+
+    def _check(self, address):
+        if not 0 <= int(address) <= self.REGISTER_MAX:
+            raise ValueError(f'controller rejects output int register {address}')
+
     def get_output_register_int(self, address):
-        if address == 25:
+        self._check(address)
+        if address == self.regs.stop:
             self._loops += 1
             for a, v in self.script.pop(self._loops, {}).items():
                 self.reg[a] = v
@@ -41,6 +51,7 @@ class ResidentDrlEnv:
         return self.reg.get(address, 0)
 
     def set_output_register_int(self, address, value):
+        self._check(address)
         self.sets.append((address, int(value)))
         self.reg[address] = int(value)
 
