@@ -157,7 +157,7 @@ def test_register_io_requests_match_driver_format(rig):
     assert (type(req).__name__, req.robot_system, req.code) == ('DrlStart_Request', 0, code)
 
     assert io.set(10, 127) is True and io.set(24, 0) is True
-    assert [(r.address, r.value) for r in stub.requests_of('plc/set_output_register_int')] == [(10, 127), (24, 0)]
+    assert [(r.address, r.value) for r in stub.requests_of('plc/set_output_register_int')] == [(10, 127 << 24), (24, 0)]
 
     # DRL이 쓴 바이트 0·127·128·250·255: 128 이상은 int32 응답이 음수다
     assert [io.get(a) for a in (30, 31, 32, 39, 40)] == [0, 127, 128, 250, 255]

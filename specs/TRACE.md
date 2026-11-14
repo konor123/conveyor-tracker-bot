@@ -3,7 +3,7 @@
 `tools/spec/trace.py`가 생성한다. 손으로 고치지 않는다.
 
 - REQ 153개 중 TC 연결 153개
-- pytest 대상 TC 297개 중 테스트 연결 295개
+- pytest 대상 TC 298개 중 테스트 연결 296개
 
 | TC | 수준 | REQ | 테스트 |
 |---|---|---|---|
@@ -104,6 +104,7 @@
 | TC-GRP-016-05 | U | REQ-GRP-016 | `src/robot_control/test/test_resident_transport.py::test_resident_registers_fit_the_controller_int_register_range`<br>`src/robot_control/test/test_resident_transport.py::test_start_clears_a_leftover_init_status_before_starting_the_loop` |
 | TC-GRP-017-01 | U | REQ-GRP-017 | `src/robot_control/test/test_dsr_register_io.py::test_read_decodes_the_top_byte_like_doosan_client`<br>`src/robot_control/test/test_dsr_register_io.py::test_write_sends_only_pc_values_and_reports_failed_writes`<br>`src/robot_control/test/test_dsr_register_io.py::test_failures_and_timeouts_are_errors_not_values`<br>`src/robot_control/test/test_dsr_register_io.py::test_drl_start_checks_robot_and_drl_state_first`<br>`src/robot_control/test/test_dsr_register_io.py::test_resident_session_runs_over_service_register_io` |
 | TC-GRP-017-02 | C | REQ-GRP-017 | `src/robot_control/test/test_dsr_service_caller_ros.py::test_helper_node_calls_from_inside_an_executor_callback`<br>`src/robot_control/test/test_dsr_service_caller_ros.py::test_timeout_and_missing_service_raise_without_values` |
+| TC-GRP-017-03 | U | REQ-GRP-017 | `src/robot_control/test/test_dsr_register_io.py::test_written_byte_reads_back_like_the_controller` |
 | TC-IF-001-01 | U | REQ-IF-001 | `tools/spec/test_interfaces.py::test_interface_snapshots_match` |
 | TC-IF-002-01 | U | REQ-IF-002 | `tools/spec/test_interfaces.py::test_common_request_fields_order` |
 | TC-IF-003-01 | U | REQ-IF-003 | `tools/spec/test_interfaces.py::test_interface_constants_match_spec` |

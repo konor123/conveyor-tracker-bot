@@ -532,6 +532,7 @@ def load_extrinsics(path) -> Extrinsics                     # 누락 시 Calibra
 | TC-GRP-016-05 | 제어기 레지스터 범위 | U | `[ON]` | `ResidentRegs` 기본값 / 시작 상태 레지스터에 이전 프로그램이 남긴 1 / DRL 본문을 0~23만 받는 가짜 제어기에서 실행 | 쓰는 주소(hi·lo 쌍 포함)가 0~23 안이고 겹치지 않음 / `drl_start` 전에 시작 상태 0을 씀 / DRL 본문이 범위 밖 주소를 쓰지 않음 |
 | TC-GRP-017-01 | Doosan 서비스 레지스터 경로(실기 미검증) | U | `[ON]` | `FakeDsrServices`: 응답 최상위 바이트 0·1·39·127·128·242·250·255(하위 3바이트 잡음 포함) / 쓰기 127·128·−1·실수·불리언·실패 응답 / 읽기 실패 응답·시간 초과, 쓰기 시간 초과 / `drl_start` 로봇·DRL 상태 조합 / 가짜 상주 루프 + 세션 시작·열기·파지·읽기 시간 초과 | 그 바이트(`doosan_client.decode_register_byte`와 같음), `/dsr01/plc/get_output_register_int`(`address`, `timeout_ms` 1000) / 127만 송신, 나머지는 송신 없이 예외, 실패 응답은 False / `SERVICE_FAILED`·`SERVICE_TIMEOUT` 예외(값 없음) / STANDBY + STOP·LAST만 `drl_start`(`robot_system` 0), PLAY·HOLD는 `DRL_BUSY`, STANDBY 아님은 `ROBOT_NOT_STANDBY`, 둘 다 `drl_start` 0회 / 루프 기동 1회, 목표 폭·막힘 659 pulse, 보낸 값 모두 0~127, 시간 초과는 그리퍼 오류(성공 보고 없음) |
 | TC-GRP-017-02 | 전용 helper 노드 서비스 호출 | C | `[ON]` | rclpy, `std_srvs` 서버(즉시·실패 응답·1.0 s 지연), 전역 `__node` 이름 바꾸기 인자 / MultiThreadedExecutor 노드 콜백 안 동기 호출 / 제한시간 0.3 s / 없는 서비스 0.5 s | 콜백 안 호출 완료, 실패 응답은 응답 그대로, helper 노드 이름 유지 / 0.3 s 이상 0.9 s 미만에 `SERVICE_TIMEOUT`, 늦은 응답이 대기 요청으로 남지 않음, 이후 호출 정상 / 1.5 s 안 `SERVICE_UNAVAILABLE` |
+| TC-GRP-017-03 | PC 쓰기 표현 | U | `[ON]` | 최상위 바이트만 저장하는 가짜 제어기에 0·1·5·88·127 쓰기 | 보낸 값 = 바이트 << 24, 다시 읽으면 같은 바이트 |
 
 ### 3.10 CAL — 보정
 

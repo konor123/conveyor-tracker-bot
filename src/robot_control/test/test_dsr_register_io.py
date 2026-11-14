@@ -59,7 +59,7 @@ def test_write_sends_only_pc_values_and_reports_failed_writes():
     io = io_for(services, namespace='/dsr01/')
     assert io.set(10, 127) is True and services.store[10] == 127
     assert services.calls[-1] == ('SetOutputRegisterInt', '/dsr01/plc/set_output_register_int',
-                                  {'address': 10, 'value': 127})
+                                  {'address': 10, 'value': 127 << 24})      # 최상위 바이트에 담아 보낸다
     for bad in (128, -1, 1.0, True):
         with pytest.raises(ValueError):
             io.set(11, bad)
@@ -128,8 +128,21 @@ def test_resident_session_runs_over_service_register_io():
     assert abs(opened.present_pulse - 300) <= 3
     grip = session.grasp(150)
     assert grip.holding is True and abs(TABLE.width_to_pulse(grip.width_m) - 659) <= 3
-    assert all(0 <= c[2]['value'] <= 127 for c in services.calls if c[1].endswith('set_output_register_int'))
+    assert all(c[2]['value'] & 0xFFFFFF == 0 and 0 <= c[2]['value'] >> 24 <= 127      # 최상위 바이트에 0~127
+               for c in services.calls if c[1].endswith('set_output_register_int'))
     # 지령 중 레지스터 읽기 시간 초과: 성공으로 보고하지 않는다
     services.timeout.add('get_output_register_int')
     with pytest.raises(GripperError):
         session.ensure_open(TABLE.pulse_to_width(600))
+
+
+@pytest.mark.req('REQ-GRP-017')
+@pytest.mark.tc('TC-GRP-017-03')
+@pytest.mark.level('U')
+@pytest.mark.parametrize('byte', [0, 1, 5, 88, 127])
+def test_written_byte_reads_back_like_the_controller(byte):
+    """2026-11-14 현장: 제어기는 쓰기 값의 최상위 바이트만 저장한다. 그대로 보낸 5는 0으로 읽혔다."""
+    services = FakeDsrServices()
+    io = io_for(services)
+    assert io.set(22, byte) is True
+    assert io.get(22) == byte

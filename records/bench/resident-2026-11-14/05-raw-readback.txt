@@ -1,0 +1,10 @@
+ 0 seq(PC)         raw=          0 hex=00000000 top_byte=0 low_byte=0
+ 1 pos_hi(PC)      raw=          0 hex=00000000 top_byte=0 low_byte=0
+ 2 pos_lo(PC)      raw=          0 hex=00000000 top_byte=0 low_byte=0
+ 5 arm(PC)         raw=          0 hex=00000000 top_byte=0 low_byte=0
+ 6 stop(PC)        raw=          0 hex=00000000 top_byte=0 low_byte=0
+ 7 alive(DRL)      raw= 1979711488 hex=76000000 top_byte=118 low_byte=0
+ 8 st_pos_hi(DRL)  raw=   33554432 hex=02000000 top_byte=2 low_byte=0
+ 9 st_pos_lo(DRL)  raw= 1476395008 hex=58000000 top_byte=88 low_byte=0
+13 init(DRL)       raw=   16777216 hex=01000000 top_byte=1 low_byte=0
+14 mode(DRL)       raw=   83886080 hex=05000000 top_byte=5 low_byte=0

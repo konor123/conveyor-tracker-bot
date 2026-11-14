@@ -1,0 +1,2 @@
+{"t": 1794619816.465, "event": "services_found", "after_s": 1.59}
+{"t": 1794619821.581, "event": "grip_hold", "wrote_pulse": 600, "ok": true, "seq": 1, "done": [false, 0], "done_s": 5.011, "before": {"alive": 94, "error": 0, "init": 1, "mode": 5, "firmware": 12, "done_seq": 0, "cmd_result": 0, "pos": 600, "cur": 4}, "after": {"alive": 99, "error": 0, "init": 1, "mode": 5, "firmware": 12, "done_seq": 0, "cmd_result": 0, "pos": 600, "cur": 4}}

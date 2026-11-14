@@ -44,6 +44,11 @@ class DsrError(RuntimeError):
         self.detail = detail
 
 
+def encode_register_byte(byte: int) -> int:
+    """PC가 쓸 바이트(0~127) → 제어기 쓰기 값. 읽기 응답과 같이 최상위 바이트 자리에 담는다(127 << 24는 양수)."""
+    return (int(byte) & 255) << 24
+
+
 def decode_register_byte(value: int) -> int:
     """제어기 출력 레지스터 응답 값 → DRL이 쓴 바이트(OFF-2 관찰, `doosan_client.decode_register_byte`와 같음)."""
     return (int(value) >> 24) & 255
@@ -126,7 +131,8 @@ class DsrRegisterIO:
     """`RegisterIO`(get·set·drl_start) over Doosan 서비스. **실기 미검증.**
 
     - `get(address)`: 응답 `value`를 `decode_register_byte`로 푼 0~255. 실패 응답·시간 초과는 예외(값을 만들지 않음).
-    - `set(address, value)`: 0~127 정수만. 실패 응답이면 False, 시간 초과·서비스 없음은 예외(썼는지 모름).
+    - `set(address, value)`: 0~127 정수만, `value << 24`로 보낸다(제어기는 최상위 바이트만 저장). 실패 응답이면
+      False, 시간 초과·서비스 없음은 예외(썼는지 모름).
     - `drl_start(code)`: STANDBY가 아니면 `DsrError`(`ROBOT_NOT_STANDBY`), DRL이 STOP·LAST가 아니면(PLAY·HOLD 등)
       `DsrError`(`DRL_BUSY`)이며 둘 다 `drl_start`를 부르지 않는다. 실패 응답이면 False.
     """
@@ -162,7 +168,8 @@ class DsrRegisterIO:
     def set(self, address: int, value: int) -> bool:
         if type(value) is not int or not 0 <= value <= PC_VALUE_MAX:
             raise ValueError(f'register value must be an integer in 0..{PC_VALUE_MAX}: {value!r}')
-        res = self._call('set_register', address=int(address), value=value)
+        # 제어기는 쓰기 값의 최상위 바이트만 저장한다(2026-11-14 현장). 읽기와 같은 자리에 담아 보낸다
+        res = self._call('set_register', address=int(address), value=encode_register_byte(value))
         return self._succeeded(res)
 
     def drl_start(self, code: str) -> bool:

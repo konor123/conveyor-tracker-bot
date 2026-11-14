@@ -1,0 +1,3 @@
+set 22 <-          5 success=True  readback raw=         0 hex=00000000
+set 22 <-   83886080 success=True  readback raw=  83886080 hex=05000000
+set 22 <-         77 success=True  readback raw=         0 hex=00000000

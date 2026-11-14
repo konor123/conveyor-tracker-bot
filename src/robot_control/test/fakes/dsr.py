@@ -1,7 +1,8 @@
 """Doosan 드라이버 서비스 대역(`dsr_register_io.ServiceCaller` 모양). 실제 `/dsr01`에 연결하지 않는다.
 
 레지스터 읽기 응답은 OFF-2 관찰처럼 값의 하위 1바이트를 최상위 바이트 자리(부호 있는 int32)에 담는다.
-PC가 쓴 값을 읽을 때도 같은 표현이라고 가정한다(실기 미확인, OFF-2). 레지스터 저장소는 `regs`(get·set·drl_start를
+쓰기도 같은 표현이다: 제어기는 요청 값의 최상위 바이트만 저장하고 나머지는 버린다(2026-11-14 현장: 5를 쓰면
+0으로 읽히고 5 << 24를 쓰면 5 << 24로 읽힘, `records/bench/resident-2026-11-14/06-pc-write-test.txt`). 레지스터 저장소는 `regs`(get·set·drl_start를
 가진 객체, 예: `FakeResidentController`)이거나 내부 dict다.
 """
 from __future__ import annotations
@@ -41,10 +42,11 @@ class FakeDsrServices:
             return SimpleNamespace(value=encode_register_value(value), success=ok)
         if tail == 'set_output_register_int':
             if ok:
+                byte = (int(fields['value']) >> 24) & 255      # 실제 제어기처럼 최상위 바이트만 남는다
                 if self.regs is not None:
-                    self.regs.set(fields['address'], fields['value'])
+                    self.regs.set(fields['address'], byte)
                 else:
-                    self.store[fields['address']] = fields['value']
+                    self.store[fields['address']] = byte
             return SimpleNamespace(success=ok)
         if tail == 'drl_start':
             if ok and self.regs is not None:

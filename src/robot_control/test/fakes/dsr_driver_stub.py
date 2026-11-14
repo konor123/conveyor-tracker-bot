@@ -116,7 +116,8 @@ class DsrDriverStub:
         return ''
 
     def _set_output_register_int(self, req, res) -> str:
-        self.registers[int(req.address)] = int(req.value)
+        # 실제 제어기처럼 최상위 바이트만 저장한다(2026-11-14 현장)
+        self.registers[int(req.address)] = (int(req.value) >> 24) & 255
         return ''
 
     def _get_output_register_int(self, req, res) -> str:

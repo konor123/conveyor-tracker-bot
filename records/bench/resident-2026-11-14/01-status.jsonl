@@ -1,0 +1,2 @@
+{"t": 1794619600.48, "event": "services_found", "after_s": 0.53}
+{"t": 1794619600.898, "event": "status", "robot_state": 1, "drl_state": 1, "posx": [373.0, -0.0, 405.0, 172.35, -180.0, 172.35], "regs": {"alive": 0, "error": 0, "init": 0, "mode": 0, "firmware": 250, "done_seq": 2, "cmd_result": 88, "pos": 0, "cur": 0}}

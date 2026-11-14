@@ -6,7 +6,7 @@
 
   status       읽기만: robot·DRL 상태, TCP, 상주 루프 레지스터 30~40
   loop-start   상주 루프 DRL 기동(그리퍼 토크가 꺼져 있으면 켠다, 팔 지령 없음) → 시작 상태·생존 카운터 3 s
-  grip-hold    지금 그리퍼 위치를 그대로 목표로 써서 명령 경로만 확인(손가락은 움직이지 않아야 한다)
+  grip-hold    지금 그리퍼 위치를 그대로 목표로(전류 100 mA) 써서 명령 경로만 확인(손가락은 움직이지 않아야 한다)
   move         루프가 도는 동안 팔을 z로 --dz-mm(기본 +10, |dz| ≤ 20) 직선 이동했다가 원위치(20 mm/s)
   loop-stop    종료 레지스터(25)를 써서 루프를 끝내고 DRL이 STOP·LAST로 돌아오는지 본다
 
@@ -52,6 +52,7 @@ def main(argv=None) -> int:
 
     import rclpy
     from robot_control.dsr_motion_client import DsrMotionClient
+    from robot_control.gripper_adapter import CURRENT_DEFAULT_MA, MODBUS
     from robot_control.dsr_register_io import DsrRegisterIO, RosServiceCaller
     from robot_control.resident_transport import ResidentLoopTransport, ResidentRegs
 
@@ -105,7 +106,9 @@ def main(argv=None) -> int:
                 return 2
             pos = before['pos']
             t0 = time.monotonic()
-            ok = loop.write_goal_position(pos) and loop.trigger()
+            # 전류를 쓰지 않으면 루프가 0 mA를 그리퍼에 쓴다. 기본 전류(SPEC-500 REQ-GRP-004 100 mA)를 함께 쓴다
+            ok = (loop.write_register(MODBUS.goal_current, CURRENT_DEFAULT_MA) and loop.write_goal_position(pos)
+                  and loop.trigger())
             seq = loop._last_seq
             done = None
             while time.monotonic() - t0 < 5.0:
@@ -113,7 +116,7 @@ def main(argv=None) -> int:
                 if done and done[0]:
                     break
                 time.sleep(0.02)
-            log('grip_hold', wrote_pulse=pos, ok=ok, seq=seq, done=done, done_s=round(time.monotonic() - t0, 3),
+            log('grip_hold', wrote_pulse=pos, wrote_current_ma=CURRENT_DEFAULT_MA, ok=ok, seq=seq, done=done, done_s=round(time.monotonic() - t0, 3),
                 before=before, after=loop_regs())
         elif args.step == 'move':
             start = snapshot()
